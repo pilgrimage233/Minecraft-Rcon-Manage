@@ -1,7 +1,6 @@
 import com.github.t9t.minecraftrconclient.RconClient;
+import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.DomainToIp;
-
-import java.util.Arrays;
 
 /**
  * ClassName: Test <br>
@@ -14,14 +13,20 @@ import java.util.Arrays;
 
 public class Test {
     public static void main(String[] args) {
-        RconClient open = RconClient.open(DomainToIp.domainToIp("192.168.6.187"), 123456, "passwd");
-
-        String list = open.sendCommand("whitelist add test123");
-        String[] split = list.substring(list.indexOf(": ")).split(", ");
-        // split内容转小写
-        for (int i = 0; i < split.length; i++) {
-            split[i] = split[i].toLowerCase();
+        RconClient open = RconClient.open(DomainToIp.domainToIp("192.168.6.187"), 50003, "20021129");
+        String list = open.sendCommand("whitelist list");
+        System.err.println(list);
+        String[] split = new String[0];
+        if (StringUtils.isNotEmpty(list) && list.contains("There are")) {
+            // 以There are 88 whitelisted player(s): 为起点，并且以, 为分隔符，Linux系统下需要转义
+            split = list.split("whitelisted player\\(s\\):")[1].split(", ");
+            // split = list.split("There are 88 whitelisted player\\(s\\):")[1].trim().split(", ");
+            for (int i = 0; i < split.length; i++) {
+                split[i] = split[i].toLowerCase().trim();
+            }
         }
-        System.err.println(Arrays.toString(split));
+        for (String s : split) {
+            System.err.println(s);
+        }
     }
 }

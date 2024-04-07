@@ -110,15 +110,19 @@ public class WhiteListTask {
 
         // 查询对应服务器现有白名单列表
         String list = MapCache.get(serverId).sendCommand("whitelist list");
-        if (StringUtils.isEmpty(list)) {
-            list = ": ";
-        }
-        String[] split = list.substring(list.indexOf(": ")).split(", ");
-        for (int i = 0; i < split.length; i++) {
-            split[i] = split[i].toLowerCase().trim();
+        log.debug("现有白名单列表：" + list);
+        String[] split = new String[0];
+        String[] split1 = new String[0]; // 未转换为小写的白名单列表
+        if (StringUtils.isNotEmpty(list) && list.contains("There are")) {
+            split = list.split("whitelisted player\\(s\\):")[1].trim().split(", ");
+            split1 = list.split("whitelisted player\\(s\\):")[1].trim().split(", ");
+            for (int i = 0; i < split.length; i++) {
+                split[i] = split[i].toLowerCase().trim();
+            }
         }
 
         List<String> user = new ArrayList<>();
+        List<String> remove = new ArrayList<>();
         // 现有白名单列表比对已通过审核的白名单列表
         for (WhitelistInfo info : newList) {
             if (!Arrays.asList(split).contains(info.getUserName().toLowerCase())) {
@@ -133,6 +137,26 @@ public class WhiteListTask {
                 user.add(info.getUserName());
             }
         }
-        log.debug("同步白名单成功：" + serverId + "，新增白名单：" + user);
+        // 如果服务器白名单不在数据库中，则移除
+        for (String s : split1) {
+            boolean flag = false;
+            boolean onlineFlag = false;
+            for (WhitelistInfo info : newList) {
+                if (s.equalsIgnoreCase(info.getUserName())) {
+                    flag = true;
+                    onlineFlag = info.getOnlineFlag() == 1L;
+                    break;
+                }
+            }
+            if (!flag) {
+                if (onlineFlag) {
+                    MapCache.get(serverId).sendCommand("whitelist remove " + s);
+                } else {
+                    MapCache.get(serverId).sendCommand("easywhitelist remove " + s);
+                }
+                remove.add(s);
+            }
+        }
+        log.debug("同步白名单成功：" + serverId + "，新增白名单：" + user + "，移除白名单：" + remove);
     }
 }
