@@ -9,7 +9,7 @@ package com.ruoyi.server.common;
  * @since JDK 1.8
  */
 public class EmailTemplate {
-    public static String TITLE = "ShowSi的Minecraft服务器";
+    public static String TITLE = "白名单审核结果通知";
 
     public static String getEmailHtml(String content) {
         return "<div>\n" +

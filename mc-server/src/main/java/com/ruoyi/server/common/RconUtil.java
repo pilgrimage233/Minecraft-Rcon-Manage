@@ -30,26 +30,26 @@ public class RconUtil {
             log.error("发送Rcon命令失败：key或command为空");
             return;
         }
-        if (!key.equals("all")) {
-            // 冗余策略：Map缓存
-            if (MapCache.isEmpty()) {
-                // 从Redis缓存读取服务器信息
-                List<ServerInfo> serverInfo = redisCache.getCacheObject("serverInfo");
-                // 初始化Rcon连接
-                for (ServerInfo info : serverInfo) {
-                    if (info.getStatus() != 1L) {
-                        continue;
-                    }
-                    try {
-                        log.debug("初始化Rcon连接：" + info.getNameTag());
-                        MapCache.put(info.getId().toString(), RconClient.open(DomainToIp.domainToIp(info.getIp()), info.getRconPort().intValue(), info.getRconPassword()));
-                        log.debug("初始化Rcon连接成功：" + info.getNameTag());
-                    } catch (Exception e) {
-                        log.error("初始化Rcon连接失败：" + info.getNameTag() + " " + info.getIp() + " " + info.getRconPort() + " " + info.getRconPassword());
-                        log.error("失败原因：" + e.getMessage());
-                    }
+        // 冗余策略：Map缓存
+        if (MapCache.isEmpty()) {
+            // 从Redis缓存读取服务器信息
+            List<ServerInfo> serverInfo = redisCache.getCacheObject("serverInfo");
+            // 初始化Rcon连接
+            for (ServerInfo info : serverInfo) {
+                if (info.getStatus() != 1L) {
+                    continue;
+                }
+                try {
+                    log.debug("初始化Rcon连接：" + info.getNameTag());
+                    MapCache.put(info.getId().toString(), RconClient.open(DomainToIp.domainToIp(info.getIp()), info.getRconPort().intValue(), info.getRconPassword()));
+                    log.debug("初始化Rcon连接成功：" + info.getNameTag());
+                } catch (Exception e) {
+                    log.error("初始化Rcon连接失败：" + info.getNameTag() + " " + info.getIp() + " " + info.getRconPort() + " " + info.getRconPassword());
+                    log.error("失败原因：" + e.getMessage());
                 }
             }
+        }
+        if (!key.equals("all")) {
             // 发送Rcon命令
             try {
                 // 从Map缓存中获取RconClient

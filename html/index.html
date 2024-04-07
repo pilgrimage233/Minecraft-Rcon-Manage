@@ -29,9 +29,15 @@
                             <div class="mb-3"><textarea class="form-control" id="message-2" name="message"
                                                         placeholder="申请原因"
                                                         rows="6"></textarea></div>
-                            <div>
+                            <div style="margin: 10px;">
                                 <button class="btn btn-primary d-block w-100" disabled="disabled" onclick="commitForm()"
                                         type="button">提交
+                                </button>
+                            </div>
+                            <div style="margin: 10px;">
+                                <button class="btn btn-primary d-block w-100" onclick="getOnlinePlayer()"
+                                        style="background: #9eeaf9;"
+                                        type="button">查询在线人数
                                 </button>
                             </div>
                         </form>
@@ -106,6 +112,27 @@
 
             }
         });
+    }
+
+    function getOnlinePlayer() {
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', "https://api.showsi.cn/server/serverlist/getOnlinePlayer");
+        xhr.setRequestHeader('Content-Type', 'application/json;charset=utf-8');
+        xhr.send();
+        xhr.onreadystatechange = function () {
+            if (xhr.readyState === 4 && xhr.status === 200) {
+                const data = JSON.parse(xhr.responseText);
+                if (data.code === 200) {
+                    let plays = '';
+                    Object.keys(data.data).forEach(function (key) {
+                        plays += key + ':' + data.data[key] + '\n';
+                    })
+                    alert(plays);
+                } else {
+                    alert(data.msg);
+                }
+            }
+        }
     }
 
 </script>

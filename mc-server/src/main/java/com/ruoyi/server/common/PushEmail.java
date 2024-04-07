@@ -20,11 +20,17 @@ import java.util.concurrent.ExecutionException;
 public class PushEmail {
     // 读取yaml配置的id和secret
     @Value("${aliyun.account}")
-    String account;
+    private String account;
     @Value("${aliyun.password}")
-    String password;
+    private String password;
+    @Value("${aliyun.enable}")
+    private String enable;
 
     public void push(String email, String title, String content) throws ExecutionException, InterruptedException {
+        // 是否开启邮件推送
+        if (!"true".equals(enable)) {
+            return;
+        }
 
         try {
             //设置SSL连接、邮件环境
@@ -70,7 +76,7 @@ public class PushEmail {
             //传入收件人
             message.setRecipients(Message.RecipientType.TO, sendTo);
             //设置邮件的主题
-            message.setSubject("白名单申请审核结果");
+            message.setSubject(title);
             //设置邮件的文本内容
             message.setContent(content, "text/html;charset=UTF-8");
             //设置时间

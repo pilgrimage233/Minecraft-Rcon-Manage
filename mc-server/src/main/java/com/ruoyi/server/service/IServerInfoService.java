@@ -3,6 +3,7 @@ package com.ruoyi.server.service;
 import com.ruoyi.server.domain.ServerInfo;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * 服务器信息Service接口
@@ -59,4 +60,5 @@ public interface IServerInfoService {
      */
     public int deleteServerInfoById(Long id);
 
+    Map<String, List<String>> getOnlinePlayer();
 }

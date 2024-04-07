@@ -1,5 +1,6 @@
 package com.ruoyi.server.common;
 
+import com.ruoyi.server.async.AsyncManager;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PreDestroy;
@@ -17,5 +18,7 @@ public class RunScript {
                 e.printStackTrace();
             }
         });
+        // 关闭线程池
+        AsyncManager.getInstance().shutdown();
     }
 }

@@ -543,27 +543,27 @@
       [[$]]
       #refs["form"].validate(valid => {
         if (valid) {
-            #foreach($column in $columns)
-                #if($column.htmlType == "checkbox")
-                  this.form.$column.javaField = this.form.$
-                  {
-                    column.javaField
-                  }
-                .
-                  join(",");
-                #end
-            #end
-            #if($table.sub)
-              this.form.$
-              {
-                subclassName
-              }
-              List = this.$
-              {
-                subclassName
-              }
-              List;
-            #end
+          #foreach($column in $columns)
+          #if($column.htmlType == "checkbox")
+          this.form.$column.javaField = this.form.$
+          {
+            column.javaField
+          }
+        .
+          join(",");
+          #end
+          #end
+          #if($table.sub)
+          this.form.$
+          {
+            subclassName
+          }
+          List = this.$
+          {
+            subclassName
+          }
+          List;
+          #end
           if (this.form.${
             pkColumn.javaField
           }
@@ -632,105 +632,105 @@
       }).catch(() => {
       });
     },
-      #if($table.sub
-      )
-        /** ${subTable.functionName}序号 */
-        row$
+    #if($table.sub
+  )
+  /** ${subTable.functionName}序号 */
+  row$
+  {
+    subClassName
+  }
+  Index({row, rowIndex})
+  {
+    row.index = rowIndex + 1;
+  }
+  ,
+  /** ${subTable.functionName}添加按钮操作 */
+  handleAdd$
+  {
+    subClassName
+  }
+  ()
+  {
+    let obj = {};
+    #foreach($column in $subTable.columns)
+    #if($column.pk || $column.javaField == ${subTableFkclassName})
+    #elseif($column.list && "" != $javaField)
+    obj.$column.javaField = "";
+    #end
+    #end
+    this.$
+    {
+      subclassName
+    }
+    List.push(obj);
+  }
+  ,
+  /** ${subTable.functionName}删除按钮操作 */
+  handleDelete$
+  {
+    subClassName
+  }
+  ()
+  {
+    if (this.checked${
+      subClassName
+    }
+  .
+    length == 0
+  )
+    {
+      this.
+    #
+      [[$modal]]
+    #.
+      msgError("请先选择要删除的${subTable.functionName}数据");
+    }
+  else
+    {
+      const ${subclassName}List = this.$
+      {
+        subclassName
+      }
+      List;
+      const checked$
       {
         subClassName
       }
-      Index({row, rowIndex})
-      {
-        row.index = rowIndex + 1;
-      }
-      ,
-      /** ${subTable.functionName}添加按钮操作 */
-      handleAdd$
+      = this.checked$
       {
         subClassName
       }
-      ()
+      ;
+      this.$
       {
-        let obj = {};
-          #foreach($column in $subTable.columns)
-              #if($column.pk || $column.javaField == ${subTableFkclassName})
-              #elseif($column.list && "" != $javaField)
-                obj.$column.javaField = "";
-              #end
-          #end
-        this.$
+        subclassName
+      }
+      List = ${subclassName}List.filter(function (item) {
+        return checked$
         {
-          subclassName
-        }
-        List.push(obj);
-      }
-      ,
-      /** ${subTable.functionName}删除按钮操作 */
-      handleDelete$
-      {
-        subClassName
-      }
-      ()
-      {
-        if (this.checked${
           subClassName
         }
       .
-        length == 0
-      )
-        {
-          this.
-        #
-          [[$modal]]
-        #.
-          msgError("请先选择要删除的${subTable.functionName}数据");
-        }
-      else
-        {
-          const ${subclassName}List = this.$
-          {
-            subclassName
-          }
-          List;
-          const checked$
-          {
-            subClassName
-          }
-          = this.checked$
-          {
-            subClassName
-          }
-          ;
-          this.$
-          {
-            subclassName
-          }
-          List = ${subclassName}List.filter(function (item) {
-            return checked$
-            {
-              subClassName
-            }
-          .
-            indexOf(item.index) == -1
-          });
-        }
-      }
-      ,
-      /** 复选框选中数据 */
-      handle$
-      {
-        subClassName
-      }
-      SelectionChange(selection)
-      {
-        this.checked$
-        {
-          subClassName
-        }
-        = selection.map(item => item.index)
-      }
-      ,
-      #end
+        indexOf(item.index) == -1
+      });
+    }
+  }
+  ,
+  /** 复选框选中数据 */
+  handle$
+  {
+    subClassName
+  }
+  SelectionChange(selection)
+  {
+    this.checked$
+    {
+      subClassName
+    }
+    = selection.map(item => item.index)
+  }
+  ,
+  #end
   /** 导出按钮操作 */
   handleExport()
   {

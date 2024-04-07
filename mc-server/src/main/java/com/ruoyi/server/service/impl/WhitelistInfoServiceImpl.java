@@ -5,7 +5,6 @@ import com.ruoyi.server.common.EmailTemplate;
 import com.ruoyi.server.common.PushEmail;
 import com.ruoyi.server.common.RconUtil;
 import com.ruoyi.server.domain.WhitelistInfo;
-import com.ruoyi.server.mapper.ServerInfoMapper;
 import com.ruoyi.server.mapper.WhitelistInfoMapper;
 import com.ruoyi.server.service.IWhitelistInfoService;
 import org.apache.ibatis.logging.Log;
@@ -34,8 +33,6 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
     @Autowired
     private WhitelistInfoMapper whitelistInfoMapper;
     @Autowired
-    private ServerInfoMapper serverInfoMapper;
-    @Autowired
     private PushEmail pushEmail;
 
     /**
@@ -46,7 +43,6 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
      */
     @Override
     public WhitelistInfo selectWhitelistInfoById(Long id) {
-        WhitelistInfo whitelistInfo = whitelistInfoMapper.selectWhitelistInfoById(id);
         // if (whitelistInfo.getServers() != null) {
         //     // whitelistInfo.getServers().split(",") 转Long数组
         //     List<String> collect = Arrays.stream(whitelistInfo.getServers().split(",")).collect(Collectors.toList());
@@ -59,7 +55,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         //     // name用，分割用于前端展示
         //     whitelistInfo.setServers(String.join(",", name));
         // }
-        return whitelistInfo;
+        return whitelistInfoMapper.selectWhitelistInfoById(id);
     }
 
     /**
@@ -101,7 +97,13 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 whitelistInfo.setRemoveTime(new Date());
                 whitelistInfo.setReviewUsers(name);
                 try {
-                    sendCommand(whitelistInfo, "whitelist remove " + whitelistInfo.getUserName());
+                    if (whitelistInfo.getOnlineFlag() != 1) {
+                        // 如果在线添加标识不为1，则发送离线添加命令
+                        sendCommand(whitelistInfo, "easywhitelist remove " + whitelistInfo.getUserName());
+                    } else {
+                        // 如果在线添加标识为1，则发送在线添加命令
+                        sendCommand(whitelistInfo, "whitelist remove " + whitelistInfo.getUserName());
+                    }
                     try {
                         pushEmail.push(whitelistInfo.getQqNum().trim() + "@qq.com", EmailTemplate.TITLE,
                                 "用户: " + whitelistInfo.getUserName() + " 的白名单申请已于 " + dateFormat.format(new Date()) + " 日被移除,原因: [" + whitelistInfo.getRemoveReason() + "] 审核人: " + name);
@@ -120,25 +122,29 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         if (!whitelistInfo.getStatus().isEmpty()) {
             if (whitelistInfo.getStatus().equals("1")) {
                 if (whitelistInfo.getOnlineFlag() != 1) {
+                    // 如果在线添加标识不为1，则发送离线添加命令
+                    try {
+                        sendCommand(whitelistInfo, "auth addToForcedOffline " + whitelistInfo.getUserName().toLowerCase());
+                        sendCommand(whitelistInfo, "easywhitelist add " + whitelistInfo.getUserName());
+                    } catch (Exception e) {
+                        log.error("添加强制离线失败,请联系管理员!");
+                        return 0;
+                    }
+                } else {
+                    // 如果在线添加标识为1，则发送在线添加命令
                     try {
                         sendCommand(whitelistInfo, "whitelist add " + whitelistInfo.getUserName());
                     } catch (Exception e) {
-                        log.error("添加强制离线失败,请联系管理员!");
+                        log.error("添加白名单失败,请联系管理员!");
                         return 0;
                     }
                 }
                 whitelistInfo.setReviewUsers(name);
                 try {
-                    sendCommand(whitelistInfo, "whitelist add " + whitelistInfo.getUserName());
-                    try {
-                        pushEmail.push(whitelistInfo.getQqNum().trim() + "@qq.com", EmailTemplate.TITLE,
-                                "用户: " + whitelistInfo.getUserName() + " 的白名单申请已于 " + dateFormat.format(new Date()) + " 日通过审核,审核人: " + name);
-                    } catch (Exception e) {
-                        log.error("发送邮件失败,请联系管理员!");
-                        return 0;
-                    }
+                    pushEmail.push(whitelistInfo.getQqNum().trim() + "@qq.com", EmailTemplate.TITLE,
+                            "用户: " + whitelistInfo.getUserName() + " 的白名单申请已于 " + dateFormat.format(new Date()) + " 日通过审核,审核人: " + name);
                 } catch (Exception e) {
-                    log.error("添加白名单失败,请联系管理员!");
+                    log.error("发送邮件失败,请联系管理员!");
                     return 0;
                 }
                 whitelistInfo.setAddState("1");
@@ -191,7 +197,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
     }
 
     /**
-     * 发送Rcon命令 (弃用)
+     * 发送Rcon命令
      *
      * @param command
      */
@@ -206,6 +212,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                     }
                 };
                 asyncManager.execute(task);
+                // RconUtil.sendCommand("all", command);
             } else {
                 for (String key : info.getServers().split(",")) {
                     TimerTask task = new TimerTask() {
@@ -215,6 +222,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                         }
                     };
                     asyncManager.execute(task);
+                    // RconUtil.sendCommand(key, command);
                 }
             }
         }

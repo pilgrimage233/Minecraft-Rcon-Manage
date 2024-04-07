@@ -1,25 +1,35 @@
 package com.ruoyi.server.controller;
 
 import com.alibaba.fastjson2.JSONObject;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.ruoyi.common.annotation.AddOrUpdateFilter;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.http.HttpUtils;
+import com.ruoyi.common.utils.ip.IpUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
+import com.ruoyi.server.async.AsyncManager;
+import com.ruoyi.server.common.PushEmail;
+import com.ruoyi.server.domain.IpLimitInfo;
 import com.ruoyi.server.domain.WhitelistInfo;
+import com.ruoyi.server.sdk.SearchHttpAK;
+import com.ruoyi.server.service.IIpLimitInfoService;
 import com.ruoyi.server.service.IWhitelistInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 
 /**
@@ -34,6 +44,13 @@ public class WhitelistInfoController extends BaseController {
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
     @Autowired
     private IWhitelistInfoService whitelistInfoService;
+    private final AsyncManager asyncManager = AsyncManager.getInstance();
+    @Autowired
+    private IIpLimitInfoService iIpLimitInfoService;
+    @Value("${whitelist.iplimit}")
+    private String iplimit;
+    @Autowired
+    private PushEmail pushEmail;
 
     /**
      * 查询白名单列表
@@ -107,10 +124,43 @@ public class WhitelistInfoController extends BaseController {
      * @return
      */
     @PostMapping("/apply")
-    public AjaxResult apply(@RequestBody WhitelistInfo whitelistInfo) {
+    public AjaxResult apply(@RequestBody WhitelistInfo whitelistInfo, @RequestHeader Map<String, String> header) throws JsonProcessingException {
 
         if (whitelistInfo == null || whitelistInfo.getUserName() == null || whitelistInfo.getQqNum() == null) {
             return error("申请信息不能为空!");
+        }
+
+        logger.info("申请信息:{}", whitelistInfo.toString());
+        logger.info("header:{}", header);
+
+        // 获取IP地址
+        String ip = header.get("x-real-ip");
+        if (ip == null) {
+            ip = header.get("x-forwarded-for");
+        }
+        if (ip == null) {
+            ip = header.get("proxy-client-ip");
+        }
+        if (ip == null) {
+            ip = header.get("wl-proxy-client-ip");
+        }
+        if (ip == null) {
+            ip = header.get("http_client_ip");
+        }
+        if (ip == null) {
+            ip = header.get("http_x_forwarded_for");
+        }
+
+        // 获取UA头
+        if (!header.containsKey("user-agent")) {
+            return error("请勿使用爬虫提交申请!");
+        }
+        String userAgent = header.get("user-agent");
+        String[] blackList = {"okhttp", "Postman", "curl", "python", "Go-http-client", "Java", "HttpClient", "Apache-HttpClient", "httpunit", "webclient", "webharvest", "wget", "libwww", "htmlunit", "pangolin"};
+        for (String s : blackList) {
+            if (userAgent.contains(s)) {
+                return error("请勿使用爬虫提交申请!");
+            }
         }
 
         // 游戏ID正则匹配
@@ -130,13 +180,90 @@ public class WhitelistInfoController extends BaseController {
             WhitelistInfo obj = whitelistInfos.get(0);
             switch (obj.getAddState()) {
                 case "1":
-                    return error("用户:[" + obj.getUserName() + "]的提交已于 [" + dateFormat.format(obj.getAddTime()) + "] 日通过审核,审核人:[" + obj.getReviewUsers() + "]");
+                    return success("用户:[" + obj.getUserName() + "]的提交已于 [" + dateFormat.format(obj.getAddTime()) + "] 日通过审核,审核人:[" + obj.getReviewUsers() + "]");
                 case "2":
-                    return error("用户:[" + obj.getUserName() + "]的审核已于 [" + dateFormat.format(obj.getAddTime()) + "] 日被移除白名单,请规范游戏!如有疑问联系管理员");
+                    return success("用户:[" + obj.getUserName() + "]的审核已于 [" + dateFormat.format(obj.getAddTime()) + "] 日被移除白名单,请规范游戏!如有疑问联系管理员");
                 default:
-                    return error("正在审核,请勿重复提交申请~ 如有纰漏或加急请联系管理员!");
+                    return success("正在审核,请勿重复提交申请~ 如有纰漏或加急请联系管理员!");
             }
 
+        }
+
+        // IP限流
+        if (StringUtils.isNotEmpty(ip) && !IpUtils.internalIp(ip)) {
+            // 查询IP是否存在
+            IpLimitInfo ipLimitInfo = new IpLimitInfo();
+            ipLimitInfo.setIp(ip);
+            List<IpLimitInfo> ipLimitInfos = iIpLimitInfoService.selectIpLimitInfoList(ipLimitInfo);
+            if (ipLimitInfos.isEmpty()) {
+                ipLimitInfo.setCreateTime(new Date());
+                ipLimitInfo.setCreateBy("system::user::" + whitelistInfo.getUserName());
+                ipLimitInfo.setCount(1L); // 第一次访问
+                ipLimitInfo.setIp(ip); // IP地址
+                ipLimitInfo.setUserAgent(userAgent); // 用户代理
+                ipLimitInfo.setUuid(UUID.randomUUID().toString());
+                // whitelistInfo序列化成json
+                ObjectMapper mapper = new ObjectMapper();
+                // 忽略null值
+                mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+                ipLimitInfo.setBodyParams(mapper.writeValueAsString(whitelistInfo));
+
+                // 获取IP地理位置1.0
+                SearchHttpAK searchHttpAK = new SearchHttpAK();
+                Map<String, String> params = new HashMap<>();
+                params.put("ip", ip);
+                params.put("coor", "bd09ll");
+                params.put("ak", SearchHttpAK.AK);
+                try {
+                    JSONObject json = searchHttpAK.requestGetAK(SearchHttpAK.URL, params);
+                    if (json != null && json.containsKey("content") && json.getJSONObject("content").containsKey("address_detail")) {
+                        JSONObject addressDetail = json.getJSONObject("content").getJSONObject("address_detail");
+                        JSONObject point = json.getJSONObject("content").getJSONObject("point");
+                        ipLimitInfo.setProvince(addressDetail.getString("province"));
+                        ipLimitInfo.setCity(addressDetail.getString("city"));
+                        ipLimitInfo.setLongitude(point.getString("x")); // 经度
+                        ipLimitInfo.setLatitude(point.getString("y")); // 纬度
+                    }
+                } catch (Exception e) {
+                    logger.error("获取IP地理位置失败", e);
+                }
+
+                // 获取IP地理位置2.0
+               /* try {
+                    String result = HttpUtils.sendGet("https://qifu-api.baidubce.com/ip/geo/v1/district?ip=" + ip);
+                    JSONObject json = JSONObject.parseObject(result);
+                    if (json != null && json.containsKey("data")) {
+                        JSONObject data = json.getJSONObject("data");
+                        ipLimitInfo.setProvince(data.getString("prov"));
+                        ipLimitInfo.setCity(data.getString("city"));
+                        ipLimitInfo.setCounty(data.getString("district"));
+                        ipLimitInfo.setLongitude(data.getString("lng"));
+                        ipLimitInfo.setLatitude(data.getString("lat"));
+                    }
+                } catch (Exception e) {
+                    logger.error("获取IP地理位置失败", e);
+                }*/
+
+                iIpLimitInfoService.insertIpLimitInfo(ipLimitInfo);
+            } else {
+                IpLimitInfo info = ipLimitInfos.get(0);
+
+                if (info.getCount() >= Long.parseLong(iplimit)) {
+                    return error("请求次数达到上限，请联系管理员!");
+                }
+
+                if (info.getCreateBy() == null || info.getCreateBy().isEmpty()) {
+                    info.setCreateBy("system::user::" + whitelistInfo.getUserName());
+                } else if (info.getCount() == 1) {
+                    info.setUpdateBy(info.getCreateBy() + "::" + whitelistInfo.getUserName());
+                } else {
+                    info.setUpdateBy(info.getUpdateBy() + "::" + whitelistInfo.getUserName());
+                }
+                info.setCount(info.getCount() + 1);
+                info.setUpdateTime(new Date());
+
+                iIpLimitInfoService.updateIpLimitInfo(info);
+            }
         }
 
         // 补全基础申请信息
@@ -155,11 +282,7 @@ public class WhitelistInfoController extends BaseController {
                 if (!json.getString("id").isEmpty()) {
                     String uuid = json.getString("id");
                     // 格式化成带横杠的UUID
-                    uuid = uuid.substring(0, 8)
-                            + "-" + uuid.substring(8, 12)
-                            + "-" + uuid.substring(12, 16)
-                            + "-" + uuid.substring(16, 20)
-                            + "-" + uuid.substring(20);
+                    uuid = uuid.substring(0, 8) + "-" + uuid.substring(8, 12) + "-" + uuid.substring(12, 16) + "-" + uuid.substring(16, 20) + "-" + uuid.substring(20);
 
                     whitelistInfo.setUserUuid(uuid);
                 }
@@ -176,10 +299,36 @@ public class WhitelistInfoController extends BaseController {
         whitelistInfo.setStatus("0"); // 审核状态 0-未审核，1-审核通过，2-审核不通过
 
         if (whitelistInfoService.insertWhitelistInfo(whitelistInfo) != 0) {
+            // 发送邮件通知
+            TimerTask timerTask = new TimerTask() {
+                @Override
+                public void run() {
+                    try {
+                        pushEmail.push(whitelistInfo.getQqNum() + "@qq.com", "白名单申请审核结果", "您的白名单申请已提交并已通知审核人员,请耐心等待审核结果!");
+                    } catch (ExecutionException | InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            };
+            asyncManager.execute(timerTask);
+            // 通知管理员
+            TimerTask timerTask2 = new TimerTask() {
+                @Override
+                public void run() {
+                    try {
+                        pushEmail.push("2873336923@qq.com", "待审核白名单", "用户[" + whitelistInfo.getUserName() + "]的白名单申请已提交,请尽快审核!");
+                    } catch (ExecutionException | InterruptedException e) {
+                        throw new RuntimeException(e);
+                    }
+                }
+            };
+            asyncManager.execute(timerTask2);
+
             return success("提交申请成功！请留意填写信息的QQ邮箱，如审核通过会发送邮件或可以二次提交重复信息查看审核状态~");
         } else {
             return error("提交申请错误,请联系管理员!");
         }
+
     }
 
 }

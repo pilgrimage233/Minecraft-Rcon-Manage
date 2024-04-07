@@ -1,13 +1,15 @@
 package com.ruoyi.server.service.impl;
 
+import com.ruoyi.common.core.redis.RedisCache;
+import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.domain.ServerInfo;
 import com.ruoyi.server.mapper.ServerInfoMapper;
 import com.ruoyi.server.service.IServerInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 服务器信息Service业务层处理
@@ -19,6 +21,8 @@ import java.util.UUID;
 public class ServerInfoServiceImpl implements IServerInfoService {
     @Autowired
     private ServerInfoMapper serverInfoMapper;
+    @Autowired
+    private RedisCache redisCache;
 
 
     /**
@@ -87,5 +91,42 @@ public class ServerInfoServiceImpl implements IServerInfoService {
     @Override
     public int deleteServerInfoById(Long id) {
         return serverInfoMapper.deleteServerInfoById(id);
+    }
+
+    /**
+     * 获取在线玩家
+     *
+     * @return 在线玩家
+     */
+    @Override
+    public Map<String, List<String>> getOnlinePlayer() {
+        Map<String, List<String>> onlinePlayer = new HashMap<>();
+        List<ServerInfo> serverInfo;
+        // 从Redis缓存中获取serverInfo
+        if (redisCache.hasKey("serverInfo")) {
+            serverInfo = redisCache.getCacheObject("serverInfo");
+        } else {
+            serverInfo = serverInfoMapper.selectServerInfoList(new ServerInfo());
+            redisCache.setCacheObject("serverInfo", serverInfo, 1, TimeUnit.DAYS);
+        }
+        if (serverInfo != null) {
+            for (ServerInfo info : serverInfo) {
+                if (info.getStatus() == 0) {
+                    continue;
+                }
+                // 获取在线玩家
+                List<String> playerList = new ArrayList<>();
+                String list = MapCache.get(info.getId().toString()).sendCommand("list");
+                if (list != null) {
+                    String[] split = list.split(":");
+                    if (split.length > 1) {
+                        String[] players = split[1].trim().split(", ");
+                        playerList = Arrays.asList(players);
+                    }
+                    onlinePlayer.put(info.getNameTag(), playerList);
+                }
+            }
+        }
+        return onlinePlayer;
     }
 }

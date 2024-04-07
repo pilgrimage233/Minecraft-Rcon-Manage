@@ -120,7 +120,6 @@ public class ServerInfoController extends BaseController {
     /**
      * 刷新缓存
      */
-    @PreAuthorize("@ss.hasPermi('server:serverlist:refresh')")
     @GetMapping("/refreshCache")
     public AjaxResult refreshCache() {
         // 刷新缓存前释放Rcon连接
@@ -137,11 +136,11 @@ public class ServerInfoController extends BaseController {
         // 初始化Rcon连接
         ServerInfo info = new ServerInfo();
         info.setStatus(1L);
+        MapCache.clear();
         for (ServerInfo serverInfo : serverInfoService.selectServerInfoList(info)) {
-            MapCache.clear();
             try {
                 logger.info("初始化Rcon连接：" + serverInfo.getNameTag());
-                MapCache.put(serverInfo.getNameTag(), RconClient.open(DomainToIp.domainToIp(serverInfo.getIp()), serverInfo.getRconPort().intValue(), serverInfo.getRconPassword()));
+                MapCache.put(serverInfo.getId().toString(), RconClient.open(DomainToIp.domainToIp(serverInfo.getIp()), serverInfo.getRconPort().intValue(), serverInfo.getRconPassword()));
                 logger.info("初始化Rcon连接成功：" + serverInfo.getNameTag());
             } catch (Exception e) {
                 logger.error("初始化Rcon连接失败：" + serverInfo.getNameTag() + " " + serverInfo.getIp() + " " + serverInfo.getRconPort() + " " + serverInfo.getRconPassword());
@@ -149,5 +148,11 @@ public class ServerInfoController extends BaseController {
             }
         }
         return success();
+    }
+
+    // 查询服务器在线人数
+    @GetMapping("/getOnlinePlayer")
+    public AjaxResult getOnlinePlayer() {
+        return success(serverInfoService.getOnlinePlayer());
     }
 }
