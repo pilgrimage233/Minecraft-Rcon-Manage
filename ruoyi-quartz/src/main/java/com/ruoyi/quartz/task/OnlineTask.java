@@ -45,7 +45,7 @@ public class OnlineTask {
                     // json实例化
                     JSONObject jsonObject = JSONObject.parseObject(json);
                     String name = jsonObject.getString("name");
-                    if (name.equalsIgnoreCase(whitelist.getUserName())) {
+                    if (name.equals(whitelist.getUserName())) {
                         return;
                     }
                     whitelist.setUserName(jsonObject.getString("name"));

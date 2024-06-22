@@ -9,17 +9,20 @@ import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
-import com.ruoyi.server.common.DomainToIp;
 import com.ruoyi.server.common.MapCache;
+import com.ruoyi.server.common.RconUtil;
 import com.ruoyi.server.domain.ServerInfo;
 import com.ruoyi.server.service.IServerInfoService;
+import org.apache.ibatis.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -31,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 @RestController
 @RequestMapping("/server/serverlist")
 public class ServerInfoController extends BaseController {
+    private static final org.apache.ibatis.logging.Log log = LogFactory.getLog(ServerInfoController.class);
     @Autowired
     private IServerInfoService serverInfoService;
     @Autowired
@@ -138,14 +142,7 @@ public class ServerInfoController extends BaseController {
         info.setStatus(1L);
         MapCache.clear();
         for (ServerInfo serverInfo : serverInfoService.selectServerInfoList(info)) {
-            try {
-                logger.info("初始化Rcon连接：" + serverInfo.getNameTag());
-                MapCache.put(serverInfo.getId().toString(), RconClient.open(DomainToIp.domainToIp(serverInfo.getIp()), serverInfo.getRconPort().intValue(), serverInfo.getRconPassword()));
-                logger.info("初始化Rcon连接成功：" + serverInfo.getNameTag());
-            } catch (Exception e) {
-                logger.error("初始化Rcon连接失败：" + serverInfo.getNameTag() + " " + serverInfo.getIp() + " " + serverInfo.getRconPort() + " " + serverInfo.getRconPassword());
-                logger.error("失败原因：" + e.getMessage());
-            }
+            RconUtil.init(serverInfo, log);
         }
         return success();
     }
@@ -154,5 +151,54 @@ public class ServerInfoController extends BaseController {
     @GetMapping("/getOnlinePlayer")
     public AjaxResult getOnlinePlayer() {
         return success(serverInfoService.getOnlinePlayer());
+    }
+
+
+    /**
+     * 即时指令通讯
+     *
+     * @param command
+     * @param key
+     * @return AjaxResult
+     */
+    @GetMapping("/sendCommand")
+    public AjaxResult sendCommand(@RequestParam String command, @RequestParam String key) {
+        if (command == null || command.isEmpty()) {
+            return error("指令不能为空");
+        }
+        if (key == null || key.isEmpty()) {
+            return error("服务器标识不能为空");
+        }
+        Map<String, String> data = new HashMap<>();
+
+        if (!key.equals("all")) {
+            RconClient client = MapCache.get(key);
+            if (client == null) {
+                return error("服务器未连接");
+            }
+            // 根据key获取服务器nameTag
+            final String nameTag = serverInfoService.selectServerInfoById(Long.parseLong(key)).getNameTag();
+            data.put("time", String.valueOf(System.currentTimeMillis()));
+            try {
+                final String msg = client.sendCommand(command);
+                data.put(nameTag, "指令发送成功, 返回消息: " + msg);
+            } catch (Exception e) {
+                data.put(nameTag, "指令发送失败");
+                data.put("error", e.getMessage());
+            }
+        } else {
+            for (Map.Entry<String, RconClient> entry : MapCache.getMap().entrySet()) {
+                final String nameTag = serverInfoService.selectServerInfoById(Long.parseLong(entry.getKey())).getNameTag();
+                data.put("time", String.valueOf(System.currentTimeMillis()));
+                try {
+                    final String msg = entry.getValue().sendCommand(command);
+                    data.put(nameTag, "指令发送成功, 返回消息: " + msg);
+                } catch (Exception e) {
+                    data.put(nameTag, "指令发送失败");
+                    data.put("error", e.getMessage());
+                }
+            }
+        }
+        return success(data);
     }
 }

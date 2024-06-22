@@ -3,7 +3,6 @@ package com.ruoyi.quartz.task;
 import com.github.t9t.minecraftrconclient.RconClient;
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.DateUtils;
-import com.ruoyi.server.common.DomainToIp;
 import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.RconUtil;
 import com.ruoyi.server.domain.ServerInfo;
@@ -46,18 +45,11 @@ public class RconTask {
         // 初始化Rcon连接
         ServerInfo info = new ServerInfo();
         info.setStatus(1L);
+
         for (ServerInfo serverInfo : serverInfoService.selectServerInfoList(info)) {
-            try {
-                log.debug("初始化Rcon连接：" + serverInfo.getNameTag());
-                MapCache.put(serverInfo.getId().toString(), RconClient.open(DomainToIp.domainToIp(serverInfo.getIp()), serverInfo.getRconPort().intValue(), serverInfo.getRconPassword()));
-                // System.out.println(MapCache.getMap().toString());
-                log.debug("初始化Rcon连接成功：" + serverInfo.getNameTag());
-            } catch (Exception e) {
-                log.error("初始化Rcon连接失败：" + serverInfo.getNameTag() + " " + serverInfo.getIp() + " " + serverInfo.getRconPort() + " " + serverInfo.getRconPassword());
-                log.error("失败原因：" + e.getMessage());
-            }
-            // System.out.println(MapCache.getMap());
+            RconUtil.init(serverInfo, log);
         }
+
         // 发送广播
         RconUtil.sendCommand("all", "say Rcon Connect Refresh " + DateUtils.getTime());
     }

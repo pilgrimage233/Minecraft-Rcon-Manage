@@ -1,6 +1,8 @@
 package com.ruoyi.server.service.impl;
 
 import com.ruoyi.common.core.redis.RedisCache;
+import com.ruoyi.common.utils.DateUtils;
+import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.domain.ServerInfo;
 import com.ruoyi.server.mapper.ServerInfoMapper;
@@ -10,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * 服务器信息Service业务层处理
@@ -99,8 +102,8 @@ public class ServerInfoServiceImpl implements IServerInfoService {
      * @return 在线玩家
      */
     @Override
-    public Map<String, List<String>> getOnlinePlayer() {
-        Map<String, List<String>> onlinePlayer = new HashMap<>();
+    public Map<String, Object> getOnlinePlayer() {
+        Map<String, Object> result = new HashMap<>();
         List<ServerInfo> serverInfo;
         // 从Redis缓存中获取serverInfo
         if (redisCache.hasKey("serverInfo")) {
@@ -115,18 +118,36 @@ public class ServerInfoServiceImpl implements IServerInfoService {
                     continue;
                 }
                 // 获取在线玩家
+                Map<String, Object> onlinePlayer = new HashMap<>();
                 List<String> playerList = new ArrayList<>();
-                String list = MapCache.get(info.getId().toString()).sendCommand("list");
-                if (list != null) {
-                    String[] split = list.split(":");
-                    if (split.length > 1) {
-                        String[] players = split[1].trim().split(", ");
-                        playerList = Arrays.asList(players);
+
+                try {
+                    String list = MapCache.get(info.getId().toString()).sendCommand("list");
+                    if (list != null) {
+                        String[] split = new String[0];
+                        // 判断是否插件服装有ESS
+                        if (!list.contains("There are")) {
+                            list = MapCache.get(info.getId().toString()).sendCommand("minecraft:list");
+                        }
+                        split = list.split(":");
+                        if (split.length > 1) {
+                            String[] players = split[1].trim().split(", ");
+                            playerList = Arrays.stream(players)
+                                    .filter(StringUtils::isNotEmpty)
+                                    .collect(Collectors.toList());
+                        }
+                        onlinePlayer.put("在线人数", playerList.size());
+                        onlinePlayer.put("在线玩家", playerList.toString());
+                        result.put(info.getNameTag(), onlinePlayer);
+
                     }
-                    onlinePlayer.put(info.getNameTag(), playerList);
+                } catch (Exception e) {
+                    result.put(info.getNameTag(), "服务器连接失败，请检查服务器状态");
+                    e.printStackTrace();
                 }
             }
+            result.put("查询时间", DateUtils.getTime());
         }
-        return onlinePlayer;
+        return result;
     }
 }

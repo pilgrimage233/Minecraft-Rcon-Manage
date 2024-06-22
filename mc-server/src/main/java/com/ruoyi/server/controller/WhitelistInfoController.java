@@ -9,18 +9,22 @@ import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.http.HttpUtils;
 import com.ruoyi.common.utils.ip.IpUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.server.async.AsyncManager;
+import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.PushEmail;
 import com.ruoyi.server.domain.IpLimitInfo;
 import com.ruoyi.server.domain.WhitelistInfo;
 import com.ruoyi.server.sdk.SearchHttpAK;
 import com.ruoyi.server.service.IIpLimitInfoService;
+import com.ruoyi.server.service.IServerInfoService;
 import com.ruoyi.server.service.IWhitelistInfoService;
+import com.ruoyi.server.service.impl.ServerInfoServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -47,10 +51,16 @@ public class WhitelistInfoController extends BaseController {
     private final AsyncManager asyncManager = AsyncManager.getInstance();
     @Autowired
     private IIpLimitInfoService iIpLimitInfoService;
+    @Autowired
+    private IServerInfoService serverInfoService;
     @Value("${whitelist.iplimit}")
     private String iplimit;
     @Autowired
     private PushEmail pushEmail;
+    @Autowired
+    private RedisCache redisCache;
+    @Autowired
+    private ServerInfoServiceImpl serverInfoServiceImpl;
 
     /**
      * 查询白名单列表
@@ -102,7 +112,6 @@ public class WhitelistInfoController extends BaseController {
     @AddOrUpdateFilter(edit = true)
     @PutMapping
     public AjaxResult edit(@RequestBody WhitelistInfo whitelistInfo) {
-
         return toAjax(whitelistInfoService.updateWhitelistInfo(whitelistInfo));
     }
 
@@ -117,7 +126,7 @@ public class WhitelistInfoController extends BaseController {
     }
 
     /**
-     * 审核白名单
+     * 提交白名单
      * 此接口不受权限控制！
      *
      * @param whitelistInfo
@@ -329,6 +338,82 @@ public class WhitelistInfoController extends BaseController {
             return error("提交申请错误,请联系管理员!");
         }
 
+    }
+
+    @GetMapping("check")
+    public AjaxResult cheack(@RequestParam Map<String, String> params) {
+
+        if (params.isEmpty()) {
+            return error("申请信息不能为空!");
+        }
+
+        Map<String, Object> map = new HashMap<>();
+        WhitelistInfo whitelistInfo = new WhitelistInfo();
+        if (params.containsKey("id") && !params.get("id").isEmpty()) {
+            whitelistInfo.setUserName(params.get("id"));
+        }
+        if (params.containsKey("qq") && !params.get("qq").isEmpty()) {
+            whitelistInfo.setQqNum(params.get("qq"));
+        }
+
+        if (!whitelistInfoService.checkRepeat(whitelistInfo).isEmpty()) {
+            List<WhitelistInfo> whitelistInfos = whitelistInfoService.checkRepeat(whitelistInfo);
+            WhitelistInfo obj = whitelistInfos.get(0);
+            map.put("游戏ID", obj.getUserName());
+            map.put("QQ号", obj.getQqNum());
+            map.put("提交时间", dateFormat.format(obj.getAddTime()));
+            if (obj.getOnlineFlag() == 1) {
+                map.put("账号类型", "正版");
+            } else {
+                map.put("账号类型", "离线");
+            }
+            switch (obj.getAddState()) {
+                case "1":
+                    map.put("审核状态", "已通过");
+                    map.put("审核人", obj.getReviewUsers());
+                    map.put("UUID", obj.getUserUuid());
+                    map.put("审核时间", dateFormat.format(obj.getAddTime()));
+                    break;
+                case "2":
+                    map.put("审核状态", "未通过/已移除");
+                    map.put("审核人", obj.getReviewUsers());
+                    map.put("UUID", obj.getUserUuid());
+                    map.put("移除时间", dateFormat.format(obj.getRemoveTime()));
+                    map.put("移除原因", obj.getRemoveReason());
+                    break;
+                case "9":
+                    map.put("审核状态", "已封禁");
+                    map.put("审核人", obj.getReviewUsers());
+                    map.put("UUID", obj.getUserUuid());
+                    map.put("封禁时间", dateFormat.format(obj.getRemoveTime()));
+                    map.put("封禁原因", obj.getRemoveReason());
+                    break;
+                default:
+                    map.put("审核状态", "待审核");
+                    map.put("UUID", obj.getUserUuid());
+                    break;
+            }
+        }
+        return success(map);
+    }
+
+    @GetMapping("getWhiteList")
+    public AjaxResult getWhiteList() {
+        Map<String, String> map = new HashMap<>();
+        MapCache.getMap().forEach((k, v) -> {
+            final String nameTag = serverInfoService.selectServerInfoById(Long.valueOf(k)).getNameTag();
+            try {
+                final String list = v.sendCommand("whitelist list");
+                String[] split = new String[0];
+                if (StringUtils.isNotEmpty(list) && list.contains("There are")) {
+                    split = list.split("whitelisted player\\(s\\):")[1].trim().split(", ");
+                }
+                map.put(nameTag, Arrays.toString(split));
+            } catch (Exception e) {
+                logger.error("获取白名单列表失败", e);
+            }
+        });
+        return success(map);
     }
 
 }

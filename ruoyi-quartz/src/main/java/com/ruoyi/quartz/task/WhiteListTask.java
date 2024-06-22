@@ -4,7 +4,9 @@ import com.ruoyi.common.core.domain.entity.SysUser;
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.MapCache;
+import com.ruoyi.server.common.ObjectCache;
 import com.ruoyi.server.common.PushEmail;
+import com.ruoyi.server.domain.ServerCommandInfo;
 import com.ruoyi.server.domain.WhitelistInfo;
 import com.ruoyi.server.service.IWhitelistInfoService;
 import com.ruoyi.system.service.ISysUserService;
@@ -16,6 +18,7 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -24,6 +27,7 @@ import java.util.concurrent.TimeUnit;
  * 作者：Memory
  */
 @Component("whiteListTask")
+@SuppressWarnings("unused")
 public class WhiteListTask {
 
     @Autowired
@@ -67,14 +71,19 @@ public class WhiteListTask {
                         pushEmail.push(sysUser.getEmail(), "白名单审核", "有新的白名单需要审核");
                     }
                 } catch (Exception e) {
-                    e.printStackTrace();
+                    log.error("邮件发送失败：" + sysUser.getEmail() + " " + StringUtils.format("问题原因: {}", e.getMessage()));
                 }
             }
         }
     }
 
-    // 根据传入参数同步对应服务器白名单
-    public void syncWhitelistByServerId(String serverId) {
+    /**
+     * 同步白名单
+     *
+     * @param serverId 服务器ID
+     */
+    // @SuppressWarnings("all")
+    public void syncWhitelistByServerId(String serverId) throws InterruptedException {
         log.debug("开始同步白名单：" + serverId);
 
         if (serverId == null || serverId.isEmpty()) {
@@ -123,26 +132,51 @@ public class WhiteListTask {
 
         List<String> user = new ArrayList<>();
         List<String> remove = new ArrayList<>();
+
+        // 获取指令信息
+        Map<String, ServerCommandInfo> map = null;
+        if (ObjectCache.containsKey("serverCommandInfo")) {
+            // 从缓存中获取指令信息
+            map = (Map<String, ServerCommandInfo>) ObjectCache.getCommandInfo();
+        } else {
+            log.error("缓存中不存在指令信息");
+            return;
+        }
+        ServerCommandInfo commandInfo = null;
+        if (map != null && map.containsKey(serverId)) {
+            // 从缓存中获取指令信息
+            commandInfo = map.get(serverId);
+            if (commandInfo == null) {
+                log.error("缓存中不存在服务器:[" + serverId + "]的指令信息");
+                return;
+            }
+        }
+
         // 现有白名单列表比对已通过审核的白名单列表
         for (WhitelistInfo info : newList) {
-            if (!Arrays.asList(split).contains(info.getUserName().toLowerCase())) {
+            // 防止白名单过多，延迟0.8秒
+            if (newList.size() >= 10) {
+                Thread.sleep(800);
+            }
+            if (!Arrays.asList(split1).contains(info.getUserName())) {
                 // 离线添加方式
                 if (info.getOnlineFlag() == 0L) {
                     MapCache.get(serverId).sendCommand("auth addToForcedOffline " + info.getUserName().toLowerCase());
-                    MapCache.get(serverId).sendCommand("easywhitelist add " + info.getUserName());
+                    MapCache.get(serverId).sendCommand(commandInfo.getOfflineAddWhitelistCommand().replace("{player}", info.getUserName()));
                 } else {
                     // 在线添加方式
-                    MapCache.get(serverId).sendCommand("whitelist add " + info.getUserName());
+                    MapCache.get(serverId).sendCommand(commandInfo.getOnlineAddWhitelistCommand().replace("{player}", info.getUserName()));
                 }
                 user.add(info.getUserName());
             }
         }
+
         // 如果服务器白名单不在数据库中，则移除
         for (String s : split1) {
             boolean flag = false;
             boolean onlineFlag = false;
             for (WhitelistInfo info : newList) {
-                if (s.equalsIgnoreCase(info.getUserName())) {
+                if (s.equals(info.getUserName())) {
                     flag = true;
                     onlineFlag = info.getOnlineFlag() == 1L;
                     break;
@@ -150,9 +184,9 @@ public class WhiteListTask {
             }
             if (!flag) {
                 if (onlineFlag) {
-                    MapCache.get(serverId).sendCommand("whitelist remove " + s);
+                    MapCache.get(serverId).sendCommand(commandInfo.getOnlineRmWhitelistCommand().replace("{player}", s));
                 } else {
-                    MapCache.get(serverId).sendCommand("easywhitelist remove " + s);
+                    MapCache.get(serverId).sendCommand(commandInfo.getOfflineRmWhitelistCommand().replace("{player}", s));
                 }
                 remove.add(s);
             }

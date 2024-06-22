@@ -1,6 +1,7 @@
 package com.ruoyi.server.mapper;
 
 import com.ruoyi.server.domain.BanlistInfo;
+import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
 
@@ -10,6 +11,7 @@ import java.util.List;
  * @author ruoyi
  * @date 2024-03-28
  */
+@Mapper
 public interface BanlistInfoMapper {
     /**
      * 查询封禁管理

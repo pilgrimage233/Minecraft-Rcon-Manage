@@ -94,6 +94,16 @@ public class WhitelistInfo extends BaseEntity {
     @Excel(name = "服务器ID")
     private String servers;
 
+    /**
+     * 是否被封禁
+     */
+    private String banFlag;
+
+    /**
+     * 封禁原因
+     */
+    private String bannedReason;
+
     public Long getId() {
         return id;
     }
@@ -196,6 +206,22 @@ public class WhitelistInfo extends BaseEntity {
 
     public void setServers(String servers) {
         this.servers = servers;
+    }
+
+    public String getBanFlag() {
+        return banFlag;
+    }
+
+    public void setBanFlag(String banFlag) {
+        this.banFlag = banFlag;
+    }
+
+    public String getBannedReason() {
+        return bannedReason;
+    }
+
+    public void setBannedReason(String bannedReason) {
+        this.bannedReason = bannedReason;
     }
 
     @Override

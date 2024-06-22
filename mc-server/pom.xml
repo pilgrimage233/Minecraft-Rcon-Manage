@@ -52,6 +52,18 @@
             <artifactId>javax.mail</artifactId>
             <version>1.6.2</version>
         </dependency>
+        <dependency>
+            <groupId>com.github.pilgrimage233.minecraft-rcon-client</groupId>
+            <artifactId>minecraft-rcon-client</artifactId>
+            <version>1.0.1</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>com.github.pilgrimage233.minecraft-rcon-client</groupId>
+            <artifactId>minecraft-rcon-client</artifactId>
+            <version>1.0.1</version>
+            <scope>compile</scope>
+        </dependency>
     </dependencies>
 
 

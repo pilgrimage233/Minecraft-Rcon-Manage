@@ -1,9 +1,9 @@
 package com.ruoyi.server.common;
 
-import com.github.t9t.minecraftrconclient.RconClient;
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.server.domain.ServerInfo;
+import com.ruoyi.server.service.IServerCommandInfoService;
 import com.ruoyi.server.service.IServerInfoService;
 import org.apache.ibatis.logging.Log;
 import org.apache.ibatis.logging.LogFactory;
@@ -11,7 +11,6 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -21,6 +20,8 @@ public class InitializingBeanExamplebBean implements InitializingBean {
     private RedisCache redisCache;
     @Autowired
     private IServerInfoService serverInfoService;
+    @Autowired
+    private IServerCommandInfoService commandInfoService;
 
     /**
      * InitializingBean afterPropertiesSet
@@ -47,24 +48,20 @@ public class InitializingBeanExamplebBean implements InitializingBean {
         ServerInfo info = new ServerInfo();
         info.setStatus(1L);
         for (ServerInfo serverInfo : serverInfoService.selectServerInfoList(info)) {
-            try {
-                log.debug("初始化Rcon连接：" + serverInfo.getNameTag());
-                MapCache.put(serverInfo.getId().toString(), RconClient.open(DomainToIp.domainToIp(serverInfo.getIp()), serverInfo.getRconPort().intValue(), serverInfo.getRconPassword()));
-                // 打印Map缓存
-                // System.out.println(MapCache.getMap().toString());
-                log.debug("初始化Rcon连接成功：" + serverInfo.getNameTag());
-            } catch (Exception e) {
-                log.error("初始化Rcon连接失败：" + serverInfo.getNameTag() + " " + serverInfo.getIp() + " " + serverInfo.getRconPort() + " " + serverInfo.getRconPassword());
-                log.error("失败原因：" + e.getMessage());
-            }
+            RconUtil.init(serverInfo, log);
             System.out.println(MapCache.getMap());
         }
         log.debug("InitializingBean afterPropertiesSet end...");
 
-        // 全局发送广播提示
-        for (Map.Entry<String, RconClient> stringRconClientEntry : MapCache.getMap().entrySet()) {
-            RconUtil.sendCommand(stringRconClientEntry.getKey(), "say Rcon ready! Time: " + DateUtils.getNowDate());
-        }
+
+        RconUtil.sendCommand("all", "say Rcon ready! Time: " + DateUtils.getNowDate());
+
+
+        // 初始化缓存服务器指令
+        commandInfoService.initServerCommandInfo();
+
+        // 初始化缓存指令信息
+        RconUtil.COMMAND_INFO = ObjectCache.getCommandInfo();
 
     }
 }

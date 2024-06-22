@@ -230,6 +230,13 @@
           <el-input v-model="form.removeReason" :style="{width: '100%'}" clearable placeholder="请输入移除原因">
           </el-input>
         </el-form-item>
+        <el-form-item label="全局封禁" prop="banFlag">
+          <el-switch v-model="form.banFlag"></el-switch>
+        </el-form-item>
+        <el-form-item v-if="form.banFlag" label="封禁原因" prop="bannedReason">
+          <el-input v-model="form.bannedReason" :style="{width: '100%'}" clearable placeholder="请输入封禁原因">
+          </el-input>
+        </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
         <el-button type="primary" @click="submitForm">确 定</el-button>
@@ -296,7 +303,7 @@ export default {
         removeTime: null
       },
       // 表单参数
-      form: {addState: false},
+      form: {addState: false, banFlag: false},
       // 表单校验
       rules: {
         userName: [{
@@ -358,7 +365,9 @@ export default {
         addTime: null,
         removeReason: null,
         removeTime: null,
-        servers: null
+        servers: null,
+        banFlag: false,
+        bannedReason: null
       };
       this.resetForm("form");
     },
@@ -393,6 +402,7 @@ export default {
       const id = row.id || this.ids
       getWhitelist(id).then(response => {
         this.form = response.data;
+        this.form.banFlag === 'true';
         this.open = true;
         this.title = "修改白名单";
         if (this.form.addState === '2') {
@@ -424,7 +434,9 @@ export default {
             this.form.servers = this.serverList.join(",");
           }
           if (this.form.id != null) {
+            // this.form.isBanned = this.form.isBanned ? 'true' : 'false';
             this.form.addState = this.addState;
+            console.log("form-->", this.form)
             updateWhitelist(this.form).then(response => {
               this.$modal.msgSuccess("修改成功");
               this.open = false;

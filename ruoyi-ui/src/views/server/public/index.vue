@@ -1,35 +1,27 @@
 <template>
   <div class="app-container">
     <el-form v-show="showSearch" ref="queryForm" :inline="true" :model="queryParams" label-width="68px" size="small">
-      <el-form-item label="白名单ID" prop="whiteId">
+      <el-form-item label="服务器ID" prop="serverId">
         <el-input
-          v-model="queryParams.whiteId"
+          v-model="queryParams.serverId"
           clearable
-          placeholder="请输入白名单ID"
+          placeholder="请输入服务器ID"
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
-      <el-form-item label="用户名称" prop="userName">
+      <el-form-item label="指令" prop="command">
         <el-input
-          v-model="queryParams.userName"
+          v-model="queryParams.command"
           clearable
-          placeholder="请输入用户名称"
+          placeholder="请输入指令"
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
-      <el-form-item label="封禁状态" prop="state">
+      <el-form-item label="模糊匹配" prop="vagueMatching">
         <el-input
-          v-model="queryParams.state"
+          v-model="queryParams.vagueMatching"
           clearable
-          placeholder="请输入封禁状态"
-          @keyup.enter.native="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item label="封禁原因" prop="reason">
-        <el-input
-          v-model="queryParams.reason"
-          clearable
-          placeholder="请输入封禁原因"
+          placeholder="请输入模糊匹配"
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
@@ -42,7 +34,7 @@
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
         <el-button
-          v-hasPermi="['mc:banlist:add']"
+          v-hasPermi="['server:public:add']"
           icon="el-icon-plus"
           plain
           size="mini"
@@ -53,7 +45,7 @@
       </el-col>
       <el-col :span="1.5">
         <el-button
-          v-hasPermi="['mc:banlist:edit']"
+          v-hasPermi="['server:public:edit']"
           :disabled="single"
           icon="el-icon-edit"
           plain
@@ -65,7 +57,7 @@
       </el-col>
       <el-col :span="1.5">
         <el-button
-          v-hasPermi="['mc:banlist:remove']"
+          v-hasPermi="['server:public:remove']"
           :disabled="multiple"
           icon="el-icon-delete"
           plain
@@ -77,7 +69,7 @@
       </el-col>
       <el-col :span="1.5">
         <el-button
-          v-hasPermi="['mc:banlist:export']"
+          v-hasPermi="['server:public:export']"
           icon="el-icon-download"
           plain
           size="mini"
@@ -89,22 +81,22 @@
       <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
-    <el-table v-loading="loading" :data="banlistList" @selection-change="handleSelectionChange">
+    <el-table v-loading="loading" :data="publicList" @selection-change="handleSelectionChange">
       <el-table-column align="center" type="selection" width="55"/>
-      <el-table-column align="center" label="主键ID" prop="id"/>
-      <el-table-column align="center" label="白名单ID" prop="whiteId"/>
-      <el-table-column align="center" label="用户名称" prop="userName"/>
-      <el-table-column align="center" label="封禁状态" prop="state">
+      <!--      <el-table-column label="${comment}" align="center" prop="id" />-->
+      <el-table-column align="center" label="服务器" prop="serverId"/>
+      <el-table-column align="center" label="指令" prop="command"/>
+      <el-table-column align="center" label="启用状态" prop="status">
         <template slot-scope="scope">
-          <dict-tag :options="dict.type.ban_status" :value="scope.row.state"/>
+          <dict-tag :options="dict.type.sys_normal_disable" :value="scope.row.status"/>
         </template>
       </el-table-column>
-      <el-table-column align="center" label="封禁原因" prop="reason"/>
-      <el-table-column align="center" label="备注" prop="remark"/>
+      <el-table-column align="center" label="模糊匹配" prop="vagueMatching"/>
+      <el-table-column align="center" label="描述" prop="remark"/>
       <el-table-column align="center" class-name="small-padding fixed-width" label="操作">
         <template slot-scope="scope">
           <el-button
-            v-hasPermi="['mc:banlist:edit']"
+            v-hasPermi="['server:public:edit']"
             icon="el-icon-edit"
             size="mini"
             type="text"
@@ -112,7 +104,7 @@
           >修改
           </el-button>
           <el-button
-            v-hasPermi="['mc:banlist:remove']"
+            v-hasPermi="['server:public:remove']"
             icon="el-icon-delete"
             size="mini"
             type="text"
@@ -131,20 +123,34 @@
       @pagination="getList"
     />
 
-    <!-- 添加或修改封禁管理对话框 -->
+    <!-- 添加或修改公开命令对话框 -->
     <el-dialog :title="title" :visible.sync="open" append-to-body width="500px">
       <el-form ref="form" :model="form" :rules="rules" label-width="80px">
-        <el-form-item label="用户名称" prop="userName">
-          <el-input v-model="form.userName" placeholder="请输入用户名称"/>
+        <el-form-item label="服务器ID">
+          <el-select v-model="serverList" :disabled=editFlag multiple placeholder="请选择服务器">
+            <el-option
+              v-for="item in serverOptions"
+              :key="item.value"
+              :label="item.label"
+              :value="item.value">
+            </el-option>
+          </el-select>
         </el-form-item>
-        <el-form-item label="封禁状态" prop="state">
-          <el-input v-model="form.state" placeholder="请输入封禁状态"/>
+        <el-form-item label="指令" prop="command">
+          <el-input v-model="form.command" placeholder="请输入指令"/>
         </el-form-item>
-        <el-form-item label="封禁原因" prop="reason">
-          <el-input v-model="form.reason" placeholder="请输入封禁原因"/>
+        <el-form-item label="描述" prop="remark">
+          <el-input v-model="form.remark" placeholder="请输入描述"/>
         </el-form-item>
-        <el-form-item label="备注" prop="remark">
-          <el-input v-model="form.remark" placeholder="请输入备注"/>
+        <el-form-item label="模糊匹配" prop="vagueMatching">
+          <el-radio-group v-model="form.status" size="small">
+            <el-radio v-for="(item, index) in vagueMatchingOptions" :key="index" :disabled="item.disabled"
+                      :label="item.value">{{ item.label }}
+            </el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="启用" prop="status">
+          <el-switch v-model="form.status"></el-switch>
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
@@ -156,11 +162,12 @@
 </template>
 
 <script>
-import {addBanlist, delBanlist, getBanlist, listBanlist, updateBanlist} from "@/api/mc/banlist";
+import {addPublic, delPublic, getPublic, listPublic, updatePublic} from "@/api/server/public";
+import {getServerList} from "@/api/mc/whitelist";
 
 export default {
-  name: "Banlist",
-  dicts: ['ban_status'],
+  name: "Public",
+  dicts: ['sys_normal_disable'],
   data() {
     return {
       // 遮罩层
@@ -175,8 +182,8 @@ export default {
       showSearch: true,
       // 总条数
       total: 0,
-      // 封禁管理表格数据
-      banlistList: [],
+      // 公开命令表格数据
+      publicList: [],
       // 弹出层标题
       title: "",
       // 是否显示弹出层
@@ -185,26 +192,50 @@ export default {
       queryParams: {
         pageNum: 1,
         pageSize: 10,
-        whiteId: null,
-        userName: null,
-        state: null,
-        reason: null,
+        serverId: null,
+        command: null,
+        status: null,
+        vagueMatching: null,
       },
       // 表单参数
-      form: {},
+      form: {status: false},
       // 表单校验
-      rules: {}
+      rules: {
+        serverId: [
+          {required: true, message: "服务器ID不能为空", trigger: "blur"}
+        ],
+        command: [
+          {required: true, message: "指令不能为空", trigger: "blur"}
+        ],
+        status: [
+          {required: true, message: "启用状态不能为空", trigger: "change"}
+        ],
+      },
+      serverList: [],
+      serverOptions: [], // 服务器列表
+      vagueMatchingOptions: [{
+        "label": "是",
+        "value": 1
+      }, {
+        "label": "否",
+        "value": 0
+      }],
+      editFlag: false
     };
   },
   created() {
     this.getList();
+    this.handleServerList();
   },
   methods: {
-    /** 查询封禁管理列表 */
+    /** 查询公开命令列表 */
     getList() {
       this.loading = true;
-      listBanlist(this.queryParams).then(response => {
-        this.banlistList = response.rows;
+      listPublic(this.queryParams).then(response => {
+        response.rows.forEach((item) => {
+          item.serverId = this.serverOptions.filter(option => item.serverId.split(",").includes(option.value.toString())).map(option => option.label).join(",");
+        });
+        this.publicList = response.rows;
         this.total = response.total;
         this.loading = false;
       });
@@ -218,16 +249,17 @@ export default {
     reset() {
       this.form = {
         id: null,
-        whiteId: null,
-        userName: null,
-        state: null,
-        reason: null,
-        remark: null,
+        serverId: null,
+        command: null,
+        status: null,
+        vagueMatching: null,
         createTime: null,
-        updateTime: null,
         createBy: null,
-        updateBy: null
+        updateTime: null,
+        updateBy: null,
+        remark: null
       };
+      this.serverList = [];
       this.resetForm("form");
     },
     /** 搜索按钮操作 */
@@ -249,31 +281,46 @@ export default {
     /** 新增按钮操作 */
     handleAdd() {
       this.reset();
+      this.editFlag = false;
       this.open = true;
-      this.title = "添加封禁管理";
+      this.title = "添加公开命令";
     },
     /** 修改按钮操作 */
     handleUpdate(row) {
       this.reset();
+      this.editFlag = true;
       const id = row.id || this.ids
-      getBanlist(id).then(response => {
+      getPublic(id).then(response => {
         this.form = response.data;
         this.open = true;
-        this.title = "修改封禁管理";
+        this.title = "修改公开命令";
+        // 根据servers字段回显服务器列表
+        if (this.form.serverId !== null) {
+          this.serverOptions.forEach((option) => {
+            if (option.value == this.form.serverId) {
+              this.serverList.push(option.value);
+            }
+          });
+        }
       });
     },
     /** 提交按钮 */
     submitForm() {
+      console.log(this.serverList);
+      // 服务器ID
+      this.form.serverId = this.serverList.join(",");
       this.$refs["form"].validate(valid => {
         if (valid) {
+          // 启用状态转换
+          this.form.status = this.form.status ? 1 : 0;
           if (this.form.id != null) {
-            updateBanlist(this.form).then(response => {
+            updatePublic(this.form).then(response => {
               this.$modal.msgSuccess("修改成功");
               this.open = false;
               this.getList();
             });
           } else {
-            addBanlist(this.form).then(response => {
+            addPublic(this.form).then(response => {
               this.$modal.msgSuccess("新增成功");
               this.open = false;
               this.getList();
@@ -285,8 +332,8 @@ export default {
     /** 删除按钮操作 */
     handleDelete(row) {
       const ids = row.id || this.ids;
-      this.$modal.confirm('是否确认删除封禁管理编号为"' + ids + '"的数据项？').then(function () {
-        return delBanlist(ids);
+      this.$modal.confirm('是否确认删除公开命令编号为"' + ids + '"的数据项？').then(function () {
+        return delPublic(ids);
       }).then(() => {
         this.getList();
         this.$modal.msgSuccess("删除成功");
@@ -295,10 +342,21 @@ export default {
     },
     /** 导出按钮操作 */
     handleExport() {
-      this.download('mc/banlist/export', {
+      this.download('server/public/export', {
         ...this.queryParams
-      }, `banlist_${new Date().getTime()}.xlsx`)
-    }
+      }, `public_${new Date().getTime()}.xlsx`)
+    },
+    /** 服务器列表 */
+    handleServerList() {
+      getServerList().then(response => {
+        let date = response.data;
+        date.forEach((item) => {
+          if (item.status === 1) {
+            this.serverOptions.push({label: item.nameTag, value: item.id});
+          }
+        });
+      });
+    },
   }
 };
 </script>

@@ -60,5 +60,5 @@ public interface IServerInfoService {
      */
     public int deleteServerInfoById(Long id);
 
-    Map<String, List<String>> getOnlinePlayer();
+    Map<String, Object> getOnlinePlayer();
 }

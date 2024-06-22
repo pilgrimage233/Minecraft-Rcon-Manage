@@ -42,6 +42,7 @@
             <if test="removeTime != null ">and remove_time = #{removeTime}</if>
             <if test="servers != null  and servers != ''">and servers = #{servers}</if>
         </where>
+        order by id desc
     </select>
 
     <select id="selectWhitelistInfoById" parameterType="Long" resultMap="WhitelistInfoResult">
