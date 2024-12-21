@@ -5,5 +5,6 @@ create table qrtz_scheduler_state
     last_checkin_time bigint       not null comment '上次检查时间',
     checkin_interval  bigint       not null comment '检查间隔时间',
     primary key (sched_name, instance_name)
-) comment '调度器状态表';
+)
+    comment '调度器状态表';
 

@@ -1,6 +1,7 @@
 import com.github.t9t.minecraftrconclient.RconClient;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.DomainToIp;
+import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
@@ -17,9 +18,9 @@ import java.util.logging.Logger;
 @RunWith(JUnit4.class)
 public class RconClientTest {
 
-    final static String ip = "192.168.6.187";
-    final static String password = "20021129";
-    final static int port = 23009;
+    final static String ip = "i3.xlhost.cn";
+    final static String password = "qzWXecRVtbYNum753";
+    final static int port = 33002;
 
     Logger logger = Logger.getLogger("Test");
 
@@ -36,5 +37,6 @@ public class RconClientTest {
             logger.warning(StringUtils.format("Failed to connect to the server: {}", e.getMessage()));
         }
     }
+
 
 }

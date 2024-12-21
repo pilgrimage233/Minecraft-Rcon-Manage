@@ -1,7 +1,11 @@
 package com.ruoyi.server.common;
 
 import com.github.t9t.minecraftrconclient.RconClient;
+import com.ruoyi.common.constant.HttpStatus;
+import com.ruoyi.common.core.domain.R;
 import com.ruoyi.common.core.redis.RedisCache;
+import com.ruoyi.common.utils.StringUtils;
+import com.ruoyi.server.common.constant.RconMsg;
 import com.ruoyi.server.domain.ServerCommandInfo;
 import com.ruoyi.server.domain.ServerInfo;
 import org.apache.ibatis.logging.Log;
@@ -40,30 +44,29 @@ public class RconUtil {
      */
     public static void sendCommand(String key, String command) {
 
-        if (key == null || command == null) {
-            log.error("发送Rcon命令失败：key或command为空");
+        if (StringUtils.isEmpty(key) || StringUtils.isEmpty(command)) {
+            log.error(RconMsg.MAIN_INFO_EMPTY);
             return;
         }
 
         // 冗余策略：Map缓存
         if (MapCache.isEmpty()) {
-            // 从Redis缓存读取服务器信息
             List<ServerInfo> serverInfo = redisCache.getCacheObject("serverInfo");
-            // 初始化Rcon连接
             for (ServerInfo info : serverInfo) {
                 if (info.getStatus() != 1L) {
                     continue;
                 }
-                init(info, log);
+                init(info);
             }
         }
 
-        if (!key.equals("all")) {
+        if (!key.equalsIgnoreCase("all")) {
             // 判断是否为EasyAuth指令
-            // System.err.println(COMMAND_INFO.get(key).toString());
-            if (command.contains("addToForcedOffline") && !COMMAND_INFO.get(key).getEasyauth().equals("1")) {
-                log.error("服务器" + key + "发送Rcon命令失败：该服务器未开启EasyAuth");
-                return;
+            if (command.contains("addToForcedOffline")) {
+                if (COMMAND_INFO.get(key).getEasyauth() == null || !COMMAND_INFO.get(key).getEasyauth().equals("1")) {
+                    log.error(RconMsg.NO_EASY_AUTH_MOD);
+                    return;
+                }
             }
 
             // 发送Rcon命令
@@ -71,11 +74,11 @@ public class RconUtil {
                 // 从Map缓存中获取RconClient
                 RconClient client = MapCache.get(key);
                 client.sendCommand(command);
-                log.debug("服务器" + key + "发送Rcon命令：" + command);
+                log.debug(RconMsg.SEND_COMMAND + command);
             } catch (Exception e) {
-                log.error("发送Rcon命令失败：" + command);
-                log.error("失败原因：" + e.getMessage());
-                log.error("尝试重连Rcon：" + key);
+                log.error(RconMsg.ERROR + command);
+                log.error(RconMsg.ERROR_MSG + e.getMessage());
+                log.error(RconMsg.TRY_RECONNECT + key);
                 reconnect(key);
             }
         } else {
@@ -90,14 +93,14 @@ public class RconUtil {
      * @param info
      * @param log
      */
-    public static void init(ServerInfo info, Log log) {
+    public static void init(ServerInfo info) {
         try {
-            log.debug("初始化Rcon连接：" + info.getNameTag());
+            log.debug(RconMsg.INIT_RCON + info.getNameTag());
             MapCache.put(info.getId().toString(), RconClient.open(DomainToIp.domainToIp(info.getIp()), info.getRconPort().intValue(), info.getRconPassword()));
-            log.debug("初始化Rcon连接成功：" + info.getNameTag());
+            log.debug(RconMsg.RECONNECT_SUCCESS + info.getNameTag());
         } catch (Exception e) {
-            log.error("初始化Rcon连接失败：" + info.getNameTag() + " " + info.getIp() + " " + info.getRconPort() + " " + info.getRconPassword());
-            log.error("失败原因：" + e.getMessage());
+            log.error(RconMsg.RECONNECT_ERROR + info.getNameTag() + " " + info.getIp() + " " + info.getRconPort() + " " + info.getRconPassword());
+            log.error(RconMsg.ERROR_MSG + e.getMessage());
         }
     }
 
@@ -108,7 +111,7 @@ public class RconUtil {
      */
     public static void reconnect(String key) {
         if (key == null) {
-            log.error("重连Rcon失败：key为空");
+            log.error(RconMsg.RECONNECT_ERROR);
             return;
         }
         // 从Redis缓存读取服务器信息
@@ -117,12 +120,12 @@ public class RconUtil {
         for (ServerInfo info : serverInfo) {
             if (info.getId().toString().equals(key)) {
                 try {
-                    log.debug("重连Rcon：" + info.getNameTag());
+                    log.debug(RconMsg.TRY_RECONNECT + info.getNameTag());
                     MapCache.put(info.getId().toString(), RconClient.open(DomainToIp.domainToIp(info.getIp()), info.getRconPort().intValue(), info.getRconPassword()));
-                    log.debug("重连Rcon成功：" + info.getNameTag());
+                    log.debug(RconMsg.RECONNECT_SUCCESS + info.getNameTag());
                 } catch (Exception e) {
-                    log.error("重连Rcon失败：" + info.getNameTag() + " " + info.getIp() + " " + info.getRconPort() + " " + info.getRconPassword());
-                    log.error("失败原因：" + e.getMessage());
+                    log.error(RconMsg.RECONNECT_ERROR + info.getNameTag() + " " + info.getIp() + " " + info.getRconPort() + " " + info.getRconPassword());
+                    log.error(RconMsg.ERROR_MSG + e.getMessage());
                 }
             }
         }
@@ -135,7 +138,7 @@ public class RconUtil {
      */
     public static void close(String key) {
         if (key == null) {
-            log.error("关闭Rcon失败：key为空");
+            log.error(RconMsg.KEY_EMPTY);
             return;
         }
         // 从Map缓存中获取RconClient
@@ -143,7 +146,7 @@ public class RconUtil {
         if (client != null) {
             client.close();
             MapCache.remove(key);
-            log.debug("关闭Rcon：" + key);
+            log.debug(RconMsg.TURN_OFF_RCON + key);
         }
     }
 
@@ -174,10 +177,10 @@ public class RconUtil {
             } else if (command.startsWith("white_remove")) {
                 command = onlineFlag ? info.getOnlineRmWhitelistCommand().replace("{player}", command.substring(13))
                         : info.getOfflineRmWhitelistCommand().replace("{player}", command.substring(13));
-            } else if (command.startsWith("ban_add")) {
+            } else if (command.startsWith("ban")) {
                 command = onlineFlag ? info.getOnlineAddBanCommand().replace("{player}", command.substring(8))
                         : info.getOfflineAddBanCommand().replace("{player}", command.substring(8));
-            } else if (command.startsWith("ban_remove")) {
+            } else if (command.startsWith("pardon")) {
                 command = onlineFlag ? info.getOnlineRmBanCommand().replace("{player}", command.substring(11))
                         : info.getOfflineRmBanCommand().replace("{player}", command.substring(11));
             }

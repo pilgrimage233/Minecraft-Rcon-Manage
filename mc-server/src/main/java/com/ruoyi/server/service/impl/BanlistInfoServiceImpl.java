@@ -1,6 +1,7 @@
 package com.ruoyi.server.service.impl;
 
 import com.ruoyi.common.utils.DateUtils;
+import com.ruoyi.server.common.RconUtil;
 import com.ruoyi.server.domain.BanlistInfo;
 import com.ruoyi.server.mapper.BanlistInfoMapper;
 import com.ruoyi.server.service.IBanlistInfoService;
@@ -63,6 +64,10 @@ public class BanlistInfoServiceImpl implements IBanlistInfoService {
     @Override
     public int updateBanlistInfo(BanlistInfo banlistInfo) {
         banlistInfo.setUpdateTime(DateUtils.getNowDate());
+        // 解封状态
+       /* if (banlistInfo.getState() == 0) {
+            RconUtil.sendCommand("all",RconUtil.replaceCommand("all", "pardon %s", banlistInfo.getUserName()));
+        }*/
         return banlistInfoMapper.updateBanlistInfo(banlistInfo);
     }
 

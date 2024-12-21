@@ -4,5 +4,6 @@ create table qrtz_calendars
     calendar_name varchar(200) not null comment '日历名称',
     calendar      blob         not null comment '存放持久化calendar对象',
     primary key (sched_name, calendar_name)
-) comment '日历信息表';
+)
+    comment '日历信息表';
 

@@ -103,7 +103,7 @@
             "remark": message.value,
             "onlineFlag": onlineFlag.value
         }
-        sendAjax('https://api.showsi.cn/mc/whitelist/apply', data, function (res) {
+        sendAjax('http://127.0.0.1:8081/mc/whitelist/apply', data, function (res) {
             const data = JSON.parse(res);
             if (data.code === 200) {
                 alert(data.msg);
@@ -116,7 +116,7 @@
 
     function getOnlinePlayer() {
         const xhr = new XMLHttpRequest();
-        xhr.open('GET', "https://api.showsi.cn/server/serverlist/getOnlinePlayer");
+        xhr.open('GET', "https://application.shenzhuo.vip/server/serverlist/getOnlinePlayer");
         xhr.setRequestHeader('Content-Type', 'application/json;charset=utf-8');
         xhr.send();
         xhr.onreadystatechange = function () {
@@ -125,7 +125,13 @@
                 if (data.code === 200) {
                     let plays = '';
                     Object.keys(data.data).forEach(function (key) {
-                        plays += key + ':' + data.data[key] + '\n';
+                        //  console.log(key + ':' + data.data[key][1]);
+                        if (key !== '查询时间') {
+                            plays += key + ':' + data.data[key]['在线玩家'] + '\n';
+                        } else {
+                            plays += key + ':' + data.data[key] + '\n';
+                        }
+
                     })
                     alert(plays);
                 } else {

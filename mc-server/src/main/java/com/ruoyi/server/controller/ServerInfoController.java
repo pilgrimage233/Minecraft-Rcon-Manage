@@ -142,7 +142,7 @@ public class ServerInfoController extends BaseController {
         info.setStatus(1L);
         MapCache.clear();
         for (ServerInfo serverInfo : serverInfoService.selectServerInfoList(info)) {
-            RconUtil.init(serverInfo, log);
+            RconUtil.init(serverInfo);
         }
         return success();
     }

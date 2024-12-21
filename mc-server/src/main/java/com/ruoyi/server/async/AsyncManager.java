@@ -12,7 +12,6 @@ import java.util.concurrent.TimeUnit;
  */
 public class AsyncManager {
     private static final AsyncManager INSTANCE = new AsyncManager();
-    private final int OPERATE_DELAY_TIME = 10; // 操作延迟10毫秒
     private final ScheduledExecutorService executor;
 
     private AsyncManager() {
@@ -30,6 +29,8 @@ public class AsyncManager {
      * @param task 任务
      */
     public void execute(TimerTask task) {
+        // 操作延迟10毫秒
+        int OPERATE_DELAY_TIME = 10;
         executor.schedule(task, OPERATE_DELAY_TIME, TimeUnit.MILLISECONDS);
     }
 

@@ -3,10 +3,10 @@ create table sys_oper_log
     oper_id        bigint auto_increment comment '日志主键'
         primary key,
     title          varchar(50)   default '' null comment '模块标题',
-    business_type  int           default 0 null comment '业务类型（0其它 1新增 2修改 3删除）',
+    business_type int    default 0 null comment '业务类型（0其它 1新增 2修改 3删除）',
     method         varchar(100)  default '' null comment '方法名称',
     request_method varchar(10)   default '' null comment '请求方式',
-    operator_type  int           default 0 null comment '操作类别（0其它 1后台用户 2手机端用户）',
+    operator_type int    default 0 null comment '操作类别（0其它 1后台用户 2手机端用户）',
     oper_name      varchar(50)   default '' null comment '操作人员',
     dept_name      varchar(50)   default '' null comment '部门名称',
     oper_url       varchar(255)  default '' null comment '请求URL',
@@ -14,11 +14,12 @@ create table sys_oper_log
     oper_location  varchar(255)  default '' null comment '操作地点',
     oper_param     varchar(2000) default '' null comment '请求参数',
     json_result    varchar(2000) default '' null comment '返回参数',
-    status         int           default 0 null comment '操作状态（0正常 1异常）',
+    status        int    default 0 null comment '操作状态（0正常 1异常）',
     error_msg      varchar(2000) default '' null comment '错误消息',
-    oper_time      datetime null comment '操作时间',
-    cost_time      bigint        default 0 null comment '消耗时间'
-) comment '操作日志记录';
+    oper_time     datetime         null comment '操作时间',
+    cost_time     bigint default 0 null comment '消耗时间'
+)
+    comment '操作日志记录';
 
 create index idx_sys_oper_log_bt
     on sys_oper_log (business_type);
@@ -2072,3 +2073,101 @@ VALUES (392, '白名单', 2, 'com.ruoyi.server.controller.WhitelistInfoControlle
         '/mc/whitelist', '127.0.0.1', '内网IP',
         '{"addState":"1","addTime":"2024-03-11","id":9,"onlineFlag":0,"params":{},"qqNum":"2873336923","remark":"","removeReason":"test","removeTime":"2024-03-11","reviewUsers":"admin","servers":"3","status":"1","time":"2023-12-28","updateBy":"admin","updateTime":"2024-03-11 19:20:05","userName":"im_rbq","userUuid":"601288f2-3729-4a95-a92d-fb534f54cb63"}',
         '{"msg":"操作成功","code":200}', 0, null, '2024-03-11 19:20:05', 8);
+INSERT INTO ruoyi.sys_oper_log (oper_id, title, business_type, method, request_method, operator_type, oper_name,
+                                dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg,
+                                oper_time, cost_time)
+VALUES (393, '代码生成', 6, 'com.ruoyi.generator.controller.GenController.importTableSave()', 'POST', 1, 'admin',
+        '研发部门', '/tool/gen/importTable', '127.0.0.1', '内网IP', '{"tables":"ip_limit_info"}',
+        '{"msg":"操作成功","code":200}', 0, null, '2024-12-20 19:11:37', 131);
+INSERT INTO ruoyi.sys_oper_log (oper_id, title, business_type, method, request_method, operator_type, oper_name,
+                                dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg,
+                                oper_time, cost_time)
+VALUES (394, '代码生成', 8, 'com.ruoyi.generator.controller.GenController.batchGenCode()', 'GET', 1, 'admin',
+        '研发部门', '/tool/gen/batchGenCode', '127.0.0.1', '内网IP', '{"tables":"ip_limit_info"}', null, 0, null,
+        '2024-12-20 19:11:39', 379);
+INSERT INTO ruoyi.sys_oper_log (oper_id, title, business_type, method, request_method, operator_type, oper_name,
+                                dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg,
+                                oper_time, cost_time)
+VALUES (395, '菜单管理', 2, 'com.ruoyi.web.controller.system.SysMenuController.edit()', 'PUT', 1, 'admin', '研发部门',
+        '/system/menu', '127.0.0.1', '内网IP',
+        '{"children":[],"component":"system/info/index","createTime":"2024-12-20 19:12:10","icon":"number","isCache":"0","isFrame":"1","menuId":2027,"menuName":"IP限流","menuType":"C","orderNum":1,"params":{},"parentId":2000,"path":"info","perms":"system:info:list","status":"0","updateBy":"admin","visible":"0"}',
+        '{"msg":"操作成功","code":200}', 0, null, '2024-12-20 19:14:23', 12);
+INSERT INTO ruoyi.sys_oper_log (oper_id, title, business_type, method, request_method, operator_type, oper_name,
+                                dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg,
+                                oper_time, cost_time)
+VALUES (396, '代码生成', 6, 'com.ruoyi.generator.controller.GenController.importTableSave()', 'POST', 1, 'admin',
+        '研发部门', '/tool/gen/importTable', '127.0.0.1', '内网IP', '{"tables":"banlist_info"}',
+        '{"msg":"操作成功","code":200}', 0, null, '2024-12-20 19:15:07', 40);
+INSERT INTO ruoyi.sys_oper_log (oper_id, title, business_type, method, request_method, operator_type, oper_name,
+                                dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg,
+                                oper_time, cost_time)
+VALUES (397, '代码生成', 2, 'com.ruoyi.generator.controller.GenController.editSave()', 'PUT', 1, 'admin', '研发部门',
+        '/tool/gen', '127.0.0.1', '内网IP',
+        '{"businessName":"limit","className":"IpLimitInfo","columns":[{"capJavaField":"Id","columnComment":"主键ID","columnId":39,"columnName":"id","columnType":"bigint(20)","createBy":"admin","createTime":"2024-12-20 19:11:37","dictType":"","edit":false,"htmlType":"input","increment":true,"insert":true,"isIncrement":"1","isInsert":"1","isPk":"1","isRequired":"0","javaField":"id","javaType":"Long","list":false,"params":{},"pk":true,"query":false,"queryType":"EQ","required":false,"sort":1,"superColumn":false,"tableId":4,"updateBy":"","usableColumn":false},{"capJavaField":"Uuid","columnComment":"随机UUID","columnId":40,"columnName":"uuid","columnType":"varchar(255)","createBy":"admin","createTime":"2024-12-20 19:11:37","dictType":"","edit":true,"htmlType":"input","increment":false,"insert":true,"isEdit":"1","isIncrement":"0","isInsert":"1","isList":"1","isPk":"0","isQuery":"1","isRequired":"0","javaField":"uuid","javaType":"String","list":true,"params":{},"pk":false,"query":true,"queryType":"EQ","required":false,"sort":2,"superColumn":false,"tableId":4,"updateBy":"","usableColumn":false},{"capJavaField":"Ip","columnComment":"IP地址","columnId":41,"columnName":"ip","columnType":"varchar(255)","createBy":"admin","createTime":"2024-12-20 19:11:37","dictType":"","edit":true,"htmlType":"input","increment":false,"insert":true,"isEdit":"1","isIncrement":"0","isInsert":"1","isList":"1","isPk":"0","isQuery":"1","isRequired":"0","javaField":"ip","javaType":"String","list":true,"params":{},"pk":false,"query":true,"queryType":"EQ","required":false,"sort":3,"superColumn":false,"tableId":4,"updateBy":"","usableColumn":false},{"capJavaField":"UserAgent","columnComment":"UA标识","columnId":42,"columnName":"user_agent","columnType":"varchar(255)","createBy":"admin","createTime":"2024-12-20 19:11:37","dictType":"","edit":true,"htmlType":"input","increment":false,"insert":true,"isEdit":"1","isIncrement":"0","isInsert":"1","isList":"1","isPk":"0","isQuery":"1","isRequired":"0","javaField":"userAgent","ja',
+        '{"msg":"操作成功","code":200}', 0, null, '2024-12-20 19:24:18', 39);
+INSERT INTO ruoyi.sys_oper_log (oper_id, title, business_type, method, request_method, operator_type, oper_name,
+                                dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg,
+                                oper_time, cost_time)
+VALUES (398, '代码生成', 8, 'com.ruoyi.generator.controller.GenController.batchGenCode()', 'GET', 1, 'admin',
+        '研发部门', '/tool/gen/batchGenCode', '127.0.0.1', '内网IP', '{"tables":"ip_limit_info"}', null, 0, null,
+        '2024-12-20 19:24:21', 63);
+INSERT INTO ruoyi.sys_oper_log (oper_id, title, business_type, method, request_method, operator_type, oper_name,
+                                dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg,
+                                oper_time, cost_time)
+VALUES (399, '菜单管理', 2, 'com.ruoyi.web.controller.system.SysMenuController.edit()', 'PUT', 1, 'admin', '研发部门',
+        '/system/menu', '127.0.0.1', '内网IP',
+        '{"children":[],"component":"ipinfo/limit/index","createTime":"2024-12-20 19:25:20","icon":"number","isCache":"0","isFrame":"1","menuId":2033,"menuName":"IP限流","menuType":"C","orderNum":1,"params":{},"parentId":2000,"path":"limit","perms":"ipinfo:limit:list","status":"0","updateBy":"admin","visible":"0"}',
+        '{"msg":"操作成功","code":200}', 0, null, '2024-12-20 19:25:56', 7);
+INSERT INTO ruoyi.sys_oper_log (oper_id, title, business_type, method, request_method, operator_type, oper_name,
+                                dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg,
+                                oper_time, cost_time)
+VALUES (400, '代码生成', 2, 'com.ruoyi.generator.controller.GenController.editSave()', 'PUT', 1, 'admin', '研发部门',
+        '/tool/gen', '127.0.0.1', '内网IP',
+        '{"businessName":"banlist","className":"BanlistInfo","columns":[{"capJavaField":"Id","columnComment":"主键ID","columnId":55,"columnName":"id","columnType":"bigint(20)","createBy":"admin","createTime":"2024-12-20 19:15:07","dictType":"","edit":false,"htmlType":"input","increment":true,"insert":true,"isIncrement":"1","isInsert":"1","isPk":"1","isRequired":"0","javaField":"id","javaType":"Long","list":false,"params":{},"pk":true,"query":false,"queryType":"EQ","required":false,"sort":1,"superColumn":false,"tableId":5,"updateBy":"","usableColumn":false},{"capJavaField":"WhiteId","columnComment":"关联白名单ID","columnId":56,"columnName":"white_id","columnType":"bigint(20)","createBy":"admin","createTime":"2024-12-20 19:15:07","dictType":"","edit":true,"htmlType":"input","increment":false,"insert":true,"isEdit":"1","isIncrement":"0","isInsert":"1","isList":"1","isPk":"0","isQuery":"1","isRequired":"0","javaField":"whiteId","javaType":"Long","list":true,"params":{},"pk":false,"query":true,"queryType":"EQ","required":false,"sort":2,"superColumn":false,"tableId":5,"updateBy":"","usableColumn":false},{"capJavaField":"UserName","columnComment":"用户名称","columnId":57,"columnName":"user_name","columnType":"varchar(255)","createBy":"admin","createTime":"2024-12-20 19:15:07","dictType":"","edit":true,"htmlType":"input","increment":false,"insert":true,"isEdit":"1","isIncrement":"0","isInsert":"1","isList":"1","isPk":"0","isQuery":"1","isRequired":"0","javaField":"userName","javaType":"String","list":true,"params":{},"pk":false,"query":true,"queryType":"LIKE","required":false,"sort":3,"superColumn":false,"tableId":5,"updateBy":"","usableColumn":false},{"capJavaField":"State","columnComment":"封禁状态","columnId":58,"columnName":"state","columnType":"bigint(20)","createBy":"admin","createTime":"2024-12-20 19:15:07","dictType":"","edit":true,"htmlType":"input","increment":false,"insert":true,"isEdit":"1","isIncrement":"0","isInsert":"1","isList":"1","isPk":"0","isQuery":"1","isRequired":"0","javaFie',
+        '{"msg":"操作成功","code":200}', 0, null, '2024-12-20 19:26:41', 34);
+INSERT INTO ruoyi.sys_oper_log (oper_id, title, business_type, method, request_method, operator_type, oper_name,
+                                dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg,
+                                oper_time, cost_time)
+VALUES (401, '代码生成', 8, 'com.ruoyi.generator.controller.GenController.batchGenCode()', 'GET', 1, 'admin',
+        '研发部门', '/tool/gen/batchGenCode', '127.0.0.1', '内网IP', '{"tables":"banlist_info"}', null, 0, null,
+        '2024-12-20 19:26:43', 50);
+INSERT INTO ruoyi.sys_oper_log (oper_id, title, business_type, method, request_method, operator_type, oper_name,
+                                dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg,
+                                oper_time, cost_time)
+VALUES (402, '菜单管理', 2, 'com.ruoyi.web.controller.system.SysMenuController.edit()', 'PUT', 1, 'admin', '研发部门',
+        '/system/menu', '127.0.0.1', '内网IP',
+        '{"children":[],"component":"mc/banlist/index","createTime":"2024-12-20 19:26:57","icon":"lock","isCache":"0","isFrame":"1","menuId":2039,"menuName":"封禁管理","menuType":"C","orderNum":1,"params":{},"parentId":2000,"path":"banlist","perms":"mc:banlist:list","status":"0","updateBy":"admin","visible":"0"}',
+        '{"msg":"操作成功","code":200}', 0, null, '2024-12-20 19:28:40', 8);
+INSERT INTO ruoyi.sys_oper_log (oper_id, title, business_type, method, request_method, operator_type, oper_name,
+                                dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg,
+                                oper_time, cost_time)
+VALUES (403, '代码生成', 6, 'com.ruoyi.generator.controller.GenController.importTableSave()', 'POST', 1, 'admin',
+        '研发部门', '/tool/gen/importTable', '127.0.0.1', '内网IP', '{"tables":"server_command_info"}',
+        '{"msg":"操作成功","code":200}', 0, null, '2024-12-20 19:28:58', 45);
+INSERT INTO ruoyi.sys_oper_log (oper_id, title, business_type, method, request_method, operator_type, oper_name,
+                                dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg,
+                                oper_time, cost_time)
+VALUES (404, '代码生成', 2, 'com.ruoyi.generator.controller.GenController.editSave()', 'PUT', 1, 'admin', '研发部门',
+        '/tool/gen', '127.0.0.1', '内网IP',
+        '{"businessName":"command","className":"ServerCommandInfo","columns":[{"capJavaField":"Id","columnComment":"主键ID","columnId":65,"columnName":"id","columnType":"bigint(20)","createBy":"admin","createTime":"2024-12-20 19:28:58","dictType":"","edit":false,"htmlType":"input","increment":true,"insert":true,"isIncrement":"1","isInsert":"1","isPk":"1","isRequired":"0","javaField":"id","javaType":"Long","list":false,"params":{},"pk":true,"query":false,"queryType":"EQ","required":false,"sort":1,"superColumn":false,"tableId":6,"updateBy":"","usableColumn":false},{"capJavaField":"ServerId","columnComment":"服务器ID","columnId":66,"columnName":"server_id","columnType":"varchar(255)","createBy":"admin","createTime":"2024-12-20 19:28:58","dictType":"","edit":true,"htmlType":"input","increment":false,"insert":true,"isEdit":"1","isIncrement":"0","isInsert":"1","isList":"1","isPk":"0","isQuery":"1","isRequired":"0","javaField":"serverId","javaType":"String","list":true,"params":{},"pk":false,"query":true,"queryType":"EQ","required":false,"sort":2,"superColumn":false,"tableId":6,"updateBy":"","usableColumn":false},{"capJavaField":"OnlineAddWhitelistCommand","columnComment":"在线模式白名单添加指令","columnId":67,"columnName":"online_add_whitelist_command","columnType":"varchar(255)","createBy":"admin","createTime":"2024-12-20 19:28:58","dictType":"","edit":true,"htmlType":"input","increment":false,"insert":true,"isEdit":"1","isIncrement":"0","isInsert":"1","isList":"1","isPk":"0","isQuery":"1","isRequired":"0","javaField":"onlineAddWhitelistCommand","javaType":"String","list":true,"params":{},"pk":false,"query":true,"queryType":"EQ","required":false,"sort":3,"superColumn":false,"tableId":6,"updateBy":"","usableColumn":false},{"capJavaField":"OfflineAddWhitelistCommand","columnComment":"离线模式白名单添加指令","columnId":68,"columnName":"offline_add_whitelist_command","columnType":"varchar(255)","createBy":"admin","createTime":"2024-12-20 19:28:58","dictType":"","edit":true,"htmlType":"input","increment":false,',
+        '{"msg":"操作成功","code":200}', 0, null, '2024-12-20 19:29:20', 42);
+INSERT INTO ruoyi.sys_oper_log (oper_id, title, business_type, method, request_method, operator_type, oper_name,
+                                dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg,
+                                oper_time, cost_time)
+VALUES (405, '代码生成', 2, 'com.ruoyi.generator.controller.GenController.editSave()', 'PUT', 1, 'admin', '研发部门',
+        '/tool/gen', '127.0.0.1', '内网IP',
+        '{"businessName":"command","className":"ServerCommandInfo","columns":[{"capJavaField":"Id","columnComment":"主键ID","columnId":65,"columnName":"id","columnType":"bigint(20)","createBy":"admin","createTime":"2024-12-20 19:28:58","dictType":"","edit":false,"htmlType":"input","increment":true,"insert":true,"isIncrement":"1","isInsert":"1","isPk":"1","isRequired":"0","javaField":"id","javaType":"Long","list":false,"params":{},"pk":true,"query":false,"queryType":"EQ","required":false,"sort":1,"superColumn":false,"tableId":6,"updateBy":"","updateTime":"2024-12-20 19:29:20","usableColumn":false},{"capJavaField":"ServerId","columnComment":"服务器ID","columnId":66,"columnName":"server_id","columnType":"varchar(255)","createBy":"admin","createTime":"2024-12-20 19:28:58","dictType":"","edit":true,"htmlType":"input","increment":false,"insert":true,"isEdit":"1","isIncrement":"0","isInsert":"1","isList":"1","isPk":"0","isQuery":"1","isRequired":"0","javaField":"serverId","javaType":"String","list":true,"params":{},"pk":false,"query":true,"queryType":"EQ","required":false,"sort":2,"superColumn":false,"tableId":6,"updateBy":"","updateTime":"2024-12-20 19:29:20","usableColumn":false},{"capJavaField":"OnlineAddWhitelistCommand","columnComment":"在线模式白名单添加指令","columnId":67,"columnName":"online_add_whitelist_command","columnType":"varchar(255)","createBy":"admin","createTime":"2024-12-20 19:28:58","dictType":"","edit":true,"htmlType":"input","increment":false,"insert":true,"isEdit":"1","isIncrement":"0","isInsert":"1","isList":"1","isPk":"0","isQuery":"1","isRequired":"0","javaField":"onlineAddWhitelistCommand","javaType":"String","list":true,"params":{},"pk":false,"query":true,"queryType":"EQ","required":false,"sort":3,"superColumn":false,"tableId":6,"updateBy":"","updateTime":"2024-12-20 19:29:20","usableColumn":false},{"capJavaField":"OfflineAddWhitelistCommand","columnComment":"离线模式白名单添加指令","columnId":68,"columnName":"offline_add_whitelist_command","columnType":"varchar(255)","createBy":"',
+        '{"msg":"操作成功","code":200}', 0, null, '2024-12-20 19:29:31', 34);
+INSERT INTO ruoyi.sys_oper_log (oper_id, title, business_type, method, request_method, operator_type, oper_name,
+                                dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg,
+                                oper_time, cost_time)
+VALUES (406, '代码生成', 8, 'com.ruoyi.generator.controller.GenController.batchGenCode()', 'GET', 1, 'admin',
+        '研发部门', '/tool/gen/batchGenCode', '127.0.0.1', '内网IP', '{"tables":"server_command_info"}', null, 0, null,
+        '2024-12-20 19:29:33', 62);
+INSERT INTO ruoyi.sys_oper_log (oper_id, title, business_type, method, request_method, operator_type, oper_name,
+                                dept_name, oper_url, oper_ip, oper_location, oper_param, json_result, status, error_msg,
+                                oper_time, cost_time)
+VALUES (407, '菜单管理', 2, 'com.ruoyi.web.controller.system.SysMenuController.edit()', 'PUT', 1, 'admin', '研发部门',
+        '/system/menu', '127.0.0.1', '内网IP',
+        '{"children":[],"component":"mc/command/index","createTime":"2024-12-20 19:29:44","icon":"code","isCache":"0","isFrame":"1","menuId":2045,"menuName":"指令管理","menuType":"C","orderNum":1,"params":{},"parentId":2000,"path":"command","perms":"mc:command:list","status":"0","updateBy":"admin","visible":"0"}',
+        '{"msg":"操作成功","code":200}', 0, null, '2024-12-20 19:30:35', 5);

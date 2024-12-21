@@ -1,6 +1,7 @@
 package com.ruoyi.server.mapper;
 
 import com.ruoyi.server.domain.PublicServerCommand;
+import org.apache.ibatis.annotations.Mapper;
 
 import java.util.List;
 
@@ -10,6 +11,7 @@ import java.util.List;
  * @author ruoyi
  * @date 2024-05-08
  */
+@Mapper
 public interface PublicServerCommandMapper {
     /**
      * 查询公开命令

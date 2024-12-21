@@ -2,25 +2,26 @@ create table sys_menu
 (
     menu_id     bigint auto_increment comment '菜单ID'
         primary key,
-    menu_name   varchar(50) not null comment '菜单名称',
-    parent_id   bigint       default 0 null comment '父菜单ID',
-    order_num   int          default 0 null comment '显示顺序',
+    menu_name   varchar(50)             not null comment '菜单名称',
+    parent_id   bigint       default 0  null comment '父菜单ID',
+    order_num   int          default 0  null comment '显示顺序',
     path        varchar(200) default '' null comment '路由地址',
-    component   varchar(255) null comment '组件路径',
-    query       varchar(255) null comment '路由参数',
-    is_frame    int          default 1 null comment '是否为外链（0是 1否）',
-    is_cache    int          default 0 null comment '是否缓存（0缓存 1不缓存）',
+    component   varchar(255)            null comment '组件路径',
+    query       varchar(255)            null comment '路由参数',
+    is_frame    int          default 1  null comment '是否为外链（0是 1否）',
+    is_cache    int          default 0  null comment '是否缓存（0缓存 1不缓存）',
     menu_type   char         default '' null comment '菜单类型（M目录 C菜单 F按钮）',
     visible     char         default '0' null comment '菜单状态（0显示 1隐藏）',
     status      char         default '0' null comment '菜单状态（0正常 1停用）',
-    perms       varchar(100) null comment '权限标识',
+    perms       varchar(100)            null comment '权限标识',
     icon        varchar(100) default '#' null comment '菜单图标',
     create_by   varchar(64)  default '' null comment '创建者',
-    create_time datetime null comment '创建时间',
+    create_time datetime                null comment '创建时间',
     update_by   varchar(64)  default '' null comment '更新者',
-    update_time datetime null comment '更新时间',
+    update_time datetime                null comment '更新时间',
     remark      varchar(500) default '' null comment '备注'
-) comment '菜单权限表';
+)
+    comment '菜单权限表';
 
 INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
                             menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
@@ -513,3 +514,93 @@ INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, comp
                             remark)
 VALUES (2026, '服务器信息导出', 2021, 5, '#', '', null, 1, 0, 'F', '0', '0', 'server:serverlist:export', '#', 'admin',
         '2024-03-10 16:00:54', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2033, 'IP限流', 2000, 1, 'limit', 'ipinfo/limit/index', null, 1, 0, 'C', '0', '0', 'ipinfo:limit:list',
+        'number', 'admin', '2024-12-20 19:25:20', 'admin', '2024-12-20 19:25:56', 'IP限流菜单');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2034, 'IP限流查询', 2033, 1, '#', '', null, 1, 0, 'F', '0', '0', 'ipinfo:limit:query', '#', 'admin',
+        '2024-12-20 19:25:20', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2035, 'IP限流新增', 2033, 2, '#', '', null, 1, 0, 'F', '0', '0', 'ipinfo:limit:add', '#', 'admin',
+        '2024-12-20 19:25:20', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2036, 'IP限流修改', 2033, 3, '#', '', null, 1, 0, 'F', '0', '0', 'ipinfo:limit:edit', '#', 'admin',
+        '2024-12-20 19:25:20', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2037, 'IP限流删除', 2033, 4, '#', '', null, 1, 0, 'F', '0', '0', 'ipinfo:limit:remove', '#', 'admin',
+        '2024-12-20 19:25:20', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2038, 'IP限流导出', 2033, 5, '#', '', null, 1, 0, 'F', '0', '0', 'ipinfo:limit:export', '#', 'admin',
+        '2024-12-20 19:25:20', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2039, '封禁管理', 2000, 1, 'banlist', 'mc/banlist/index', null, 1, 0, 'C', '0', '0', 'mc:banlist:list', 'lock',
+        'admin', '2024-12-20 19:26:57', 'admin', '2024-12-20 19:28:40', '封禁管理菜单');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2040, '封禁管理查询', 2039, 1, '#', '', null, 1, 0, 'F', '0', '0', 'mc:banlist:query', '#', 'admin',
+        '2024-12-20 19:26:57', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2041, '封禁管理新增', 2039, 2, '#', '', null, 1, 0, 'F', '0', '0', 'mc:banlist:add', '#', 'admin',
+        '2024-12-20 19:26:57', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2042, '封禁管理修改', 2039, 3, '#', '', null, 1, 0, 'F', '0', '0', 'mc:banlist:edit', '#', 'admin',
+        '2024-12-20 19:26:57', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2043, '封禁管理删除', 2039, 4, '#', '', null, 1, 0, 'F', '0', '0', 'mc:banlist:remove', '#', 'admin',
+        '2024-12-20 19:26:57', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2044, '封禁管理导出', 2039, 5, '#', '', null, 1, 0, 'F', '0', '0', 'mc:banlist:export', '#', 'admin',
+        '2024-12-20 19:26:57', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2045, '指令管理', 2000, 1, 'command', 'mc/command/index', null, 1, 0, 'C', '0', '0', 'mc:command:list', 'code',
+        'admin', '2024-12-20 19:29:44', 'admin', '2024-12-20 19:30:35', '指令管理菜单');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2046, '指令管理查询', 2045, 1, '#', '', null, 1, 0, 'F', '0', '0', 'mc:command:query', '#', 'admin',
+        '2024-12-20 19:29:44', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2047, '指令管理新增', 2045, 2, '#', '', null, 1, 0, 'F', '0', '0', 'mc:command:add', '#', 'admin',
+        '2024-12-20 19:29:44', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2048, '指令管理修改', 2045, 3, '#', '', null, 1, 0, 'F', '0', '0', 'mc:command:edit', '#', 'admin',
+        '2024-12-20 19:29:44', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2049, '指令管理删除', 2045, 4, '#', '', null, 1, 0, 'F', '0', '0', 'mc:command:remove', '#', 'admin',
+        '2024-12-20 19:29:44', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2050, '指令管理导出', 2045, 5, '#', '', null, 1, 0, 'F', '0', '0', 'mc:command:export', '#', 'admin',
+        '2024-12-20 19:29:44', '', null, '');

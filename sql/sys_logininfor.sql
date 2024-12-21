@@ -9,8 +9,9 @@ create table sys_logininfor
     os             varchar(50)  default '' null comment '操作系统',
     status         char         default '0' null comment '登录状态（0成功 1失败）',
     msg            varchar(255) default '' null comment '提示消息',
-    login_time     datetime null comment '访问时间'
-) comment '系统访问记录';
+    login_time     datetime                null comment '访问时间'
+)
+    comment '系统访问记录';
 
 create index idx_sys_logininfor_lt
     on sys_logininfor (login_time);
@@ -502,3 +503,11 @@ VALUES (310, 'admin', '127.0.0.1', '内网IP', 'Chrome 12', 'Windows 10', '1', '
         '2024-03-11 18:56:03');
 INSERT INTO ruoyi.sys_logininfor (info_id, user_name, ipaddr, login_location, browser, os, status, msg, login_time)
 VALUES (311, 'admin', '127.0.0.1', '内网IP', 'Chrome 12', 'Windows 10', '0', '登录成功', '2024-03-11 18:56:08');
+INSERT INTO ruoyi.sys_logininfor (info_id, user_name, ipaddr, login_location, browser, os, status, msg, login_time)
+VALUES (312, 'admin', '127.0.0.1', '内网IP', 'Chrome 13', 'Windows 10', '1', '验证码错误', '2024-11-15 21:20:49');
+INSERT INTO ruoyi.sys_logininfor (info_id, user_name, ipaddr, login_location, browser, os, status, msg, login_time)
+VALUES (313, 'admin', '127.0.0.1', '内网IP', 'Chrome 13', 'Windows 10', '0', '登录成功', '2024-11-15 21:20:53');
+INSERT INTO ruoyi.sys_logininfor (info_id, user_name, ipaddr, login_location, browser, os, status, msg, login_time)
+VALUES (314, 'admin', '127.0.0.1', '内网IP', 'Chrome 13', 'Windows 10', '1', '验证码已失效', '2024-11-15 21:20:53');
+INSERT INTO ruoyi.sys_logininfor (info_id, user_name, ipaddr, login_location, browser, os, status, msg, login_time)
+VALUES (315, 'admin', '127.0.0.1', '内网IP', 'Chrome 13', 'Windows 10', '0', '登录成功', '2024-12-20 19:11:15');

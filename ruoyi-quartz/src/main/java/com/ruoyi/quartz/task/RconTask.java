@@ -47,7 +47,7 @@ public class RconTask {
         info.setStatus(1L);
 
         for (ServerInfo serverInfo : serverInfoService.selectServerInfoList(info)) {
-            RconUtil.init(serverInfo, log);
+            RconUtil.init(serverInfo);
         }
 
         // 发送广播

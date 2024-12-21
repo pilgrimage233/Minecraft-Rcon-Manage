@@ -14,5 +14,6 @@ create table qrtz_fired_triggers
     is_nonconcurrent  varchar(1) null comment '是否并发',
     requests_recovery varchar(1) null comment '是否接受恢复执行',
     primary key (sched_name, entry_id)
-) comment '已触发的触发器表';
+)
+    comment '已触发的触发器表';
 

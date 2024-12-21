@@ -9,7 +9,6 @@ import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
-import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.http.HttpUtils;
@@ -18,13 +17,13 @@ import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.server.async.AsyncManager;
 import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.PushEmail;
+import com.ruoyi.server.common.constant.EmailTemplate;
 import com.ruoyi.server.domain.IpLimitInfo;
 import com.ruoyi.server.domain.WhitelistInfo;
 import com.ruoyi.server.sdk.SearchHttpAK;
 import com.ruoyi.server.service.IIpLimitInfoService;
 import com.ruoyi.server.service.IServerInfoService;
 import com.ruoyi.server.service.IWhitelistInfoService;
-import com.ruoyi.server.service.impl.ServerInfoServiceImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -57,11 +56,6 @@ public class WhitelistInfoController extends BaseController {
     private String iplimit;
     @Autowired
     private PushEmail pushEmail;
-    @Autowired
-    private RedisCache redisCache;
-    @Autowired
-    private ServerInfoServiceImpl serverInfoServiceImpl;
-
     /**
      * 查询白名单列表
      */
@@ -139,7 +133,7 @@ public class WhitelistInfoController extends BaseController {
             return error("申请信息不能为空!");
         }
 
-        logger.info("申请信息:{}", whitelistInfo.toString());
+        logger.info("申请信息:{}", whitelistInfo);
         logger.info("header:{}", header);
 
         // 获取IP地址
@@ -206,7 +200,7 @@ public class WhitelistInfoController extends BaseController {
             List<IpLimitInfo> ipLimitInfos = iIpLimitInfoService.selectIpLimitInfoList(ipLimitInfo);
             if (ipLimitInfos.isEmpty()) {
                 ipLimitInfo.setCreateTime(new Date());
-                ipLimitInfo.setCreateBy("system::user::" + whitelistInfo.getUserName());
+                ipLimitInfo.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
                 ipLimitInfo.setCount(1L); // 第一次访问
                 ipLimitInfo.setIp(ip); // IP地址
                 ipLimitInfo.setUserAgent(userAgent); // 用户代理
@@ -262,7 +256,7 @@ public class WhitelistInfoController extends BaseController {
                 }
 
                 if (info.getCreateBy() == null || info.getCreateBy().isEmpty()) {
-                    info.setCreateBy("system::user::" + whitelistInfo.getUserName());
+                    info.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
                 } else if (info.getCount() == 1) {
                     info.setUpdateBy(info.getCreateBy() + "::" + whitelistInfo.getUserName());
                 } else {
@@ -313,7 +307,7 @@ public class WhitelistInfoController extends BaseController {
                 @Override
                 public void run() {
                     try {
-                        pushEmail.push(whitelistInfo.getQqNum() + "@qq.com", "白名单申请审核结果", "您的白名单申请已提交并已通知审核人员,请耐心等待审核结果!");
+                        pushEmail.push(whitelistInfo.getQqNum() + "@qq.com", EmailTemplate.TITLE, EmailTemplate.APPLY_SUCCESS);
                     } catch (ExecutionException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
@@ -325,7 +319,7 @@ public class WhitelistInfoController extends BaseController {
                 @Override
                 public void run() {
                     try {
-                        pushEmail.push("2873336923@qq.com", "待审核白名单", "用户[" + whitelistInfo.getUserName() + "]的白名单申请已提交,请尽快审核!");
+                        pushEmail.push("3114634896@qq.com", EmailTemplate.TITLE, "用户[" + whitelistInfo.getUserName() + "]的白名单申请已提交,请尽快审核!");
                     } catch (ExecutionException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
@@ -333,9 +327,9 @@ public class WhitelistInfoController extends BaseController {
             };
             asyncManager.execute(timerTask2);
 
-            return success("提交申请成功！请留意填写信息的QQ邮箱，如审核通过会发送邮件或可以二次提交重复信息查看审核状态~");
+            return success(EmailTemplate.APPLY_SUCCESS);
         } else {
-            return error("提交申请错误,请联系管理员!");
+            return error(EmailTemplate.APPLY_ERROR);
         }
 
     }

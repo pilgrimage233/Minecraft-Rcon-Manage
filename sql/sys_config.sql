@@ -7,11 +7,12 @@ create table sys_config
     config_value varchar(500) default '' null comment '参数键值',
     config_type  char         default 'N' null comment '系统内置（Y是 N否）',
     create_by    varchar(64)  default '' null comment '创建者',
-    create_time  datetime null comment '创建时间',
+    create_time  datetime                null comment '创建时间',
     update_by    varchar(64)  default '' null comment '更新者',
-    update_time  datetime null comment '更新时间',
-    remark       varchar(500) null comment '备注'
-) comment '参数配置表';
+    update_time  datetime                null comment '更新时间',
+    remark       varchar(500)            null comment '备注'
+)
+    comment '参数配置表';
 
 INSERT INTO ruoyi.sys_config (config_id, config_name, config_key, config_value, config_type, create_by, create_time,
                               update_by, update_time, remark)

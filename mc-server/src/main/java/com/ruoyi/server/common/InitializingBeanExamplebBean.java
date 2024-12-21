@@ -2,6 +2,7 @@ package com.ruoyi.server.common;
 
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.DateUtils;
+import com.ruoyi.server.common.constant.RconMsg;
 import com.ruoyi.server.domain.ServerInfo;
 import com.ruoyi.server.service.IServerCommandInfoService;
 import com.ruoyi.server.service.IServerInfoService;
@@ -11,6 +12,7 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -41,14 +43,19 @@ public class InitializingBeanExamplebBean implements InitializingBean {
         //     }
         // }
         // 服务器信息缓存
-        redisCache.setCacheObject("serverInfo", serverInfoService.selectServerInfoList(new ServerInfo()), 1, TimeUnit.DAYS);
+        final List<ServerInfo> serverInfos = serverInfoService.selectServerInfoList(new ServerInfo());
+        if (serverInfos == null || serverInfos.isEmpty()) {
+            log.error(RconMsg.SERVER_EMPTY);
+            return;
+        }
+        redisCache.setCacheObject("serverInfo", serverInfos, 1, TimeUnit.DAYS);
         // 服务器信息缓存更新时间
         redisCache.setCacheObject("serverInfoUpdateTime", DateUtils.getNowDate());
         // 初始化Rcon连接
         ServerInfo info = new ServerInfo();
         info.setStatus(1L);
         for (ServerInfo serverInfo : serverInfoService.selectServerInfoList(info)) {
-            RconUtil.init(serverInfo, log);
+            RconUtil.init(serverInfo);
             System.out.println(MapCache.getMap());
         }
         log.debug("InitializingBean afterPropertiesSet end...");
