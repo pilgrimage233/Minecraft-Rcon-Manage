@@ -168,6 +168,22 @@
       <el-table-column align="center" class-name="small-padding fixed-width" label="操作">
         <template slot-scope="scope">
           <el-button
+            :disabled="scope.row.status === '1'"
+            icon="el-icon-check"
+            size="mini"
+            type="text"
+            @click="handleAgree(scope.row)"
+          >同意
+          </el-button>
+          <el-button
+            :disabled="scope.row.status === '2'"
+            icon="el-icon-close"
+            size="mini"
+            type="text"
+            @click="handleRefuse(scope.row)"
+          >拒绝
+          </el-button>
+          <el-button
             v-hasPermi="['mc:whitelist:edit']"
             icon="el-icon-edit"
             size="mini"
@@ -392,6 +408,28 @@ export default {
       this.reset();
       this.open = true;
       this.title = "添加白名单";
+    },
+    /*同意按钮操作*/
+    handleAgree(row) {
+      row.status = '1';
+      // 默认同意全部服务器
+      this.serverList = ["all"];
+      if (row.id != null) {
+        updateWhitelist(row).then(response => {
+          this.$modal.msgSuccess("修改成功");
+          this.getList();
+        });
+      }
+    },
+    /*拒绝按钮操作*/
+    handleRefuse(row) {
+      row.status = '2';
+      if (row.id != null) {
+        updateWhitelist(row).then(response => {
+          this.$modal.msgSuccess("修改成功");
+          this.getList();
+        });
+      }
     },
     /** 修改按钮操作 */
     handleUpdate(row) {
