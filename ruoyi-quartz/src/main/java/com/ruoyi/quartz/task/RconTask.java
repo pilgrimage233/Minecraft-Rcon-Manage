@@ -53,4 +53,22 @@ public class RconTask {
         // 发送广播
         RconUtil.sendCommand("all", "say Rcon Connect Refresh " + DateUtils.getTime());
     }
+
+    // 心跳检测
+    public void heartBeat() {
+        MapCache.getMap().forEach((k, v) -> {
+            try {
+                v.sendCommand("list");
+            } catch (Exception e) {
+                log.error("Rcon连接异常：" + e.getMessage() + "...尝试重连");
+                v.close();
+                MapCache.remove(k);
+                final ServerInfo serverInfo = serverInfoService.selectServerInfoById(Long.parseLong(k));
+                // 重连单个服务器
+                RconUtil.init(serverInfo);
+                // 重连广播
+                RconUtil.sendCommand(k, "say Rcon Reconnect " + serverInfo.getNameTag() + " " + DateUtils.getTime());
+            }
+        });
+    }
 }

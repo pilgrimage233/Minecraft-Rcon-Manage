@@ -141,3 +141,4 @@ whitelist:
   easyauth: true
   # ip限流
   iplimit: 2
+  email: 3114634896@qq.com

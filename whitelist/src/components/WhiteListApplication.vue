@@ -9,7 +9,7 @@
               :loading="loading"
               class="refresh-btn"
               size="small"
-              @click="getOnlinePlayer"
+              @click="getOnlinePlayer(true)"
           >
             <el-icon>
               <Refresh/>
@@ -69,7 +69,7 @@
         <el-form-item label="QQ：">
           <el-input v-model="form.qqNum" placeholder="请输入QQ号"></el-input>
         </el-form-item>
-        <el-form-item label="是否正版：">
+        <el-form-item label="正版：">
           <el-radio-group v-model="form.onlineFlag">
             <el-radio label="1">是</el-radio>
             <el-radio label="0">否</el-radio>
@@ -123,22 +123,34 @@ const submitForm = () => {
     ElMessage.error('QQ号格式错误');
   } else {
     loading = true;
-    http.post('/mc/whitelist/apply', form).then((res) => {
-      if (res.data.code === 200) {
-        ElMessage.success(res.data.msg);
-      } else {
-        ElMessage.error(res.data.msg || '未知错误，请联系管理员');
-      }
-      loading = false;
-    }).catch((error) => {
-      console.error('提交表单请求出错：', error);
-      ElMessage.error('提交表单时发生错误，请检查网络或联系管理员');
-      loading = false;
-    });
+    // 先获取用户IP
+    fetch('https://api.ipify.org?format=json')
+        .then(response => response.json())
+        .then(data => {
+          // 发送表单请求，带上IP信息
+          return http.post('/mc/whitelist/apply', form, {
+            headers: {
+              'X-Real-IP': data.ip
+            }
+          });
+        })
+        .then((res) => {
+          if (res.data.code === 200) {
+            ElMessage.success(res.data.msg);
+          } else {
+            ElMessage.error(res.data.msg || '未知错误，请联系管理员');
+          }
+          loading = false;
+        })
+        .catch((error) => {
+          console.error('提交表单请求出错：', error);
+          ElMessage.error('提交表单时发生错误，请检查网络或联系管理员');
+          loading = false;
+        });
   }
 };
 
-const getOnlinePlayer = () => {
+const getOnlinePlayer = (reflash) => {
   loading = true;
   http.get('/server/serverlist/getOnlinePlayer').then((res) => {
     if (res.data.code === 200) {
@@ -174,8 +186,9 @@ const getOnlinePlayer = () => {
           console.error(`处理服务器 ${serverName} 数据失败:`, e);
         }
       });
-      // 添加刷新成功的提示
-      ElMessage.success('刷新成功');
+      if (reflash) {
+        ElMessage.success('刷新成功！');
+      }
     } else {
       ElMessage.error(res.data.msg || '获取服务器状态失败');
     }
@@ -202,9 +215,9 @@ onMounted(() => {
   background-size: 400% 400%;
   background-image: linear-gradient(
       -45deg,
-      #e6c3ff, /* 淡紫色 */ #ffcad4, /* 淡粉色 */ #ffd4bc, /* 淡橘色 */ #fff3b2 /* 淡黄色 */
+      #e6c3ff, /* 淡紫色 */ #ffcad4, /* 淡粉色 */ #ffd4bc, /* 淡橘色 */ #fff3b2 /* 淡黄色 */, #c3ffec /* 淡绿色 */, #c3f3ff /* 淡蓝色 */
   );
-  animation: warmGradient 15s ease infinite;
+  animation: warmGradient 7s ease infinite;
   padding: 20px;
 }
 

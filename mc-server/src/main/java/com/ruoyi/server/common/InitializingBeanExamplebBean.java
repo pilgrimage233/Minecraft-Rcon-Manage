@@ -60,7 +60,7 @@ public class InitializingBeanExamplebBean implements InitializingBean {
         log.debug("InitializingBean afterPropertiesSet end...");
 
 
-        // RconUtil.sendCommand("all", "say Rcon ready! Time: " + DateUtils.getNowDate());
+        RconUtil.sendCommand("all", "say Rcon ready! Time: " + DateUtils.getNowDate());
 
 
         // 初始化缓存服务器指令

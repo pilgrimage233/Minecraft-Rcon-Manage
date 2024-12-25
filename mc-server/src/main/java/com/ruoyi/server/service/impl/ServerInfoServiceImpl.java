@@ -4,9 +4,12 @@ import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.MapCache;
+import com.ruoyi.server.common.RconUtil;
 import com.ruoyi.server.domain.ServerInfo;
 import com.ruoyi.server.mapper.ServerInfoMapper;
 import com.ruoyi.server.service.IServerInfoService;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -22,6 +25,7 @@ import java.util.stream.Collectors;
  */
 @Service
 public class ServerInfoServiceImpl implements IServerInfoService {
+    private static final Log log = LogFactory.getLog(ServerInfoServiceImpl.class);
     @Autowired
     private ServerInfoMapper serverInfoMapper;
     @Autowired
@@ -110,7 +114,7 @@ public class ServerInfoServiceImpl implements IServerInfoService {
             serverInfo = redisCache.getCacheObject("serverInfo");
         } else {
             serverInfo = serverInfoMapper.selectServerInfoList(new ServerInfo());
-            redisCache.setCacheObject("serverInfo", serverInfo, 1, TimeUnit.DAYS);
+            redisCache.setCacheObject("serverInfo", serverInfo, 3, TimeUnit.DAYS);
         }
         if (serverInfo != null) {
             for (ServerInfo info : serverInfo) {
@@ -143,7 +147,13 @@ public class ServerInfoServiceImpl implements IServerInfoService {
                     }
                 } catch (Exception e) {
                     result.put(info.getNameTag(), "服务器连接失败，请检查服务器状态");
-                    e.printStackTrace();
+                    // 随机重连
+                    Random random = new Random();
+                    int i = random.nextInt(10);
+                    if (i % 2 == 0) {
+                        RconUtil.reconnect(info.getId().toString());
+                    }
+                    log.error("获取在线玩家失败：" + e.getMessage());
                 }
             }
             result.put("查询时间", DateUtils.getTime());

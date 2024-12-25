@@ -5,6 +5,7 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
 
+import java.util.Arrays;
 import java.util.logging.Logger;
 
 /**
@@ -44,5 +45,14 @@ public class RconClientTest {
         System.err.println(s.substring(17));
     }
 
+    @Test
+    public void test1() {
+        String name = "svg";
+        String[] split = {"svg"};
+        if (!Arrays.asList(split).contains(name.toUpperCase())) {
+            System.err.println(1);
+        }
+
+    }
 
 }

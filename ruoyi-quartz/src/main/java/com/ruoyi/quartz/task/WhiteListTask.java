@@ -121,12 +121,14 @@ public class WhiteListTask {
         String list = MapCache.get(serverId).sendCommand("whitelist list");
         log.debug("现有白名单列表：" + list);
         String[] split = new String[0];
-        String[] split1 = new String[0]; // 未转换为小写的白名单列表
+        String[] split1 = new String[0];
         if (StringUtils.isNotEmpty(list) && list.contains("There are")) {
-            split = list.split("whitelisted player\\(s\\):")[1].trim().split(", ");
-            split1 = list.split("whitelisted player\\(s\\):")[1].trim().split(", ");
-            for (int i = 0; i < split.length; i++) {
-                split[i] = split[i].toLowerCase().trim();
+            String[] temp = list.split("whitelisted player\\(s\\):")[1].trim().split(", ");
+            split = new String[temp.length];
+            split1 = new String[temp.length];
+            System.arraycopy(temp, 0, split1, 0, temp.length);
+            for (int i = 0; i < temp.length; i++) {
+                split[i] = temp[i].toLowerCase().trim();
             }
         }
 
@@ -137,7 +139,7 @@ public class WhiteListTask {
         Map<String, ServerCommandInfo> map = null;
         if (ObjectCache.containsKey("serverCommandInfo")) {
             // 从缓存中获取指令信息
-            map = (Map<String, ServerCommandInfo>) ObjectCache.getCommandInfo();
+            map = ObjectCache.getCommandInfo();
         } else {
             log.error("缓存中不存在指令信息");
             return;
@@ -158,16 +160,17 @@ public class WhiteListTask {
             if (newList.size() >= 10) {
                 Thread.sleep(800);
             }
-            if (!Arrays.asList(split1).contains(info.getUserName())) {
-                // 离线添加方式
-                if (info.getOnlineFlag() == 0L) {
-                    MapCache.get(serverId).sendCommand("auth addToForcedOffline " + info.getUserName().toLowerCase());
-                    MapCache.get(serverId).sendCommand(commandInfo.getOfflineAddWhitelistCommand().replace("{player}", info.getUserName()));
-                } else {
-                    // 在线添加方式
+            // 正版玩家不忽略大小写
+            if (info.getOnlineFlag() == 1L) {
+                if (!Arrays.asList(split1).contains(info.getUserName())) {
                     MapCache.get(serverId).sendCommand(commandInfo.getOnlineAddWhitelistCommand().replace("{player}", info.getUserName()));
+                    user.add(info.getUserName());
                 }
-                user.add(info.getUserName());
+            } else {
+                if (!Arrays.asList(split).contains(info.getUserName().toLowerCase())) {
+                    MapCache.get(serverId).sendCommand(commandInfo.getOfflineAddWhitelistCommand().replace("{player}", info.getUserName()));
+                    user.add(info.getUserName().toLowerCase());
+                }
             }
         }
 
@@ -176,9 +179,13 @@ public class WhiteListTask {
             boolean flag = false;
             boolean onlineFlag = false;
             for (WhitelistInfo info : newList) {
-                if (s.equals(info.getUserName())) {
+                // 正版玩家不忽略大小写
+                if (info.getOnlineFlag() == 1L && s.equals(info.getUserName())) {
                     flag = true;
-                    onlineFlag = info.getOnlineFlag() == 1L;
+                    onlineFlag = true;
+                    break;
+                } else if (s.equalsIgnoreCase(info.getUserName())) {
+                    flag = true;
                     break;
                 }
             }

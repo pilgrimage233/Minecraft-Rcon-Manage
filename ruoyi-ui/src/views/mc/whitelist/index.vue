@@ -133,14 +133,7 @@
           <span>{{ parseTime(scope.row.time, '{y}-{m}-{d} {h}:{i}') }}</span>
         </template>
       </el-table-column>
-      <el-table-column align="center" label="游戏名称" prop="userName" show-overflow-tooltip>
-        <template slot-scope="scope">
-          <div v-if="scope.row.onlineFlag =='1'">
-            <el-button type="text" @click="openDialog(scope.row.userName)">{{ scope.row.userName }}</el-button>
-          </div>
-
-        </template>
-      </el-table-column>
+      <el-table-column align="center" label="游戏名称" prop="userName" show-overflow-tooltip/>
       <el-table-column align="center" label="UUID" prop="userUuid" show-overflow-tooltip/>
       <el-table-column align="center" label="正版标识" prop="onlineFlag">
         <template slot-scope="scope">
@@ -291,11 +284,9 @@ import {
   updateWhitelist
 } from "@/api/mc/whitelist";
 import serverlist from "@/views/server/serverlist/index.vue";
-import MinecraftSkin from "@/views/skin/MinecraftSkin.vue";
 
 export default {
   name: "Whitelist",
-  components: {MinecraftSkin},
   computed: {
     serverlist() {
       return serverlist

@@ -28,14 +28,6 @@ public class RconUtil {
     private static final RedisCache redisCache = new RedisCache();
 
     /**
-     * 获取指令信息
-     */
-    // static {
-    //     // 从Redis缓存读取指令信息
-    //     COMMAND_INFO = ObjectCache.getCommandInfo();
-    // }
-
-    /**
      * 发送Rcon命令
      *
      * @param key
@@ -90,7 +82,6 @@ public class RconUtil {
      * 初始化Rcon连接
      *
      * @param info
-     * @param log
      */
     public static void init(ServerInfo info) {
         try {

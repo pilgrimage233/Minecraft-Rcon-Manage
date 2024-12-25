@@ -56,6 +56,9 @@ public class WhitelistInfoController extends BaseController {
     private String iplimit;
     @Autowired
     private PushEmail pushEmail;
+    @Value("${whitelist.email}")
+    private String ADMIN_EMAIL;
+
     /**
      * 查询白名单列表
      */
@@ -319,7 +322,7 @@ public class WhitelistInfoController extends BaseController {
                 @Override
                 public void run() {
                     try {
-                        pushEmail.push("3114634896@qq.com", EmailTemplate.TITLE, "用户[" + whitelistInfo.getUserName() + "]的白名单申请已提交,请尽快审核!");
+                        pushEmail.push(ADMIN_EMAIL, EmailTemplate.TITLE, "用户[" + whitelistInfo.getUserName() + "]的白名单申请已提交,请尽快审核!");
                     } catch (ExecutionException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
@@ -361,24 +364,20 @@ public class WhitelistInfoController extends BaseController {
             } else {
                 map.put("账号类型", "离线");
             }
+            map.put("审核人", obj.getReviewUsers());
+            map.put("UUID", obj.getUserUuid());
             switch (obj.getAddState()) {
                 case "1":
                     map.put("审核状态", "已通过");
-                    map.put("审核人", obj.getReviewUsers());
-                    map.put("UUID", obj.getUserUuid());
-                    map.put("审核时间", dateFormat.format(obj.getAddTime()));
+                    map.put("审核时间", dateFormat.format(obj.getTime()));
                     break;
                 case "2":
                     map.put("审核状态", "未通过/已移除");
-                    map.put("审核人", obj.getReviewUsers());
-                    map.put("UUID", obj.getUserUuid());
                     map.put("移除时间", dateFormat.format(obj.getRemoveTime()));
                     map.put("移除原因", obj.getRemoveReason());
                     break;
                 case "9":
                     map.put("审核状态", "已封禁");
-                    map.put("审核人", obj.getReviewUsers());
-                    map.put("UUID", obj.getUserUuid());
                     map.put("封禁时间", dateFormat.format(obj.getRemoveTime()));
                     map.put("封禁原因", obj.getRemoveReason());
                     break;
