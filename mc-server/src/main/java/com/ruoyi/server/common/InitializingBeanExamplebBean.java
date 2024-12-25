@@ -46,9 +46,8 @@ public class InitializingBeanExamplebBean implements InitializingBean {
         final List<ServerInfo> serverInfos = serverInfoService.selectServerInfoList(new ServerInfo());
         if (serverInfos == null || serverInfos.isEmpty()) {
             log.error(RconMsg.SERVER_EMPTY);
-            return;
         }
-        redisCache.setCacheObject("serverInfo", serverInfos, 1, TimeUnit.DAYS);
+        redisCache.setCacheObject("serverInfo", serverInfos, 3, TimeUnit.DAYS);
         // 服务器信息缓存更新时间
         redisCache.setCacheObject("serverInfoUpdateTime", DateUtils.getNowDate());
         // 初始化Rcon连接
@@ -61,7 +60,7 @@ public class InitializingBeanExamplebBean implements InitializingBean {
         log.debug("InitializingBean afterPropertiesSet end...");
 
 
-        RconUtil.sendCommand("all", "say Rcon ready! Time: " + DateUtils.getNowDate());
+        // RconUtil.sendCommand("all", "say Rcon ready! Time: " + DateUtils.getNowDate());
 
 
         // 初始化缓存服务器指令
@@ -71,4 +70,6 @@ public class InitializingBeanExamplebBean implements InitializingBean {
         RconUtil.COMMAND_INFO = ObjectCache.getCommandInfo();
 
     }
+
+
 }

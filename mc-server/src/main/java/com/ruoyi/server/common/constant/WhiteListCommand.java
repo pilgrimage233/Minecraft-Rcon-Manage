@@ -23,15 +23,20 @@ public class WhiteListCommand {
 
     public static final String WHITELIST_RELOAD_COMMAND = "whitelist reload";
 
-    public static final String WHITELIST_ON_COMMAND = "whitelist on";
-
-    public static final String WHITELIST_OFF_COMMAND = "whitelist off";
-
     public static final String WHITELIST_ADD_COMMAND = "whitelist add";
 
     public static final String WHITELIST_REMOVE_COMMAND = "whitelist remove";
 
     public static final String WHITELIST_LIST_COMMAND = "whitelist list";
+
+    // ban
+    public static final String BAN_ADD = "ban %s";
+
+    public static final String BAN_REMOVE = "pardon %s";
+
+    public static final String BAN_ADD_COMMAND = "ban";
+
+    public static final String BAN_REMOVE_COMMAND = "pardon";
 
     public static final String WHITELIST_RELOAD_COMMAND_DESC = "重载白名单";
 

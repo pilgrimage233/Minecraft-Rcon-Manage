@@ -1,11 +1,10 @@
 package com.ruoyi.server.common;
 
 import com.github.t9t.minecraftrconclient.RconClient;
-import com.ruoyi.common.constant.HttpStatus;
-import com.ruoyi.common.core.domain.R;
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.constant.RconMsg;
+import com.ruoyi.server.common.constant.WhiteListCommand;
 import com.ruoyi.server.domain.ServerCommandInfo;
 import com.ruoyi.server.domain.ServerInfo;
 import org.apache.ibatis.logging.Log;
@@ -114,8 +113,16 @@ public class RconUtil {
             log.error(RconMsg.RECONNECT_ERROR);
             return;
         }
-        // 从Redis缓存读取服务器信息
-        List<ServerInfo> serverInfo = redisCache.getCacheObject("serverInfo");
+        List<ServerInfo> serverInfo = null;
+
+        try {
+            // 从Redis缓存读取服务器信息
+            serverInfo = redisCache.getCacheObject("serverInfo");
+        } catch (Exception e) {
+            log.error(RconMsg.ERROR_MSG + e.getMessage());
+            return;
+        }
+
         // 重连Rcon
         for (ServerInfo info : serverInfo) {
             if (info.getId().toString().equals(key)) {
@@ -171,18 +178,18 @@ public class RconUtil {
             // System.err.println(COMMAND_INFO);
 
             // 替换Rcon命令
-            if (command.startsWith("white_add")) {
-                command = onlineFlag ? info.getOnlineAddWhitelistCommand().replace("{player}", command.substring(10))
-                        : info.getOfflineAddWhitelistCommand().replace("{player}", command.substring(10));
-            } else if (command.startsWith("white_remove")) {
-                command = onlineFlag ? info.getOnlineRmWhitelistCommand().replace("{player}", command.substring(13))
-                        : info.getOfflineRmWhitelistCommand().replace("{player}", command.substring(13));
-            } else if (command.startsWith("ban")) {
-                command = onlineFlag ? info.getOnlineAddBanCommand().replace("{player}", command.substring(8))
-                        : info.getOfflineAddBanCommand().replace("{player}", command.substring(8));
-            } else if (command.startsWith("pardon")) {
-                command = onlineFlag ? info.getOnlineRmBanCommand().replace("{player}", command.substring(11))
-                        : info.getOfflineRmBanCommand().replace("{player}", command.substring(11));
+            if (command.startsWith(WhiteListCommand.WHITELIST_ADD_COMMAND)) {
+                command = onlineFlag ? info.getOnlineAddWhitelistCommand().replace("{player}", command.substring(14))
+                        : info.getOfflineAddWhitelistCommand().replace("{player}", command.substring(14));
+            } else if (command.startsWith(WhiteListCommand.WHITELIST_REMOVE_COMMAND)) {
+                command = onlineFlag ? info.getOnlineRmWhitelistCommand().replace("{player}", command.substring(17))
+                        : info.getOfflineRmWhitelistCommand().replace("{player}", command.substring(17));
+            } else if (command.startsWith(WhiteListCommand.BAN_ADD_COMMAND)) {
+                command = onlineFlag ? info.getOnlineAddBanCommand().replace("{player}", command.substring(4))
+                        : info.getOfflineAddBanCommand().replace("{player}", command.substring(4));
+            } else if (command.startsWith(WhiteListCommand.BAN_REMOVE_COMMAND)) {
+                command = onlineFlag ? info.getOnlineRmBanCommand().replace("{player}", command.substring(7))
+                        : info.getOfflineRmBanCommand().replace("{player}", command.substring(7));
             }
 
             log.debug("替换Rcon命令成功：" + key + " " + command);

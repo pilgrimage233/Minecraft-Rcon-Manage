@@ -133,14 +133,29 @@
           <span>{{ parseTime(scope.row.time, '{y}-{m}-{d} {h}:{i}') }}</span>
         </template>
       </el-table-column>
-      <el-table-column align="center" label="游戏名称" prop="userName" show-overflow-tooltip/>
+      <el-table-column align="center" label="游戏名称" prop="userName" show-overflow-tooltip>
+        <template slot-scope="scope">
+          <div v-if="scope.row.onlineFlag =='1'">
+            <el-button type="text" @click="openDialog(scope.row.userName)">{{ scope.row.userName }}</el-button>
+          </div>
+
+        </template>
+      </el-table-column>
       <el-table-column align="center" label="UUID" prop="userUuid" show-overflow-tooltip/>
       <el-table-column align="center" label="正版标识" prop="onlineFlag">
         <template slot-scope="scope">
           <dict-tag :options="dict.type.online_status" :value="scope.row.onlineFlag"/>
         </template>
       </el-table-column>
-      <el-table-column align="center" label="用户QQ" prop="qqNum" show-overflow-tooltip/>
+      <el-table-column align="center" label="用户QQ" prop="qqNum">
+        <template slot-scope="scope">
+          <el-popover placement="top-start" trigger="hover" width='auto'>
+            <img :src="'https://q1.qlogo.cn/g?b=qq&nk=' + scope.row.qqNum + '&s=4'"
+                 style="width: 140px; height: 140px">
+            <el-button slot="reference" size="small" type="text">{{ scope.row.qqNum }}</el-button>
+          </el-popover>
+        </template>
+      </el-table-column>
       <el-table-column align="center" label="描述" prop="remark" show-overflow-tooltip/>
       <el-table-column align="center" label="审核用户" prop="reviewUsers" show-overflow-tooltip/>
       <el-table-column align="center" label="审核状态" prop="status">
@@ -211,6 +226,10 @@
       @pagination="getList"
     />
 
+    <el-dialog :visible.sync="dialogVisible" style="border: 2px solid red;" width="30%">
+      <MinecraftSkin :username="selectedUserName"/>
+    </el-dialog>
+
     <!-- 添加或修改白名单对话框 -->
     <el-dialog :title="title" :visible.sync="open" append-to-body width="500px">
       <el-form ref="form" :model="form" :rules="rules" label-width="100px" size="medium">
@@ -272,9 +291,11 @@ import {
   updateWhitelist
 } from "@/api/mc/whitelist";
 import serverlist from "@/views/server/serverlist/index.vue";
+import MinecraftSkin from "@/views/skin/MinecraftSkin.vue";
 
 export default {
   name: "Whitelist",
+  components: {MinecraftSkin},
   computed: {
     serverlist() {
       return serverlist
@@ -344,7 +365,9 @@ export default {
       }],
       servers: [],
       serverOptions: [], // 服务器列表
-      serverList: []
+      serverList: [],
+      selectedUserName: "",
+      dialogVisible: false
     };
   },
   created() {
@@ -413,7 +436,7 @@ export default {
     handleAgree(row) {
       row.status = '1';
       // 默认同意全部服务器
-      this.serverList = ["all"];
+      row.servers = "all";
       if (row.id != null) {
         updateWhitelist(row).then(response => {
           this.$modal.msgSuccess("修改成功");
@@ -517,6 +540,10 @@ export default {
           }
         });
       });
+    },
+    openDialog(userName) {
+      this.selectedUserName = userName;
+      this.dialogVisible = true;
     }
   },
   watch: {
@@ -525,6 +552,9 @@ export default {
         this.reset();
         this.addState = false;
       }
+    },
+    dialogVisible(newVal) {
+      console.log('dialogVisible changed to:', newVal);
     }
   }
 };

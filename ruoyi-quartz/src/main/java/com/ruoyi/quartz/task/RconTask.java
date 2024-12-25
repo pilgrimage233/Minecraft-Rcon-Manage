@@ -30,7 +30,7 @@ public class RconTask {
     public void refreshRedisCache() {
         redisCache.deleteObject("serverInfo");
         // 服务器信息缓存
-        redisCache.setCacheObject("serverInfo", serverInfoService.selectServerInfoList(new ServerInfo()), 1, TimeUnit.DAYS);
+        redisCache.setCacheObject("serverInfo", serverInfoService.selectServerInfoList(new ServerInfo()), 3, TimeUnit.DAYS);
         // 服务器信息缓存更新时间
         redisCache.setCacheObject("serverInfoUpdateTime", DateUtils.getNowDate());
     }

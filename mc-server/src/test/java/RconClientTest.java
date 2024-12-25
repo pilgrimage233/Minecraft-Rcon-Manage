@@ -29,13 +29,19 @@ public class RconClientTest {
         try {
             RconClient client = RconClient.open(DomainToIp.domainToIp(ip), port, password);
 
-            final String list = client.sendCommand("minecraft:list");
+            final String list = client.sendCommand("banlist");
             System.err.println(list);
 
             client.close();
         } catch (Exception e) {
             logger.warning(StringUtils.format("Failed to connect to the server: {}", e.getMessage()));
         }
+    }
+
+    @Test
+    public void test() {
+        String s = "whitelist remove kiss";
+        System.err.println(s.substring(17));
     }
 
 
