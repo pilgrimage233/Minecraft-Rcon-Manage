@@ -120,7 +120,7 @@
     <select id="checkRepeat" parameterType="WhitelistInfo" resultMap="WhitelistInfoResult">
         <include refid="selectWhitelistInfoVo"/>
         <where>
-            <if test="userName != null  and userName != ''">and user_name = #{userName}</if>
+            <if test="userName != null  and userName != ''">and lower(user_name) = #{userName}</if>
             <if test="qqNum != null  and qqNum != ''">or qq_num = #{qqNum}</if>
         </where>
     </select>

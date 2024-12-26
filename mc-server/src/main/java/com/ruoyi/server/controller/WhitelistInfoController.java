@@ -347,7 +347,7 @@ public class WhitelistInfoController extends BaseController {
         Map<String, Object> map = new HashMap<>();
         WhitelistInfo whitelistInfo = new WhitelistInfo();
         if (params.containsKey("id") && !params.get("id").isEmpty()) {
-            whitelistInfo.setUserName(params.get("id"));
+            whitelistInfo.setUserName(params.get("id").toLowerCase());
         }
         if (params.containsKey("qq") && !params.get("qq").isEmpty()) {
             whitelistInfo.setQqNum(params.get("qq"));
@@ -369,7 +369,7 @@ public class WhitelistInfoController extends BaseController {
             switch (obj.getAddState()) {
                 case "1":
                     map.put("审核状态", "已通过");
-                    map.put("审核时间", dateFormat.format(obj.getTime()));
+                    map.put("审核时间", dateFormat.format(obj.getAddTime()));
                     break;
                 case "2":
                     map.put("审核状态", "未通过/已移除");

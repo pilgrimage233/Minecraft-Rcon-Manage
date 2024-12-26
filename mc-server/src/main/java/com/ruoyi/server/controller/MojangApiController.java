@@ -1,24 +1,25 @@
 package com.ruoyi.server.controller;
 
-import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
-import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.http.HttpUtils;
 import com.ruoyi.common.utils.sign.Base64;
-import com.ruoyi.server.async.AsyncManager;
 import com.ruoyi.server.common.constant.MojangApi;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestTemplate;
 
+import javax.servlet.http.HttpServletResponse;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.TimerTask;
 
 /**
  * ClassName: MojangApiController <br>
@@ -31,6 +32,7 @@ import java.util.TimerTask;
 @RestController
 @RequestMapping("/mojang/")
 public class MojangApiController extends BaseController {
+    private final RestTemplate restTemplate = new RestTemplate();
 
     /**
      * 查询mojang api
@@ -83,5 +85,35 @@ public class MojangApiController extends BaseController {
 
         map.put("query_time", DateUtils.getTime());
         return success(map);
+    }
+
+    @GetMapping("/texture")
+    public void getTexture(@RequestParam String url, HttpServletResponse response) {
+        try {
+            // 获取皮肤数据
+            ResponseEntity<Resource> responseEntity = restTemplate.getForEntity(url, Resource.class);
+            Resource resource = responseEntity.getBody();
+
+            if (resource == null) {
+                response.setStatus(HttpServletResponse.SC_NOT_FOUND);
+                return;
+            }
+
+            // 设置响应头
+            response.setContentType(MediaType.IMAGE_PNG_VALUE);
+            response.setHeader(HttpHeaders.CACHE_CONTROL, "public, max-age=86400"); // 缓存24小时
+
+            // 复制图片数据到响应流
+            try (InputStream inputStream = resource.getInputStream();
+                 OutputStream outputStream = response.getOutputStream()) {
+                byte[] buffer = new byte[4096];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+            }
+        } catch (Exception e) {
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        }
     }
 }

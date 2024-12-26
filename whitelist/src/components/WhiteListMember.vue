@@ -85,10 +85,125 @@
         <div v-if="memberDetail" class="member-detail">
           <div v-for="(value, key) in memberDetail" :key="key" class="detail-item">
             <span class="detail-label">{{ key }}</span>
-            <span :class="{
-              'highlight': key === '审核状态',
-              'online': key === '账号类型' && value === '正版'
-            }" class="detail-value">{{ value }}</span>
+            <el-popover
+                v-if="key === 'QQ号'"
+                :width="120"
+                placement="right"
+                popper-class="qq-avatar-popover"
+                trigger="hover"
+            >
+              <template #reference>
+                <span :class="{
+                  'highlight': key === '审核状态',
+                  'online': key === '账号类型' && value === '正版'
+                }" class="detail-value">{{ value }}</span>
+              </template>
+              <div class="qq-avatar-container">
+                <img
+                    :alt="`QQ: ${value}`"
+                    :src="`https://q1.qlogo.cn/g?b=qq&nk=${value}&s=640`"
+                    class="qq-avatar"
+                />
+              </div>
+            </el-popover>
+            <el-popover
+                v-else-if="key === '游戏ID' && memberDetail['账号类型'] === '正版'"
+                :width="200"
+                placement="right"
+                popper-class="skin-viewer-popover"
+                trigger="hover"
+                @show="loadAndRenderSkin(value)"
+            >
+              <template #reference>
+                <span class="detail-value minecraft-id">{{ value }}</span>
+              </template>
+              <div class="skin-viewer-container">
+                <canvas
+                    id="skin-viewer-canvas"
+                    ref="skinViewerContainer"
+                    class="skin-viewer"
+                    height="240"
+                    width="180"
+                ></canvas>
+                <div v-if="!loadingSkin && !skinLoadError" class="skin-viewer-controls">
+                  <el-button-group>
+                    <el-button
+                        :type="isAnimating ? 'primary' : 'default'"
+                        size="small"
+                        title="播放/暂停"
+                        @click="toggleAnimation"
+                    >
+                      <el-icon>
+                        <VideoPlay v-if="!isAnimating"/>
+                        <VideoPause v-else/>
+                      </el-icon>
+                    </el-button>
+                    <el-button
+                        :type="isWalking ? 'primary' : 'default'"
+                        size="small"
+                        title="行走动画"
+                        @click="toggleWalk"
+                    >
+                      <el-icon>
+                        <Position/>
+                      </el-icon>
+                    </el-button>
+                    <el-button
+                        size="small"
+                        title="截图"
+                        @click="takeScreenshot"
+                    >
+                      <el-icon>
+                        <Camera/>
+                      </el-icon>
+                    </el-button>
+                    <el-button
+                        size="small"
+                        title="重置视角"
+                        @click="resetView"
+                    >
+                      <el-icon>
+                        <Refresh/>
+                      </el-icon>
+                    </el-button>
+                  </el-button-group>
+                </div>
+                <div v-if="loadingSkin" class="skin-viewer-loading">
+                  <el-progress
+                      :percentage="loadingProgress"
+                      :show-text="false"
+                      :stroke-width="4"
+                      :width="60"
+                      type="circle"
+                  >
+                    <template #default>
+                      <span class="progress-text">{{ loadingProgress }}%</span>
+                    </template>
+                  </el-progress>
+                </div>
+                <div v-if="skinLoadError" class="skin-viewer-error">
+                  <el-icon>
+                    <Warning/>
+                  </el-icon>
+                  <span>{{ skinLoadError }}</span>
+                  <el-button
+                      link
+                      size="small"
+                      type="primary"
+                      @click="retryLoadSkin"
+                  >重试
+                  </el-button>
+                </div>
+              </div>
+            </el-popover>
+            <span
+                v-else
+                :class="{
+                'highlight': key === '审核状态',
+                'online': key === '账号类型' && value === '正版'
+              }"
+                class="detail-value"
+            >{{ value }}</span>
           </div>
         </div>
 
@@ -112,10 +227,12 @@
 </template>
 
 <script setup>
-import {onMounted, reactive, ref} from 'vue';
+import {nextTick, onMounted, onUnmounted, reactive, ref, watch} from 'vue';
 import {ElMessage} from 'element-plus';
 import axios from 'axios';
-import {Close, Refresh, User} from '@element-plus/icons-vue'
+import {Camera, Close, Position, Refresh, User, VideoPause, VideoPlay, Warning} from '@element-plus/icons-vue';
+// 导入 skinview3d
+import * as skinview3d from 'skinview3d';
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://application.shenzhuo.vip',
@@ -129,6 +246,19 @@ const lastUpdateTime = ref('');
 // 添加成员详情相关的响应式变量
 const dialogVisible = ref(false);
 const memberDetail = ref(null);
+
+const skinViewerContainer = ref(null);
+const loadingSkin = ref(false);
+let skinViewer = null;
+
+// 添加错误状态
+const skinLoadError = ref(null);
+const currentUsername = ref(null);
+
+// 添加新的响应式状态
+const isAnimating = ref(true);
+const isWalking = ref(true);
+const loadingProgress = ref(0);
 
 const getWhiteList = (showMessage = false) => {
   loading.value = true;
@@ -152,7 +282,7 @@ const getWhiteList = (showMessage = false) => {
 
           lastUpdateTime.value = new Date().toLocaleString();
           if (showMessage) {
-            ElMessage.success('刷新成功！');
+            ElMessage.success('刷新成功');
           }
         } else {
           ElMessage.error(res.data.msg || '获取白名单列表失败');
@@ -167,7 +297,7 @@ const getWhiteList = (showMessage = false) => {
       });
 };
 
-// 查看成员详情
+// 查看员详情
 const checkMemberDetail = (memberId) => {
   loading.value = true;
   http.get(`/mc/whitelist/check?id=${memberId}`)
@@ -186,6 +316,223 @@ const checkMemberDetail = (memberId) => {
       .finally(() => {
         loading.value = false;
       });
+};
+
+// 重试加载功能
+const retryLoadSkin = () => {
+  if (currentUsername.value) {
+    loadAndRenderSkin(currentUsername.value);
+  }
+};
+
+// 修改加载函数
+const loadAndRenderSkin = async (username) => {
+  try {
+    skinLoadError.value = null;
+    loadingSkin.value = true;
+    loadingProgress.value = 0;
+    currentUsername.value = username;
+
+    console.log('Loading skin for:', username);
+
+    const response = await http.get(`/mojang/user/${username}`);
+    console.log('Mojang API response:', response.data);
+
+    if (response.data.code === 200) {
+      const skinData = response.data.data;
+
+      await nextTick();
+
+      if (skinViewer) {
+        skinViewer.dispose();
+        skinViewer = null;
+      }
+
+      const canvas = document.getElementById('skin-viewer-canvas');
+      if (canvas) {
+        try {
+          const baseUrl = import.meta.env.VITE_API_URL || 'https://application.shenzhuo.vip';
+          const skinUrl = `${baseUrl}/mojang/texture?url=${encodeURIComponent(skinData.skin.url)}`;
+          console.log('Requesting skin from:', skinUrl);
+
+          // 创建渲染器
+          const viewer = new skinview3d.SkinViewer({
+            canvas: canvas,
+            width: 180,
+            height: 240,
+            renderPaused: true
+          });
+
+          // 添加加载进度提示
+          const loadingPromise = viewer.loadSkin(skinUrl);
+          loadingPromise.onProgress = (progress) => {
+            loadingProgress.value = Math.round(progress * 100);
+          };
+          await loadingPromise;
+
+          console.log('Skin loaded successfully');
+
+          // 设置模型类型
+          if (skinData.skin?.metadata?.model === 'slim') {
+            viewer.playerObject.skin.modelType = 'slim';
+          }
+
+          // 设置相机位置
+          viewer.camera.position.set(30, 0, -40);
+          viewer.camera.lookAt(0, 0, 0);
+
+          // 添加行走动画
+          viewer.animation = new skinview3d.WalkingAnimation();
+          viewer.animation.speed = 0.6;
+
+          // 添加控制按钮
+          let rotation = 0;
+
+          // 动画函数
+          const animate = () => {
+            if (viewer && !viewer.renderPaused) {
+              if (isAnimating.value) {
+                rotation += 0.01;
+                viewer.playerObject.rotation.y = rotation;
+              }
+              viewer.render();
+              requestAnimationFrame(animate);
+            }
+          };
+
+          // 暴露控制方法
+          viewer.toggleAnimation = () => {
+            isAnimating.value = !isAnimating.value;
+            return isAnimating.value;
+          };
+
+          // 恢复渲染并开始动画
+          viewer.renderPaused = false;
+          skinViewer = viewer;
+          animate();
+
+        } catch (error) {
+          console.error('皮肤渲染初始化失败：', error);
+          skinLoadError.value = '皮肤加载失败';
+          throw new Error('皮肤渲染初始化失败');
+        }
+      }
+    } else {
+      skinLoadError.value = response.data.msg || '获取皮肤数据失败';
+      throw new Error(response.data.msg || '获取皮肤数据失败');
+    }
+  } catch (error) {
+    console.error('加载皮肤失败：', error);
+    skinLoadError.value = '无法加载玩��皮肤';
+    ElMessage.error('无法加载玩家皮肤');
+  } finally {
+    loadingSkin.value = false;
+  }
+};
+
+// 修改清理函数
+const cleanupViewer = () => {
+  if (skinViewer) {
+    try {
+      // 停止动画循环
+      if (skinViewer.animation) {
+        skinViewer.animation.paused = true;
+      }
+      // 暂停渲染
+      skinViewer.renderPaused = true;
+      // 清理资源
+      skinViewer.dispose();
+      skinViewer = null;
+    } catch (e) {
+      console.error('清理皮肤查看器失败：', e);
+    }
+  }
+};
+
+// 监听弹窗关闭
+watch(dialogVisible, (newVal) => {
+  if (!newVal) {
+    cleanupViewer();
+  }
+});
+
+// 组件卸载时清理
+onUnmounted(() => {
+  cleanupViewer();
+});
+
+// 动画控制函数
+const toggleAnimation = () => {
+  isAnimating.value = !isAnimating.value;
+};
+
+const toggleWalk = () => {
+  if (skinViewer?.animation) {
+    isWalking.value = !isWalking.value;
+    skinViewer.animation.paused = !isWalking.value;
+  }
+};
+
+// 修改截图功能
+const takeScreenshot = () => {
+  if (skinViewer) {
+    try {
+      // 创建一个临时画布
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = 180;
+      tempCanvas.height = 240;
+      const ctx = tempCanvas.getContext('2d');
+
+      // 确保渲染最新的帧
+      skinViewer.render();
+
+      // 将 WebGL 画布内容复制到临时画布
+      ctx.drawImage(skinViewer.canvas, 0, 0);
+
+      // 添加半透明的渐变背景
+      const gradient = ctx.createLinearGradient(0, 0, 180, 240);
+      gradient.addColorStop(0, 'rgba(26, 26, 26, 0.8)');
+      gradient.addColorStop(1, 'rgba(44, 44, 44, 0.8)');
+
+      // 保存当前状态
+      ctx.save();
+      // 设置混合模式
+      ctx.globalCompositeOperation = 'destination-over';
+      // 绘制背景
+      ctx.fillStyle = gradient;
+      ctx.fillRect(0, 0, 180, 240);
+      // 恢复状态
+      ctx.restore();
+
+      // 添加水印
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+      ctx.font = '10px Arial';
+      ctx.textAlign = 'right';
+      ctx.fillText(`${currentUsername.value} - ${new Date().toLocaleDateString()}`, 170, 230);
+
+      // 获取图片数据
+      const dataUrl = tempCanvas.toDataURL('image/png');
+
+      // 创建下载链接
+      const link = document.createElement('a');
+      link.download = `${currentUsername.value}_skin_${Date.now()}.png`;
+      link.href = dataUrl;
+      link.click();
+
+      ElMessage.success('截图已保存');
+    } catch (error) {
+      console.error('截图失败：', error);
+      ElMessage.error('截图失败');
+    }
+  }
+};
+
+// 重置视角
+const resetView = () => {
+  if (skinViewer) {
+    skinViewer.camera.position.set(30, 0, -40);
+    skinViewer.camera.lookAt(0, 0, 0);
+  }
 };
 
 onMounted(() => {
@@ -443,7 +790,7 @@ onMounted(() => {
   background: rgba(64, 158, 255, 0.5);
 }
 
-/* 确保遮罩层覆盖整个视口 */
+/* ��保遮罩层覆盖整个视口 */
 :deep(.member-detail-dialog .el-overlay) {
   position: fixed;
   top: 0;
@@ -622,5 +969,196 @@ onMounted(() => {
   height: 3px;
   background: rgba(255, 255, 255, 0.3);
   border-radius: 2px;
+}
+
+/* 添加QQ头像关样式 */
+.qq-avatar-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 4px;
+}
+
+.qq-avatar {
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  object-fit: cover;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease;
+}
+
+.qq-avatar:hover {
+  transform: scale(1.05);
+}
+
+/* 自定义popover样式 */
+:deep(.qq-avatar-popover) {
+  padding: 8px;
+  border-radius: 12px;
+  border: none;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(8px);
+}
+
+/* 为QQ号添加特殊样式 */
+.detail-value:has(+ .el-popover) {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: #409EFF;
+  text-underline-offset: 4px;
+}
+
+.detail-value:has(+ .el-popover):hover {
+  color: #66b1ff;
+}
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+  :deep(.qq-avatar-popover) {
+    max-width: 90vw;
+  }
+
+  .qq-avatar {
+    width: 80px;
+    height: 80px;
+  }
+}
+
+/* 添加 Minecraft 皮肤查看器相关样式 */
+.skin-viewer {
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  display: block;
+}
+
+.skin-viewer-container {
+  position: relative;
+  width: 180px;
+  height: 240px;
+  background: linear-gradient(135deg, #1a1a1a, #2c2c2c);
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+.skin-viewer-loading {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  font-size: 14px;
+  backdrop-filter: blur(4px);
+}
+
+:deep(.skin-viewer-popover) {
+  padding: 12px;
+  border-radius: 16px;
+  border: none;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.3);
+  background: rgba(26, 26, 26, 0.95);
+  backdrop-filter: blur(12px);
+}
+
+.minecraft-id {
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+  text-decoration-color: #E6A23C;
+  text-underline-offset: 4px;
+  transition: all 0.3s ease;
+}
+
+.minecraft-id:hover {
+  color: #E6A23C;
+  text-shadow: 0 0 8px rgba(230, 162, 60, 0.3);
+}
+
+/* 移动端适配 */
+@media screen and (max-width: 768px) {
+  :deep(.skin-viewer-popover) {
+    max-width: 90vw;
+  }
+
+  .skin-viewer-container {
+    width: 150px;
+    height: 200px;
+  }
+}
+
+.skin-viewer-error {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #f56c6c;
+  font-size: 14px;
+  backdrop-filter: blur(4px);
+}
+
+.skin-viewer-error .el-icon {
+  font-size: 24px;
+  margin-bottom: 4px;
+}
+
+/* 添加控制按钮样式 */
+.skin-viewer-controls {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 1;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 6px;
+  border-radius: 8px;
+  backdrop-filter: blur(8px);
+}
+
+.skin-viewer-controls .el-button {
+  padding: 6px;
+  border: none;
+  background: transparent;
+  color: white;
+}
+
+.skin-viewer-controls .el-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.skin-viewer-controls .el-button.el-button--primary {
+  background: rgba(64, 158, 255, 0.2);
+}
+
+.progress-text {
+  font-size: 12px;
+  color: white;
+}
+
+/* 优化加载动画 */
+.skin-viewer-loading {
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+}
+
+:deep(.el-progress-circle) {
+  --el-progress-color: #409EFF;
 }
 </style>
