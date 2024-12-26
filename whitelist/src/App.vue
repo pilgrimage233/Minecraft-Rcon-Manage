@@ -1,11 +1,8 @@
 <template>
-  <div id="app">
-    <WhiteListApplication/>
-  </div>
+  <router-view></router-view>
 </template>
 
 <script setup>
-import WhiteListApplication from './components/WhiteListApplication.vue';
 </script>
 
 <style>

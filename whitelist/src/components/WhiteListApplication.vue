@@ -1,5 +1,12 @@
 <template>
   <div class="app-wrapper">
+    <div class="sakura-container">
+      <span v-for="n in 10" :key="n" :style="{
+        '--delay': `${Math.random() * 5}s`,
+        '--size': `${Math.random() * 20 + 10}px`,
+        '--left': `${Math.random() * 100}%`
+      }" class="sakura"></span>
+    </div>
     <div class="server-status-container">
       <div class="status-header">
         <div class="header-title">
@@ -56,6 +63,17 @@
       <div class="title-container">
         <i class="el-icon-user-solid"></i>
         <h2>白名单申请</h2>
+        <el-button
+            class="view-members-btn"
+            text
+            type="primary"
+            @click="$router.push('/whitelist-members')"
+        >
+          <el-icon>
+            <User/>
+          </el-icon>
+          查看白名单成员
+        </el-button>
       </div>
 
       <div class="description">
@@ -79,7 +97,7 @@
           <el-input v-model="form.remark" placeholder="请输入描述 非必填" type="textarea"></el-input>
         </el-form-item>
         <div class="button-group">
-          <el-button v-loading.fullscreen.lock="loading"
+          <el-button v-loading.fullscreen.lock="fullscreenLoading"
                      class="submit-btn"
                      type="primary"
                      @click="submitForm">
@@ -92,14 +110,14 @@
 </template>
 
 <script setup>
-import {onMounted, reactive} from 'vue';
+import {onMounted, reactive, ref} from 'vue';
 import {ElMessage} from 'element-plus';
 import axios from 'axios';
-import {Refresh} from '@element-plus/icons-vue'
+import {Refresh, User} from '@element-plus/icons-vue'
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://application.shenzhuo.vip', // 使用环境变量
-  timeout: 5000
+  timeout: 8000
 });
 
 const form = reactive({
@@ -116,15 +134,18 @@ const serverStatus = reactive({
   queryTime: '-'
 });
 
+// 添加全屏loading状态
+const fullscreenLoading = ref(false);
+
 const submitForm = () => {
   if (!form.userName || !form.qqNum || !form.onlineFlag) {
     ElMessage.error('请填写完整信息');
   } else if (!/^\d{5,11}$/.test(form.qqNum)) {
     ElMessage.error('QQ号格式错误');
   } else {
-    loading = true;
+    fullscreenLoading.value = true;  // 使用新的loading状态
     // 先获取用户IP
-    fetch('https://api.ipify.org?format=json')
+    fetch('https://ip.useragentinfo.com/json')
         .then(response => response.json())
         .then(data => {
           // 发送表单请求，带上IP信息
@@ -140,12 +161,12 @@ const submitForm = () => {
           } else {
             ElMessage.error(res.data.msg || '未知错误，请联系管理员');
           }
-          loading = false;
+          fullscreenLoading.value = false;  // 关闭loading
         })
         .catch((error) => {
           console.error('提交表单请求出错：', error);
           ElMessage.error('提交表单时发生错误，请检查网络或联系管理员');
-          loading = false;
+          fullscreenLoading.value = false;  // 关闭loading
         });
   }
 };
@@ -215,9 +236,9 @@ onMounted(() => {
   background-size: 400% 400%;
   background-image: linear-gradient(
       -45deg,
-      #e6c3ff, /* 淡紫色 */ #ffcad4, /* 淡粉色 */ #ffd4bc, /* 淡橘色 */ #fff3b2 /* 淡黄色 */, #c3ffec /* 淡绿色 */, #c3f3ff /* 淡蓝色 */
+      #e0e0ff, /* 淡紫色 */ #ffd6e7, /* 玫瑰粉 */ #ffdfd0, /* 暖橘色 */ #fff4d1, /* 温暖黄 */ #d4ffe6, /* 薄荷绿 */ #cce9ff, /* 天空蓝 */ #f0e6ff, /* 浅紫色 */ #ffe6f0, /* 浅粉色 */ #ffe6e6 /* 浅珊瑚色 */
   );
-  animation: warmGradient 7s ease infinite;
+  animation: warmGradient 20s ease infinite;
   padding: 20px;
 }
 
@@ -252,6 +273,7 @@ onMounted(() => {
 .title-container {
   text-align: center;
   margin-bottom: 25px;
+  position: relative;
 }
 
 .title-container h2 {
@@ -288,6 +310,28 @@ onMounted(() => {
   border-radius: 20px;
   font-weight: 500;
   transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.submit-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+  );
+  transition: 0.5s;
+}
+
+.submit-btn:hover::before {
+  left: 100%;
 }
 
 .submit-btn:hover {
@@ -296,11 +340,59 @@ onMounted(() => {
 
 :deep(.el-input__inner) {
   border-radius: 8px;
+  border: 1px solid rgba(64, 158, 255, 0.2);
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.8);
+  height: 40px;
+  transform: translateY(0);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+:deep(.el-input__inner:hover) {
+  border-color: #409EFF;
+}
+
+:deep(.el-input__inner:focus) {
+  border-color: #409EFF;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+  background: #fff;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
 }
 
 :deep(.el-textarea__inner) {
   border-radius: 8px;
+  border: 1px solid rgba(64, 158, 255, 0.2);
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.8);
   min-height: 100px;
+  padding: 12px;
+}
+
+:deep(.el-textarea__inner:hover) {
+  border-color: #409EFF;
+}
+
+:deep(.el-textarea__inner:focus) {
+  border-color: #409EFF;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+  background: #fff;
+}
+
+:deep(.el-form-item) {
+  margin-bottom: 25px;
+}
+
+:deep(.el-form-item__label) {
+  font-weight: 500;
+  color: #606266;
+}
+
+.form-container :deep(.el-input__wrapper),
+.form-container :deep(.el-textarea__wrapper) {
+  box-shadow: none !important;
+  padding: 0;
+  background: none;
 }
 
 @keyframes fadeIn {
@@ -323,18 +415,20 @@ onMounted(() => {
   top: 20px;
   right: 20px;
   width: 280px;
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 12px;
   padding: 15px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
-  z-index: 1000;
+  z-index: 1001;
+  overflow: hidden;
 }
 
 .server-status-container:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.15);
+  transform: translateX(-5px);
+  box-shadow: 4px 8px 32px rgba(0, 0, 0, 0.12);
 }
 
 .status-header {
@@ -359,64 +453,103 @@ onMounted(() => {
 .status-content {
   font-size: 14px;
   padding: 0 8px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .server-name {
   font-weight: 500;
   color: #303133;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   display: flex;
   align-items: center;
+  font-size: 15px;
+  padding: 4px 8px;
+  background: rgba(64, 158, 255, 0.1);
+  border-radius: 6px;
+  width: fit-content;
 }
 
 .server-name i {
   margin-right: 8px;
   color: #409EFF;
-  flex-shrink: 0;
+  font-size: 16px;
 }
 
 .online-info {
-  padding-left: 8px;
+  padding-left: 4px;
+  width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
 .player-list {
-  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
 }
 
 .players-label {
   color: #606266;
-  font-size: 13px;
+  font-size: 14px;
   display: flex;
   align-items: center;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
+  padding: 4px 0;
+  padding-left: 4px;
 }
 
 .players-label i {
   margin-right: 8px;
-  flex-shrink: 0;
+  color: #67C23A;
+  font-size: 15px;
 }
 
 .players-container {
-  display: flex;
+  display: inline-flex;
   flex-wrap: wrap;
   gap: 4px;
+  padding-left: 8px;
+  width: auto;
+  min-width: 0;
 }
 
 .player-tag {
+  transition: all 0.3s ease;
+  border-radius: 10px;
+  padding: 2px 10px;
+  background-color: rgba(103, 194, 58, 0.1);
+  border: 1px solid rgba(103, 194, 58, 0.2);
+  color: #67C23A;
   font-size: 12px;
-  margin: 0;
+  line-height: 1.4;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.player-tag:hover {
+  background-color: rgba(103, 194, 58, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(103, 194, 58, 0.1);
 }
 
 .query-time {
-  margin-top: 12px;
-  padding-top: 8px;
-  border-top: 1px dashed rgba(0, 0, 0, 0.1);
-  text-align: center;
+  font-size: 12px;
+  color: #909399;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+  margin-top: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .query-time i {
-  margin-right: 8px;
-  flex-shrink: 0;
+  margin-right: 6px;
+  color: #909399;
+  font-size: 14px;
 }
 
 .refresh-btn {
@@ -430,6 +563,8 @@ onMounted(() => {
   margin-left: 8px;
   background-color: #f4f4f5;
   border: none;
+  transform: scale(1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .refresh-btn:hover {
@@ -443,10 +578,20 @@ onMounted(() => {
   background-color: #ecf5ff;
 }
 
+.refresh-btn:active {
+  transform: scale(0.95);
+}
+
 .server-block {
-  padding: 12px 0;
-  margin-bottom: 12px;
-  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 15px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .server-block:last-child {
@@ -492,5 +637,207 @@ onMounted(() => {
 
 .header-title :deep(.refresh-btn i) {
   margin: 0;
+}
+
+/* 优化服务器块样式 */
+.server-block {
+  transition: all 0.3s ease;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 15px;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  width: 100%;
+}
+
+.server-block:hover {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+/* 优化玩家标签样式 */
+.player-tag {
+  transition: all 0.3s ease;
+  border-radius: 10px;
+  padding: 2px 10px;
+  background-color: rgba(103, 194, 58, 0.1);
+  border: 1px solid rgba(103, 194, 58, 0.2);
+  color: #67C23A;
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.player-tag:hover {
+  background-color: rgba(103, 194, 58, 0.2);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(103, 194, 58, 0.1);
+}
+
+/* 优化查询时间样式 */
+.query-time {
+  font-size: 12px;
+  color: #909399;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.5);
+  border-radius: 8px;
+  margin-top: 15px;
+}
+
+/* 添加错误信息样式 */
+.error-message {
+  color: #f56c6c;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  background: rgba(245, 108, 108, 0.1);
+  border-radius: 8px;
+  margin: 8px 0;
+  animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+.error-message i {
+  margin-right: 8px;
+  font-size: 16px;
+}
+
+@keyframes shake {
+  10%, 90% {
+    transform: translateX(-1px);
+  }
+  20%, 80% {
+    transform: translateX(2px);
+  }
+  30%, 50%, 70% {
+    transform: translateX(-4px);
+  }
+  40%, 60% {
+    transform: translateX(4px);
+  }
+}
+
+/* 优化表单容器 */
+.form-container {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+/* 优化提交按钮 */
+.submit-btn {
+  background: linear-gradient(45deg, #409EFF, #36cfc9);
+  border: none;
+  box-shadow: 0 4px 15px rgba(64, 158, 255, 0.3);
+}
+
+.submit-btn:hover {
+  background: linear-gradient(45deg, #66b1ff, #5cdbd3);
+  box-shadow: 0 6px 20px rgba(64, 158, 255, 0.4);
+}
+
+/* 优化单选按钮组样式 */
+:deep(.el-radio) {
+  margin-right: 20px;
+  transition: all 0.3s ease;
+}
+
+:deep(.el-radio:hover) {
+  transform: translateY(-2px);
+}
+
+:deep(.el-radio__input.is-checked + .el-radio__label) {
+  color: #409EFF;
+  font-weight: 500;
+}
+
+/* 樱花容器 */
+.sakura-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* 樱花样式 */
+.sakura {
+  position: absolute;
+  top: -10%;
+  left: var(--left);
+  width: var(--size);
+  height: var(--size);
+  background: #ffd7e6;
+  border-radius: 100% 0 100% 100%;
+  animation: fall var(--delay) linear infinite;
+  transform-origin: center;
+  opacity: 0.7;
+}
+
+.sakura::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: inherit;
+  border-radius: inherit;
+  transform: rotate(45deg);
+}
+
+/* 樱花飘落动画 */
+@keyframes fall {
+  0% {
+    top: -10%;
+    transform: rotate(0deg) translateX(0);
+    opacity: 0;
+  }
+  10% {
+    opacity: 0.7;
+  }
+  90% {
+    opacity: 0.7;
+  }
+  100% {
+    top: 100%;
+    transform: rotate(360deg) translateX(100px);
+    opacity: 0;
+  }
+}
+
+/* 修改服务器状态容器的z-index确保在樱花上层 */
+.server-status-container {
+  z-index: 1001;
+}
+
+/* 修改表单容器的z-index确保在樱花上层 */
+.form-container {
+  z-index: 1001;
+  position: relative;
+}
+
+/* 添加查看成员按钮样式 */
+.view-members-btn {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 14px;
+  color: #409EFF;
+  transition: all 0.3s ease;
+}
+
+.view-members-btn:hover {
+  color: #66b1ff;
+  transform: translateY(-50%) translateX(-2px);
+}
+
+.view-members-btn .el-icon {
+  font-size: 16px;
 }
 </style>

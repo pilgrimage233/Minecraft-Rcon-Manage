@@ -135,7 +135,7 @@ xss:
 aliyun:
   account: support@mcpeach.cc
   password: 85G9BUobquaJ6nNt
-  enable: true
+  enable: false
 
 whitelist:
   easyauth: true
