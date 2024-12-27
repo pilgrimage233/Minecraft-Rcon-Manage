@@ -7,12 +7,15 @@ import com.ruoyi.server.common.constant.RconMsg;
 import com.ruoyi.server.common.constant.WhiteListCommand;
 import com.ruoyi.server.domain.ServerCommandInfo;
 import com.ruoyi.server.domain.ServerInfo;
-import org.apache.ibatis.logging.Log;
-import org.apache.ibatis.logging.LogFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Rcon发送命令工具类
@@ -20,10 +23,10 @@ import java.util.Map;
  */
 
 public class RconUtil {
-    // 创建LOG对象
-    private static final Log log = LogFactory.getLog(RconUtil.class);
+    // 使用 SLF4J 的日志实现
+    private static final Logger log = LoggerFactory.getLogger(RconUtil.class);
 
-    public static Map<String, ServerCommandInfo> COMMAND_INFO = new HashMap<>();
+    public static Map<String, ServerCommandInfo> COMMAND_INFO = new ConcurrentHashMap<>();
 
     private static final RedisCache redisCache = new RedisCache();
 
@@ -34,47 +37,42 @@ public class RconUtil {
      * @param command
      */
     public static void sendCommand(String key, String command) {
+        int maxRetries = 5;
+        int retryCount = 0;
 
-        if (StringUtils.isEmpty(key) || StringUtils.isEmpty(command)) {
-            log.error(RconMsg.MAIN_INFO_EMPTY);
-            return;
-        }
-
-        // 冗余策略：Map缓存
-        if (MapCache.isEmpty()) {
-            List<ServerInfo> serverInfo = redisCache.getCacheObject("serverInfo");
-            for (ServerInfo info : serverInfo) {
-                if (info.getStatus() != 1L) {
-                    continue;
-                }
-                init(info);
-            }
-        }
-
-        if (!key.equalsIgnoreCase("all")) {
-            // 判断是否为EasyAuth指令
-            if (command.contains("addToForcedOffline")) {
-                if (COMMAND_INFO.get(key).getEasyauth() == null || !COMMAND_INFO.get(key).getEasyauth().equals("1")) {
-                    log.error(RconMsg.NO_EASY_AUTH_MOD);
-                    return;
-                }
-            }
-
-            // 发送Rcon命令
+        while (retryCount < maxRetries) {
             try {
-                // 从Map缓存中获取RconClient
-                RconClient client = MapCache.get(key);
-                client.sendCommand(command);
-                log.debug(RconMsg.SEND_COMMAND + command);
+                if (key.contains("all")) {
+                    MapCache.getMap().forEach((k, client) -> {
+                        CompletableFuture.runAsync(() -> {
+                            client.sendCommand(command);
+                        });
+                    });
+                } else {
+                    if (MapCache.get(key) == null) {
+                        throw new RuntimeException("RconClient not found for key: " + key);
+                    }
+                    CompletableFuture.runAsync(() -> {
+                        MapCache.get(key).sendCommand(command);
+                    }).get(5, TimeUnit.SECONDS);
+                }
+
+                log.debug(RconMsg.SEND_COMMAND + "{}", command);
+                return;
             } catch (Exception e) {
-                log.error(RconMsg.ERROR + command);
-                log.error(RconMsg.ERROR_MSG + e.getMessage());
-                log.error(RconMsg.TRY_RECONNECT + key);
-                reconnect(key);
+                retryCount++;
+                log.warn("发送命令失败，第{}次重试: {}", retryCount, e.getMessage());
+                if (retryCount >= maxRetries) {
+                    log.error("发送命令最终失败: {}", e.getMessage());
+                    reconnect(key);
+                }
+                try {
+                    Thread.sleep(1000L * retryCount);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    break;
+                }
             }
-        } else {
-            // 发送Rcon命令给所有服务器
-            MapCache.getMap().values().forEach(client -> client.sendCommand(command));
         }
     }
 
@@ -139,12 +137,14 @@ public class RconUtil {
             log.error(RconMsg.KEY_EMPTY);
             return;
         }
-        // 从Map缓存中获取RconClient
-        RconClient client = MapCache.get(key);
-        if (client != null) {
-            client.close();
-            MapCache.remove(key);
-            log.debug(RconMsg.TURN_OFF_RCON + key);
+
+        try (RconClient client = MapCache.get(key)) {
+            if (client != null) {
+                MapCache.remove(key);
+                log.debug(RconMsg.TURN_OFF_RCON + "{}", key);
+            }
+        } catch (Exception e) {
+            log.error("关闭 Rcon 连接失败: {}", e.getMessage());
         }
     }
 
@@ -157,38 +157,44 @@ public class RconUtil {
      * @return 替换后的Rcon命令
      */
     public static String replaceCommand(String key, String command, boolean onlineFlag) {
-
-        if (command == null) {
+        if (StringUtils.isEmpty(command)) {
             log.error("替换Rcon命令失败：command为空");
             return key;
         }
 
-        if (COMMAND_INFO != null && COMMAND_INFO.containsKey(key)) {
-            // 从缓存中获取指令信息
-            ServerCommandInfo info = COMMAND_INFO.get(key);
-            // System.err.println(COMMAND_INFO);
-
-            // 替换Rcon命令
-            if (command.startsWith(WhiteListCommand.WHITELIST_ADD_COMMAND)) {
-                command = onlineFlag ? info.getOnlineAddWhitelistCommand().replace("{player}", command.substring(14))
-                        : info.getOfflineAddWhitelistCommand().replace("{player}", command.substring(14));
-            } else if (command.startsWith(WhiteListCommand.WHITELIST_REMOVE_COMMAND)) {
-                command = onlineFlag ? info.getOnlineRmWhitelistCommand().replace("{player}", command.substring(17))
-                        : info.getOfflineRmWhitelistCommand().replace("{player}", command.substring(17));
-            } else if (command.startsWith(WhiteListCommand.BAN_ADD_COMMAND)) {
-                command = onlineFlag ? info.getOnlineAddBanCommand().replace("{player}", command.substring(4))
-                        : info.getOfflineAddBanCommand().replace("{player}", command.substring(4));
-            } else if (command.startsWith(WhiteListCommand.BAN_REMOVE_COMMAND)) {
-                command = onlineFlag ? info.getOnlineRmBanCommand().replace("{player}", command.substring(7))
-                        : info.getOfflineRmBanCommand().replace("{player}", command.substring(7));
-            }
-
-            log.debug("替换Rcon命令成功：" + key + " " + command);
-        } else {
+        ServerCommandInfo info = COMMAND_INFO.get(key);
+        if (info == null) {
             log.error("替换Rcon命令失败：指令信息为空");
             throw new RuntimeException("指令信息为空");
         }
+
+        // 使用 Map 存储命令映射关系
+        Map<String, CommandReplacer> commandMap = new HashMap<>();
+        commandMap.put(WhiteListCommand.WHITELIST_ADD_COMMAND,
+                (cmd) -> onlineFlag ? info.getOnlineAddWhitelistCommand() : info.getOfflineAddWhitelistCommand());
+        commandMap.put(WhiteListCommand.WHITELIST_REMOVE_COMMAND,
+                (cmd) -> onlineFlag ? info.getOnlineRmWhitelistCommand() : info.getOfflineRmWhitelistCommand());
+        commandMap.put(WhiteListCommand.BAN_ADD_COMMAND,
+                (cmd) -> onlineFlag ? info.getOnlineAddBanCommand() : info.getOfflineRmBanCommand());
+        commandMap.put(WhiteListCommand.BAN_REMOVE_COMMAND,
+                (cmd) -> onlineFlag ? info.getOnlineRmBanCommand() : info.getOfflineRmBanCommand());
+
+        // 查找匹配的命令并替换
+        for (Map.Entry<String, CommandReplacer> entry : commandMap.entrySet()) {
+            if (command.startsWith(entry.getKey())) {
+                String player = command.substring(entry.getKey().length());
+                command = entry.getValue().replace(command).replace("{player}", player);
+                break;
+            }
+        }
+
+        log.debug("替换Rcon命令成功：{} {}", key, command);
         return command;
+    }
+
+    @FunctionalInterface
+    interface CommandReplacer {
+        String replace(String command);
     }
 }
 

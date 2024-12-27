@@ -38,11 +38,11 @@ public class RconMsg {
 
     public static final String TRY_RECONNECT = "尝试重新连接:";
 
-    public static final String RECONNECT_ERROR = "重新连接失败:";
+    public static final String RECONNECT_ERROR = "连接失败:";
 
-    public static final String RECONNECT_SUCCESS = "重新连接成功:";
+    public static final String RECONNECT_SUCCESS = "连接成功:";
 
-    public static final String RECONNECT_TIMEOUT = "重新连接超时:";
+    public static final String RECONNECT_TIMEOUT = "连接超时:";
 
     public static final String TURN_OFF_RCON = "关闭Rcon:";
 
