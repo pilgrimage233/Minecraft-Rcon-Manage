@@ -10,14 +10,15 @@ import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.http.HttpUtils;
 import com.ruoyi.common.utils.ip.IpUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.server.async.AsyncManager;
+import com.ruoyi.server.common.EmailTemplates;
 import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.PushEmail;
-import com.ruoyi.server.common.constant.EmailTemplate;
 import com.ruoyi.server.domain.IpLimitInfo;
 import com.ruoyi.server.domain.WhitelistInfo;
 import com.ruoyi.server.sdk.SearchHttpAK;
@@ -309,11 +310,19 @@ public class WhitelistInfoController extends BaseController {
             TimerTask timerTask = new TimerTask() {
                 @Override
                 public void run() {
+
                     try {
-                        pushEmail.push(whitelistInfo.getQqNum() + "@qq.com", EmailTemplate.TITLE, EmailTemplate.APPLY_SUCCESS);
+                        pushEmail.push(whitelistInfo.getQqNum() + EmailTemplates.QQ_EMAIL,
+                                EmailTemplates.TITLE,
+                                EmailTemplates.getWhitelistNotificationPending(
+                                        whitelistInfo.getQqNum(),
+                                        whitelistInfo.getUserName(),
+                                        DateUtils.getTime()
+                                ));
                     } catch (ExecutionException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
+
                 }
             };
             asyncManager.execute(timerTask);
@@ -322,7 +331,7 @@ public class WhitelistInfoController extends BaseController {
                 @Override
                 public void run() {
                     try {
-                        pushEmail.push(ADMIN_EMAIL, EmailTemplate.TITLE, "用户[" + whitelistInfo.getUserName() + "]的白名单申请已提交,请尽快审核!");
+                        pushEmail.push(ADMIN_EMAIL, EmailTemplates.TITLE, "用户[" + whitelistInfo.getUserName() + "]的白名单申请已提交,请尽快审核!");
                     } catch (ExecutionException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
@@ -330,9 +339,9 @@ public class WhitelistInfoController extends BaseController {
             };
             asyncManager.execute(timerTask2);
 
-            return success(EmailTemplate.APPLY_SUCCESS);
+            return success(EmailTemplates.APPLY_SUCCESS);
         } else {
-            return error(EmailTemplate.APPLY_ERROR);
+            return error(EmailTemplates.APPLY_ERROR);
         }
 
     }

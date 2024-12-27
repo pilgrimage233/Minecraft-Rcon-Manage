@@ -1,11 +1,12 @@
 package com.ruoyi.server.service.impl;
 
 import com.github.t9t.minecraftrconclient.RconClient;
+import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.server.async.AsyncManager;
+import com.ruoyi.server.common.EmailTemplates;
 import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.PushEmail;
 import com.ruoyi.server.common.RconUtil;
-import com.ruoyi.server.common.constant.EmailTemplate;
 import com.ruoyi.server.common.constant.WhiteListCommand;
 import com.ruoyi.server.domain.BanlistInfo;
 import com.ruoyi.server.domain.WhitelistInfo;
@@ -171,17 +172,18 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
      * @return
      */
     private @Nullable Integer handleWhitelistFailure(WhitelistInfo whitelistInfo, String name, WhitelistInfo info) {
-        String emailConnect = EmailTemplate.FAIL_CONTENT;
-        String emailTitle = EmailTemplate.FAIL_TITLE;
+        String emailTitle = EmailTemplates.FAIL_TITLE;
+        String timeTittle = EmailTemplates.FAIL_TIME_TITTLE;
         whitelistInfo.setReviewUsers(name);
         // 如果原先通过，拒审则删除白名单
         if (info.getStatus().equals("1")) {
-            emailConnect = EmailTemplate.REMOVED_CONTENT; // 如果原先通过则发送移除邮件
-            emailTitle = EmailTemplate.REMOVE_TITLE;
+            emailTitle = EmailTemplates.REMOVE_TITLE;
+            timeTittle = EmailTemplates.REMOVE_TIME_TITTLE;
             whitelistInfo.setAddState("2");
             whitelistInfo.setStatus("2");
             whitelistInfo.setRemoveTime(new Date());
             whitelistInfo.setReviewUsers(name);
+
             try {
                 sendCommand(whitelistInfo, String.format(WhiteListCommand.WHITELIST_REMOVE, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
             } catch (Exception e) {
@@ -189,12 +191,24 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 return 0;
             }
         }
+
         try {
-            pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplate.QQ_EMAIL, emailTitle, String.format(emailConnect, whitelistInfo.getUserName(), dateFormat.format(new Date()), name, whitelistInfo.getRemoveReason()));
+            pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                    emailTitle,
+                    EmailTemplates.getWhitelistNotificationBan(
+                            whitelistInfo.getQqNum(),
+                            whitelistInfo.getUserName(),
+                            dateFormat.format(whitelistInfo.getAddTime()),
+                            DateUtils.getTime(),
+                            timeTittle,
+                            whitelistInfo.getRemoveReason(),
+                            emailTitle)
+            );
         } catch (Exception e) {
             log.error("发送邮件失败,请联系管理员!");
             return 0;
         }
+
         return null;
     }
 
@@ -216,13 +230,22 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             if (banlistInfo.getState() == 1) {
                 try {
                     sendCommand(whitelistInfo, String.format(WhiteListCommand.BAN_REMOVE, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
+
                     try {
-                        pushEmail.push(whitelistInfo.getQqNum().trim() + "@qq.com", EmailTemplate.TITLE,
-                                "用户: " + whitelistInfo.getUserName() + " 的全局封禁已于 " + dateFormat.format(new Date()) + " 日被解除,审核人: " + name);
+                        pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                                EmailTemplates.UN_BAN_TITLE,
+                                EmailTemplates.getWhitelistNotificationUnBan(
+                                        whitelistInfo.getQqNum(),
+                                        whitelistInfo.getUserName(),
+                                        dateFormat.format(banlistInfo.getCreateTime()),
+                                        DateUtils.getTime()
+                                )
+                        );
                     } catch (Exception e) {
                         log.error("发送邮件失败,原因：" + e.getMessage());
                         return 0;
                     }
+
                 } catch (Exception e) {
                     log.error("解除全局封禁失败,原因：" + e.getMessage());
                     return 0;
@@ -259,12 +282,22 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             sendCommand(whitelistInfo, "say §4[全局封禁] §c" + whitelistInfo.getUserName() + " §4已被全局封禁,原因: §c[" + whitelistInfo.getBannedReason() + "] §4审核人: §c" + name, true);
 
             try {
-                pushEmail.push(whitelistInfo.getQqNum().trim() + "@qq.com", EmailTemplate.TITLE,
-                        "用户: " + whitelistInfo.getUserName() + " 已被全局封禁,原因: [" + whitelistInfo.getBannedReason() + "] 审核人: " + name);
+                pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                        EmailTemplates.BAN_TITLE,
+                        EmailTemplates.getWhitelistNotificationBan(
+                                whitelistInfo.getQqNum(),
+                                whitelistInfo.getUserName(),
+                                whitelistInfo.getAddState(),
+                                DateUtils.getTime(),
+                                EmailTemplates.BAN_TIME_TITTLE,
+                                whitelistInfo.getBannedReason(),
+                                EmailTemplates.BAN_TITLE)
+                );
             } catch (Exception e) {
                 log.error("发送邮件失败,请联系管理员!");
                 return 0;
             }
+
         } catch (Exception e) {
             log.error("全局封禁失败,请联系管理员!");
             return 0;
@@ -309,12 +342,24 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         try {
             // 根据在线添加标识判断是发送在线移除命令还是离线移除命令
             sendCommand(whitelistInfo, String.format(WhiteListCommand.WHITELIST_REMOVE, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
+
             try {
-                pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplate.QQ_EMAIL, EmailTemplate.REMOVE_TITLE, String.format(EmailTemplate.REMOVED_CONTENT, whitelistInfo.getUserName(), dateFormat.format(new Date()), name, whitelistInfo.getRemoveReason()));
+                pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                        EmailTemplates.REMOVE_TITLE,
+                        EmailTemplates.getWhitelistNotificationBan(
+                                whitelistInfo.getQqNum(),
+                                whitelistInfo.getUserName(),
+                                dateFormat.format(whitelistInfo.getAddTime()),
+                                DateUtils.getTime(),
+                                EmailTemplates.REMOVE_TIME_TITTLE,
+                                whitelistInfo.getRemoveReason(),
+                                EmailTemplates.REMOVE_TITLE)
+                );
             } catch (Exception e) {
                 log.error("发送邮件失败,原因：" + e.getMessage());
                 return 0;
             }
+
         } catch (Exception e) {
             whitelistInfo.setAddState("0"); // 如果移除失败则将状态改为1
             log.error("移除白名单失败,原因：" + e.getMessage());
@@ -352,14 +397,24 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 return 0;
             }
         }
+
         try {
             if (flag) {
-                pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplate.QQ_EMAIL, EmailTemplate.SUCCESS_TITLE, String.format(EmailTemplate.SUCCESS_CONTENT, whitelistInfo.getUserName(), dateFormat.format(new Date()), name));
+                pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                        EmailTemplates.SUCCESS_TITLE,
+                        EmailTemplates.getWhitelistNotification(
+                                whitelistInfo.getQqNum(),
+                                whitelistInfo.getUserName(),
+                                dateFormat.format(whitelistInfo.getTime()),
+                                DateUtils.getTime(),
+                                EmailTemplates.SUCCESS_TITLE)
+                );
             }
         } catch (Exception e) {
             log.error("发送邮件失败,请联系管理员!");
             return 0;
         }
+
         whitelistInfo.setReviewUsers(name); // 设置审核人
         whitelistInfo.setAddState("1");
         whitelistInfo.setAddTime(new Date());

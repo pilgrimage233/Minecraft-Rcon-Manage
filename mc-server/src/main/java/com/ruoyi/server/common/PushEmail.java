@@ -1,5 +1,7 @@
 package com.ruoyi.server.common;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -18,6 +20,8 @@ import java.util.concurrent.ExecutionException;
  */
 @Component
 public class PushEmail {
+    // logger
+    private static final Logger log = LoggerFactory.getLogger(PushEmail.class);
     // 读取yaml配置的id和secret
     @Value("${aliyun.account}")
     private String account;
@@ -84,10 +88,10 @@ public class PushEmail {
             message.saveChanges();
             //发送邮件
             Transport.send(message);
-            System.out.println("发送成功！");
+            log.info("发送成功！");
         } catch (Exception e) {
-            System.out.println("异常：" + e);
+            log.error("异常：{}", String.valueOf(e));
         }
-        System.out.println("发送邮件给" + email + "，标题：" + title + "，内容：" + content);
+        log.info("发送邮件给" + email + "，标题：" + title + "，内容：" + content);
     }
 }

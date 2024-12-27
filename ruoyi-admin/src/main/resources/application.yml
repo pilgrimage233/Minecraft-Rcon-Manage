@@ -135,10 +135,10 @@ xss:
 aliyun:
   account: support@mcpeach.cc
   password: 85G9BUobquaJ6nNt
-  enable: false
+  enable: true
 
 whitelist:
   easyauth: true
   # ip限流
-  iplimit: 2
+  iplimit: 3
   email: 3114634896@qq.com
