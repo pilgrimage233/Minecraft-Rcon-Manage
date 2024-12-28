@@ -260,6 +260,11 @@ const isAnimating = ref(true);
 const isWalking = ref(true);
 const loadingProgress = ref(0);
 
+// 在 script setup 顶部添加缓存相关的变量
+const skinCache = new Map(); // 用于缓存皮肤数据
+const skinViewerCache = new Map(); // 用于缓存皮肤查看器实例
+let currentAnimationFrame = null; // 用于跟踪当前动画帧
+
 const getWhiteList = (showMessage = false) => {
   loading.value = true;
   http.get('/mc/whitelist/getWhiteList')
@@ -328,6 +333,14 @@ const retryLoadSkin = () => {
 // 修改加载函数
 const loadAndRenderSkin = async (username) => {
   try {
+    // 检查缓存中是否已有该玩家的皮肤数据
+    if (skinCache.has(username)) {
+      console.log('Using cached skin data for:', username);
+      const cachedData = skinCache.get(username);
+      await renderSkin(username, cachedData);
+      return;
+    }
+
     skinLoadError.value = null;
     loadingSkin.value = true;
     loadingProgress.value = 0;
@@ -340,128 +353,149 @@ const loadAndRenderSkin = async (username) => {
 
     if (response.data.code === 200) {
       const skinData = response.data.data;
-
-      await nextTick();
-
-      if (skinViewer) {
-        skinViewer.dispose();
-        skinViewer = null;
-      }
-
-      const canvas = document.getElementById('skin-viewer-canvas');
-      if (canvas) {
-        try {
-          const baseUrl = import.meta.env.VITE_API_URL || 'https://application.shenzhuo.vip';
-          const skinUrl = `${baseUrl}/mojang/texture?url=${encodeURIComponent(skinData.skin.url)}`;
-          console.log('Requesting skin from:', skinUrl);
-
-          // 创建渲染器
-          const viewer = new skinview3d.SkinViewer({
-            canvas: canvas,
-            width: 180,
-            height: 240,
-            renderPaused: true
-          });
-
-          // 添加加载进度提示
-          const loadingPromise = viewer.loadSkin(skinUrl);
-          loadingPromise.onProgress = (progress) => {
-            loadingProgress.value = Math.round(progress * 100);
-          };
-          await loadingPromise;
-
-          console.log('Skin loaded successfully');
-
-          // 设置模型类型
-          if (skinData.skin?.metadata?.model === 'slim') {
-            viewer.playerObject.skin.modelType = 'slim';
-          }
-
-          // 设置相机位置
-          viewer.camera.position.set(30, 0, -40);
-          viewer.camera.lookAt(0, 0, 0);
-
-          // 添加行走动画
-          viewer.animation = new skinview3d.WalkingAnimation();
-          viewer.animation.speed = 0.6;
-
-          // 添加控制按钮
-          let rotation = 0;
-
-          // 动画函数
-          const animate = () => {
-            if (viewer && !viewer.renderPaused) {
-              if (isAnimating.value) {
-                rotation += 0.01;
-                viewer.playerObject.rotation.y = rotation;
-              }
-              viewer.render();
-              requestAnimationFrame(animate);
-            }
-          };
-
-          // 暴露控制方法
-          viewer.toggleAnimation = () => {
-            isAnimating.value = !isAnimating.value;
-            return isAnimating.value;
-          };
-
-          // 恢复渲染并开始动画
-          viewer.renderPaused = false;
-          skinViewer = viewer;
-          animate();
-
-        } catch (error) {
-          console.error('皮肤渲染初始化失败：', error);
-          skinLoadError.value = '皮肤加载失败';
-          throw new Error('皮肤渲染初始化失败');
-        }
-      }
+      // 将皮肤数据存入缓存
+      skinCache.set(username, skinData);
+      await renderSkin(username, skinData);
     } else {
       skinLoadError.value = response.data.msg || '获取皮肤数据失败';
       throw new Error(response.data.msg || '获取皮肤数据失败');
     }
   } catch (error) {
     console.error('加载皮肤失败：', error);
-    skinLoadError.value = '无法加载玩��皮肤';
+    skinLoadError.value = '无法加载玩家皮肤';
     ElMessage.error('无法加载玩家皮肤');
   } finally {
     loadingSkin.value = false;
   }
 };
 
-// 修改清理函数
-const cleanupViewer = () => {
-  if (skinViewer) {
-    try {
-      // 停止动画循环
+// 抽离渲染逻辑为单独的函数
+const renderSkin = async (username, skinData) => {
+  await nextTick();
+
+  const canvas = document.getElementById('skin-viewer-canvas');
+  if (!canvas) return;
+
+  try {
+    // 停止当前的动画循环
+    if (currentAnimationFrame) {
+      cancelAnimationFrame(currentAnimationFrame);
+      currentAnimationFrame = null;
+    }
+
+    // 如果存在当前的查看器，先清理它
+    if (skinViewer) {
+      skinViewer.renderPaused = true;
       if (skinViewer.animation) {
         skinViewer.animation.paused = true;
       }
-      // 暂停渲染
+    }
+
+    // 创建新的查看器实例
+    const viewer = new skinview3d.SkinViewer({
+      canvas: canvas,
+      width: 180,
+      height: 240,
+      renderPaused: true
+    });
+
+    // 加载皮肤
+    const baseUrl = import.meta.env.VITE_API_URL || 'https://application.shenzhuo.vip';
+    const skinUrl = `${baseUrl}/mojang/texture?url=${encodeURIComponent(skinData.skin.url)}`;
+
+    const loadingPromise = viewer.loadSkin(skinUrl);
+    loadingPromise.onProgress = (progress) => {
+      loadingProgress.value = Math.round(progress * 100);
+    };
+    await loadingPromise;
+
+    // 设置模型类型
+    viewer.playerObject.skin.modelType = skinData.skin?.metadata?.model === 'slim' ? 'slim' : 'default';
+
+    // 设置相机
+    viewer.camera.position.set(30, 0, -40);
+    viewer.camera.lookAt(0, 0, 0);
+
+    // 设置动画
+    viewer.animation = new skinview3d.WalkingAnimation();
+    viewer.animation.speed = 0.6;
+    viewer.animation.paused = !isWalking.value;
+
+    // 设置旋转动画
+    let rotation = 0;
+    const animate = () => {
+      if (viewer && !viewer.renderPaused) {
+        if (isAnimating.value) {
+          rotation += 0.01;
+          viewer.playerObject.rotation.y = rotation;
+        }
+        viewer.render();
+        currentAnimationFrame = requestAnimationFrame(animate);
+      }
+    };
+
+    // 存入缓存并设置为当前查看器
+    skinViewerCache.set(username, {
+      viewer,
+      rotation,
+      animate
+    });
+
+    skinViewer = viewer;
+    viewer.renderPaused = false;
+    animate();
+
+  } catch (error) {
+    console.error('皮肤渲染初始化失败：', error);
+    skinLoadError.value = '皮肤加载失败';
+    throw new Error('皮肤渲染初始化失败');
+  }
+};
+
+// 修改清理函数
+const cleanupViewer = () => {
+  if (currentAnimationFrame) {
+    cancelAnimationFrame(currentAnimationFrame);
+    currentAnimationFrame = null;
+  }
+
+  if (skinViewer) {
+    try {
       skinViewer.renderPaused = true;
-      // 清理资源
-      skinViewer.dispose();
-      skinViewer = null;
+      if (skinViewer.animation) {
+        skinViewer.animation.paused = true;
+      }
     } catch (e) {
-      console.error('清理皮肤查看器失败：', e);
+      console.error('暂停皮肤查看器失败：', e);
     }
   }
 };
 
-// 监听弹窗关闭
+// 修改弹窗监听
 watch(dialogVisible, (newVal) => {
   if (!newVal) {
     cleanupViewer();
   }
 });
 
-// 组件卸载时清理
+// 修改组件卸载时的清理
 onUnmounted(() => {
   cleanupViewer();
+
+  // 清理所有缓存的查看器实例
+  skinViewerCache.forEach(({viewer}) => {
+    try {
+      viewer.dispose();
+    } catch (e) {
+      console.error('清理缓存的查看器实例失败：', e);
+    }
+  });
+
+  skinViewerCache.clear();
+  skinCache.clear();
 });
 
-// 动画控制函数
+// 修改动画控制函数
 const toggleAnimation = () => {
   isAnimating.value = !isAnimating.value;
 };
@@ -470,6 +504,14 @@ const toggleWalk = () => {
   if (skinViewer?.animation) {
     isWalking.value = !isWalking.value;
     skinViewer.animation.paused = !isWalking.value;
+  }
+};
+
+// 修改重置视角函数
+const resetView = () => {
+  if (skinViewer) {
+    skinViewer.camera.position.set(30, 0, -40);
+    skinViewer.camera.lookAt(0, 0, 0);
   }
 };
 
@@ -524,14 +566,6 @@ const takeScreenshot = () => {
       console.error('截图失败：', error);
       ElMessage.error('截图失败');
     }
-  }
-};
-
-// 重置视角
-const resetView = () => {
-  if (skinViewer) {
-    skinViewer.camera.position.set(30, 0, -40);
-    skinViewer.camera.lookAt(0, 0, 0);
   }
 };
 
@@ -790,7 +824,7 @@ onMounted(() => {
   background: rgba(64, 158, 255, 0.5);
 }
 
-/* ��保遮罩层覆盖整个视口 */
+/* 保遮罩层覆盖整个视口 */
 :deep(.member-detail-dialog .el-overlay) {
   position: fixed;
   top: 0;
@@ -1152,7 +1186,7 @@ onMounted(() => {
   color: white;
 }
 
-/* 优化加载动画 */
+/* 优化加载动 */
 .skin-viewer-loading {
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(8px);

@@ -131,6 +131,7 @@ public class WhitelistInfoController extends BaseController {
      * @return
      */
     @PostMapping("/apply")
+    @CrossOrigin(origins = "https://app.yousb.sbs", maxAge = 3600)
     public AjaxResult apply(@RequestBody WhitelistInfo whitelistInfo, @RequestHeader Map<String, String> header) throws JsonProcessingException {
 
         if (whitelistInfo == null || whitelistInfo.getUserName() == null || whitelistInfo.getQqNum() == null) {
@@ -347,6 +348,7 @@ public class WhitelistInfoController extends BaseController {
     }
 
     @GetMapping("check")
+    @CrossOrigin(origins = "https://app.yousb.sbs", maxAge = 3600)
     public AjaxResult cheack(@RequestParam Map<String, String> params) {
 
         if (params.isEmpty()) {
@@ -400,6 +402,7 @@ public class WhitelistInfoController extends BaseController {
     }
 
     @GetMapping("getWhiteList")
+    @CrossOrigin(origins = "https://app.yousb.sbs", maxAge = 3600)
     public AjaxResult getWhiteList() {
         Map<String, String> map = new HashMap<>();
         MapCache.getMap().forEach((k, v) -> {
