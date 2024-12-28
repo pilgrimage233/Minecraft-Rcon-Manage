@@ -16,7 +16,7 @@
               :loading="loading"
               class="refresh-btn"
               size="small"
-              @click="getOnlinePlayer(true)"
+              @click="debouncedRefresh(true)"
           >
             <el-icon>
               <Refresh/>
@@ -114,6 +114,7 @@ import {onMounted, reactive, ref} from 'vue';
 import {ElMessage} from 'element-plus';
 import axios from 'axios';
 import {Refresh, User} from '@element-plus/icons-vue'
+import { debounce } from 'lodash-es';
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://application.shenzhuo.vip', // 使用环境变量
@@ -136,6 +137,11 @@ const serverStatus = reactive({
 
 // 添加全屏loading状态
 const fullscreenLoading = ref(false);
+
+// 添加防抖处理的刷新函数
+const debouncedRefresh = debounce((refresh) => {
+  getOnlinePlayer(refresh);
+}, 500);
 
 const submitForm = () => {
   if (!form.userName || !form.qqNum || !form.onlineFlag) {
