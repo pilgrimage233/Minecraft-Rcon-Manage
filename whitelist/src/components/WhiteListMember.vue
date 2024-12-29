@@ -42,10 +42,12 @@
                 v-for="member in members"
                 :key="member"
                 class="member-tag"
+                :type="onlinePlayers.has(member) ? 'success' : ''"
                 effect="light"
                 @click="checkMemberDetail(member)"
             >
               {{ member }}
+              <span v-if="onlinePlayers.has(member)" class="online-dot"></span>
             </el-tag>
           </div>
         </div>
@@ -265,37 +267,57 @@ const skinCache = new Map(); // 用于缓存皮肤数据
 const skinViewerCache = new Map(); // 用于缓存皮肤查看器实例
 let currentAnimationFrame = null; // 用于跟踪当前动画帧
 
+// 添加在线玩家状态的响应式变量
+const onlinePlayers = ref(new Set());
+
 const getWhiteList = (showMessage = false) => {
   loading.value = true;
-  http.get('/mc/whitelist/getWhiteList')
-      .then((res) => {
-        if (res.data.code === 200) {
-          // 清空现有数据
+  Promise.all([
+    http.get('/mc/whitelist/getWhiteList'),
+    http.get('/server/serverlist/getOnlinePlayer')
+  ])
+      .then(([whitelistRes, onlineRes]) => {
+        if (whitelistRes.data.code === 200) {
+          // 处理白名单数据
           Object.keys(whitelistData).forEach(key => delete whitelistData[key]);
-
-          // 处理返回的数据
-          Object.entries(res.data.data).forEach(([server, membersStr]) => {
-            // 处理字符串格式成员列表
+          Object.entries(whitelistRes.data.data).forEach(([server, membersStr]) => {
             const members = membersStr
-                .replace(/^\[|\]$/g, '') // 移除首尾的方括号
+                .replace(/^\[|\]$/g, '')
                 .split(',')
                 .map(member => member.trim())
-                .filter(member => member); // 过滤空值
-
+                .filter(member => member);
             whitelistData[server] = members;
           });
+        }
 
-          lastUpdateTime.value = new Date().toLocaleString();
-          if (showMessage) {
-            ElMessage.success('刷新成功');
-          }
-        } else {
-          ElMessage.error(res.data.msg || '获取白名单列表失败');
+        // 处理在线玩家数据
+        if (onlineRes.data.code === 200) {
+          const onlineData = onlineRes.data.data;
+          const onlineSet = new Set();
+
+          // 遍历所有服务器的在线玩家
+          Object.entries(onlineData).forEach(([serverName, serverData]) => {
+            if (serverName !== '查询时间' && serverData['在线玩家']) {
+              const players = serverData['在线玩家']
+                  .replace(/^\[|\]$/g, '')
+                  .split(',')
+                  .map(p => p.trim())
+                  .filter(p => p);
+              players.forEach(player => onlineSet.add(player));
+            }
+          });
+
+          onlinePlayers.value = onlineSet;
+        }
+
+        lastUpdateTime.value = new Date().toLocaleString();
+        if (showMessage) {
+          ElMessage.success('刷新成功');
         }
       })
       .catch((error) => {
-        console.error('获取白名单列表失败：', error);
-        ElMessage.error('获取白名单列表时发生错误，请检查网络或联系管理员');
+        console.error('获取数据失败：', error);
+        ElMessage.error('获取数据时发生错误，请检查网络或联系管理员');
       })
       .finally(() => {
         loading.value = false;
@@ -1194,5 +1216,57 @@ onMounted(() => {
 
 :deep(.el-progress-circle) {
   --el-progress-color: #409EFF;
+}
+
+/* 添加在线状态小圆点的样式 */
+.online-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background-color: #67C23A;
+  border-radius: 50%;
+  margin-left: 6px;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(103, 194, 58, 0.4);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(103, 194, 58, 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(103, 194, 58, 0);
+  }
+}
+
+/* 修改成员标签的悬停效果 */
+.member-tag {
+  transition: all 0.3s ease;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+}
+
+.member-tag:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
+}
+
+/* 在线玩家标签的特殊样式 */
+.member-tag.el-tag--success {
+  background-color: rgba(103, 194, 58, 0.1);
+  border-color: rgba(103, 194, 58, 0.2);
+}
+
+.member-tag.el-tag--success:hover {
+  background-color: rgba(103, 194, 58, 0.2);
+  box-shadow: 0 4px 12px rgba(103, 194, 58, 0.15);
 }
 </style>
