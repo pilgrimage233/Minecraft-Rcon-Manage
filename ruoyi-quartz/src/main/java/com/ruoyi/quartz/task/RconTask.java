@@ -3,6 +3,7 @@ package com.ruoyi.quartz.task;
 import com.github.t9t.minecraftrconclient.RconClient;
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.DateUtils;
+import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.RconUtil;
 import com.ruoyi.server.domain.ServerInfo;
@@ -56,9 +57,19 @@ public class RconTask {
 
     // 心跳检测
     public void heartBeat() {
+        if (MapCache.getMap().isEmpty()) {
+            return;
+        }
+        if (!redisCache.hasKey("serverInfo")) {
+            refreshRedisCache();
+        }
+
         MapCache.getMap().forEach((k, v) -> {
             try {
-                v.sendCommand("list");
+                final String list = v.sendCommand("list");
+                if (StringUtils.isEmpty(list)) {
+                    throw new Exception("Rcon连接异常");
+                }
             } catch (Exception e) {
                 log.error("Rcon连接异常：" + e.getMessage() + "...尝试重连");
                 v.close();

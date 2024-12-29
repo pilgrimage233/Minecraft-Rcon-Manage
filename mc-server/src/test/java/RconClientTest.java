@@ -52,7 +52,18 @@ public class RconClientTest {
         if (!Arrays.asList(split).contains(name.toUpperCase())) {
             System.err.println(1);
         }
-
     }
 
+    @Test
+    public void test2() {
+  /*      try (Rcon client = Rcon.open(DomainToIp.domainToIp(ip), port)) {
+            if (client.authenticate(password)) {
+                System.err.println(client.sendCommand("list"));
+            } else {
+                System.err.println("Failed to authenticate");
+            }
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }*/
+    }
 }

@@ -83,12 +83,12 @@ public class RconUtil {
      */
     public static void init(ServerInfo info) {
         try {
-            log.debug(RconMsg.INIT_RCON + info.getNameTag());
+            log.debug(RconMsg.INIT_RCON + "{}", info.getNameTag());
             MapCache.put(info.getId().toString(), RconClient.open(DomainToIp.domainToIp(info.getIp()), info.getRconPort().intValue(), info.getRconPassword()));
-            log.debug(RconMsg.RECONNECT_SUCCESS + info.getNameTag());
+            log.debug(RconMsg.RECONNECT_SUCCESS + "{}", info.getNameTag());
         } catch (Exception e) {
-            log.error(RconMsg.RECONNECT_ERROR + info.getNameTag() + " " + info.getIp() + " " + info.getRconPort() + " " + info.getRconPassword());
-            log.error(RconMsg.ERROR_MSG + e.getMessage());
+            log.error(RconMsg.RECONNECT_ERROR + "{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), info.getRconPassword());
+            log.error(RconMsg.ERROR_MSG + "{}", e.getMessage());
         }
     }
 
@@ -108,7 +108,7 @@ public class RconUtil {
             // 从Redis缓存读取服务器信息
             serverInfo = redisCache.getCacheObject("serverInfo");
         } catch (Exception e) {
-            log.error(RconMsg.ERROR_MSG + e.getMessage());
+            log.error(RconMsg.ERROR_MSG + "{}", e.getMessage());
             return;
         }
 
@@ -116,12 +116,12 @@ public class RconUtil {
         for (ServerInfo info : serverInfo) {
             if (info.getId().toString().equals(key)) {
                 try {
-                    log.debug(RconMsg.TRY_RECONNECT + info.getNameTag());
+                    log.debug(RconMsg.TRY_RECONNECT + "{}", info.getNameTag());
                     MapCache.put(info.getId().toString(), RconClient.open(DomainToIp.domainToIp(info.getIp()), info.getRconPort().intValue(), info.getRconPassword()));
-                    log.debug(RconMsg.RECONNECT_SUCCESS + info.getNameTag());
+                    log.debug(RconMsg.RECONNECT_SUCCESS + "{}", info.getNameTag());
                 } catch (Exception e) {
-                    log.error(RconMsg.RECONNECT_ERROR + info.getNameTag() + " " + info.getIp() + " " + info.getRconPort() + " " + info.getRconPassword());
-                    log.error(RconMsg.ERROR_MSG + e.getMessage());
+                    log.error(RconMsg.RECONNECT_ERROR + "{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), info.getRconPassword());
+                    log.error(RconMsg.ERROR_MSG + "{}", e.getMessage());
                 }
             }
         }

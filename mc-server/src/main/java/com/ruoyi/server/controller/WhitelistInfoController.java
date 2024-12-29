@@ -66,6 +66,9 @@ public class WhitelistInfoController extends BaseController {
     @PreAuthorize("@ss.hasPermi('mc:whitelist:list')")
     @GetMapping("/list")
     public TableDataInfo list(WhitelistInfo whitelistInfo) {
+        if (whitelistInfo.getUserName() != null) {
+            whitelistInfo.setUserName(whitelistInfo.getUserName().toLowerCase().trim());
+        }
         startPage();
         List<WhitelistInfo> list = whitelistInfoService.selectWhitelistInfoList(whitelistInfo);
         return getDataTable(list);
@@ -301,7 +304,8 @@ public class WhitelistInfoController extends BaseController {
             // 盗版随机生成一个UUID,加了白名单修复mod的服务器不匹配ID
             whitelistInfo.setUserUuid(UUID.randomUUID().toString());
         }
-
+        whitelistInfo.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
+        whitelistInfo.setCreateTime(new Date());
         whitelistInfo.setTime(new Date());
         whitelistInfo.setAddState("0"); // 添加状态：0-未添加，1-已添加
         whitelistInfo.setStatus("0"); // 审核状态 0-未审核，1-审核通过，2-审核不通过

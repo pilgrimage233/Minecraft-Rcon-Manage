@@ -12,10 +12,8 @@
     <description>
         MC服务器管理模块
     </description>
-
     <packaging>jar</packaging>
     <artifactId>mc-server</artifactId>
-
     <dependencies>
         <dependency>
             <groupId>org.springframework</groupId>
@@ -51,6 +49,12 @@
             <groupId>com.sun.mail</groupId>
             <artifactId>javax.mail</artifactId>
             <version>1.6.2</version>
+        </dependency>
+
+        <dependency>
+            <groupId>nl.vv32.rcon</groupId>
+            <artifactId>rcon</artifactId>
+            <version>1.2.0</version>
         </dependency>
         <!--  <dependency>
               <groupId>com.github.t9t.minecraft-rcon-client</groupId>
