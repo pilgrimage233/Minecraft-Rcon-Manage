@@ -27,5 +27,5 @@ INSERT INTO ruoyi.sys_user (user_id, dept_id, user_name, nick_name, user_type, e
                             password, status, del_flag, login_ip, login_date, create_by, create_time, update_by,
                             update_time, remark)
 VALUES (1, 103, 'admin', '若依', '00', '2873336923@qq.com', '15888888888', '1', '',
-        '$2a$10$bkXwofseKfhUCYTol5Ubk.ebmzoCnseeCxqSxoGnD4AUyRxd9SUSu', '0', '0', '127.0.0.1', '2024-12-20 19:11:14',
-        'admin', '2023-12-26 16:54:02', '', '2024-12-20 19:11:15', '管理员');
+        '$2a$10$bkXwofseKfhUCYTol5Ubk.ebmzoCnseeCxqSxoGnD4AUyRxd9SUSu', '0', '0', '123.122.27.48',
+        '2025-01-03 16:02:41', 'admin', '2023-12-26 16:54:02', '', '2025-01-03 16:02:40', '管理员');

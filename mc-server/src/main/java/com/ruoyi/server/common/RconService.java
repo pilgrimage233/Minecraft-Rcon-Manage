@@ -2,41 +2,51 @@ package com.ruoyi.server.common;
 
 import com.github.t9t.minecraftrconclient.RconClient;
 import com.ruoyi.common.core.redis.RedisCache;
+import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.constant.RconMsg;
 import com.ruoyi.server.common.constant.WhiteListCommand;
 import com.ruoyi.server.domain.ServerCommandInfo;
 import com.ruoyi.server.domain.ServerInfo;
+import lombok.extern.slf4j.Slf4j;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 /**
  * Rcon发送命令工具类
  * 作者：Memory
  */
+@Slf4j
+@Component
+public class RconService {
 
-public class RconUtil {
-    // 使用 SLF4J 的日志实现
-    private static final Logger log = LoggerFactory.getLogger(RconUtil.class);
-
-    public static Map<String, ServerCommandInfo> COMMAND_INFO = new ConcurrentHashMap<>();
-
-    private static final RedisCache redisCache = new RedisCache();
+    public Map<String, ServerCommandInfo> COMMAND_INFO = ObjectCache.getCommandInfo();
+    @Value("${whitelist.email}")
+    private String ADMIN_EMAIL;
+    @Autowired
+    private EmailService emailService;
+    @Autowired
+    private RedisCache redisCache;
 
     /**
      * 发送Rcon命令
      *
      * @param key
      * @param command
+     * @param onlineFlag
      */
-    public static void sendCommand(String key, String command) {
+    public void sendCommand(String key, String command, boolean onlineFlag) {
         int maxRetries = 5;
         int retryCount = 0;
 
@@ -45,7 +55,7 @@ public class RconUtil {
                 if (key.contains("all")) {
                     MapCache.getMap().forEach((k, client) -> {
                         CompletableFuture.runAsync(() -> {
-                            client.sendCommand(command);
+                            client.sendCommand(replaceCommand(k, command, onlineFlag));
                         });
                     });
                 } else {
@@ -53,7 +63,7 @@ public class RconUtil {
                         throw new RuntimeException("RconClient not found for key: " + key);
                     }
                     CompletableFuture.runAsync(() -> {
-                        MapCache.get(key).sendCommand(command);
+                        MapCache.get(key).sendCommand(replaceCommand(key, command, onlineFlag));
                     }).get(5, TimeUnit.SECONDS);
                 }
 
@@ -81,12 +91,32 @@ public class RconUtil {
      *
      * @param info
      */
-    public static void init(ServerInfo info) {
+    public void init(ServerInfo info) {
         try {
             log.debug(RconMsg.INIT_RCON + "{}", info.getNameTag());
             MapCache.put(info.getId().toString(), RconClient.open(DomainToIp.domainToIp(info.getIp()), info.getRconPort().intValue(), info.getRconPassword()));
             log.debug(RconMsg.RECONNECT_SUCCESS + "{}", info.getNameTag());
+
+            // 清除错误次数
+            if (redisCache.hasKey("errorCount")) {
+                redisCache.deleteObject("errorCount");
+            }
         } catch (Exception e) {
+            // 记录错误次数
+            if (redisCache.hasKey("errorCount")) {
+                final Integer errorCount = redisCache.getCacheObject("errorCount");
+                redisCache.setCacheObject("errorCount", errorCount + 1);
+            } else {
+                redisCache.setCacheObject("errorCount", 1);
+            }
+            if ((Integer) redisCache.getCacheObject("errorCount") >= 10 && (Integer) redisCache.getCacheObject("errorCount") % 10 == 0) {
+                // 创建反射调用EmailService
+                try {
+                    emailService.push(ADMIN_EMAIL, "服务器异常", "服务器异常，请检查服务器连接状态，告警时间：" + DateUtils.getTime() + "\n错误次数：" + redisCache.getCacheObject("errorCount"));
+                } catch (ExecutionException | InterruptedException ex) {
+                    log.error("邮件发送失败: {}", ex.getMessage());
+                }
+            }
             log.error(RconMsg.RECONNECT_ERROR + "{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), info.getRconPassword());
             log.error(RconMsg.ERROR_MSG + "{}", e.getMessage());
         }
@@ -97,7 +127,7 @@ public class RconUtil {
      *
      * @param key
      */
-    public static void reconnect(String key) {
+    public void reconnect(String key) {
         if (key == null) {
             log.error(RconMsg.RECONNECT_ERROR);
             return;
@@ -156,7 +186,7 @@ public class RconUtil {
      * @param onlineFlag
      * @return 替换后的Rcon命令
      */
-    public static String replaceCommand(String key, String command, boolean onlineFlag) {
+    public String replaceCommand(String key, String command, boolean onlineFlag) {
         if (StringUtils.isEmpty(command)) {
             log.error("替换Rcon命令失败：command为空");
             return key;

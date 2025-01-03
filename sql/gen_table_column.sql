@@ -432,3 +432,153 @@ INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_com
                                     update_time)
 VALUES (80, 6, 'update_by', '更新者', 'varchar(255)', 'String', 'updateBy', '0', '0', '0', '1', '1', null, null, 'EQ',
         'input', '', 16, 'admin', '2024-12-20 19:28:58', '', '2024-12-20 19:29:31');
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (81, 7, 'id', null, 'int(11)', 'Long', 'id', '1', '1', '0', '1', null, null, null, 'EQ', 'input', '', 1, 'admin',
+        '2024-12-31 03:09:59', '', null);
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (82, 7, 'user_name', '玩家昵称', 'varchar(128)', 'String', 'userName', '0', '0', '1', '1', '1', '1', '1', 'LIKE',
+        'input', '', 2, 'admin', '2024-12-31 03:09:59', '', null);
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (83, 7, 'uuid', null, 'varchar(64)', 'String', 'uuid', '0', '0', '1', '1', '1', '1', '1', 'EQ', 'input', '', 3,
+        'admin', '2024-12-31 03:09:59', '', null);
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (84, 7, 'status', '状态', 'int(11)', 'Long', 'status', '0', '0', '0', '1', '1', '1', '1', 'EQ', 'radio', '', 4,
+        'admin', '2024-12-31 03:09:59', '', null);
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (85, 7, 'params', '其他参数', 'varchar(256)', 'String', 'params', '0', '0', '0', '1', '1', '1', '1', 'EQ',
+        'input', '', 5, 'admin', '2024-12-31 03:09:59', '', null);
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (86, 7, 'create_time', '创建时间', 'datetime', 'Date', 'createTime', '0', '0', '0', '1', null, null, null, 'EQ',
+        'datetime', '', 6, 'admin', '2024-12-31 03:09:59', '', null);
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (87, 7, 'update_time', '更新时间', 'datetime', 'Date', 'updateTime', '0', '0', '0', '1', '1', null, null, 'EQ',
+        'datetime', '', 7, 'admin', '2024-12-31 03:09:59', '', null);
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (88, 7, 'create_by', '创建者', 'varchar(128)', 'String', 'createBy', '0', '0', '0', '1', null, null, null, 'EQ',
+        'input', '', 8, 'admin', '2024-12-31 03:09:59', '', null);
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (89, 7, 'update_by', '更新者', 'varchar(128)', 'String', 'updateBy', '0', '0', '0', '1', '1', null, null, 'EQ',
+        'input', '', 9, 'admin', '2024-12-31 03:09:59', '', null);
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (90, 7, 'remark', '备注', 'varchar(128)', 'String', 'remark', '0', '0', '0', '1', '1', '1', null, 'EQ', 'input',
+        '', 10, 'admin', '2024-12-31 03:09:59', '', null);
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (91, 8, 'id', '', 'int(11)', 'Long', 'id', '1', '1', '0', '1', null, null, null, 'EQ', 'input', '', 1, 'admin',
+        '2024-12-31 03:09:59', '', '2024-12-31 03:33:14');
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (92, 8, 'user_name', '玩家昵称', 'varchar(128)', 'String', 'userName', '0', '0', '1', '1', '1', '1', '1', 'LIKE',
+        'input', '', 2, 'admin', '2024-12-31 03:09:59', '', '2024-12-31 03:33:14');
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (93, 8, 'qq', 'QQ号', 'varchar(64)', 'String', 'qq', '0', '0', '0', '1', '1', '1', '1', 'EQ', 'input', '', 3,
+        'admin', '2024-12-31 03:09:59', '', '2024-12-31 03:33:14');
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (94, 8, 'identity', '身份', 'varchar(64)', 'String', 'identity', '0', '0', '1', '1', '1', '1', '1', 'EQ',
+        'input', '', 4, 'admin', '2024-12-31 03:09:59', '', '2024-12-31 03:33:14');
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (95, 8, 'last_time', '最后游玩时间', 'datetime', 'Date', 'lastTime', '0', '0', '0', '1', '1', '1', '1', 'EQ',
+        'datetime', '', 5, 'admin', '2024-12-31 03:09:59', '', '2024-12-31 03:33:14');
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (96, 8, 'province', '省份', 'varchar(128)', 'String', 'province', '0', '0', '0', '1', '1', '1', '1', 'EQ',
+        'input', '', 6, 'admin', '2024-12-31 03:09:59', '', '2024-12-31 03:33:14');
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (97, 8, 'city', '地市', 'varchar(128)', 'String', 'city', '0', '0', '0', '1', '1', '1', '1', 'EQ', 'input', '',
+        7, 'admin', '2024-12-31 03:09:59', '', '2024-12-31 03:33:14');
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (98, 8, 'whitelist_id', '白名单ID', 'int(11)', 'Long', 'whitelistId', '0', '0', '0', '1', '0', '0', '0', 'EQ',
+        'input', '', 8, 'admin', '2024-12-31 03:09:59', '', '2024-12-31 03:33:14');
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (99, 8, 'banlist_id', '封禁ID', 'int(11)', 'Long', 'banlistId', '0', '0', '0', '1', '0', '0', '0', 'EQ', 'input',
+        '', 9, 'admin', '2024-12-31 03:09:59', '', '2024-12-31 03:33:14');
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (101, 8, 'create_time', '创建时间', 'datetime', 'Date', 'createTime', '0', '0', '1', '1', null, null, null, 'EQ',
+        'datetime', '', 11, 'admin', '2024-12-31 03:09:59', '', '2024-12-31 03:33:14');
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (102, 8, 'update_time', '更新时间', 'datetime', 'Date', 'updateTime', '0', '0', '0', '1', '1', null, null, 'EQ',
+        'datetime', '', 12, 'admin', '2024-12-31 03:09:59', '', '2024-12-31 03:33:14');
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (103, 8, 'create_by', '创建者', 'varchar(64)', 'String', 'createBy', '0', '0', '1', '1', null, null, null, 'EQ',
+        'input', '', 13, 'admin', '2024-12-31 03:09:59', '', '2024-12-31 03:33:14');
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (104, 8, 'update_by', '更新者', 'varchar(64)', 'String', 'updateBy', '0', '0', '0', '1', '1', null, null, 'EQ',
+        'input', '', 14, 'admin', '2024-12-31 03:09:59', '', '2024-12-31 03:33:14');
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (105, 8, 'remark', '备注', 'varchar(256)', 'String', 'remark', '0', '0', '0', '1', '1', '1', null, 'EQ', 'input',
+        '', 15, 'admin', '2024-12-31 03:09:59', '', '2024-12-31 03:33:14');
+INSERT INTO ruoyi.gen_table_column (column_id, table_id, column_name, column_comment, column_type, java_type,
+                                    java_field, is_pk, is_increment, is_required, is_insert, is_edit, is_list, is_query,
+                                    query_type, html_type, dict_type, sort, create_by, create_time, update_by,
+                                    update_time)
+VALUES (106, 8, 'parameters', '其他参数', 'varchar(256)', 'String', 'parameters', '0', '0', '0', '1', '0', '0', '0',
+        'EQ', 'input', '', 10, '', '2024-12-31 03:16:31', '', '2024-12-31 03:33:14');

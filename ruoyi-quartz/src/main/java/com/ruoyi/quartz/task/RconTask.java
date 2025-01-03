@@ -5,12 +5,15 @@ import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.MapCache;
-import com.ruoyi.server.common.RconUtil;
+import com.ruoyi.server.common.RconService;
+import com.ruoyi.server.common.constant.WhiteListCommand;
 import com.ruoyi.server.domain.ServerInfo;
 import com.ruoyi.server.service.IServerInfoService;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.logging.Log;
 import org.apache.ibatis.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.TimeUnit;
@@ -19,13 +22,22 @@ import java.util.concurrent.TimeUnit;
  * 定时任务调度
  * 作者：Memory
  */
+@Slf4j
 @Component("rconTask")
 public class RconTask {
-    private static final Log log = LogFactory.getLog(RconTask.class);
+
     @Autowired
     private RedisCache redisCache;
+
     @Autowired
     private IServerInfoService serverInfoService;
+
+    @Autowired
+    private RconService rconService;
+
+    @Value("${server.port}")
+    private String port;
+
 
     // 定时刷新Redis缓存
     public void refreshRedisCache() {
@@ -48,11 +60,11 @@ public class RconTask {
         info.setStatus(1L);
 
         for (ServerInfo serverInfo : serverInfoService.selectServerInfoList(info)) {
-            RconUtil.init(serverInfo);
+            rconService.init(serverInfo);
         }
 
         // 发送广播
-        RconUtil.sendCommand("all", "say Rcon Connect Refresh " + DateUtils.getTime());
+        rconService.sendCommand("all", "say Rcon Connect Refresh " + DateUtils.getTime(), false);
     }
 
     // 心跳检测
@@ -66,19 +78,21 @@ public class RconTask {
 
         MapCache.getMap().forEach((k, v) -> {
             try {
-                final String list = v.sendCommand("list");
+                final String list = v.sendCommand("ping");
                 if (StringUtils.isEmpty(list)) {
                     throw new Exception("Rcon连接异常");
                 }
             } catch (Exception e) {
-                log.error("Rcon连接异常：" + e.getMessage() + "...尝试重连");
+                log.error("Rcon连接异常：{}...尝试重连", e.getMessage());
                 v.close();
                 MapCache.remove(k);
                 final ServerInfo serverInfo = serverInfoService.selectServerInfoById(Long.parseLong(k));
+
                 // 重连单个服务器
-                RconUtil.init(serverInfo);
+                rconService.init(serverInfo);
+
                 // 重连广播
-                RconUtil.sendCommand(k, "say Rcon Reconnect " + serverInfo.getNameTag() + " " + DateUtils.getTime());
+                rconService.sendCommand(k, "say Rcon Reconnect " + serverInfo.getNameTag() + " " + DateUtils.getTime(), false);
             }
         });
     }

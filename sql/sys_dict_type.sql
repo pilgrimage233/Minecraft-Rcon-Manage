@@ -57,3 +57,9 @@ VALUES (102, '正版标识', 'online_status', '0', 'admin', '2023-12-27 15:28:19
 INSERT INTO ruoyi.sys_dict_type (dict_id, dict_name, dict_type, status, create_by, create_time, update_by, update_time,
                                  remark)
 VALUES (103, '服务器开关状态', 'server_status', '0', 'admin', '2024-03-10 17:12:54', '', null, null);
+INSERT INTO ruoyi.sys_dict_type (dict_id, dict_name, dict_type, status, create_by, create_time, update_by, update_time,
+                                 remark)
+VALUES (104, '封禁状态', 'ban_status', '0', 'admin', '2024-12-23 17:41:42', '', null, null);
+INSERT INTO ruoyi.sys_dict_type (dict_id, dict_name, dict_type, status, create_by, create_time, update_by, update_time,
+                                 remark)
+VALUES (105, '玩家身份组', 'player_identity', '0', 'admin', '2024-12-31 04:06:12', '', null, null);

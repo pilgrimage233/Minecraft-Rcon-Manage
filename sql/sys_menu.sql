@@ -604,3 +604,33 @@ INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, comp
                             remark)
 VALUES (2050, '指令管理导出', 2045, 5, '#', '', null, 1, 0, 'F', '0', '0', 'mc:command:export', '#', 'admin',
         '2024-12-20 19:29:44', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2057, '玩家详情', 2000, 1, 'details', 'player/details/index', null, 1, 0, 'C', '0', '0', 'player:details:list',
+        'list', 'admin', '2024-12-31 03:34:39', 'admin', '2024-12-31 03:46:23', '玩家详情菜单');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2058, '玩家详情查询', 2057, 1, '#', '', null, 1, 0, 'F', '0', '0', 'player:details:query', '#', 'admin',
+        '2024-12-31 03:34:39', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2059, '玩家详情新增', 2057, 2, '#', '', null, 1, 0, 'F', '0', '0', 'player:details:add', '#', 'admin',
+        '2024-12-31 03:34:39', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2060, '玩家详情修改', 2057, 3, '#', '', null, 1, 0, 'F', '0', '0', 'player:details:edit', '#', 'admin',
+        '2024-12-31 03:34:39', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2061, '玩家详情删除', 2057, 4, '#', '', null, 1, 0, 'F', '0', '0', 'player:details:remove', '#', 'admin',
+        '2024-12-31 03:34:39', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2062, '玩家详情导出', 2057, 5, '#', '', null, 1, 0, 'F', '0', '0', 'player:details:export', '#', 'admin',
+        '2024-12-31 03:34:39', '', null, '');

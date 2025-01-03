@@ -133,6 +133,11 @@
             <version>1.0.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+        </dependency>
+
         <!--     <dependency>
                  <groupId>com.github.pilgrimage233.minecraft-rcon-client</groupId>
                  <artifactId>minecraft-rcon-client</artifactId>

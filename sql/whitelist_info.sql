@@ -27,4 +27,3 @@ create index whitelist_info_qq_num_index
 
 create index whitelist_info_user_name_index
     on whitelist_info (user_name);
-

@@ -10,9 +10,10 @@ import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.server.common.MapCache;
-import com.ruoyi.server.common.RconUtil;
+import com.ruoyi.server.common.RconService;
 import com.ruoyi.server.domain.ServerInfo;
 import com.ruoyi.server.service.IServerInfoService;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -31,14 +32,19 @@ import java.util.concurrent.TimeUnit;
  * @author ruoyi
  * @date 2024-03-10
  */
+@Slf4j
 @RestController
 @RequestMapping("/server/serverlist")
 public class ServerInfoController extends BaseController {
-    private static final org.apache.ibatis.logging.Log log = LogFactory.getLog(ServerInfoController.class);
+
     @Autowired
     private IServerInfoService serverInfoService;
+
     @Autowired
     private RedisCache redisCache;
+
+    @Autowired
+    private RconService rconService;
 
     /**
      * 查询服务器信息列表
@@ -142,7 +148,7 @@ public class ServerInfoController extends BaseController {
         info.setStatus(1L);
         MapCache.clear();
         for (ServerInfo serverInfo : serverInfoService.selectServerInfoList(info)) {
-            RconUtil.init(serverInfo);
+            rconService.init(serverInfo);
         }
         return success();
     }

@@ -13,12 +13,3 @@ create table sys_notice
     remark         varchar(255)           null comment '备注'
 )
     comment '通知公告表';
-
-INSERT INTO ruoyi.sys_notice (notice_id, notice_title, notice_type, notice_content, status, create_by, create_time,
-                              update_by, update_time, remark)
-VALUES (1, '温馨提醒：2018-07-01 若依新版本发布啦', '2', 0xE696B0E78988E69CACE58685E5AEB9, '0', 'admin',
-        '2023-12-26 16:54:02', '', null, '管理员');
-INSERT INTO ruoyi.sys_notice (notice_id, notice_title, notice_type, notice_content, status, create_by, create_time,
-                              update_by, update_time, remark)
-VALUES (2, '维护通知：2018-07-01 若依系统凌晨维护', '1', 0xE7BBB4E68AA4E58685E5AEB9, '0', 'admin', '2023-12-26 16:54:02',
-        '', null, '管理员');

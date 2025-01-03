@@ -5,14 +5,15 @@ import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.server.async.AsyncManager;
 import com.ruoyi.server.common.EmailTemplates;
 import com.ruoyi.server.common.MapCache;
-import com.ruoyi.server.common.PushEmail;
-import com.ruoyi.server.common.RconUtil;
+import com.ruoyi.server.common.EmailService;
+import com.ruoyi.server.common.RconService;
 import com.ruoyi.server.common.constant.WhiteListCommand;
 import com.ruoyi.server.domain.BanlistInfo;
 import com.ruoyi.server.domain.WhitelistInfo;
 import com.ruoyi.server.mapper.WhitelistInfoMapper;
 import com.ruoyi.server.service.IBanlistInfoService;
 import com.ruoyi.server.service.IWhitelistInfoService;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.logging.Log;
 import org.apache.ibatis.logging.LogFactory;
 import org.jetbrains.annotations.Nullable;
@@ -32,18 +33,27 @@ import java.util.TimerTask;
  * @author ruoyi
  * @date 2023-12-26
  */
+@Slf4j
 @Service
 public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
-    private static final Log log = LogFactory.getLog(WhitelistInfoServiceImpl.class);
+
+    // 时间格式化
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
     // 异步执行器
     private final AsyncManager asyncManager = AsyncManager.getInstance();
+
     @Autowired
     private WhitelistInfoMapper whitelistInfoMapper;
+
     @Autowired
     private IBanlistInfoService banlistInfoService;
+
     @Autowired
-    private PushEmail pushEmail;
+    private EmailService pushEmail;
+
+    @Autowired
+    private RconService rconService;
 
     /**
      * 查询白名单
@@ -473,7 +483,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 public void run() {
                     // 发送Rcon命令给所有服务器
                     for (String key : map.keySet()) {
-                        RconUtil.sendCommand(key, RconUtil.replaceCommand(key, command, onlineFlag));
+                        rconService.sendCommand(key, command, onlineFlag);
                     }
                 }
             };
@@ -483,7 +493,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 TimerTask task = new TimerTask() {
                     @Override
                     public void run() {
-                        RconUtil.sendCommand(key, RconUtil.replaceCommand(key, command, onlineFlag));
+                        rconService.sendCommand(key, command, onlineFlag);
                     }
                 };
                 asyncManager.execute(task);

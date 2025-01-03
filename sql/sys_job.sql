@@ -19,13 +19,25 @@ create table sys_job
 
 INSERT INTO ruoyi.sys_job (job_id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent,
                            status, create_by, create_time, update_by, update_time, remark)
-VALUES (1, '系统默认（无参）', 'DEFAULT', 'ryTask.ryNoParams', '0/10 * * * * ?', '3', '1', '1', 'admin',
-        '2023-12-26 16:54:02', '', null, '');
+VALUES (4, '同步白名单', 'DEFAULT', 'whiteListTask.syncWhitelistByServerId(\'1\')', '30 1 0/1 * * ?', '1', '1', '0',
+        'admin', '2024-12-21 18:56:29', 'admin', '2025-01-03 02:25:32', '');
 INSERT INTO ruoyi.sys_job (job_id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent,
                            status, create_by, create_time, update_by, update_time, remark)
-VALUES (2, '系统默认（有参）', 'DEFAULT', 'ryTask.ryParams(\'ry\')', '0/15 * * * * ?', '3', '1', '1', 'admin',
-        '2023-12-26 16:54:02', '', null, '');
+VALUES (5, '刷新Rcon缓存', 'DEFAULT', 'rconTask.refreshMapCache', '10 1 0/1 * * ?', '1', '1', '0', 'admin',
+        '2024-12-21 18:58:15', 'admin', '2025-01-03 02:26:12', '');
 INSERT INTO ruoyi.sys_job (job_id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent,
                            status, create_by, create_time, update_by, update_time, remark)
-VALUES (3, '系统默认（多参）', 'DEFAULT', 'ryTask.ryMultipleParams(\'ry\', true, 2000L, 316.50D, 100)', '0/20 * * * * ?',
-        '3', '1', '1', 'admin', '2023-12-26 16:54:02', '', null, '');
+VALUES (6, '同步ID', 'DEFAULT', 'onlineTask.syncUserNameForUuid', '0 0 0 1/1 * ?', '1', '1', '0', 'admin',
+        '2024-12-21 19:00:00', '', '2024-12-21 19:00:03', '');
+INSERT INTO ruoyi.sys_job (job_id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent,
+                           status, create_by, create_time, update_by, update_time, remark)
+VALUES (7, '重建redis缓存', 'DEFAULT', 'rconTask.refreshRedisCache', '0 0 1 1/2 * ?', '1', '1', '0', 'admin',
+        '2024-12-23 16:34:41', '', '2024-12-23 16:34:43', '');
+INSERT INTO ruoyi.sys_job (job_id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent,
+                           status, create_by, create_time, update_by, update_time, remark)
+VALUES (8, '心跳检测', 'DEFAULT', 'rconTask.heartBeat', '0 0/3 * * * ?', '1', '1', '1', 'admin', '2024-12-25 23:41:20',
+        'admin', '2025-01-03 02:26:19', '');
+INSERT INTO ruoyi.sys_job (job_id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent,
+                           status, create_by, create_time, update_by, update_time, remark)
+VALUES (9, '玩家监控', 'DEFAULT', 'onlineTask.monitor', '0 0/1 * * * ?', '1', '1', '0', 'admin', '2025-01-02 05:14:41',
+        '', '2025-01-02 22:56:40', '');

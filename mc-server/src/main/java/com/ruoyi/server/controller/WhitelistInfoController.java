@@ -4,6 +4,7 @@ import com.alibaba.fastjson2.JSONObject;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.GwtIncompatible;
 import com.ruoyi.common.annotation.AddOrUpdateFilter;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
@@ -18,13 +19,17 @@ import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.server.async.AsyncManager;
 import com.ruoyi.server.common.EmailTemplates;
 import com.ruoyi.server.common.MapCache;
-import com.ruoyi.server.common.PushEmail;
+import com.ruoyi.server.common.EmailService;
 import com.ruoyi.server.domain.IpLimitInfo;
+import com.ruoyi.server.domain.PlayerDetails;
 import com.ruoyi.server.domain.WhitelistInfo;
+import com.ruoyi.server.enums.Identity;
 import com.ruoyi.server.sdk.SearchHttpAK;
 import com.ruoyi.server.service.IIpLimitInfoService;
+import com.ruoyi.server.service.IPlayerDetailsService;
 import com.ruoyi.server.service.IServerInfoService;
 import com.ruoyi.server.service.IWhitelistInfoService;
+import org.apache.poi.util.Beta;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -35,6 +40,11 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.util.concurrent.ConcurrentHashMap;
+
+import com.google.common.util.concurrent.RateLimiter;
 
 /**
  * 白名单Controller
@@ -45,7 +55,7 @@ import java.util.regex.Pattern;
 @RestController
 @RequestMapping("/mc/whitelist")
 public class WhitelistInfoController extends BaseController {
-    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    private static final long CACHE_DURATION = 300 * 1000; // 缓存时间1分钟
     @Autowired
     private IWhitelistInfoService whitelistInfoService;
     private final AsyncManager asyncManager = AsyncManager.getInstance();
@@ -53,77 +63,21 @@ public class WhitelistInfoController extends BaseController {
     private IIpLimitInfoService iIpLimitInfoService;
     @Autowired
     private IServerInfoService serverInfoService;
+    private final SimpleDateFormat dateFormat;
     @Value("${whitelist.iplimit}")
     private String iplimit;
-    @Autowired
-    private PushEmail pushEmail;
+    private final Map<String, CachedWhitelist> whitelistCache = new ConcurrentHashMap<>();
     @Value("${whitelist.email}")
     private String ADMIN_EMAIL;
+    private final RateLimiter rateLimiter = RateLimiter.create(10.0); // 每秒最多10个请求
+    @Autowired
+    private IPlayerDetailsService playerDetailsService;
+    @Autowired
+    private EmailService pushEmail;
 
-    /**
-     * 查询白名单列表
-     */
-    @PreAuthorize("@ss.hasPermi('mc:whitelist:list')")
-    @GetMapping("/list")
-    public TableDataInfo list(WhitelistInfo whitelistInfo) {
-        if (whitelistInfo.getUserName() != null) {
-            whitelistInfo.setUserName(whitelistInfo.getUserName().toLowerCase().trim());
-        }
-        startPage();
-        List<WhitelistInfo> list = whitelistInfoService.selectWhitelistInfoList(whitelistInfo);
-        return getDataTable(list);
-    }
-
-    /**
-     * 导出白名单列表
-     */
-    @PreAuthorize("@ss.hasPermi('mc:whitelist:export')")
-    @Log(title = "白名单", businessType = BusinessType.EXPORT)
-    @PostMapping("/export")
-    public void export(HttpServletResponse response, WhitelistInfo whitelistInfo) {
-        List<WhitelistInfo> list = whitelistInfoService.selectWhitelistInfoList(whitelistInfo);
-        ExcelUtil<WhitelistInfo> util = new ExcelUtil<WhitelistInfo>(WhitelistInfo.class);
-        util.exportExcel(response, list, "白名单数据");
-    }
-
-    /**
-     * 获取白名单详细信息
-     */
-    @PreAuthorize("@ss.hasPermi('mc:whitelist:query')")
-    @GetMapping(value = "/{id}")
-    public AjaxResult getInfo(@PathVariable("id") Long id) {
-        return success(whitelistInfoService.selectWhitelistInfoById(id));
-    }
-
-    /**
-     * 新增白名单
-     */
-    @PreAuthorize("@ss.hasPermi('mc:whitelist:add')")
-    @Log(title = "白名单", businessType = BusinessType.INSERT)
-    @PostMapping
-    public AjaxResult add(@RequestBody WhitelistInfo whitelistInfo) {
-        return toAjax(whitelistInfoService.insertWhitelistInfo(whitelistInfo));
-    }
-
-    /**
-     * 修改白名单
-     */
-    @PreAuthorize("@ss.hasPermi('mc:whitelist:edit')")
-    @Log(title = "白名单", businessType = BusinessType.UPDATE)
-    @AddOrUpdateFilter(edit = true)
-    @PutMapping
-    public AjaxResult edit(@RequestBody WhitelistInfo whitelistInfo) {
-        return toAjax(whitelistInfoService.updateWhitelistInfo(whitelistInfo));
-    }
-
-    /**
-     * 删除白名单
-     */
-    @PreAuthorize("@ss.hasPermi('mc:whitelist:remove')")
-    @Log(title = "白名单", businessType = BusinessType.DELETE)
-    @DeleteMapping("/{ids}")
-    public AjaxResult remove(@PathVariable Long[] ids) {
-        return toAjax(whitelistInfoService.deleteWhitelistInfoByIds(ids));
+    public WhitelistInfoController() {
+        this.dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+        this.dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
     }
 
     /**
@@ -199,11 +153,10 @@ public class WhitelistInfoController extends BaseController {
             }
 
         }
-
+        IpLimitInfo ipLimitInfo = new IpLimitInfo();
         // IP限流
         if (StringUtils.isNotEmpty(ip) && !IpUtils.internalIp(ip)) {
             // 查询IP是否存在
-            IpLimitInfo ipLimitInfo = new IpLimitInfo();
             ipLimitInfo.setIp(ip);
             List<IpLimitInfo> ipLimitInfos = iIpLimitInfoService.selectIpLimitInfoList(ipLimitInfo);
             if (ipLimitInfos.isEmpty()) {
@@ -257,24 +210,35 @@ public class WhitelistInfoController extends BaseController {
 
                 iIpLimitInfoService.insertIpLimitInfo(ipLimitInfo);
             } else {
-                IpLimitInfo info = ipLimitInfos.get(0);
+                ipLimitInfo = ipLimitInfos.get(0);
 
-                if (info.getCount() >= Long.parseLong(iplimit)) {
+                if (ipLimitInfo.getCount() >= Long.parseLong(iplimit)) {
                     return error("请求次数达到上限，请联系管理员!");
                 }
 
-                if (info.getCreateBy() == null || info.getCreateBy().isEmpty()) {
-                    info.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
-                } else if (info.getCount() == 1) {
-                    info.setUpdateBy(info.getCreateBy() + "::" + whitelistInfo.getUserName());
+                if (ipLimitInfo.getCreateBy() == null || ipLimitInfo.getCreateBy().isEmpty()) {
+                    ipLimitInfo.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
+                } else if (ipLimitInfo.getCount() == 1) {
+                    ipLimitInfo.setUpdateBy(ipLimitInfo.getCreateBy() + "::" + whitelistInfo.getUserName());
                 } else {
-                    info.setUpdateBy(info.getUpdateBy() + "::" + whitelistInfo.getUserName());
+                    ipLimitInfo.setUpdateBy(ipLimitInfo.getUpdateBy() + "::" + whitelistInfo.getUserName());
                 }
-                info.setCount(info.getCount() + 1);
-                info.setUpdateTime(new Date());
+                ipLimitInfo.setCount(ipLimitInfo.getCount() + 1);
+                ipLimitInfo.setUpdateTime(new Date());
 
-                iIpLimitInfoService.updateIpLimitInfo(info);
+                iIpLimitInfoService.updateIpLimitInfo(ipLimitInfo);
             }
+            // 新增玩家详情
+            PlayerDetails details = new PlayerDetails();
+            details.setUserName(whitelistInfo.getUserName());
+            details.setQq(whitelistInfo.getQqNum());
+            details.setCity(ipLimitInfo.getCity());
+            details.setProvince(ipLimitInfo.getProvince());
+            details.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
+            details.setCreateTime(new Date());
+            details.setIdentity(Identity.PLAYER.name());
+            playerDetailsService.insertPlayerDetails(details);
+
         }
 
         // 补全基础申请信息
@@ -351,6 +315,72 @@ public class WhitelistInfoController extends BaseController {
 
     }
 
+    /**
+     * 查询白名单列表
+     */
+    @PreAuthorize("@ss.hasPermi('mc:whitelist:list')")
+    @GetMapping("/list")
+    public TableDataInfo list(WhitelistInfo whitelistInfo) {
+        if (whitelistInfo.getUserName() != null) {
+            whitelistInfo.setUserName(whitelistInfo.getUserName().toLowerCase().trim());
+        }
+        startPage();
+        List<WhitelistInfo> list = whitelistInfoService.selectWhitelistInfoList(whitelistInfo);
+        return getDataTable(list);
+    }
+
+    /**
+     * 导出白名单列表
+     */
+    @PreAuthorize("@ss.hasPermi('mc:whitelist:export')")
+    @Log(title = "白名单", businessType = BusinessType.EXPORT)
+    @PostMapping("/export")
+    public void export(HttpServletResponse response, WhitelistInfo whitelistInfo) {
+        List<WhitelistInfo> list = whitelistInfoService.selectWhitelistInfoList(whitelistInfo);
+        ExcelUtil<WhitelistInfo> util = new ExcelUtil<WhitelistInfo>(WhitelistInfo.class);
+        util.exportExcel(response, list, "白名单数据");
+    }
+
+    /**
+     * 获取白名单详细信息
+     */
+    @PreAuthorize("@ss.hasPermi('mc:whitelist:query')")
+    @GetMapping(value = "/{id}")
+    public AjaxResult getInfo(@PathVariable("id") Long id) {
+        return success(whitelistInfoService.selectWhitelistInfoById(id));
+    }
+
+    /**
+     * 新增白名单
+     */
+    @PreAuthorize("@ss.hasPermi('mc:whitelist:add')")
+    @Log(title = "白名单", businessType = BusinessType.INSERT)
+    @PostMapping
+    public AjaxResult add(@RequestBody WhitelistInfo whitelistInfo) {
+        return toAjax(whitelistInfoService.insertWhitelistInfo(whitelistInfo));
+    }
+
+    /**
+     * 修改白名单
+     */
+    @PreAuthorize("@ss.hasPermi('mc:whitelist:edit')")
+    @Log(title = "白名单", businessType = BusinessType.UPDATE)
+    @AddOrUpdateFilter(edit = true)
+    @PutMapping
+    public AjaxResult edit(@RequestBody WhitelistInfo whitelistInfo) {
+        return toAjax(whitelistInfoService.updateWhitelistInfo(whitelistInfo));
+    }
+
+    /**
+     * 删除白名单
+     */
+    @PreAuthorize("@ss.hasPermi('mc:whitelist:remove')")
+    @Log(title = "白名单", businessType = BusinessType.DELETE)
+    @DeleteMapping("/{ids}")
+    public AjaxResult remove(@PathVariable Long[] ids) {
+        return toAjax(whitelistInfoService.deleteWhitelistInfoByIds(ids));
+    }
+
     @GetMapping("check")
     @CrossOrigin(origins = "https://app.yousb.sbs", maxAge = 3600)
     public AjaxResult cheack(@RequestParam Map<String, String> params) {
@@ -371,14 +401,58 @@ public class WhitelistInfoController extends BaseController {
         if (!whitelistInfoService.checkRepeat(whitelistInfo).isEmpty()) {
             List<WhitelistInfo> whitelistInfos = whitelistInfoService.checkRepeat(whitelistInfo);
             WhitelistInfo obj = whitelistInfos.get(0);
+
             map.put("游戏ID", obj.getUserName());
             map.put("QQ号", obj.getQqNum());
-            map.put("提交时间", dateFormat.format(obj.getAddTime()));
+            // map.put("提交时间", dateFormat.format(obj.getAddTime()));  // 容余
             if (obj.getOnlineFlag() == 1) {
                 map.put("账号类型", "正版");
             } else {
                 map.put("账号类型", "离线");
             }
+
+            final PlayerDetails details = new PlayerDetails();
+            details.setUserName(obj.getUserName());
+            playerDetailsService.selectPlayerDetailsList(details).forEach(playerDetails -> {
+
+                if (playerDetails.getProvince() != null) {
+                    map.put("省份", playerDetails.getProvince());
+                }
+
+                if (playerDetails.getCity() != null) {
+                    map.put("城市", playerDetails.getCity());
+                }
+
+                if (playerDetails.getLastOnlineTime() != null) {
+                    // 在线时间和离线时间取最大的
+                    map.put("最后上线时间", playerDetails.getLastOnlineTime().getTime()
+                            > playerDetails.getLastOfflineTime().getTime()
+                            ? dateFormat.format(playerDetails.getLastOnlineTime())
+                            : dateFormat.format(playerDetails.getLastOfflineTime()));
+
+                    // 使用Java 8的时间API处理时间
+                    //  String formattedTime = playerDetails.getLastOnlineTime().toInstant()
+                    //          .atZone(ZoneId.of("Asia/Shanghai"))
+                    //          .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
+                    //  map.put("最后上线时间", formattedTime);
+
+                    // 保留日志用于调试
+                    logger.debug("数据库原始时间: {}", playerDetails.getLastOnlineTime());
+                    logger.debug("数据库原始时间毫秒值: {}", playerDetails.getLastOnlineTime().getTime());
+                    logger.debug("系统默认时区: {}", TimeZone.getDefault().getID());
+                }
+
+                if (playerDetails.getParameters() != null) {
+                    // 取历史名称
+                    JSONObject.parseObject(playerDetails.getParameters()).forEach((k, v) -> {
+                        if (k.equals("history")) {
+                            map.put("历史名称", v.toString());
+                        }
+                    });
+                }
+
+            });
+
             map.put("审核人", obj.getReviewUsers());
             map.put("UUID", obj.getUserUuid());
             switch (obj.getAddState()) {
@@ -408,21 +482,57 @@ public class WhitelistInfoController extends BaseController {
     @GetMapping("getWhiteList")
     @CrossOrigin(origins = "https://app.yousb.sbs", maxAge = 3600)
     public AjaxResult getWhiteList() {
-        Map<String, String> map = new HashMap<>();
-        MapCache.getMap().forEach((k, v) -> {
-            final String nameTag = serverInfoService.selectServerInfoById(Long.valueOf(k)).getNameTag();
-            try {
-                final String list = v.sendCommand("whitelist list");
-                String[] split = new String[0];
-                if (StringUtils.isNotEmpty(list) && list.contains("There are")) {
-                    split = list.split("whitelisted player\\(s\\):")[1].trim().split(", ");
-                }
-                map.put(nameTag, Arrays.toString(split));
-            } catch (Exception e) {
-                logger.error("获取白名单列表失败", e);
+        // 限流检查
+        if (!rateLimiter.tryAcquire()) {
+            return error("服务器繁忙,请稍后再试");
+        }
+
+        try {
+            // 检查缓存
+            CachedWhitelist cached = whitelistCache.get("whitelist");
+            if (cached != null && !cached.isExpired()) {
+                return success(cached.data);
             }
-        });
-        return success(map);
+
+            Map<String, String> map = new HashMap<>();
+            MapCache.getMap().forEach((k, v) -> {
+                final String nameTag = serverInfoService.selectServerInfoById(Long.valueOf(k)).getNameTag();
+                try {
+                    final String list = v.sendCommand("whitelist list");
+                    String[] split = new String[0];
+                    if (StringUtils.isNotEmpty(list) && list.contains("There are")) {
+                        split = list.split("whitelisted player\\(s\\):")[1].trim().split(", ");
+                    }
+                    map.put(nameTag, Arrays.toString(split));
+                } catch (Exception e) {
+                    logger.error("获取白名单列表失败, serverId: {}", k, e);
+                    map.put(nameTag, "获取失败"); // 不要因为单个服务器失败影响整体
+                }
+            });
+
+            // 更新缓存
+            whitelistCache.put("whitelist", new CachedWhitelist(map));
+            return success(map);
+
+        } catch (Exception e) {
+            logger.error("获取白名单列表发生异常", e);
+            return error("系统繁忙,请稍后重试");
+        }
+    }
+
+    // 添加缓存对象类
+    private static class CachedWhitelist {
+        private final Map<String, String> data;
+        private final long timestamp;
+
+        public CachedWhitelist(Map<String, String> data) {
+            this.data = data;
+            this.timestamp = System.currentTimeMillis();
+        }
+
+        public boolean isExpired() {
+            return System.currentTimeMillis() - timestamp > CACHE_DURATION;
+        }
     }
 
 }

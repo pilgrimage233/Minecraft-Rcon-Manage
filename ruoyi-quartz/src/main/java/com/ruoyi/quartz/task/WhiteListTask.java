@@ -5,11 +5,12 @@ import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.ObjectCache;
-import com.ruoyi.server.common.PushEmail;
+import com.ruoyi.server.common.EmailService;
 import com.ruoyi.server.domain.ServerCommandInfo;
 import com.ruoyi.server.domain.WhitelistInfo;
 import com.ruoyi.server.service.IWhitelistInfoService;
 import com.ruoyi.system.service.ISysUserService;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.ibatis.logging.Log;
 import org.apache.ibatis.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,8 +27,8 @@ import java.util.concurrent.TimeUnit;
  * 白名单同步
  * 作者：Memory
  */
+@Slf4j
 @Component("whiteListTask")
-@SuppressWarnings("unused")
 public class WhiteListTask {
 
     @Autowired
@@ -37,8 +38,7 @@ public class WhiteListTask {
     @Autowired
     private RedisCache redisCache;
     @Autowired
-    private PushEmail pushEmail;
-    private static final Log log = LogFactory.getLog(WhiteListTask.class);
+    private EmailService pushEmail;
 
 
     /**
@@ -84,7 +84,7 @@ public class WhiteListTask {
      */
     // @SuppressWarnings("all")
     public void syncWhitelistByServerId(String serverId) throws InterruptedException {
-        log.debug("开始同步白名单：" + serverId);
+        log.debug("开始同步白名单：{}", serverId);
 
         if (serverId == null || serverId.isEmpty()) {
             log.error("服务器ID为空");
@@ -92,7 +92,7 @@ public class WhiteListTask {
         }
 
         if (!MapCache.containsKey(serverId)) {
-            log.error("服务器未连接：" + serverId);
+            log.error("服务器未连接：{}", serverId);
             return;
         }
 
@@ -119,7 +119,7 @@ public class WhiteListTask {
 
         // 查询对应服务器现有白名单列表
         String list = MapCache.get(serverId).sendCommand("whitelist list");
-        log.debug("现有白名单列表：" + list);
+        log.debug("现有白名单列表：{}", list);
         String[] split = new String[0];
         String[] split1 = new String[0];
         if (StringUtils.isNotEmpty(list) && list.contains("There are")) {
@@ -149,7 +149,7 @@ public class WhiteListTask {
             // 从缓存中获取指令信息
             commandInfo = map.get(serverId);
             if (commandInfo == null) {
-                log.error("缓存中不存在服务器:[" + serverId + "]的指令信息");
+                log.error("缓存中不存在服务器:[{}]的指令信息", serverId);
                 return;
             }
         }
@@ -198,6 +198,6 @@ public class WhiteListTask {
                 remove.add(s);
             }
         }
-        log.debug("同步白名单成功：" + serverId + "，新增白名单：" + user + "，移除白名单：" + remove);
+        log.debug("同步白名单成功：{}，新增白名单：{}，移除白名单：{}", serverId, user, remove);
     }
 }

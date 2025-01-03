@@ -172,3 +172,21 @@ INSERT INTO ruoyi.sys_dict_data (dict_code, dict_sort, dict_label, dict_value, d
                                  is_default, status, create_by, create_time, update_by, update_time, remark)
 VALUES (110, 0, '启用', '1', 'server_status', null, 'success', 'N', '0', 'admin', '2024-03-10 17:13:36', '', null,
         null);
+INSERT INTO ruoyi.sys_dict_data (dict_code, dict_sort, dict_label, dict_value, dict_type, css_class, list_class,
+                                 is_default, status, create_by, create_time, update_by, update_time, remark)
+VALUES (111, 0, '已封禁', '1', 'ban_status', null, 'danger', 'N', '0', 'admin', '2024-12-23 17:43:23', '', null, null);
+INSERT INTO ruoyi.sys_dict_data (dict_code, dict_sort, dict_label, dict_value, dict_type, css_class, list_class,
+                                 is_default, status, create_by, create_time, update_by, update_time, remark)
+VALUES (112, 0, '已解封', '0', 'ban_status', null, 'warning', 'N', '0', 'admin', '2024-12-23 17:47:28', '', null, null);
+INSERT INTO ruoyi.sys_dict_data (dict_code, dict_sort, dict_label, dict_value, dict_type, css_class, list_class,
+                                 is_default, status, create_by, create_time, update_by, update_time, remark)
+VALUES (113, 0, '玩家', 'player', 'player_identity', null, 'primary', 'N', '0', 'admin', '2024-12-31 04:06:48', 'admin',
+        '2024-12-31 04:09:36', null);
+INSERT INTO ruoyi.sys_dict_data (dict_code, dict_sort, dict_label, dict_value, dict_type, css_class, list_class,
+                                 is_default, status, create_by, create_time, update_by, update_time, remark)
+VALUES (114, 0, '管理', 'operator', 'player_identity', null, 'success', 'N', '0', 'admin', '2024-12-31 04:07:52',
+        'admin', '2024-12-31 04:08:16', null);
+INSERT INTO ruoyi.sys_dict_data (dict_code, dict_sort, dict_label, dict_value, dict_type, css_class, list_class,
+                                 is_default, status, create_by, create_time, update_by, update_time, remark)
+VALUES (115, 0, '封禁', 'banned', 'player_identity', null, 'danger', 'N', '0', 'admin', '2024-12-31 04:09:02', 'admin',
+        '2024-12-31 04:09:15', null);

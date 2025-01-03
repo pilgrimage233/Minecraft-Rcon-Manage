@@ -1,5 +1,7 @@
 package com.ruoyi.server.common;
 
+import lombok.extern.slf4j.Slf4j;
+
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.logging.Logger;
@@ -8,8 +10,9 @@ import java.util.logging.Logger;
  * 域名转IP
  * 作者：Memory
  */
+@Slf4j
 public class DomainToIp {
-    static Logger logger = Logger.getLogger(DomainToIp.class.getName());
+
 
     public static String domainToIp(String domain) {
         if (domain.matches("((2[0-4]\\d|25[0-5]|[01]?\\d\\d?)\\.){3}(2[0-4]\\d|25[0-5]|[01]?\\d\\d?)")) {
@@ -21,8 +24,8 @@ public class DomainToIp {
         } catch (UnknownHostException e) {
             throw new RuntimeException(e);
         }
-        logger.info("Domain: " + domain);
-        logger.info("IP Address: " + address.getHostAddress());
+        log.info("Domain: {}", domain);
+        log.info("IP Address: {}", address.getHostAddress());
         return address.getHostAddress();
     }
 }

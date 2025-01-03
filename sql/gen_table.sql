@@ -59,3 +59,16 @@ INSERT INTO ruoyi.gen_table (table_id, table_name, table_comment, sub_table_name
 VALUES (6, 'server_command_info', '指令管理表', null, null, 'ServerCommandInfo', 'crud', 'element-ui',
         'com.ruoyi.server', 'mc', 'command', '指令管理', 'ruoyi', '0', '/', '{"parentMenuId":2000}', 'admin',
         '2024-12-20 19:28:58', '', '2024-12-20 19:29:31', null);
+INSERT INTO ruoyi.gen_table (table_id, table_name, table_comment, sub_table_name, sub_table_fk_name, class_name,
+                             tpl_category, tpl_web_type, package_name, module_name, business_name, function_name,
+                             function_author, gen_type, gen_path, options, create_by, create_time, update_by,
+                             update_time, remark)
+VALUES (7, 'operator_list', '管理员列表', null, null, 'OperatorList', 'crud', '', 'com.ruoyi.system', 'system', 'list',
+        '管理员列', 'ruoyi', '0', '/', null, 'admin', '2024-12-31 03:09:59', '', null, null);
+INSERT INTO ruoyi.gen_table (table_id, table_name, table_comment, sub_table_name, sub_table_fk_name, class_name,
+                             tpl_category, tpl_web_type, package_name, module_name, business_name, function_name,
+                             function_author, gen_type, gen_path, options, create_by, create_time, update_by,
+                             update_time, remark)
+VALUES (8, 'player_details', '玩家详情', null, null, 'PlayerDetails', 'crud', 'element-ui', 'com.ruoyi.server',
+        'player', 'details', '玩家详情', 'Memory', '0', '/', '{"parentMenuId":"2000"}', 'admin', '2024-12-31 03:09:59',
+        '', '2024-12-31 03:33:14', null);

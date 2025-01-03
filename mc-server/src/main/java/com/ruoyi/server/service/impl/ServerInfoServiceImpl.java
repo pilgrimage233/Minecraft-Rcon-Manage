@@ -4,7 +4,7 @@ import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.MapCache;
-import com.ruoyi.server.common.RconUtil;
+import com.ruoyi.server.common.RconService;
 import com.ruoyi.server.domain.ServerInfo;
 import com.ruoyi.server.mapper.ServerInfoMapper;
 import com.ruoyi.server.service.IServerInfoService;
@@ -25,11 +25,17 @@ import java.util.stream.Collectors;
  */
 @Service
 public class ServerInfoServiceImpl implements IServerInfoService {
+
     private static final Log log = LogFactory.getLog(ServerInfoServiceImpl.class);
+
     @Autowired
     private ServerInfoMapper serverInfoMapper;
+
     @Autowired
     private RedisCache redisCache;
+
+    @Autowired
+    private RconService rconService;
 
 
     /**
@@ -151,7 +157,7 @@ public class ServerInfoServiceImpl implements IServerInfoService {
                     Random random = new Random();
                     int i = random.nextInt(10);
                     if (i % 2 == 0) {
-                        RconUtil.reconnect(info.getId().toString());
+                        rconService.reconnect(info.getId().toString());
                     }
                     log.error("获取在线玩家失败：" + e.getMessage());
                 }
