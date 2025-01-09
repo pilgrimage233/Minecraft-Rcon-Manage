@@ -1,13 +1,17 @@
 <template>
   <div class="app-wrapper">
+    <SakuraBackground
+        :currentTheme="currentTheme"
+        :isDark="isDark"
+    />
     <!-- 樱花动画效果 -->
-    <div class="sakura-container">
+    <!-- <div class="sakura-container">
       <span v-for="n in 10" :key="n" :style="{
         '--delay': `${Math.random() * 5}s`,
         '--size': `${Math.random() * 20 + 10}px`,
         '--left': `${Math.random() * 100}%`
       }" class="sakura"></span>
-    </div>
+    </div> -->
 
     <div class="member-container">
       <div class="title-container">
@@ -42,7 +46,7 @@
                 v-for="member in members"
                 :key="member"
                 class="member-tag"
-                :type="onlinePlayers.has(member) ? 'success' : ''"
+                :type="onlinePlayers.has(member) ? 'success' : null"
                 effect="light"
                 @click="checkMemberDetail(member)"
             >
@@ -235,6 +239,7 @@ import axios from 'axios';
 import {Camera, Close, Position, Refresh, User, VideoPause, VideoPlay, Warning} from '@element-plus/icons-vue';
 // 导入 skinview3d
 import * as skinview3d from 'skinview3d';
+import SakuraBackground from './common/SakuraBackground.vue'
 
 const http = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'https://application.shenzhuo.vip',
@@ -269,6 +274,9 @@ let currentAnimationFrame = null; // 用于跟踪当前动画帧
 
 // 添加在线玩家状态的响应式变量
 const onlinePlayers = ref(new Set());
+
+// 获取当前主题
+const currentTheme = ref(localStorage.getItem('theme') || 'default')
 
 const getWhiteList = (showMessage = false) => {
   loading.value = true;
@@ -618,6 +626,7 @@ onMounted(() => {
   );
   animation: warmGradient 20s ease infinite;
   padding: 20px;
+  font-family: 'CustomFont', sans-serif;
 }
 
 .member-container {
@@ -648,9 +657,10 @@ onMounted(() => {
 }
 
 .title-container h2 {
-  color: #409EFF;
+  color: var(--theme-primary);
   font-size: 28px;
   margin: 0;
+  text-shadow: var(--theme-text-shadow);
 }
 
 .description {
@@ -669,9 +679,10 @@ onMounted(() => {
 .server-block {
   background: rgba(255, 255, 255, 0.5);
   border-radius: 12px;
-  padding: 20px;
+  padding: 16px;
   transition: all 0.3s ease;
   border: 1px solid rgba(64, 158, 255, 0.2);
+  margin-bottom: 12px;
 }
 
 .server-block:hover {
@@ -681,34 +692,41 @@ onMounted(() => {
 
 .server-name {
   font-weight: 500;
-  color: #409EFF;
-  margin-bottom: 15px;
+  color: var(--theme-primary);
+  margin-bottom: 10px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-size: 16px;
+  gap: 6px;
+  font-size: 14px;
 }
 
 .members-container {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+  padding: 4px;
 }
 
 .member-tag {
+  background-color: rgba(var(--theme-secondary-rgb), 0.1);
+  border: 1px solid var(--theme-border);
+  color: var(--theme-text);
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 12px;
   transition: all 0.3s ease;
-  padding: 6px 12px;
-  border-radius: 8px;
-  background-color: rgba(64, 158, 255, 0.1);
-  border: 1px solid rgba(64, 158, 255, 0.2);
-  color: #409EFF;
-  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 2px;
+  height: 24px;
+  line-height: 1;
 }
 
 .member-tag:hover {
+  background-color: rgba(var(--theme-primary-rgb), 0.15);
   transform: translateY(-2px);
-  background-color: rgba(64, 158, 255, 0.2);
-  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.15);
+  box-shadow: 0 4px 12px rgba(var(--theme-primary-rgb), 0.15);
 }
 
 .query-time {
@@ -945,16 +963,48 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   padding: 14px 20px;
-  background: #f8f9fa;
+  background: rgba(var(--theme-primary), 0.05);
   border-radius: 16px;
   transition: all 0.3s ease;
-  border: 1px solid rgba(64, 158, 255, 0.1);
+  border: 1px solid rgba(var(--theme-primary), 0.1);
+  position: relative;
 }
 
-.detail-item:hover {
-  background: #f0f7ff;
-  transform: translateX(5px);
-  border-color: rgba(64, 158, 255, 0.2);
+.detail-item:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 40px);
+  height: 1px;
+  background: linear-gradient(
+      to right,
+      transparent,
+      var(--theme-primary),
+      transparent
+  );
+  opacity: 0.2;
+}
+
+.dark .detail-item:not(:last-child)::after {
+  background: linear-gradient(
+      to right,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+  );
+}
+
+[data-theme="cyberpunk"] .detail-item:not(:last-child)::after {
+  background: linear-gradient(
+      to right,
+      transparent,
+      var(--theme-secondary),
+      transparent
+  );
+  box-shadow: 0 0 10px var(--theme-secondary);
+  opacity: 0.3;
 }
 
 .detail-label {
@@ -1220,27 +1270,27 @@ onMounted(() => {
 
 /* 添加在线状态小圆点的样式 */
 .online-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  background-color: #67C23A;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  margin-left: 6px;
+  margin-left: 3px;
+  background-color: var(--theme-secondary);
+  display: inline-block;
   animation: pulse 2s infinite;
 }
 
 @keyframes pulse {
   0% {
     transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(103, 194, 58, 0.4);
+    box-shadow: 0 0 0 0 rgba(var(--theme-secondary-rgb), 0.4);
   }
   70% {
     transform: scale(1);
-    box-shadow: 0 0 0 6px rgba(103, 194, 58, 0);
+    box-shadow: 0 0 0 6px rgba(var(--theme-secondary-rgb), 0);
   }
   100% {
     transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(103, 194, 58, 0);
+    box-shadow: 0 0 0 0 rgba(var(--theme-secondary-rgb), 0);
   }
 }
 
@@ -1261,12 +1311,164 @@ onMounted(() => {
 
 /* 在线玩家标签的特殊样式 */
 .member-tag.el-tag--success {
-  background-color: rgba(103, 194, 58, 0.1);
-  border-color: rgba(103, 194, 58, 0.2);
+  background-color: rgba(var(--theme-secondary-rgb), 0.15);
+  border-color: var(--theme-secondary);
+  color: var(--theme-secondary);
 }
 
 .member-tag.el-tag--success:hover {
-  background-color: rgba(103, 194, 58, 0.2);
-  box-shadow: 0 4px 12px rgba(103, 194, 58, 0.15);
+  background-color: rgba(var(--theme-secondary-rgb), 0.25);
+  box-shadow: 0 4px 12px rgba(var(--theme-secondary-rgb), 0.2);
+}
+
+/* 在 style 标签内添加 */
+.dark .member-container {
+  background-color: rgba(35, 35, 45, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.dark .server-block {
+  background-color: rgba(30, 30, 40, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .description {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.dark .member-tag {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: var(--theme-border-dark);
+  color: var(--theme-text-dark);
+}
+
+.dark .dialog-header {
+  background: rgba(30, 30, 40, 0.95);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.dark .member-detail {
+  background-color: rgba(30, 30, 40, 0.6);
+}
+
+.dark .detail-item {
+  background-color: rgba(35, 35, 45, 0.6);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.dark .detail-label {
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.dark .detail-value {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.server-block:not(:last-child) {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.server-block:not(:last-child)::after {
+  content: '';
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 40px);
+  height: 1px;
+  background: linear-gradient(
+      to right,
+      transparent,
+      var(--theme-primary),
+      transparent
+  );
+  opacity: 0.2;
+}
+
+.dark .server-block:not(:last-child)::after {
+  background: linear-gradient(
+      to right,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+  );
+}
+
+[data-theme="cyberpunk"] .server-block:not(:last-child)::after {
+  background: linear-gradient(
+      to right,
+      transparent,
+      var(--theme-secondary),
+      transparent
+  );
+  box-shadow: 0 0 10px var(--theme-secondary);
+  opacity: 0.3;
+}
+
+/* 主题特定样式 */
+[data-theme="sakura"] .member-tag {
+  background-color: rgba(255, 105, 180, 0.1);
+  border-color: rgba(255, 105, 180, 0.2);
+  color: #d4317c;
+}
+
+[data-theme="sakura"] .member-tag:hover {
+  background-color: rgba(255, 105, 180, 0.2);
+  box-shadow: 0 4px 12px rgba(255, 105, 180, 0.2);
+  text-shadow: 0 0 8px rgba(255, 105, 180, 0.3);
+}
+
+[data-theme="cyberpunk"] .member-tag {
+  background: rgba(0, 255, 221, 0.1);
+  border-color: rgba(246, 24, 246, 0.3);
+  color: #00ffd5;
+  box-shadow: var(--theme-neon-shadow);
+  text-shadow: var(--theme-text-shadow);
+}
+
+[data-theme="cyberpunk"] .member-tag:hover {
+  background: rgba(0, 255, 221, 0.2);
+  box-shadow: 0 0 15px rgba(0, 255, 221, 0.4);
+}
+
+/* 暗色模式样式 */
+.dark .member-tag {
+  background-color: rgba(255, 255, 255, 0.1);
+  border-color: var(--theme-border-dark);
+  color: var(--theme-text-dark);
+}
+
+.dark .member-tag:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+  border-color: var(--theme-border-dark);
+}
+
+/* 在线指示点 */
+.online-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  margin-left: 3px;
+  background-color: var(--theme-secondary);
+  display: inline-block;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(var(--theme-secondary-rgb), 0.4);
+  }
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 6px rgba(var(--theme-secondary-rgb), 0);
+  }
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba(var(--theme-secondary-rgb), 0);
+  }
 }
 </style>

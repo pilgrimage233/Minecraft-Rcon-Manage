@@ -4,7 +4,7 @@ import com.alibaba.fastjson2.JSONObject;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.annotations.GwtIncompatible;
+import com.google.common.util.concurrent.RateLimiter;
 import com.ruoyi.common.annotation.AddOrUpdateFilter;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
@@ -17,9 +17,9 @@ import com.ruoyi.common.utils.http.HttpUtils;
 import com.ruoyi.common.utils.ip.IpUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.server.async.AsyncManager;
+import com.ruoyi.server.common.EmailService;
 import com.ruoyi.server.common.EmailTemplates;
 import com.ruoyi.server.common.MapCache;
-import com.ruoyi.server.common.EmailService;
 import com.ruoyi.server.domain.IpLimitInfo;
 import com.ruoyi.server.domain.PlayerDetails;
 import com.ruoyi.server.domain.WhitelistInfo;
@@ -29,7 +29,6 @@ import com.ruoyi.server.service.IIpLimitInfoService;
 import com.ruoyi.server.service.IPlayerDetailsService;
 import com.ruoyi.server.service.IServerInfoService;
 import com.ruoyi.server.service.IWhitelistInfoService;
-import org.apache.poi.util.Beta;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -38,13 +37,9 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletResponse;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
-import java.util.concurrent.ConcurrentHashMap;
-
-import com.google.common.util.concurrent.RateLimiter;
 
 /**
  * 白名单Controller
@@ -411,47 +406,36 @@ public class WhitelistInfoController extends BaseController {
                 map.put("账号类型", "离线");
             }
 
-            final PlayerDetails details = new PlayerDetails();
-            details.setUserName(obj.getUserName());
-            playerDetailsService.selectPlayerDetailsList(details).forEach(playerDetails -> {
+            PlayerDetails playerDetails = new PlayerDetails();
+            playerDetails.setUserName(obj.getUserName());
+            playerDetails = playerDetailsService.selectPlayerDetailsList(playerDetails).get(0);
 
-                if (playerDetails.getProvince() != null) {
-                    map.put("省份", playerDetails.getProvince());
+            if (playerDetails.getProvince() != null) {
+                map.put("省份", playerDetails.getProvince());
+            }
+
+            if (playerDetails.getCity() != null) {
+                map.put("城市", playerDetails.getCity());
+            }
+
+            if (playerDetails.getLastOnlineTime() != null && playerDetails.getLastOfflineTime() != null) {
+                // 在线时间和离线时间取最大的
+                map.put("最后上线时间", playerDetails.getLastOnlineTime().getTime()
+                        > playerDetails.getLastOfflineTime().getTime()
+                        ? dateFormat.format(playerDetails.getLastOnlineTime())
+                        : dateFormat.format(playerDetails.getLastOfflineTime()));
+            } else if (playerDetails.getLastOnlineTime() != null) {
+                map.put("最后上线时间", dateFormat.format(playerDetails.getLastOnlineTime()));
+            }
+
+            if (StringUtils.isNotEmpty(playerDetails.getParameters())) {
+                // 取历史名称
+                final JSONObject jsonObject = JSONObject.parseObject(playerDetails.getParameters());
+                if (jsonObject.containsKey("name_history")) {
+                    map.put("历史名称", jsonObject.getJSONArray("name_history"));
                 }
+            }
 
-                if (playerDetails.getCity() != null) {
-                    map.put("城市", playerDetails.getCity());
-                }
-
-                if (playerDetails.getLastOnlineTime() != null) {
-                    // 在线时间和离线时间取最大的
-                    map.put("最后上线时间", playerDetails.getLastOnlineTime().getTime()
-                            > playerDetails.getLastOfflineTime().getTime()
-                            ? dateFormat.format(playerDetails.getLastOnlineTime())
-                            : dateFormat.format(playerDetails.getLastOfflineTime()));
-
-                    // 使用Java 8的时间API处理时间
-                    //  String formattedTime = playerDetails.getLastOnlineTime().toInstant()
-                    //          .atZone(ZoneId.of("Asia/Shanghai"))
-                    //          .format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"));
-                    //  map.put("最后上线时间", formattedTime);
-
-                    // 保留日志用于调试
-                    logger.debug("数据库原始时间: {}", playerDetails.getLastOnlineTime());
-                    logger.debug("数据库原始时间毫秒值: {}", playerDetails.getLastOnlineTime().getTime());
-                    logger.debug("系统默认时区: {}", TimeZone.getDefault().getID());
-                }
-
-                if (playerDetails.getParameters() != null) {
-                    // 取历史名称
-                    JSONObject.parseObject(playerDetails.getParameters()).forEach((k, v) -> {
-                        if (k.equals("history")) {
-                            map.put("历史名称", v.toString());
-                        }
-                    });
-                }
-
-            });
 
             map.put("审核人", obj.getReviewUsers());
             map.put("UUID", obj.getUserUuid());
@@ -506,7 +490,7 @@ public class WhitelistInfoController extends BaseController {
                     map.put(nameTag, Arrays.toString(split));
                 } catch (Exception e) {
                     logger.error("获取白名单列表失败, serverId: {}", k, e);
-                    map.put(nameTag, "获取失败"); // 不要因为单个服务器失败影响整体
+                    // map.put(nameTag, "获取失败"); // 不要因为单个服务器失败影响整体
                 }
             });
 

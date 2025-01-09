@@ -1,0 +1,11 @@
+@font-face {
+    font-family: 'CustomFont'; /* 自定义字体名称 */
+    src: url('../asset/font.ttf') format('truetype'); /* 字体文件路径 */
+    font-weight: normal; /* 字体粗细 */
+    font-style: normal; /* 字体样式 */
+}
+
+/* 使用自定义字体 */
+body {
+    font-family: 'CustomFont', sans-serif; /* 应用自定义字体 */
+} 

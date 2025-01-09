@@ -1,30 +1,33 @@
-# whitelist
+# Minecraft 白名单申请系统
 
-This template should help get you started developing with Vue 3 in Vite.
+## 功能特性
 
-## Recommended IDE Setup
+- 白名单申请
+- 服务器状态监控
+- 成员管理
+- 国际化支持
 
-[VSCode](https://code.visualstudio.com/) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) (and
-disable Vetur).
+## 开发指南
 
-## Customize configuration
+### 环境要求
 
-See [Vite Configuration Reference](https://vite.dev/config/).
+- Node.js >= 16
+- npm >= 7
 
-## Project Setup
+### 安装依赖
 
-```sh
+```bash
 npm install
 ```
 
-### Compile and Hot-Reload for Development
+### 运行开发环境
 
-```sh
+```bash
 npm run dev
 ```
 
-### Compile and Minify for Production
+### 构建生产环境
 
-```sh
+```bash
 npm run build
 ```

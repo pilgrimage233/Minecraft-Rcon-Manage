@@ -1,6 +1,6 @@
 {
   "name": "whitelist",
-  "version": "0.0.0",
+  "version": "1.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -9,21 +9,20 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "-": "^0.0.1",
     "@element-plus/icons-vue": "^2.3.1",
     "@mdi/font": "^7.4.47",
     "axios": "^1.7.9",
-    "bootstrap": "^5.3.3",
     "element-plus": "^2.9.1",
     "save": "^2.9.0",
     "skinview3d": "^3.1.0",
     "vue": "^3.5.13",
-    "vue-router": "^4.5.0",
-    "vuetify": "^3.7.6"
+    "vue-i18n": "^9.9.1",
+    "vue-router": "^4.5.0"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^5.2.1",
     "vite": "^6.0.1",
-    "vite-plugin-vue-devtools": "^7.6.5"
+    "vite-plugin-vue-devtools": "^7.6.5",
+    "vite-plugin-compression": "^0.5.1"
   }
 }

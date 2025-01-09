@@ -77,9 +77,9 @@ public class OnlineTask {
                         JSONObject data = new JSONObject();
                         if (player.getParameters().isEmpty()) {
                             data = JSONObject.parseObject(player.getParameters());
-                            data.getJSONArray("history").add(newName);
+                            data.getJSONArray("name_history").add(newName);
                         } else {
-                            data.put("history", new ArrayList<String>() {{
+                            data.put("name_history", new ArrayList<String>() {{
                                 add(newName);
                             }});
                             player.setParameters(data.toJSONString());
