@@ -346,6 +346,7 @@ onMounted(() => {
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  font-family: 'CustomFont', sans-serif;
 }
 
 .submit-btn::before {
