@@ -5,12 +5,12 @@
       @touchstart.self="handleFormBlur"
   >
     <SakuraBackground
-        :currentTheme="currentTheme"
         :isDark="isDark"
+        :currentTheme="currentTheme"
     />
     <div
-        :class="{ 'form-focused': isFormFocused }"
         class="server-status-container"
+        :class="{ 'form-focused': isFormFocused }"
     >
       <div class="status-header">
         <div class="header-title">
@@ -64,8 +64,8 @@
     </div>
 
     <div
-        :class="{ 'focused': isFormFocused }"
         class="form-container"
+        :class="{ 'focused': isFormFocused }"
         @click="handleFormFocus"
         @touchstart="handleFormFocus"
     >
@@ -380,6 +380,7 @@ onMounted(() => {
   height: 40px;
   transform: translateY(0);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  font-family: 'CustomFont', sans-serif;
 }
 
 :deep(.el-input__inner:hover) {
@@ -895,6 +896,7 @@ onMounted(() => {
   padding: 6px 12px;
   border-radius: 15px;
   background: rgba(var(--theme-primary-rgb), 0.1);
+  font-family: 'CustomFont', sans-serif;
 }
 
 .view-members-btn:hover {

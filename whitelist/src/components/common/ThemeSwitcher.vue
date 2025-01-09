@@ -1,10 +1,10 @@
 <template>
   <div :class="{ 'dark': modelValue }" class="theme-switcher">
     <el-popover
-        :width="300"
         placement="bottom"
-        popper-class="theme-popover"
+        :width="300"
         trigger="click"
+        popper-class="theme-popover"
     >
       <template #reference>
         <el-button class="theme-button">
@@ -20,11 +20,11 @@
           <div
               v-for="(theme, key) in themes"
               :key="key"
+              class="theme-item"
               :class="{ 'active': currentTheme === key }"
               :style="{
               background: theme.gradient
             }"
-              class="theme-item"
               @click="changeTheme(key)"
           >
             <div class="theme-name">{{ theme.name }}</div>
@@ -37,11 +37,11 @@
         <div class="dark-mode-toggle">
           <span>暗色模式</span>
           <el-switch
+              :model-value="modelValue"
+              @update:model-value="updateDarkMode"
               :active-icon="Moon"
               :inactive-icon="Sunny"
-              :model-value="modelValue"
               inline-prompt
-              @update:model-value="updateDarkMode"
           />
         </div>
       </div>
@@ -124,6 +124,7 @@ onMounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
   color: var(--theme-text) !important;
+  font-family: 'CustomFont', sans-serif;
 }
 
 .theme-button:hover {
