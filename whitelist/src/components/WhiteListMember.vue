@@ -1,8 +1,8 @@
 <template>
   <div class="app-wrapper">
     <SakuraBackground
-        :currentTheme="currentTheme"
         :isDark="isDark"
+        :currentTheme="currentTheme"
     />
     <!-- 樱花动画效果 -->
     <!-- <div class="sakura-container">
@@ -33,29 +33,45 @@
         以下是已通过白名单审核的玩家列表
       </div>
 
-      <div class="servers-container">
-        <div v-for="(members, server) in whitelistData"
-             :key="server"
-             class="server-block">
-          <div class="server-name">
-            <i class="el-icon-connection"></i>
-            {{ server }}
-          </div>
-          <div class="members-container">
-            <el-tag
-                v-for="member in members"
-                :key="member"
-                class="member-tag"
-                :type="onlinePlayers.has(member) ? 'success' : null"
-                effect="light"
-                @click="checkMemberDetail(member)"
-            >
-              {{ member }}
-              <span v-if="onlinePlayers.has(member)" class="online-dot"></span>
-            </el-tag>
+      <!-- 添加加载状态 -->
+      <div v-if="initialLoading" class="loading-state">
+        <el-icon class="loading-icon">
+          <Loading/>
+        </el-icon>
+        <span>加载中...</span>
+      </div>
+
+      <!-- 使用 v-else 包裹现有内容 -->
+      <template v-else>
+        <div class="servers-container">
+          <div v-for="(members, server) in whitelistData"
+               :key="server"
+               class="server-block animate-in">
+            <div class="server-name">
+              <i class="el-icon-connection"></i>
+              {{ server }}
+            </div>
+            <div class="members-container">
+              <el-tag
+                  v-for="member in members"
+                  :key="member"
+                  :type="onlinePlayers.has(member) ? 'success' : null"
+                  class="member-tag"
+                  effect="light"
+                  @click="checkMemberDetail(member)"
+              >
+                {{ member }}
+                <span v-if="onlinePlayers.has(member)" class="online-dot"></span>
+              </el-tag>
+            </div>
           </div>
         </div>
-      </div>
+
+        <div v-if="lastUpdateTime" class="query-time animate-in">
+          <i class="el-icon-time"></i>
+          最后更新时间：{{ lastUpdateTime }}
+        </div>
+      </template>
 
       <!-- 添加成员详情弹窗 -->
       <el-dialog
@@ -223,11 +239,6 @@
           </div>
         </template>
       </el-dialog>
-
-      <div v-if="lastUpdateTime" class="query-time">
-        <i class="el-icon-time"></i>
-        最后更新时间：{{ lastUpdateTime }}
-      </div>
     </div>
   </div>
 </template>
@@ -236,7 +247,7 @@
 import {nextTick, onMounted, onUnmounted, reactive, ref, watch} from 'vue';
 import {ElMessage} from 'element-plus';
 import axios from 'axios';
-import {Camera, Close, Position, Refresh, User, VideoPause, VideoPlay, Warning} from '@element-plus/icons-vue';
+import {Camera, Close, Loading, Position, Refresh, User, VideoPause, VideoPlay, Warning} from '@element-plus/icons-vue';
 // 导入 skinview3d
 import * as skinview3d from 'skinview3d';
 import SakuraBackground from './common/SakuraBackground.vue'
@@ -277,6 +288,9 @@ const onlinePlayers = ref(new Set());
 
 // 获取当前主题
 const currentTheme = ref(localStorage.getItem('theme') || 'default')
+
+// 添加初始加载状态
+const initialLoading = ref(true);
 
 const getWhiteList = (showMessage = false) => {
   loading.value = true;
@@ -329,6 +343,7 @@ const getWhiteList = (showMessage = false) => {
       })
       .finally(() => {
         loading.value = false;
+        initialLoading.value = false; // 设置初始加载状态为 false
       });
 };
 
@@ -1470,5 +1485,78 @@ onMounted(() => {
     transform: scale(0.95);
     box-shadow: 0 0 0 0 rgba(var(--theme-secondary-rgb), 0);
   }
+}
+
+/* 添加加载状态样式 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: var(--theme-text);
+  gap: 10px;
+  min-height: 200px; /* 添加最小高度确保加载状态显示美观 */
+}
+
+.loading-icon {
+  font-size: 24px;
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 添加内容淡入动画 */
+.animate-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 适配暗色模式 */
+.dark .loading-state {
+  color: var(--theme-text-dark);
+}
+
+/* 主题特定样式 */
+[data-theme="sakura"] .loading-state {
+  color: var(--theme-primary);
+}
+
+[data-theme="cyberpunk"] .loading-state {
+  color: #00ffd5;
+  text-shadow: var(--theme-text-shadow);
+}
+
+[data-theme="ocean"] .loading-state {
+  color: #1976D2;
+}
+
+.dark[data-theme="ocean"] .loading-state {
+  color: #64B5F6;
+}
+
+[data-theme="aurora"] .loading-state {
+  color: #00838F;
+}
+
+.dark[data-theme="aurora"] .loading-state {
+  color: #4DD0E1;
 }
 </style>

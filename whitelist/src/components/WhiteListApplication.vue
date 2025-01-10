@@ -29,37 +29,46 @@
         </div>
       </div>
       <div class="status-content">
-        <div v-for="server in serverStatus.servers"
-             :key="server.name"
-             class="server-block">
-          <div class="server-name">
-            <i class="el-icon-connection"></i>
-            {{ server.name }}
-          </div>
-          <div class="online-info">
-            <div v-if="server.players.length > 0" class="player-list">
-              <div class="players-label">
-                <i class="el-icon-user"></i>
-                在线玩家 ({{ server.playerCount }})：
-              </div>
-              <div class="players-container">
-                <el-tag
-                    v-for="player in server.players"
-                    :key="player"
-                    class="player-tag"
-                    effect="light"
-                    size="small"
-                >
-                  {{ player }}
-                </el-tag>
+        <div v-if="initialLoading" class="loading-state">
+          <el-icon class="loading-icon">
+            <Loading/>
+          </el-icon>
+          <span>加载中...</span>
+        </div>
+
+        <template v-else>
+          <div v-for="server in serverStatus.servers"
+               :key="server.name"
+               class="server-block animate-in">
+            <div class="server-name">
+              <i class="el-icon-connection"></i>
+              {{ server.name }}
+            </div>
+            <div class="online-info">
+              <div v-if="server.players.length > 0" class="player-list">
+                <div class="players-label">
+                  <i class="el-icon-user"></i>
+                  在线玩家 ({{ server.playerCount }})：
+                </div>
+                <div class="players-container">
+                  <el-tag
+                      v-for="player in server.players"
+                      :key="player"
+                      class="player-tag"
+                      effect="light"
+                      size="small"
+                  >
+                    {{ player }}
+                  </el-tag>
+                </div>
               </div>
             </div>
           </div>
-        </div>
-        <div class="query-time">
-          <i class="el-icon-time"></i>
-          {{ serverStatus.queryTime }}
-        </div>
+          <div class="query-time animate-in">
+            <i class="el-icon-time"></i>
+            {{ serverStatus.queryTime }}
+          </div>
+        </template>
       </div>
     </div>
 
@@ -122,7 +131,7 @@
 import {onMounted, reactive, ref} from 'vue';
 import {ElMessage} from 'element-plus';
 import axios from 'axios';
-import {Refresh, User} from '@element-plus/icons-vue'
+import {Loading, Refresh, User} from '@element-plus/icons-vue'
 import {debounce} from 'lodash-es';
 import SakuraBackground from './common/SakuraBackground.vue'
 
@@ -152,6 +161,9 @@ const fullscreenLoading = ref(false);
 const debouncedRefresh = debounce((refresh) => {
   getOnlinePlayer(refresh);
 }, 500);
+
+// 添加初始加载状态
+const initialLoading = ref(true);
 
 const submitForm = () => {
   if (!form.userName || !form.qqNum || !form.onlineFlag) {
@@ -230,10 +242,12 @@ const getOnlinePlayer = (reflash) => {
       ElMessage.error(res.data.msg || '获取服务器状态失败');
     }
     loading = false;
+    initialLoading.value = false; // 设置初始加载状态为 false
   }).catch((error) => {
     console.error('查询在线玩家请求出错：', error);
     ElMessage.error('查询在线玩家时发生错误，请检查网络或联系管理员');
     loading = false;
+    initialLoading.value = false; // 错误时也需要关闭加载状态
   });
 };
 
@@ -1413,4 +1427,77 @@ html.dark :deep(.el-form-item__label) {
 .dark[data-theme="aurora"] .view-members-btn:hover {
   color: #80DEEA;
 }
+
+/* 添加加载状态样式 */
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: var(--theme-text);
+  gap: 10px;
+}
+
+.loading-icon {
+  font-size: 24px;
+  animation: rotate 1s linear infinite;
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 添加内容淡入动画 */
+.animate-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 适配暗色模式 */
+.dark .loading-state {
+  color: var(--theme-text-dark);
+}
+
+/* 主题特定样式 */
+[data-theme="sakura"] .loading-state {
+  color: var(--theme-primary);
+}
+
+[data-theme="cyberpunk"] .loading-state {
+  color: #00ffd5;
+  text-shadow: var(--theme-text-shadow);
+}
+
+[data-theme="ocean"] .loading-state {
+  color: #1976D2;
+}
+
+.dark[data-theme="ocean"] .loading-state {
+  color: #64B5F6;
+}
+
+[data-theme="aurora"] .loading-state {
+  color: #00838F;
+}
+
+.dark[data-theme="aurora"] .loading-state {
+  color: #4DD0E1;
+}
+
 </style>
