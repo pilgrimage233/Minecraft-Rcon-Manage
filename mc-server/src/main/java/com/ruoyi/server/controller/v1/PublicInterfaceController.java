@@ -105,4 +105,11 @@ public class PublicInterfaceController extends BaseController {
         }
     }
 
+    // 查询服务器在线人数
+    @GetMapping("/getOnlinePlayer")
+    public AjaxResult getOnlinePlayer() {
+        return success(serverInfoService.getOnlinePlayer());
+    }
+
+
 }

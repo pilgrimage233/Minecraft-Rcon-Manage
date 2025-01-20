@@ -1,5 +1,5 @@
 <template>
-  <div class="dashboard-container">
+  <div v-loading.fullscreen.lock="loading" class="dashboard-container" element-loading-text="数据加载中...">
     <el-row :gutter="15">
       <!-- 统计数据卡片 -->
       <el-col v-for="(item, index) in statsCards" :key="index" :lg="4" :md="8" :sm="12" :xs="12">
@@ -65,7 +65,9 @@ export default {
       // 在线信息
       onlineInfo: null,
       // TOP 10玩家
-      topTenPlayers: []
+      topTenPlayers: [],
+      // 加载状态
+      loading: true
     }
   },
   computed: {
@@ -122,6 +124,7 @@ export default {
   methods: {
     // 获取统计数据
     async getStats() {
+      this.loading = true
       try {
         const response = await getAggregateData()
         if (response.code === 200) {
@@ -131,6 +134,12 @@ export default {
         }
       } catch (error) {
         console.error('获取统计数据失败:', error)
+        this.$message.error('数据加载失败，请稍后重试')
+      } finally {
+        // 添加一个小延时，确保动画流畅
+        setTimeout(() => {
+          this.loading = false
+        }, 500)
       }
     }
   }
@@ -234,6 +243,19 @@ export default {
   .online-info {
     font-size: 14px;
     line-height: 2;
+  }
+
+  // 使用 ::v-deep 替代 /deep/
+  ::v-deep .el-loading-spinner {
+    .el-loading-text {
+      color: #409EFF;
+      font-size: 16px;
+      margin: 3px 0;
+    }
+
+    .path {
+      stroke: #409EFF;
+    }
   }
 }
 </style>

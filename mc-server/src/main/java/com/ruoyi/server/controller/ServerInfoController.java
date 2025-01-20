@@ -14,7 +14,6 @@ import com.ruoyi.server.common.RconService;
 import com.ruoyi.server.domain.ServerInfo;
 import com.ruoyi.server.service.IServerInfoService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.ibatis.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -152,13 +151,6 @@ public class ServerInfoController extends BaseController {
         }
         return success();
     }
-
-    // 查询服务器在线人数
-    @GetMapping("/getOnlinePlayer")
-    public AjaxResult getOnlinePlayer() {
-        return success(serverInfoService.getOnlinePlayer());
-    }
-
 
     /**
      * 即时指令通讯
