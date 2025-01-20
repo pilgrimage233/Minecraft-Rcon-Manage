@@ -295,7 +295,7 @@ const initialLoading = ref(true);
 const getWhiteList = (showMessage = false) => {
   loading.value = true;
   Promise.all([
-    http.get('/mc/whitelist/getWhiteList'),
+    http.get('/api/v1/getWhiteList'),
     http.get('/api/v1/getOnlinePlayer')
   ])
       .then(([whitelistRes, onlineRes]) => {
