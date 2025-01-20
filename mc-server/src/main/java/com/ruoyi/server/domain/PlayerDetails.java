@@ -1,12 +1,13 @@
 package com.ruoyi.server.domain;
 
-import java.util.Date;
-
 import com.fasterxml.jackson.annotation.JsonFormat;
-import org.apache.commons.lang3.builder.ToStringBuilder;
-import org.apache.commons.lang3.builder.ToStringStyle;
 import com.ruoyi.common.annotation.Excel;
 import com.ruoyi.common.core.domain.BaseEntity;
+import lombok.Data;
+import org.apache.commons.lang3.builder.ToStringBuilder;
+import org.apache.commons.lang3.builder.ToStringStyle;
+
+import java.util.Date;
 
 /**
  * 玩家详情对象 player_details
@@ -14,6 +15,7 @@ import com.ruoyi.common.core.domain.BaseEntity;
  * @author Memory
  * @date 2024-12-31
  */
+@Data
 public class PlayerDetails extends BaseEntity {
     private static final long serialVersionUID = 1L;
 
@@ -54,6 +56,12 @@ public class PlayerDetails extends BaseEntity {
     private Date lastOfflineTime;
 
     /**
+     * 游戏时间(分钟)
+     */
+    @Excel(name = "游戏时间(分钟)")
+    private Long gameTime;
+
+    /**
      * 省份
      */
     @Excel(name = "省份")
@@ -79,94 +87,6 @@ public class PlayerDetails extends BaseEntity {
      * 其他参数
      */
     private String parameters;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getUserName() {
-        return userName;
-    }
-
-    public void setUserName(String userName) {
-        this.userName = userName;
-    }
-
-    public String getQq() {
-        return qq;
-    }
-
-    public void setQq(String qq) {
-        this.qq = qq;
-    }
-
-    public String getIdentity() {
-        return identity;
-    }
-
-    public void setIdentity(String identity) {
-        this.identity = identity;
-    }
-
-    public Date getLastOnlineTime() {
-        return lastOnlineTime;
-    }
-
-    public void setLastOnlineTime(Date lastOnlineTime) {
-        this.lastOnlineTime = lastOnlineTime;
-    }
-
-    public Date getLastOfflineTime() {
-        return lastOfflineTime;
-    }
-
-    public void setLastOfflineTime(Date lastOfflineTime) {
-        this.lastOfflineTime = lastOfflineTime;
-    }
-
-    public String getProvince() {
-        return province;
-    }
-
-    public void setProvince(String province) {
-        this.province = province;
-    }
-
-    public String getCity() {
-        return city;
-    }
-
-    public void setCity(String city) {
-        this.city = city;
-    }
-
-    public Long getWhitelistId() {
-        return whitelistId;
-    }
-
-    public void setWhitelistId(Long whitelistId) {
-        this.whitelistId = whitelistId;
-    }
-
-    public Long getBanlistId() {
-        return banlistId;
-    }
-
-    public void setBanlistId(Long banlistId) {
-        this.banlistId = banlistId;
-    }
-
-    public String getParameters() {
-        return parameters;
-    }
-
-    public void setParameters(String parameters) {
-        this.parameters = parameters;
-    }
 
     @Override
     public String toString() {

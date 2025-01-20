@@ -296,7 +296,7 @@ const getWhiteList = (showMessage = false) => {
   loading.value = true;
   Promise.all([
     http.get('/mc/whitelist/getWhiteList'),
-    http.get('/server/serverlist/getOnlinePlayer')
+    http.get('/api/v1/getOnlinePlayer')
   ])
       .then(([whitelistRes, onlineRes]) => {
         if (whitelistRes.data.code === 200) {

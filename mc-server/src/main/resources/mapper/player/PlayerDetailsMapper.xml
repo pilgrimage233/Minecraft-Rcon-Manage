@@ -11,6 +11,7 @@
         <result property="identity" column="identity"/>
         <result property="lastOnlineTime" column="last_online_time"/>
         <result property="lastOfflineTime" column="last_offline_time"/>
+        <result property="gameTime" column="game_time"/>
         <result property="province" column="province"/>
         <result property="city" column="city"/>
         <result property="whitelistId" column="whitelist_id"/>
@@ -26,20 +27,7 @@
     <sql id="selectPlayerDetailsVo">
         select id,
                user_name,
-               qq,
-               identity,
-               last_online_time,
-               last_offline_time,
-               province,
-               city,
-               whitelist_id,
-               banlist_id,
-               parameters,
-               create_time,
-               update_time,
-               create_by,
-               update_by,
-               remark
+               qq, identity, last_online_time, last_offline_time, game_time, province, city, whitelist_id, banlist_id, parameters, create_time, update_time, create_by, update_by, remark
         from player_details
     </sql>
 
@@ -47,7 +35,7 @@
         <include refid="selectPlayerDetailsVo"/>
         <where>
             <if test="userName != null  and userName != ''">
-                and user_name like concat('%', #{userName}, '%')
+                and lower(user_name) = #{userName}
             </if>
             <if test="qq != null  and qq != ''">
                 and qq = #{qq}
@@ -60,6 +48,9 @@
             </if>
             <if test="lastOfflineTime != null ">
                 and last_offline_time = #{lastOfflineTime}
+            </if>
+            <if test="gameTime != null ">
+                and game_time = #{gameTime}
             </if>
             <if test="province != null  and province != ''">
                 and province = #{province}
@@ -90,6 +81,8 @@
             <if test="lastOnlineTime != null">last_online_time,
             </if>
             <if test="lastOfflineTime != null">last_offline_time,
+            </if>
+            <if test="gameTime != null">game_time,
             </if>
             <if test="province != null">province,
             </if>
@@ -122,6 +115,8 @@
             <if test="lastOnlineTime != null">#{lastOnlineTime},
             </if>
             <if test="lastOfflineTime != null">#{lastOfflineTime},
+            </if>
+            <if test="gameTime != null">#{gameTime},
             </if>
             <if test="province != null">#{province},
             </if>
@@ -163,6 +158,9 @@
             </if>
             <if test="lastOfflineTime != null">last_offline_time =
                 #{lastOfflineTime},
+            </if>
+            <if test="gameTime != null">game_time =
+                #{gameTime},
             </if>
             <if test="province != null">province =
                 #{province},
@@ -231,4 +229,13 @@
         </foreach>
     </update>
 
+    <!--根据游戏时间查询前十名-->
+    <select id="selectTopTenByGameTime" resultMap="PlayerDetailsResult">
+        select id,
+               user_name,
+               qq, identity, last_online_time, last_offline_time, game_time, province, city, whitelist_id, banlist_id, parameters, create_time, update_time, create_by, update_by, remark
+        from player_details
+        order by game_time desc
+            limit 10
+    </select>
 </mapper>

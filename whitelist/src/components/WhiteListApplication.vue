@@ -201,7 +201,7 @@ const submitForm = () => {
 
 const getOnlinePlayer = (reflash) => {
   loading = true;
-  http.get('/server/serverlist/getOnlinePlayer').then((res) => {
+  http.get('/api/v1/getOnlinePlayer').then((res) => {
     if (res.data.code === 200) {
       const data = res.data.data;
       // 重置服务器列表

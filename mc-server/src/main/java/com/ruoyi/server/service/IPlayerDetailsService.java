@@ -1,8 +1,8 @@
 package com.ruoyi.server.service;
 
-import java.util.List;
-
 import com.ruoyi.server.domain.PlayerDetails;
+
+import java.util.List;
 
 /**
  * 玩家详情Service接口
@@ -39,9 +39,10 @@ public interface IPlayerDetailsService {
      * 修改玩家详情
      *
      * @param playerDetails 玩家详情
+     * @param checkOperator 是否检查管理员权限
      * @return 结果
      */
-    public int updatePlayerDetails(PlayerDetails playerDetails);
+    public int updatePlayerDetails(PlayerDetails playerDetails, boolean checkOperator);
 
     /**
      * 批量删除玩家详情
@@ -74,4 +75,6 @@ public interface IPlayerDetailsService {
      * @return 结果
      */
     public int updateLastOfflineTimeByUserNames(List<String> userNames);
+
+
 }

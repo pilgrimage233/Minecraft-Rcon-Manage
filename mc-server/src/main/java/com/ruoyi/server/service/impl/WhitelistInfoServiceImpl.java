@@ -3,19 +3,17 @@ package com.ruoyi.server.service.impl;
 import com.github.t9t.minecraftrconclient.RconClient;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.server.async.AsyncManager;
+import com.ruoyi.server.common.EmailService;
 import com.ruoyi.server.common.EmailTemplates;
 import com.ruoyi.server.common.MapCache;
-import com.ruoyi.server.common.EmailService;
 import com.ruoyi.server.common.RconService;
-import com.ruoyi.server.common.constant.WhiteListCommand;
+import com.ruoyi.server.common.constant.Command;
 import com.ruoyi.server.domain.BanlistInfo;
 import com.ruoyi.server.domain.WhitelistInfo;
 import com.ruoyi.server.mapper.WhitelistInfoMapper;
 import com.ruoyi.server.service.IBanlistInfoService;
 import com.ruoyi.server.service.IWhitelistInfoService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.ibatis.logging.Log;
-import org.apache.ibatis.logging.LogFactory;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -195,7 +193,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             whitelistInfo.setReviewUsers(name);
 
             try {
-                sendCommand(whitelistInfo, String.format(WhiteListCommand.WHITELIST_REMOVE, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
+                sendCommand(whitelistInfo, String.format(Command.WHITELIST_REMOVE, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
             } catch (Exception e) {
                 log.error("移除白名单失败,请联系管理员!");
                 return 0;
@@ -239,7 +237,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             // 如果isBanned为false并且封禁列表状态为1，则解除封禁
             if (banlistInfo.getState() == 1) {
                 try {
-                    sendCommand(whitelistInfo, String.format(WhiteListCommand.BAN_REMOVE, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
+                    sendCommand(whitelistInfo, String.format(Command.BAN_REMOVE, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
 
                     try {
                         pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
@@ -287,7 +285,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         whitelistInfo.setRemoveReason(whitelistInfo.getBannedReason()); // 全局封禁原因
 
         try {
-            sendCommand(whitelistInfo, String.format(WhiteListCommand.BAN_ADD, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
+            sendCommand(whitelistInfo, String.format(Command.BAN_ADD, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
             // 全局广播
             sendCommand(whitelistInfo, "say §4[全局封禁] §c" + whitelistInfo.getUserName() + " §4已被全局封禁,原因: §c[" + whitelistInfo.getBannedReason() + "] §4审核人: §c" + name, true);
 
@@ -351,7 +349,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         whitelistInfo.setReviewUsers(name);
         try {
             // 根据在线添加标识判断是发送在线移除命令还是离线移除命令
-            sendCommand(whitelistInfo, String.format(WhiteListCommand.WHITELIST_REMOVE, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
+            sendCommand(whitelistInfo, String.format(Command.WHITELIST_REMOVE, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
 
             try {
                 pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
@@ -391,7 +389,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         if (whitelistInfo.getOnlineFlag() != 1) {
             try {
                 sendCommand(whitelistInfo, "auth addToForcedOffline " + whitelistInfo.getUserName().toLowerCase(), false);
-                sendCommand(whitelistInfo, String.format(WhiteListCommand.WHITELIST_ADD, whitelistInfo.getUserName()), false);
+                sendCommand(whitelistInfo, String.format(Command.WHITELIST_ADD, whitelistInfo.getUserName()), false);
             } catch (Exception e) {
                 whitelistInfo.setAddState("0");
                 log.error("添加离线失败,请联系管理员!");
@@ -400,7 +398,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         } else {
             // 如果在线添加标识为1，则发送在线添加命令
             try {
-                sendCommand(whitelistInfo, String.format(WhiteListCommand.WHITELIST_ADD, whitelistInfo.getUserName()), true);
+                sendCommand(whitelistInfo, String.format(Command.WHITELIST_ADD, whitelistInfo.getUserName()), true);
             } catch (Exception e) {
                 whitelistInfo.setAddState("0");
                 log.error("添加白名单失败,请联系管理员!");

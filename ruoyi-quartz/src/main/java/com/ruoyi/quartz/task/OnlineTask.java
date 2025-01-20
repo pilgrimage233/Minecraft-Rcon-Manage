@@ -9,6 +9,7 @@ import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.RconService;
 import com.ruoyi.server.domain.PlayerDetails;
 import com.ruoyi.server.domain.WhitelistInfo;
+import com.ruoyi.server.enums.Identity;
 import com.ruoyi.server.mapper.WhitelistInfoMapper;
 import com.ruoyi.server.service.IPlayerDetailsService;
 import lombok.extern.slf4j.Slf4j;
@@ -89,6 +90,7 @@ public class OnlineTask {
                         player.setWhitelistId(whitelist.getId());
                         player.setCreateTime(new Date());
                         player.setQq(whitelist.getQqNum());
+                        player.setIdentity(Identity.PLAYER.getValue());
                         player.setUserName(newName);
                         player.setParameters("{}");
                         playerDetailsService.insertPlayerDetails(player);
@@ -211,10 +213,45 @@ public class OnlineTask {
             playerDetailsService.updateLastOnlineTimeByUserNames(new ArrayList<>(newOnlinePlayers));
         }
 
-        // 更新离线时间
+        // 更新离线时间和游戏时间
         if (!newOfflinePlayers.isEmpty()) {
             log.info("New offline players: {}", newOfflinePlayers);
-            playerDetailsService.updateLastOfflineTimeByUserNames(new ArrayList<>(newOfflinePlayers));
+            // 对每个下线的玩家计算游戏时间
+            for (String player : newOfflinePlayers) {
+                try {
+                    PlayerDetails details = new PlayerDetails();
+                    details.setUserName(player);
+                    List<PlayerDetails> playerList = playerDetailsService.selectPlayerDetailsList(details);
+
+                    if (!playerList.isEmpty()) {
+                        PlayerDetails playerDetails = playerList.get(0);
+                        Date lastOnlineTime = playerDetails.getLastOnlineTime();
+                        Date now = new Date();
+
+                        if (lastOnlineTime != null) {
+                            // 计算本次游戏时间(分钟)
+                            long gameTimeMinutes = (now.getTime() - lastOnlineTime.getTime()) / (1000 * 60);
+
+                            // 更新总游戏时间，处理null值情况
+                            Long currentGameTime = playerDetails.getGameTime();
+                            currentGameTime = (currentGameTime == null) ? gameTimeMinutes : currentGameTime + gameTimeMinutes;
+                            playerDetails.setGameTime(currentGameTime);
+
+                            // 更新最后离线时间
+                            playerDetails.setLastOfflineTime(now);
+
+                            // 更新到数据库
+                            playerDetailsService.updatePlayerDetails(playerDetails, false);
+
+                            log.info("Updated game time for player {}: current session {} minutes, total {} minutes",
+                                    player, gameTimeMinutes, currentGameTime);
+                        }
+                    }
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    log.error("Failed to update game time for player {}: {}", player, e.getMessage());
+                }
+            }
         }
 
         // 更新缓存为当前在线玩家

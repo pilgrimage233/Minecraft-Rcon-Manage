@@ -4,7 +4,6 @@ import com.alibaba.fastjson2.JSONObject;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.util.concurrent.RateLimiter;
 import com.ruoyi.common.annotation.AddOrUpdateFilter;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
@@ -19,7 +18,6 @@ import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.server.async.AsyncManager;
 import com.ruoyi.server.common.EmailService;
 import com.ruoyi.server.common.EmailTemplates;
-import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.domain.IpLimitInfo;
 import com.ruoyi.server.domain.PlayerDetails;
 import com.ruoyi.server.domain.WhitelistInfo;
@@ -27,7 +25,6 @@ import com.ruoyi.server.enums.Identity;
 import com.ruoyi.server.sdk.SearchHttpAK;
 import com.ruoyi.server.service.IIpLimitInfoService;
 import com.ruoyi.server.service.IPlayerDetailsService;
-import com.ruoyi.server.service.IServerInfoService;
 import com.ruoyi.server.service.IWhitelistInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -37,7 +34,6 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletResponse;
 import java.text.SimpleDateFormat;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.regex.Pattern;
 
@@ -50,23 +46,26 @@ import java.util.regex.Pattern;
 @RestController
 @RequestMapping("/mc/whitelist")
 public class WhitelistInfoController extends BaseController {
-    private static final long CACHE_DURATION = 300 * 1000; // 缓存时间1分钟
+
+    private final SimpleDateFormat dateFormat;
+
+    private final AsyncManager asyncManager = AsyncManager.getInstance();
+
     @Autowired
     private IWhitelistInfoService whitelistInfoService;
-    private final AsyncManager asyncManager = AsyncManager.getInstance();
+
     @Autowired
     private IIpLimitInfoService iIpLimitInfoService;
-    @Autowired
-    private IServerInfoService serverInfoService;
-    private final SimpleDateFormat dateFormat;
+
     @Value("${whitelist.iplimit}")
     private String iplimit;
-    private final Map<String, CachedWhitelist> whitelistCache = new ConcurrentHashMap<>();
+
     @Value("${whitelist.email}")
     private String ADMIN_EMAIL;
-    private final RateLimiter rateLimiter = RateLimiter.create(10.0); // 每秒最多10个请求
+
     @Autowired
     private IPlayerDetailsService playerDetailsService;
+
     @Autowired
     private EmailService pushEmail;
 
@@ -185,23 +184,30 @@ public class WhitelistInfoController extends BaseController {
                     }
                 } catch (Exception e) {
                     logger.error("获取IP地理位置失败", e);
+
                 }
 
-                // 获取IP地理位置2.0
-               /* try {
-                    String result = HttpUtils.sendGet("https://qifu-api.baidubce.com/ip/geo/v1/district?ip=" + ip);
-                    JSONObject json = JSONObject.parseObject(result);
-                    if (json != null && json.containsKey("data")) {
-                        JSONObject data = json.getJSONObject("data");
-                        ipLimitInfo.setProvince(data.getString("prov"));
-                        ipLimitInfo.setCity(data.getString("city"));
-                        ipLimitInfo.setCounty(data.getString("district"));
-                        ipLimitInfo.setLongitude(data.getString("lng"));
-                        ipLimitInfo.setLatitude(data.getString("lat"));
+                if (ipLimitInfo.getCity() == null || ipLimitInfo.getCity().isEmpty()) {
+                    // 获取IP地理位置2.0
+                    try {
+                        String result = HttpUtils.sendGet("http://ip-api.com/json/" + ip);
+                        JSONObject json = JSONObject.parseObject(result);
+                        if (json.containsKey("city")) {
+                            ipLimitInfo.setCity(json.getString("city"));
+                        }
+                        if (json.containsKey("regionName")) {
+                            ipLimitInfo.setProvince(json.getString("regionName"));
+                        }
+                        if (json.containsKey("lat")) {
+                            ipLimitInfo.setLatitude(json.getString("lat"));
+                        }
+                        if (json.containsKey("lon")) {
+                            ipLimitInfo.setLongitude(json.getString("lon"));
+                        }
+                    } catch (Exception e) {
+                        logger.error("获取IP地理位置失败", e);
                     }
-                } catch (Exception e) {
-                    logger.error("获取IP地理位置失败", e);
-                }*/
+                }
 
                 iIpLimitInfoService.insertIpLimitInfo(ipLimitInfo);
             } else {
@@ -223,6 +229,7 @@ public class WhitelistInfoController extends BaseController {
 
                 iIpLimitInfoService.updateIpLimitInfo(ipLimitInfo);
             }
+
             // 新增玩家详情
             PlayerDetails details = new PlayerDetails();
             details.setUserName(whitelistInfo.getUserName());
@@ -231,7 +238,7 @@ public class WhitelistInfoController extends BaseController {
             details.setProvince(ipLimitInfo.getProvince());
             details.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
             details.setCreateTime(new Date());
-            details.setIdentity(Identity.PLAYER.name());
+            details.setIdentity(Identity.PLAYER.getValue());
             playerDetailsService.insertPlayerDetails(details);
 
         }
@@ -384,7 +391,7 @@ public class WhitelistInfoController extends BaseController {
             return error("申请信息不能为空!");
         }
 
-        Map<String, Object> map = new HashMap<>();
+        Map<String, Object> map = new LinkedHashMap<>();
         WhitelistInfo whitelistInfo = new WhitelistInfo();
         if (params.containsKey("id") && !params.get("id").isEmpty()) {
             whitelistInfo.setUserName(params.get("id").toLowerCase());
@@ -407,15 +414,39 @@ public class WhitelistInfoController extends BaseController {
             }
 
             PlayerDetails playerDetails = new PlayerDetails();
-            playerDetails.setUserName(obj.getUserName());
-            playerDetails = playerDetailsService.selectPlayerDetailsList(playerDetails).get(0);
+            playerDetails.setUserName(obj.getUserName().toLowerCase());
+            final List<PlayerDetails> details = playerDetailsService.selectPlayerDetailsList(playerDetails);
 
-            if (playerDetails.getProvince() != null) {
-                map.put("省份", playerDetails.getProvince());
+            if (!details.isEmpty()) {
+                playerDetails = details.get(0);
             }
+
+            // if (playerDetails.getProvince() != null) {
+            //     map.put("省份", playerDetails.getProvince());
+            // }
 
             if (playerDetails.getCity() != null) {
                 map.put("城市", playerDetails.getCity());
+            }
+
+
+            if (playerDetails.getIdentity() != null) {
+                String identity;
+                switch (playerDetails.getIdentity()) {
+                    case "player":
+                        identity = Identity.PLAYER.getDesc();
+                        break;
+                    case "operator":
+                        identity = Identity.OPERATOR.getDesc();
+                        break;
+                    case "banned":
+                        identity = Identity.BANNED.getDesc();
+                        break;
+                    default:
+                        identity = Identity.OTHER.getDesc();
+                        break;
+                }
+                map.put("身份", identity);
             }
 
             if (playerDetails.getLastOnlineTime() != null && playerDetails.getLastOfflineTime() != null) {
@@ -428,6 +459,14 @@ public class WhitelistInfoController extends BaseController {
                 map.put("最后上线时间", dateFormat.format(playerDetails.getLastOnlineTime()));
             }
 
+            if (playerDetails.getGameTime() != null) {
+                if (playerDetails.getGameTime() > 60) {
+                    map.put("游戏时间", playerDetails.getGameTime() / 60 + "小时");
+                } else {
+                    map.put("游戏时间", playerDetails.getGameTime() + "分钟");
+                }
+            }
+
             if (StringUtils.isNotEmpty(playerDetails.getParameters())) {
                 // 取历史名称
                 final JSONObject jsonObject = JSONObject.parseObject(playerDetails.getParameters());
@@ -436,9 +475,8 @@ public class WhitelistInfoController extends BaseController {
                 }
             }
 
-
             map.put("审核人", obj.getReviewUsers());
-            map.put("UUID", obj.getUserUuid());
+            // map.put("UUID", obj.getUserUuid());
             switch (obj.getAddState()) {
                 case "1":
                     map.put("审核状态", "已通过");
@@ -461,62 +499,6 @@ public class WhitelistInfoController extends BaseController {
             }
         }
         return success(map);
-    }
-
-    @GetMapping("getWhiteList")
-    @CrossOrigin(origins = "https://app.yousb.sbs", maxAge = 3600)
-    public AjaxResult getWhiteList() {
-        // 限流检查
-        if (!rateLimiter.tryAcquire()) {
-            return error("服务器繁忙,请稍后再试");
-        }
-
-        try {
-            // 检查缓存
-            CachedWhitelist cached = whitelistCache.get("whitelist");
-            if (cached != null && !cached.isExpired()) {
-                return success(cached.data);
-            }
-
-            Map<String, String> map = new HashMap<>();
-            MapCache.getMap().forEach((k, v) -> {
-                final String nameTag = serverInfoService.selectServerInfoById(Long.valueOf(k)).getNameTag();
-                try {
-                    final String list = v.sendCommand("whitelist list");
-                    String[] split = new String[0];
-                    if (StringUtils.isNotEmpty(list) && list.contains("There are")) {
-                        split = list.split("whitelisted player\\(s\\):")[1].trim().split(", ");
-                    }
-                    map.put(nameTag, Arrays.toString(split));
-                } catch (Exception e) {
-                    logger.error("获取白名单列表失败, serverId: {}", k, e);
-                    // map.put(nameTag, "获取失败"); // 不要因为单个服务器失败影响整体
-                }
-            });
-
-            // 更新缓存
-            whitelistCache.put("whitelist", new CachedWhitelist(map));
-            return success(map);
-
-        } catch (Exception e) {
-            logger.error("获取白名单列表发生异常", e);
-            return error("系统繁忙,请稍后重试");
-        }
-    }
-
-    // 添加缓存对象类
-    private static class CachedWhitelist {
-        private final Map<String, String> data;
-        private final long timestamp;
-
-        public CachedWhitelist(Map<String, String> data) {
-            this.data = data;
-            this.timestamp = System.currentTimeMillis();
-        }
-
-        public boolean isExpired() {
-            return System.currentTimeMillis() - timestamp > CACHE_DURATION;
-        }
     }
 
 }

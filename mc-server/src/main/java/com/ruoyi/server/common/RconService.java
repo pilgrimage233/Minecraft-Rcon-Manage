@@ -4,13 +4,11 @@ import com.github.t9t.minecraftrconclient.RconClient;
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
+import com.ruoyi.server.common.constant.Command;
 import com.ruoyi.server.common.constant.RconMsg;
-import com.ruoyi.server.common.constant.WhiteListCommand;
 import com.ruoyi.server.domain.ServerCommandInfo;
 import com.ruoyi.server.domain.ServerInfo;
 import lombok.extern.slf4j.Slf4j;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -19,7 +17,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
@@ -200,13 +197,13 @@ public class RconService {
 
         // 使用 Map 存储命令映射关系
         Map<String, CommandReplacer> commandMap = new HashMap<>();
-        commandMap.put(WhiteListCommand.WHITELIST_ADD_COMMAND,
+        commandMap.put(Command.WHITELIST_ADD_COMMAND,
                 (cmd) -> onlineFlag ? info.getOnlineAddWhitelistCommand() : info.getOfflineAddWhitelistCommand());
-        commandMap.put(WhiteListCommand.WHITELIST_REMOVE_COMMAND,
+        commandMap.put(Command.WHITELIST_REMOVE_COMMAND,
                 (cmd) -> onlineFlag ? info.getOnlineRmWhitelistCommand() : info.getOfflineRmWhitelistCommand());
-        commandMap.put(WhiteListCommand.BAN_ADD_COMMAND,
+        commandMap.put(Command.BAN_ADD_COMMAND,
                 (cmd) -> onlineFlag ? info.getOnlineAddBanCommand() : info.getOfflineRmBanCommand());
-        commandMap.put(WhiteListCommand.BAN_REMOVE_COMMAND,
+        commandMap.put(Command.BAN_REMOVE_COMMAND,
                 (cmd) -> onlineFlag ? info.getOnlineRmBanCommand() : info.getOfflineRmBanCommand());
 
         // 查找匹配的命令并替换

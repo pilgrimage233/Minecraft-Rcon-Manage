@@ -7,57 +7,50 @@ import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
 /**
- * 封禁管理对象 banlist_info
+ * 管理员名单对象 operator_list
  *
- * @author ruoyi
- * @date 2024-03-28
+ * @author Memory
+ * @date 2025-01-11
  */
 @Data
-public class BanlistInfo extends BaseEntity {
+public class OperatorList extends BaseEntity {
     private static final long serialVersionUID = 1L;
 
     /**
-     * 主键ID
+     * ID
      */
     private Long id;
 
     /**
-     * 关联白名单ID
+     * 玩家昵称
      */
-    @Excel(name = "关联白名单ID")
-    private Long whiteId;
-
-    /**
-     * 用户名称
-     */
-    @Excel(name = "用户名称")
+    @Excel(name = "玩家昵称")
     private String userName;
 
     /**
-     * 封禁状态
+     * 状态
      */
-    @Excel(name = "封禁状态")
-    private Long state;
+    @Excel(name = "状态")
+    private Long status;
 
     /**
-     * 封禁原因
+     * 其他参数
      */
-    @Excel(name = "封禁原因")
-    private String reason;
+    @Excel(name = "其他参数")
+    private String parameter;
 
     @Override
     public String toString() {
         return new ToStringBuilder(this, ToStringStyle.MULTI_LINE_STYLE)
                 .append("id", getId())
-                .append("whiteId", getWhiteId())
                 .append("userName", getUserName())
-                .append("state", getState())
-                .append("reason", getReason())
-                .append("remark", getRemark())
+                .append("status", getStatus())
+                .append("parameter", getParameter())
                 .append("createTime", getCreateTime())
                 .append("updateTime", getUpdateTime())
                 .append("createBy", getCreateBy())
                 .append("updateBy", getUpdateBy())
+                .append("remark", getRemark())
                 .toString();
     }
 }

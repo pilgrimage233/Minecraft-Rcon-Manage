@@ -1,17 +1,18 @@
 package com.ruoyi.server.service.impl;
 
-import java.util.List;
-import java.util.Map;
-import java.util.TimeZone;
-import java.util.Calendar;
-import java.util.HashMap;
-
 import com.ruoyi.common.utils.DateUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-import com.ruoyi.server.mapper.PlayerDetailsMapper;
+import com.ruoyi.server.common.RconService;
+import com.ruoyi.server.domain.OperatorList;
 import com.ruoyi.server.domain.PlayerDetails;
+import com.ruoyi.server.enums.Identity;
+import com.ruoyi.server.mapper.PlayerDetailsMapper;
+import com.ruoyi.server.service.IOperatorListService;
 import com.ruoyi.server.service.IPlayerDetailsService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.stereotype.Service;
+
+import java.util.*;
 
 /**
  * 玩家详情Service业务层处理
@@ -23,6 +24,12 @@ import com.ruoyi.server.service.IPlayerDetailsService;
 public class PlayerDetailsServiceImpl implements IPlayerDetailsService {
     @Autowired
     private PlayerDetailsMapper playerDetailsMapper;
+
+    @Autowired
+    private IOperatorListService operatorListService;
+
+    @Autowired
+    private RconService rconService;
 
     /**
      * 查询玩家详情
@@ -43,6 +50,9 @@ public class PlayerDetailsServiceImpl implements IPlayerDetailsService {
      */
     @Override
     public List<PlayerDetails> selectPlayerDetailsList(PlayerDetails playerDetails) {
+        if (playerDetails.getUserName() != null) {
+            playerDetails.setUserName(playerDetails.getUserName().toLowerCase());
+        }
         return playerDetailsMapper.selectPlayerDetailsList(playerDetails);
     }
 
@@ -58,15 +68,57 @@ public class PlayerDetailsServiceImpl implements IPlayerDetailsService {
         return playerDetailsMapper.insertPlayerDetails(playerDetails);
     }
 
+
     /**
      * 修改玩家详情
      *
      * @param playerDetails 玩家详情
+     * @param checkOperator 是否检查管理员权限
      * @return 结果
      */
     @Override
-    public int updatePlayerDetails(PlayerDetails playerDetails) {
-        playerDetails.setUpdateTime(DateUtils.getNowDate());
+    public int updatePlayerDetails(PlayerDetails playerDetails, boolean checkOperator) {
+
+        // 只有在需要检查管理员权限时才执行这部分逻辑
+        if (checkOperator && playerDetails.getIdentity() != null) {
+            String name = SecurityContextHolder.getContext().getAuthentication().getName();
+            playerDetails.setUpdateBy(name);
+            playerDetails.setUpdateTime(DateUtils.getNowDate());
+            if (playerDetails.getIdentity().equals(Identity.OPERATOR.getValue())) {
+                final OperatorList operator = new OperatorList();
+                operator.setStatus(1L);
+                operator.setUserName(playerDetails.getUserName());
+                operator.setCreateTime(DateUtils.getNowDate());
+                operator.setCreateBy(name);
+                if (playerDetails.getRemark() != null) {
+                    operator.setRemark(playerDetails.getRemark());
+                }
+                operatorListService.insertOperatorList(operator);
+
+                // 发送命令
+                rconService.sendCommand("all", String.format("op %s", playerDetails.getUserName()), true);
+            }
+
+            if (playerDetails.getIdentity().equals(Identity.PLAYER.getValue())) {
+                OperatorList operator = new OperatorList();
+                operator.setUserName(playerDetails.getUserName());
+                // 查询玩家是否处于管理员列表
+                final List<OperatorList> operatorLists = operatorListService.selectOperatorListList(operator);
+                if (operatorLists != null && !operatorLists.isEmpty()) {
+                    operator = operatorLists.get(0);
+                    if (operator.getStatus().equals(1L)) {
+                        operator.setStatus(0L);
+                        operator.setUpdateBy(name);
+                        operator.setUpdateTime(DateUtils.getNowDate());
+
+                        operatorListService.updateOperatorList(operator);
+
+                        // 发送命令
+                        rconService.sendCommand("all", String.format("deop %s", playerDetails.getUserName()), true);
+                    }
+                }
+            }
+        }
         return playerDetailsMapper.updatePlayerDetails(playerDetails);
     }
 

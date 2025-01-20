@@ -8,7 +8,7 @@ package com.ruoyi.server.common.constant;
  * @author pilgr <br>
  * @since JDK 1.8
  */
-public class WhiteListCommand {
+public class Command {
     public static final String WHITELIST_ADD = "whitelist add %s";
 
     public static final String WHITELIST_REMOVE = "whitelist remove %s";
@@ -37,6 +37,11 @@ public class WhiteListCommand {
     public static final String BAN_ADD_COMMAND = "ban";
 
     public static final String BAN_REMOVE_COMMAND = "pardon";
+
+    // op
+    public static final String OP_ADD = "op %s";
+
+    public static final String OP_REMOVE = "deop %s";
 
     public static final String WHITELIST_RELOAD_COMMAND_DESC = "重载白名单";
 

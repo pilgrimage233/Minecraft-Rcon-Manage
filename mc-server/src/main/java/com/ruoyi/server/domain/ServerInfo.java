@@ -2,6 +2,7 @@ package com.ruoyi.server.domain;
 
 import com.ruoyi.common.annotation.Excel;
 import com.ruoyi.common.core.domain.BaseEntity;
+import lombok.Data;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
@@ -11,6 +12,7 @@ import org.apache.commons.lang3.builder.ToStringStyle;
  * @author ruoyi
  * @date 2024-03-10
  */
+@Data
 public class ServerInfo extends BaseEntity {
     private static final long serialVersionUID = 1L;
 
@@ -54,62 +56,6 @@ public class ServerInfo extends BaseEntity {
      */
     @Excel(name = "启用状态")
     private Long status;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getUuid() {
-        return uuid;
-    }
-
-    public void setUuid(String uuid) {
-        this.uuid = uuid;
-    }
-
-    public String getNameTag() {
-        return nameTag;
-    }
-
-    public void setNameTag(String nameTag) {
-        this.nameTag = nameTag;
-    }
-
-    public String getIp() {
-        return ip;
-    }
-
-    public void setIp(String ip) {
-        this.ip = ip;
-    }
-
-    public Long getRconPort() {
-        return rconPort;
-    }
-
-    public void setRconPort(Long rconPort) {
-        this.rconPort = rconPort;
-    }
-
-    public String getRconPassword() {
-        return rconPassword;
-    }
-
-    public void setRconPassword(String rconPassword) {
-        this.rconPassword = rconPassword;
-    }
-
-    public Long getStatus() {
-        return status;
-    }
-
-    public void setStatus(Long status) {
-        this.status = status;
-    }
 
     @Override
     public String toString() {

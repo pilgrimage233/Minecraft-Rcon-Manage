@@ -3,6 +3,7 @@ package com.ruoyi.server.domain;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import com.ruoyi.common.annotation.Excel;
 import com.ruoyi.common.core.domain.BaseEntity;
+import lombok.Data;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
@@ -14,6 +15,7 @@ import java.util.Date;
  * @author ruoyi
  * @date 2023-12-26
  */
+@Data
 public class WhitelistInfo extends BaseEntity {
     private static final long serialVersionUID = 1L;
 
@@ -103,126 +105,6 @@ public class WhitelistInfo extends BaseEntity {
      * 封禁原因
      */
     private String bannedReason;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public Date getTime() {
-        return time;
-    }
-
-    public void setTime(Date time) {
-        this.time = time;
-    }
-
-    public String getUserName() {
-        return userName;
-    }
-
-    public void setUserName(String userName) {
-        this.userName = userName;
-    }
-
-    public String getUserUuid() {
-        return userUuid;
-    }
-
-    public void setUserUuid(String userUuid) {
-        this.userUuid = userUuid;
-    }
-
-    public Long getOnlineFlag() {
-        return onlineFlag;
-    }
-
-    public void setOnlineFlag(Long onlineFlag) {
-        this.onlineFlag = onlineFlag;
-    }
-
-    public String getQqNum() {
-        return qqNum;
-    }
-
-    public void setQqNum(String qqNum) {
-        this.qqNum = qqNum;
-    }
-
-    public String getReviewUsers() {
-        return reviewUsers;
-    }
-
-    public void setReviewUsers(String reviewUsers) {
-        this.reviewUsers = reviewUsers;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public String getAddState() {
-        return addState;
-    }
-
-    public void setAddState(String addState) {
-        this.addState = addState;
-    }
-
-    public Date getAddTime() {
-        return addTime;
-    }
-
-    public void setAddTime(Date addTime) {
-        this.addTime = addTime;
-    }
-
-    public String getRemoveReason() {
-        return removeReason;
-    }
-
-    public void setRemoveReason(String removeReason) {
-        this.removeReason = removeReason;
-    }
-
-    public Date getRemoveTime() {
-        return removeTime;
-    }
-
-    public void setRemoveTime(Date removeTime) {
-        this.removeTime = removeTime;
-    }
-
-    public String getServers() {
-        return servers;
-    }
-
-    public void setServers(String servers) {
-        this.servers = servers;
-    }
-
-    public String getBanFlag() {
-        return banFlag;
-    }
-
-    public void setBanFlag(String banFlag) {
-        this.banFlag = banFlag;
-    }
-
-    public String getBannedReason() {
-        return bannedReason;
-    }
-
-    public void setBannedReason(String bannedReason) {
-        this.bannedReason = bannedReason;
-    }
 
     @Override
     public String toString() {

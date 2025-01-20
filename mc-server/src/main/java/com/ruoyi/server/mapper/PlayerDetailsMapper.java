@@ -1,10 +1,10 @@
 package com.ruoyi.server.mapper;
 
-import java.util.List;
-import java.util.Map;
-
 import com.ruoyi.server.domain.PlayerDetails;
 import org.apache.ibatis.annotations.Mapper;
+
+import java.util.List;
+import java.util.Map;
 
 /**
  * 玩家详情Mapper接口
@@ -77,4 +77,11 @@ public interface PlayerDetailsMapper {
      * @return 结果
      */
     public int updateLastOfflineTimeByUserNames(Map<String, Object> params);
+
+    /**
+     * 查询游戏时间最长的前十名玩家
+     *
+     * @return 玩家详情集合
+     */
+    public List<PlayerDetails> selectTopTenByGameTime();
 }

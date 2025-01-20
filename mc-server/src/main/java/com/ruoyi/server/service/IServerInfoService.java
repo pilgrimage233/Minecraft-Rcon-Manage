@@ -60,5 +60,17 @@ public interface IServerInfoService {
      */
     public int deleteServerInfoById(Long id);
 
+    /**
+     * 获取在线玩家
+     *
+     * @return 在线玩家
+     */
     Map<String, Object> getOnlinePlayer();
+
+    /**
+     * 聚合查询
+     *
+     * @return 聚合结果
+     */
+    Map<String, Object> aggregateQuery();
 }

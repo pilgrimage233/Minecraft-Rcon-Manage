@@ -2,6 +2,7 @@ package com.ruoyi.server.domain;
 
 import com.ruoyi.common.annotation.Excel;
 import com.ruoyi.common.core.domain.BaseEntity;
+import lombok.Data;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
@@ -11,6 +12,7 @@ import org.apache.commons.lang3.builder.ToStringStyle;
  * @author ruoyi
  * @date 2024-04-16
  */
+@Data
 public class ServerCommandInfo extends BaseEntity {
     private static final long serialVersionUID = 1L;
 
@@ -78,95 +80,6 @@ public class ServerCommandInfo extends BaseEntity {
      */
     @Excel(name = "是否启用EasyAuthMod")
     private String easyauth;
-
-    public Long getId() {
-        return id;
-    }
-
-    public void setId(Long id) {
-        this.id = id;
-    }
-
-    public String getServerId() {
-        return serverId;
-    }
-
-    public void setServerId(String serverId) {
-        this.serverId = serverId;
-    }
-
-    public String getOnlineAddWhitelistCommand() {
-        return onlineAddWhitelistCommand;
-    }
-
-    public void setOnlineAddWhitelistCommand(String onlineAddWhitelistCommand) {
-        this.onlineAddWhitelistCommand = onlineAddWhitelistCommand;
-    }
-
-    public String getOfflineAddWhitelistCommand() {
-        return offlineAddWhitelistCommand;
-    }
-
-    public void setOfflineAddWhitelistCommand(String offlineAddWhitelistCommand) {
-        this.offlineAddWhitelistCommand = offlineAddWhitelistCommand;
-    }
-
-    public String getOnlineRmWhitelistCommand() {
-        return onlineRmWhitelistCommand;
-    }
-
-    public void setOnlineRmWhitelistCommand(String onlineRmWhitelistCommand) {
-        this.onlineRmWhitelistCommand = onlineRmWhitelistCommand;
-    }
-
-    public String getOfflineRmWhitelistCommand() {
-        return offlineRmWhitelistCommand;
-    }
-
-    public void setOfflineRmWhitelistCommand(String offlineRmWhitelistCommand) {
-        this.offlineRmWhitelistCommand = offlineRmWhitelistCommand;
-    }
-
-    public String getOnlineAddBanCommand() {
-        return onlineAddBanCommand;
-    }
-
-    public void setOnlineAddBanCommand(String onlineAddBanCommand) {
-        this.onlineAddBanCommand = onlineAddBanCommand;
-    }
-
-    public String getOfflineAddBanCommand() {
-        return offlineAddBanCommand;
-    }
-
-    public void setOfflineAddBanCommand(String offlineAddBanCommand) {
-        this.offlineAddBanCommand = offlineAddBanCommand;
-    }
-
-    public String getOnlineRmBanCommand() {
-        return onlineRmBanCommand;
-    }
-
-    public void setOnlineRmBanCommand(String onlineRmBanCommand) {
-        this.onlineRmBanCommand = onlineRmBanCommand;
-    }
-
-    public String getOfflineRmBanCommand() {
-        return offlineRmBanCommand;
-    }
-
-    public void setOfflineRmBanCommand(String offlineRmBanCommand) {
-        this.offlineRmBanCommand = offlineRmBanCommand;
-    }
-
-    public String getEasyauth() {
-        return easyauth;
-    }
-
-    public void setEasyauth(String easyauth) {
-        this.easyauth = easyauth;
-    }
-
 
     @Override
     public String toString() {

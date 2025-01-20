@@ -117,29 +117,26 @@
           <span>{{ parseTime(scope.row.lastOfflineTime, '{y}-{m}-{d} {h}:{i}') }}</span>
         </template>
       </el-table-column>
+      <el-table-column align="center" label="游戏时长" prop="gameTime">
+        <template slot-scope="scope">
+          <span>{{ formatGameTime(scope.row.gameTime) }}</span>
+        </template>
+      </el-table-column>
       <el-table-column align="center" label="省份" prop="province"/>
       <el-table-column align="center" label="地市" prop="city"/>
       <el-table-column align="center" label="备注" prop="remark"/>
-      <!--      <el-table-column label="操作" align="center" class-name="small-padding fixed-width">
-              <template slot-scope="scope">
-                <el-button
-                  size="mini"
-                  type="text"
-                  icon="el-icon-edit"
-                  @click="handleUpdate(scope.row)"
-                  v-hasPermi="['player:details:edit']"
-                >修改
-                </el-button>
-                <el-button
-                  size="mini"
-                  type="text"
-                  icon="el-icon-delete"
-                  @click="handleDelete(scope.row)"
-                  v-hasPermi="['player:details:remove']"
-                >删除
-                </el-button>
-              </template>
-            </el-table-column>-->
+      <el-table-column align="center" class-name="small-padding fixed-width" label="操作">
+        <template slot-scope="scope">
+          <el-button
+            v-hasPermi="['player:details:edit']"
+            icon="el-icon-edit"
+            size="mini"
+            type="text"
+            @click="handleUpdate(scope.row)"
+          >修改
+          </el-button>
+        </template>
+      </el-table-column>
     </el-table>
 
     <pagination
@@ -160,22 +157,17 @@
           <el-input v-model="form.qq" placeholder="请输入QQ号"/>
         </el-form-item>
         <el-form-item label="身份" prop="identity">
-          <el-input v-model="form.identity" placeholder="请输入身份"/>
+          <el-radio-group v-model="form.identity" size="small">
+            <el-radio v-for="(item, index) in identityOptions" :key="index" :disabled="item.disabled"
+                      :label="item.value">{{ item.label }}
+            </el-radio>
+          </el-radio-group>
         </el-form-item>
         <el-form-item label="省份" prop="province">
           <el-input v-model="form.province" placeholder="请输入省份"/>
         </el-form-item>
         <el-form-item label="地市" prop="city">
           <el-input v-model="form.city" placeholder="请输入地市"/>
-        </el-form-item>
-        <el-form-item label="白名单ID" prop="whitelistId">
-          <el-input v-model="form.whitelistId" placeholder="请输入白名单ID"/>
-        </el-form-item>
-        <el-form-item label="封禁ID" prop="banlistId">
-          <el-input v-model="form.banlistId" placeholder="请输入封禁ID"/>
-        </el-form-item>
-        <el-form-item label="其他参数" prop="parameters">
-          <el-input v-model="form.parameters" placeholder="请输入其他参数"/>
         </el-form-item>
         <el-form-item label="备注" prop="remark">
           <el-input v-model="form.remark" placeholder="请输入备注"/>
@@ -190,7 +182,7 @@
 </template>
 
 <script>
-import {listDetails, getDetails, delDetails, addDetails, updateDetails} from "@/api/player/details";
+import {addDetails, delDetails, getDetails, listDetails, updateDetails} from "@/api/player/details";
 
 export default {
   name: "Details",
@@ -250,13 +242,29 @@ export default {
             required: true, message: "创建者不能为空", trigger: "blur"
           }
         ],
-      }
+      },
+      identityOptions: [{
+        "label": "玩家",
+        "value": "player"
+      }, {
+        "label": "管理员",
+        "value": "operator"
+      }],
     };
   },
   created() {
     this.getList();
   },
   methods: {
+    /** 格式化游戏时间 */
+    formatGameTime(minutes) {
+      if (!minutes) return '-';
+      if (minutes < 10) { // 小于10分钟显示分钟
+        return `${minutes}分钟`;
+      }
+      const hours = (minutes / 60).toFixed(1);
+      return `${hours}小时`;
+    },
     /** 查询玩家详情列表 */
     getList() {
       this.loading = true;
@@ -280,6 +288,7 @@ export default {
         identity: null,
         lastOnlineTime: null,
         lastOfflineTime: null,
+        gameTime: null,
         province: null,
         city: null,
         whitelistId: null,

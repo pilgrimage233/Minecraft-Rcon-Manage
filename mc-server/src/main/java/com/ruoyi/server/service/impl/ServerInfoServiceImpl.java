@@ -5,11 +5,17 @@ import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.RconService;
-import com.ruoyi.server.domain.ServerInfo;
+import com.ruoyi.server.domain.*;
+import com.ruoyi.server.domain.v2.PlayerDetailsVo;
+import com.ruoyi.server.mapper.PlayerDetailsMapper;
 import com.ruoyi.server.mapper.ServerInfoMapper;
+import com.ruoyi.server.service.IBanlistInfoService;
+import com.ruoyi.server.service.IOperatorListService;
 import com.ruoyi.server.service.IServerInfoService;
+import com.ruoyi.server.service.IWhitelistInfoService;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -36,6 +42,18 @@ public class ServerInfoServiceImpl implements IServerInfoService {
 
     @Autowired
     private RconService rconService;
+
+    @Autowired
+    private IWhitelistInfoService whitelistInfo;
+
+    @Autowired
+    private PlayerDetailsMapper playerDetailsMapper;
+
+    @Autowired
+    private IOperatorListService operatorListService;
+
+    @Autowired
+    private IBanlistInfoService banlistInfoService;
 
 
     /**
@@ -164,6 +182,55 @@ public class ServerInfoServiceImpl implements IServerInfoService {
             }
             result.put("查询时间", DateUtils.getTime());
         }
+        return result;
+    }
+
+    @Override
+    public Map<String, Object> aggregateQuery() {
+        Map<String, Object> result = new HashMap<>();
+
+        // 在线玩家
+        Map<String, Object> onlinePlayer = getOnlinePlayer();
+        result.put("onlinePlayer", onlinePlayer);
+
+        // 申请数量
+        List<WhitelistInfo> whitelistInfos = whitelistInfo.selectWhitelistInfoList(new WhitelistInfo());
+        result.put("applyCount", whitelistInfos.size());
+
+        // 白名单数量
+        int index = (int) whitelistInfos.stream().filter(whitelistInfo -> whitelistInfo.getStatus().equals("1")).count();
+        result.put("whiteListCount", index);
+
+        // 未通过数量
+        index = (int) whitelistInfos.stream().filter(whitelistInfo -> whitelistInfo.getStatus().equals("0")).count();
+        result.put("notPassCount", index);
+
+        // OP数量
+        final OperatorList op = new OperatorList();
+        op.setStatus(1L);
+        final List<OperatorList> operatorLists = operatorListService.selectOperatorListList(op);
+        result.put("opCount", operatorLists.size());
+
+        // 封禁数量
+        final BanlistInfo banlistInfo = new BanlistInfo();
+        banlistInfo.setState(1L);
+        int banCount = banlistInfoService.selectBanlistInfoList(banlistInfo).size();
+        result.put("banCount", banCount);
+
+        // 在线前十
+        final List<PlayerDetails> playerDetails = playerDetailsMapper.selectTopTenByGameTime();
+        final List<PlayerDetailsVo> playerDetailsVos = new ArrayList<>();
+        playerDetails.forEach(o -> {
+            final PlayerDetailsVo vo = new PlayerDetailsVo();
+            BeanUtils.copyProperties(o, vo);
+            playerDetailsVos.add(vo);
+        });
+        result.put("topTen", playerDetailsVos);
+
+        // 服务器数量
+        List<ServerInfo> serverInfo = serverInfoMapper.selectServerInfoList(new ServerInfo());
+        result.put("serverCount", serverInfo.size());
+
         return result;
     }
 }
