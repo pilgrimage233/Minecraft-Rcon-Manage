@@ -61,6 +61,9 @@
     "vue-three-renderer": "^0.0.1",
     "vuedraggable": "2.24.3",
     "vuex": "3.6.0",
+    "xterm": "^5.3.0",
+    "xterm-addon-fit": "^0.8.0",
+    "xterm-addon-web-links": "^0.9.0",
     "yum": "^0.1.1"
   },
   "devDependencies": {
@@ -76,8 +79,8 @@
     "eslint-plugin-vue": "7.2.0",
     "lint-staged": "10.5.3",
     "runjs": "4.4.2",
-    "sass": "1.32.13",
-    "sass-loader": "10.1.1",
+    "sass": "^1.32.13",
+    "sass-loader": "^10.1.1",
     "script-ext-html-webpack-plugin": "2.1.5",
     "svg-sprite-loader": "5.1.1",
     "vue-template-compiler": "2.6.12"

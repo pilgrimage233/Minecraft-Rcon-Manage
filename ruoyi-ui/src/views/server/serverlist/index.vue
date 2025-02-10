@@ -144,6 +144,14 @@
             @click="handleDelete(scope.row)"
           >删除
           </el-button>
+          <el-button
+            v-hasPermi="['server:serverlist:console']"
+            icon="el-icon-monitor"
+            size="mini"
+            type="text"
+            @click="openConsole(scope.row)"
+          >控制台
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -189,6 +197,57 @@
         <el-button @click="cancel">取 消</el-button>
       </div>
     </el-dialog>
+
+    <!-- 控制台对话框 -->
+    <el-dialog
+      :close-on-click-modal="false"
+      :title="'服务器控制台 - ' + currentServer.nameTag"
+      :visible.sync="consoleVisible"
+      append-to-body
+      custom-class="console-dialog"
+      width="900px"
+      @close="handleConsoleClose"
+    >
+      <div class="console-container">
+        <div class="terminal-header">
+          <span :class="{ 'connected': isConnected }" class="status-indicator"></span>
+          <span class="server-info">
+            {{ currentServer.ip }}:{{ currentServer.rconPort }}
+          </span>
+          <el-button
+            class="refresh-btn"
+            icon="el-icon-refresh"
+            size="mini"
+            type="primary"
+            @click="reconnectServer"
+          >重新连接
+          </el-button>
+        </div>
+        <div class="terminal-wrapper">
+          <div id="terminal" ref="terminal"></div>
+        </div>
+        <div class="console-input">
+          <el-autocomplete
+            ref="commandInput"
+            v-model="command"
+            :disabled="!isConnected"
+            :fetch-suggestions="queryMinecraftCommands"
+            class="minecraft-command-input"
+            placeholder="输入命令后按 Enter 发送"
+            popper-append-to-body
+            @keyup.enter.native="sendCommand"
+          >
+            <template slot-scope="{ item }">
+              <div class="command-suggestion">
+                <span class="command-keyword">{{ item.command }}</span>
+                <span class="command-desc">{{ item.description }}</span>
+              </div>
+            </template>
+            <el-button slot="append" :disabled="!isConnected" @click="sendCommand">发送</el-button>
+          </el-autocomplete>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -201,6 +260,12 @@ import {
   refreshCache,
   updateServerlist
 } from "@/api/server/serverlist";
+import {Terminal} from 'xterm';
+import {FitAddon} from 'xterm-addon-fit';
+import {WebLinksAddon} from 'xterm-addon-web-links';
+import 'xterm/css/xterm.css';
+import {highlightMinecraftSyntax, MINECRAFT_KEYWORDS} from '@/utils/minecraftSyntax';
+import {connectRcon, executeCommand} from "@/api/server/rcon";
 
 export default {
   inheritAttrs: false,
@@ -265,7 +330,13 @@ export default {
           message: '请输入远程密码',
           trigger: 'blur'
         }]
-      }
+      },
+      consoleVisible: false,
+      currentServer: {},
+      terminal: null,
+      command: '',
+      fitAddon: null,
+      isConnected: false,
     };
   },
   created() {
@@ -373,7 +444,279 @@ export default {
       refreshCache().then(() => {
         this.$modal.msgSuccess("刷新成功");
       })
+    },
+    /** 打开控制台 */
+    openConsole(row) {
+      this.currentServer = row;
+      this.consoleVisible = true;
+      this.$nextTick(() => {
+        if (!this.terminal) {
+          this.initTerminal();
+        }
+        this.fitAddon.fit();
+        // 连接到服务器
+        this.connectToServer();
+      });
+    },
+    /** 初始化终端 */
+    initTerminal() {
+      this.terminal = new Terminal({
+        cursorBlink: true,
+        theme: {
+          background: '#1e1e1e',
+          foreground: '#f0f0f0',
+          cursor: '#f0f0f0',
+          selection: 'rgba(255, 255, 255, 0.3)',
+          black: '#000000',
+          red: '#e06c75',
+          green: '#98c379',
+          yellow: '#d19a66',
+          blue: '#61afef',
+          magenta: '#c678dd',
+          cyan: '#56b6c2',
+          white: '#d0d0d0',
+        },
+        fontSize: 14,
+        fontFamily: 'Consolas, "Courier New", monospace',
+        lineHeight: 1.2,
+        scrollback: 1000,
+        allowTransparency: true
+      });
+
+      this.fitAddon = new FitAddon();
+      this.terminal.loadAddon(this.fitAddon);
+      this.terminal.loadAddon(new WebLinksAddon());
+
+      this.terminal.open(this.$refs.terminal);
+      this.fitAddon.fit();
+
+      // 监听窗口大小变化
+      window.addEventListener('resize', () => {
+        this.fitAddon.fit();
+      });
+    },
+    /** 连接到服务器 */
+    async connectToServer() {
+      try {
+        this.terminal.clear();
+        this.terminal.writeln('正在连接到服务器...');
+
+        const response = await connectRcon(this.currentServer.id);
+
+        if (response.code === 200) {
+          this.isConnected = true;
+          this.terminal.writeln('\x1b[32m连接成功!\x1b[0m');
+          this.terminal.writeln(`已连接到 ${this.currentServer.nameTag} (${this.currentServer.ip}:${this.currentServer.rconPort})`);
+          this.terminal.writeln('输入命令开始操作...\n');
+        } else {
+          throw new Error(response.msg);
+        }
+      } catch (error) {
+        this.isConnected = false;
+        this.terminal.writeln('\x1b[31m连接失败: ' + error.message + '\x1b[0m');
+      }
+    },
+    /** 重新连接服务器 */
+    reconnectServer() {
+      this.isConnected = false;
+      this.connectToServer();
+    },
+    /** 关闭控制台时清理 */
+    handleConsoleClose() {
+      this.isConnected = false;
+      this.command = '';
+      if (this.terminal) {
+        this.terminal.clear();
+      }
+    },
+    /** 发送命令 */
+    async sendCommand() {
+      if (!this.command) return;
+
+      try {
+        // 高亮显示发送的命令
+        const highlightedCommand = highlightMinecraftSyntax(this.command);
+        this.terminal.writeln('> ' + highlightedCommand);
+
+        const response = await executeCommand(this.currentServer.id, this.command);
+
+        if (response.code === 200) {
+          // 显示命令执行结果
+          this.terminal.writeln(response.data.response);
+        } else {
+          throw new Error(response.msg);
+        }
+
+        // 清空命令输入
+        this.command = '';
+        // 关闭补全下拉框
+        if (this.$refs.commandInput) {
+          this.$refs.commandInput.$refs.input.blur();
+        }
+      } catch (error) {
+        this.terminal.writeln('\x1b[31m错误: ' + error.message + '\x1b[0m');
+        // 如果是连接断开错误，更新连接状态
+        if (error.message.includes('连接已断开')) {
+          this.isConnected = false;
+        }
+      }
+    },
+    queryMinecraftCommands(queryString, cb) {
+      // 添加更详细的命令说明
+      const commands = MINECRAFT_KEYWORDS.map(cmd => {
+        let description;
+        switch (cmd) {
+          case 'give':
+            description = '给予玩家物品';
+            break;
+          case 'tp':
+          case 'teleport':
+            description = '传送玩家到指定位置';
+            break;
+          case 'kill':
+            description = '杀死目标实体';
+            break;
+          case 'gamemode':
+          case 'gm':
+            description = '更改游戏模式';
+            break;
+          case 'time':
+            description = '更改或查询游戏时间';
+            break;
+          case 'weather':
+            description = '更改天气';
+            break;
+          default:
+            description = '执行 ' + cmd + ' 命令';
+        }
+        return {
+          command: cmd,
+          description: description
+        };
+      });
+
+      const results = queryString ? commands.filter(cmd =>
+        cmd.command.toLowerCase().includes(queryString.toLowerCase())
+      ) : commands;
+
+      cb(results);
     }
   }
 };
 </script>
+
+<style lang="scss" scoped>
+.console-dialog {
+  :deep(.el-dialog__body) {
+    padding: 0;
+  }
+}
+
+.console-container {
+  display: flex;
+  flex-direction: column;
+  height: 600px;
+  background: #1e1e1e;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.terminal-header {
+  display: flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: #252526;
+  border-bottom: 1px solid #333;
+
+  .status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: #f56c6c;
+    margin-right: 8px;
+
+    &.connected {
+      background: #67c23a;
+    }
+  }
+
+  .server-info {
+    color: #909399;
+    font-size: 12px;
+    flex: 1;
+  }
+
+  .refresh-btn {
+    margin-left: 8px;
+  }
+}
+
+.terminal-wrapper {
+  flex: 1;
+  padding: 16px;
+  background: #1e1e1e;
+  overflow: hidden;
+
+  #terminal {
+    height: 100%;
+    border-radius: 4px;
+    overflow: hidden;
+
+    :deep(.xterm) {
+      padding: 8px;
+    }
+  }
+}
+
+.console-input {
+  padding: 16px;
+  background: #252526;
+  border-top: 1px solid #333;
+
+  :deep(.el-input-group__append) {
+    background: #409eff;
+    border-color: #409eff;
+    color: white;
+
+    &:hover {
+      background: #66b1ff;
+      border-color: #66b1ff;
+    }
+
+    &:active {
+      background: #3a8ee6;
+      border-color: #3a8ee6;
+    }
+  }
+
+  :deep(.el-input__inner) {
+    background: #1e1e1e;
+    border-color: #333;
+    color: #fff;
+
+    &:focus {
+      border-color: #409eff;
+    }
+  }
+}
+
+.command-suggestion {
+  display: flex;
+  align-items: center;
+
+  .command-keyword {
+    color: #00b4b4;
+    font-weight: bold;
+    margin-right: 8px;
+  }
+
+  .command-desc {
+    color: #909399;
+    font-size: 12px;
+  }
+}
+
+.minecraft-command-input {
+  width: 100%;
+}
+</style>

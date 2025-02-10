@@ -8,6 +8,7 @@ import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.enums.BusinessType;
+import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.RconService;
@@ -199,4 +200,84 @@ public class ServerInfoController extends BaseController {
         }
         return success(data);
     }
+
+    /**
+     * Web控制台连接服务器
+     *
+     * @param id
+     * @return AjaxResult
+     */
+    @PostMapping("/rcon/connect/{id}")
+    public AjaxResult connect(@PathVariable String id) {
+        // 尝试在缓存中获取RconClient
+        if (MapCache.containsKey(id)) {
+            RconClient rconClient = MapCache.get(id);
+            // 存活检测
+            String testResponse = null;
+            try {
+                testResponse = rconClient.sendCommand("seed");
+            } catch (Exception e) {
+                if (StringUtils.isEmpty(testResponse)) {
+                    log.error("服务器连接失败，尝试重连");
+                    if (rconService.reconnect(id)) {
+                        log.info("尝试重新测试连接");
+                        try {
+                            testResponse = rconClient.sendCommand("seed");
+                        } catch (Exception noLuck) {
+                            return error("服务器连接失败，请检查服务器状态");
+                        }
+                    }
+                }
+            }
+
+            log.debug("测试连接返回: {}", testResponse);
+            return success("服务器已连接");
+        } else {
+            // 未存在缓存，可能是未启用?  或者是未初始化
+            ServerInfo serverInfo = serverInfoService.selectServerInfoById(Long.parseLong(id));
+            if (serverInfo == null) {
+                return error("服务器不存在");
+            }
+            if (serverInfo.getStatus() == 0) {
+                return error("服务器未启用");
+            }
+            if (rconService.init(serverInfo)) {
+                return success("服务器已连接");
+            } else {
+                return error("服务器连接失败，请检查服务器状态");
+            }
+        }
+    }
+
+    /**
+     * Web控制台执行指令
+     *
+     * @param id
+     * @return AjaxResult
+     */
+    @PostMapping("/rcon/execute/{id}")
+    public AjaxResult execute(@PathVariable String id, @RequestBody Map<String, String> command) {
+        if (command == null || command.isEmpty()) {
+            return error("指令不能为空");
+        }
+
+        if (id == null || id.isEmpty()) {
+            return error("服务器标识不能为空");
+        }
+
+        RconClient rconClient = MapCache.get(id);
+        if (rconClient == null) {
+            return error("服务器未连接");
+        }
+        Map<String, Object> result = new HashMap<>();
+        try {
+            final String msg = rconClient.sendCommand(command.get("command"));
+            result.put("response", msg);
+            return success(result);
+        } catch (Exception e) {
+            return error("指令发送失败");
+        }
+
+    }
+
 }
