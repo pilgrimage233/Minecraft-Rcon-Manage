@@ -425,8 +425,14 @@ public class WhitelistInfoController extends BaseController {
             //     map.put("省份", playerDetails.getProvince());
             // }
 
+            // 直辖市
+            String[] directCity = {"北京市", "天津市", "上海市", "重庆市"};
             if (playerDetails.getCity() != null) {
-                map.put("城市", playerDetails.getCity());
+                if (Arrays.asList(directCity).contains(playerDetails.getCity())) {
+                    map.put("城市", playerDetails.getCity());
+                } else {
+                    map.put("城市", playerDetails.getProvince() + "-" + playerDetails.getCity());
+                }
             }
 
 

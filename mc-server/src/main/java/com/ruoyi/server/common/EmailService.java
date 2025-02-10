@@ -2,8 +2,6 @@ package com.ruoyi.server.common;
 
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -79,7 +77,7 @@ public class EmailService {
         } catch (Exception e) {
             log.error("异常：{}", String.valueOf(e));
         }
-        log.info("发送邮件给{}，标题：{}，内容：{}", email, title, content);
+        //  log.debug("发送邮件给{}，标题：{}，内容：{}", email, title, content);
     }
 
     private @NotNull Properties getProperties() {

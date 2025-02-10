@@ -257,4 +257,51 @@ public class OnlineTask {
         // 更新缓存为当前在线玩家
         cache.setCacheObject("onlinePlayer", onlinePlayer);
     }
+
+    /**
+     * 命令重试
+     */
+    public void commandRetry() {
+        log.debug("commandRetry start");
+        Map<String, Object> map = new HashMap<>();
+        if (cache.hasKey("commandCache")) {
+            map = cache.getCacheObject("commandCache");
+
+            // 发送缓存中的命令
+            for (Map.Entry<String, Object> entry : map.entrySet()) {
+                String key = entry.getKey();
+                Set<String> commands = (Set<String>) entry.getValue();
+                RconClient client = MapCache.get(key);
+
+                if (client == null) {
+                    log.error("RconClient not found for key: {}", key);
+                    continue;
+                }
+
+                // 已执行命令
+                Set<String> executedCommands = new HashSet<>();
+
+                for (String command : commands) {
+                    try {
+                        client.sendCommand(command);
+                        log.info("Successfully sent command: {}", command);
+
+                        executedCommands.add(command);
+                    } catch (Exception e) {
+                        log.error("Failed to send command: {}", command, e);
+                    }
+                }
+
+                // 移除已执行命令
+                commands.removeAll(executedCommands);
+
+                if (commands.isEmpty()) {
+                    // 删除缓存
+                    map.remove(key);
+                }
+
+            }
+        }
+        log.debug("commandRetry end");
+    }
 }

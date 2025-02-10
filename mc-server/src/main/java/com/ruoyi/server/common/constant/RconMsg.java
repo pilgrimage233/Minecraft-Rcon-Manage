@@ -38,9 +38,9 @@ public class RconMsg {
 
     public static final String TRY_RECONNECT = "尝试重新连接:";
 
-    public static final String RECONNECT_ERROR = "连接失败:";
+    public static final String CONNECT_ERROR = "连接失败:";
 
-    public static final String RECONNECT_SUCCESS = "连接成功:";
+    public static final String CONNECT_SUCCESS = "连接成功:";
 
     public static final String RECONNECT_TIMEOUT = "连接超时:";
 

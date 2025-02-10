@@ -13,12 +13,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Rcon发送命令工具类
@@ -28,7 +27,7 @@ import java.util.concurrent.TimeUnit;
 @Component
 public class RconService {
 
-    public Map<String, ServerCommandInfo> COMMAND_INFO = ObjectCache.getCommandInfo();
+    public static Map<String, ServerCommandInfo> COMMAND_INFO = new HashMap<>();
     @Value("${whitelist.email}")
     private String ADMIN_EMAIL;
     @Autowired
@@ -51,27 +50,54 @@ public class RconService {
             try {
                 if (key.contains("all")) {
                     MapCache.getMap().forEach((k, client) -> {
+                        final String replaced = replaceCommand(k, command, onlineFlag);
                         CompletableFuture.runAsync(() -> {
-                            client.sendCommand(replaceCommand(k, command, onlineFlag));
+                            client.sendCommand(replaced);
                         });
                     });
                 } else {
                     if (MapCache.get(key) == null) {
                         throw new RuntimeException("RconClient not found for key: " + key);
                     }
+                    final String replaced = replaceCommand(key, command, onlineFlag);
                     CompletableFuture.runAsync(() -> {
-                        MapCache.get(key).sendCommand(replaceCommand(key, command, onlineFlag));
-                    }).get(5, TimeUnit.SECONDS);
+                        MapCache.get(key).sendCommand(replaced);
+                    }).get(3, TimeUnit.SECONDS);
                 }
-
                 log.debug(RconMsg.SEND_COMMAND + "{}", command);
                 return;
             } catch (Exception e) {
                 retryCount++;
                 log.warn("发送命令失败，第{}次重试: {}", retryCount, e.getMessage());
+                // e.printStackTrace();
                 if (retryCount >= maxRetries) {
                     log.error("发送命令最终失败: {}", e.getMessage());
-                    reconnect(key);
+                    // 重连并回调
+                    if (reconnect(key)) {
+                        log.debug("重连成功，重新发送命令: {}", command);
+                        this.sendCommand(key, command, onlineFlag);
+                    } else {
+                        log.error("重连失败，无法发送命令: {}", command);
+                        Map<String, Object> cache = new HashMap<>();
+                        // 命令缓存
+                        if (redisCache.hasKey("commandCache")) {
+                            cache = redisCache.getCacheObject("commandCache");
+                            if (cache.containsKey(key)) {
+                                Set<String> set = (Set<String>) cache.get(key);
+                                set.add(command);
+                                cache.put(key, set);
+                            } else {
+                                Set<String> set = new HashSet<>();
+                                set.add(command);
+                                cache.put(key, set);
+                            }
+                        } else {
+                            Set<String> set = new HashSet<>();
+                            set.add(command);
+                            cache.put(key, set);
+                        }
+                        redisCache.setCacheObject("commandCache", cache);
+                    }
                 }
                 try {
                     Thread.sleep(1000L * retryCount);
@@ -88,16 +114,36 @@ public class RconService {
      *
      * @param info
      */
-    public void init(ServerInfo info) {
+    public boolean init(ServerInfo info) {
+        if (info == null) {
+            log.error(RconMsg.MAIN_INFO_EMPTY);
+            return false;
+        }
+        AtomicReference<RconClient> client = new AtomicReference<>();
         try {
-            log.debug(RconMsg.INIT_RCON + "{}", info.getNameTag());
-            MapCache.put(info.getId().toString(), RconClient.open(DomainToIp.domainToIp(info.getIp()), info.getRconPort().intValue(), info.getRconPassword()));
-            log.debug(RconMsg.RECONNECT_SUCCESS + "{}", info.getNameTag());
+            // 使用异步线程初始化Rcon连接，超时时间为5秒
+            CompletableFuture.runAsync(() -> {
+                try {
+                    client.set(RconClient.open(DomainToIp.domainToIp(info.getIp()), info.getRconPort().intValue(), info.getRconPassword()));
+                    log.debug(RconMsg.INIT_RCON + "{}", info.getNameTag());
+                } catch (Exception e) {
+                    log.error(RconMsg.CONNECT_ERROR + "{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), info.getRconPassword());
+                    log.error(RconMsg.ERROR_MSG + "{}", e.getMessage());
+                }
+            }).get(3, TimeUnit.SECONDS);
+
+            if (client.get() == null) {
+                throw new RuntimeException("RconClient is null");
+            }
+
+            MapCache.put(info.getId().toString(), client.get());
+            log.debug(RconMsg.CONNECT_SUCCESS + "{}", info.getNameTag());
 
             // 清除错误次数
             if (redisCache.hasKey("errorCount")) {
                 redisCache.deleteObject("errorCount");
             }
+            return true;
         } catch (Exception e) {
             // 记录错误次数
             if (redisCache.hasKey("errorCount")) {
@@ -107,15 +153,15 @@ public class RconService {
                 redisCache.setCacheObject("errorCount", 1);
             }
             if ((Integer) redisCache.getCacheObject("errorCount") >= 10 && (Integer) redisCache.getCacheObject("errorCount") % 10 == 0) {
-                // 创建反射调用EmailService
                 try {
                     emailService.push(ADMIN_EMAIL, "服务器异常", "服务器异常，请检查服务器连接状态，告警时间：" + DateUtils.getTime() + "\n错误次数：" + redisCache.getCacheObject("errorCount"));
                 } catch (ExecutionException | InterruptedException ex) {
                     log.error("邮件发送失败: {}", ex.getMessage());
                 }
             }
-            log.error(RconMsg.RECONNECT_ERROR + "{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), info.getRconPassword());
+            log.error(RconMsg.CONNECT_ERROR + "{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), info.getRconPassword());
             log.error(RconMsg.ERROR_MSG + "{}", e.getMessage());
+            return false;
         }
     }
 
@@ -124,10 +170,10 @@ public class RconService {
      *
      * @param key
      */
-    public void reconnect(String key) {
+    public boolean reconnect(String key) {
         if (key == null) {
-            log.error(RconMsg.RECONNECT_ERROR);
-            return;
+            log.error(RconMsg.CONNECT_ERROR);
+            return false;
         }
         List<ServerInfo> serverInfo = null;
 
@@ -136,22 +182,21 @@ public class RconService {
             serverInfo = redisCache.getCacheObject("serverInfo");
         } catch (Exception e) {
             log.error(RconMsg.ERROR_MSG + "{}", e.getMessage());
-            return;
+            return false;
         }
 
         // 重连Rcon
         for (ServerInfo info : serverInfo) {
             if (info.getId().toString().equals(key)) {
-                try {
-                    log.debug(RconMsg.TRY_RECONNECT + "{}", info.getNameTag());
-                    MapCache.put(info.getId().toString(), RconClient.open(DomainToIp.domainToIp(info.getIp()), info.getRconPort().intValue(), info.getRconPassword()));
-                    log.debug(RconMsg.RECONNECT_SUCCESS + "{}", info.getNameTag());
-                } catch (Exception e) {
-                    log.error(RconMsg.RECONNECT_ERROR + "{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), info.getRconPassword());
-                    log.error(RconMsg.ERROR_MSG + "{}", e.getMessage());
+                close(key);
+                log.debug(RconMsg.TRY_RECONNECT + "{}", key);
+                if (init(info)) {
+                    return true;
                 }
+                break;
             }
         }
+        return false;
     }
 
     /**
@@ -185,13 +230,13 @@ public class RconService {
      */
     public String replaceCommand(String key, String command, boolean onlineFlag) {
         if (StringUtils.isEmpty(command)) {
-            log.error("替换Rcon命令失败：command为空");
+            log.error("替换命令失败：command为空");
             return key;
         }
 
         ServerCommandInfo info = COMMAND_INFO.get(key);
         if (info == null) {
-            log.error("替换Rcon命令失败：指令信息为空");
+            log.error("替换命令失败：指令信息为空");
             throw new RuntimeException("指令信息为空");
         }
 
@@ -206,16 +251,22 @@ public class RconService {
         commandMap.put(Command.BAN_REMOVE_COMMAND,
                 (cmd) -> onlineFlag ? info.getOnlineRmBanCommand() : info.getOfflineRmBanCommand());
 
-        // 查找匹配的命令并替换
+        boolean isMatch = false;
         for (Map.Entry<String, CommandReplacer> entry : commandMap.entrySet()) {
             if (command.startsWith(entry.getKey())) {
-                String player = command.substring(entry.getKey().length());
-                command = entry.getValue().replace(command).replace("{player}", player);
+                isMatch = true;
+                String player = command.substring(entry.getKey().length()).trim();
+                String template = entry.getValue().replace(command);
+                command = template.replace("{player}", player);
+                log.info("替换命令成功：{} -> {}", key, command);
                 break;
             }
         }
 
-        log.debug("替换Rcon命令成功：{} {}", key, command);
+        if (!isMatch) {
+            log.info("替换命令失败，未匹配模板：{} -> {}", key, command);
+        }
+
         return command;
     }
 

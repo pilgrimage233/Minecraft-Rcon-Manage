@@ -1,11 +1,9 @@
 package com.ruoyi.server.service.impl;
 
-import com.github.t9t.minecraftrconclient.RconClient;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.server.async.AsyncManager;
 import com.ruoyi.server.common.EmailService;
 import com.ruoyi.server.common.EmailTemplates;
-import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.RconService;
 import com.ruoyi.server.common.constant.Command;
 import com.ruoyi.server.domain.BanlistInfo;
@@ -22,8 +20,6 @@ import org.springframework.stereotype.Service;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
-import java.util.Map;
-import java.util.TimerTask;
 
 /**
  * 白名单Service业务层处理
@@ -250,12 +246,12 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                                 )
                         );
                     } catch (Exception e) {
-                        log.error("发送邮件失败,原因：" + e.getMessage());
+                        log.error("发送邮件失败,原因：{}", e.getMessage());
                         return 0;
                     }
 
                 } catch (Exception e) {
-                    log.error("解除全局封禁失败,原因：" + e.getMessage());
+                    log.error("解除全局封禁失败,原因：{}", e.getMessage());
                     return 0;
                 }
                 banlistInfo.setState(0L);
@@ -295,7 +291,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                         EmailTemplates.getWhitelistNotificationBan(
                                 whitelistInfo.getQqNum(),
                                 whitelistInfo.getUserName(),
-                                whitelistInfo.getAddState(),
+                                dateFormat.format(whitelistInfo.getAddTime()),
                                 DateUtils.getTime(),
                                 EmailTemplates.BAN_TIME_TITTLE,
                                 whitelistInfo.getBannedReason(),
@@ -475,26 +471,11 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
 
         // 包含all则发送给所有服务器
         if (info.getServers().contains("all")) {
-            final Map<String, RconClient> map = MapCache.getMap();
-            TimerTask task = new TimerTask() {
-                @Override
-                public void run() {
-                    // 发送Rcon命令给所有服务器
-                    for (String key : map.keySet()) {
-                        rconService.sendCommand(key, command, onlineFlag);
-                    }
-                }
-            };
-            asyncManager.execute(task);
+            // 发送Rcon命令给所有服务器
+            rconService.sendCommand("all", command, onlineFlag);
         } else { // 发送给指定服务器
             for (String key : info.getServers().split(",")) {
-                TimerTask task = new TimerTask() {
-                    @Override
-                    public void run() {
-                        rconService.sendCommand(key, command, onlineFlag);
-                    }
-                };
-                asyncManager.execute(task);
+                rconService.sendCommand(key, command, onlineFlag);
             }
         }
     }

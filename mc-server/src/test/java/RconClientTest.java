@@ -30,7 +30,7 @@ public class RconClientTest {
         try {
             RconClient client = RconClient.open(DomainToIp.domainToIp(ip), port, password);
 
-            final String list = client.sendCommand("banlist");
+            final String list = client.sendCommand("ban kissthefire");
             System.err.println(list);
 
             client.close();

@@ -7,8 +7,6 @@ import com.ruoyi.server.domain.ServerInfo;
 import com.ruoyi.server.service.IServerCommandInfoService;
 import com.ruoyi.server.service.IServerInfoService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.ibatis.logging.Log;
-import org.apache.ibatis.logging.LogFactory;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -62,19 +60,25 @@ public class InitializingBeanExamplebBean implements InitializingBean {
         // 服务器信息缓存更新时间
         redisCache.setCacheObject("serverInfoUpdateTime", DateUtils.getNowDate());
 
+        // 初始化缓存服务器指令
+        commandInfoService.initServerCommandInfo();
+
+        RconService.COMMAND_INFO = ObjectCache.getCommandInfo();
+
         // 初始化Rcon连接
         ServerInfo info = new ServerInfo();
         info.setStatus(1L);
         for (ServerInfo serverInfo : serverInfoService.selectServerInfoList(info)) {
             rconService.init(serverInfo);
         }
-        log.debug("InitializingBean afterPropertiesSet end...");
+
+        // Thread.sleep(5000);
 
         // 发送广播
         rconService.sendCommand("all", "say Rcon ready! Time: " + DateUtils.getNowDate(), false);
 
-        // 初始化缓存服务器指令
-        commandInfoService.initServerCommandInfo();
+        log.debug("InitializingBean afterPropertiesSet end...");
+
 
     }
 
