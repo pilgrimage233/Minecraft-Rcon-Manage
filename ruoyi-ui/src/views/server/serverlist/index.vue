@@ -222,6 +222,14 @@
             @click="reconnectServer"
           >重新连接
           </el-button>
+          <el-button
+            class="history-btn"
+            icon="el-icon-time"
+            size="mini"
+            type="info"
+            @click="showHistory"
+          >历史记录
+          </el-button>
         </div>
         <div class="terminal-wrapper">
           <div id="terminal" ref="terminal"></div>
@@ -235,11 +243,13 @@
             class="minecraft-command-input"
             placeholder="输入命令后按 Enter 发送"
             popper-append-to-body
+            :trigger-on-focus="true"
+            @select="handleCommandSelect"
             @keyup.enter.native="sendCommand"
           >
             <template slot-scope="{ item }">
               <div class="command-suggestion">
-                <span class="command-keyword">{{ item.command }}</span>
+                <span class="command-keyword">{{ item.value }}</span>
                 <span class="command-desc">{{ item.description }}</span>
               </div>
             </template>
@@ -247,6 +257,81 @@
           </el-autocomplete>
         </div>
       </div>
+    </el-dialog>
+
+    <!-- 历史记录对话框 -->
+    <el-dialog
+      :visible.sync="historyVisible"
+      append-to-body
+      title="命令历史记录"
+      width="900px"
+    >
+      <el-table
+        v-loading="historyLoading"
+        :data="historyList"
+        height="400px"
+        style="width: 100%"
+      >
+        <el-table-column
+          label="执行命令"
+          prop="command"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="执行结果"
+          prop="response"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          align="center"
+          label="执行时间"
+          prop="executeTime"
+          width="160"
+        >
+          <template slot-scope="scope">
+            <span>{{ parseTime(scope.row.executeTime, '{y}-{m}-{d} {h}:{i}') }}</span>
+          </template>
+        </el-table-column>
+
+        <el-table-column
+          align="center"
+          label="运行时间"
+          prop="runTime"
+          width="160"
+        />
+
+        <el-table-column
+          align="center"
+          label="执行用户"
+          prop="user"
+          width="160"
+        >
+          <template slot-scope="scope">
+            <span>{{ scope.row.user }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          align="center"
+          label="操作"
+          width="80"
+        >
+          <template slot-scope="scope">
+            <el-button
+              size="mini"
+              type="text"
+              @click="reuseCommand(scope.row.command)"
+            >重用
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <pagination
+        v-show="historyTotal > 0"
+        :limit.sync="historyQuery.pageSize"
+        :page.sync="historyQuery.pageNum"
+        :total="historyTotal"
+        @pagination="getHistoryList"
+      />
     </el-dialog>
   </div>
 </template>
@@ -265,7 +350,7 @@ import {FitAddon} from 'xterm-addon-fit';
 import {WebLinksAddon} from 'xterm-addon-web-links';
 import 'xterm/css/xterm.css';
 import {highlightMinecraftSyntax, MINECRAFT_KEYWORDS} from '@/utils/minecraftSyntax';
-import {connectRcon, executeCommand} from "@/api/server/rcon";
+import {connectRcon, executeCommand, getCommandHistory} from "@/api/server/rcon";
 
 export default {
   inheritAttrs: false,
@@ -337,6 +422,15 @@ export default {
       command: '',
       fitAddon: null,
       isConnected: false,
+      historyVisible: false,
+      historyLoading: false,
+      historyList: [],
+      historyTotal: 0,
+      historyQuery: {
+        pageNum: 1,
+        pageSize: 10,
+        serverId: undefined
+      }
     };
   },
   created() {
@@ -590,16 +684,49 @@ export default {
             description = '执行 ' + cmd + ' 命令';
         }
         return {
-          command: cmd,
+          value: cmd,
           description: description
         };
       });
 
-      const results = queryString ? commands.filter(cmd =>
-        cmd.command.toLowerCase().includes(queryString.toLowerCase())
-      ) : commands;
+      const results = queryString
+        ? commands.filter(cmd =>
+          cmd.value.toLowerCase().includes(queryString.toLowerCase())
+        )
+        : commands;
 
       cb(results);
+    },
+    /** 处理命令选择 */
+    handleCommandSelect(item) {
+      this.command = item.value;
+    },
+    /** 显示历史记录 */
+    showHistory() {
+      this.historyVisible = true;
+      this.historyQuery.serverId = this.currentServer.id;
+      this.getHistoryList();
+    },
+    /** 获取历史记录列表 */
+    async getHistoryList() {
+      this.historyLoading = true;
+      try {
+        const response = await getCommandHistory(this.historyQuery);
+        this.historyList = response.rows;
+        this.historyTotal = response.total;
+      } catch (error) {
+        this.$modal.msgError("获取历史记录失败");
+      }
+      this.historyLoading = false;
+    },
+    /** 重用历史命令 */
+    reuseCommand(command) {
+      this.command = command;
+      this.historyVisible = false;
+      // 聚焦到命令输入框
+      this.$nextTick(() => {
+        this.$refs.commandInput.$refs.input.focus();
+      });
     }
   }
 };
@@ -647,6 +774,10 @@ export default {
   }
 
   .refresh-btn {
+    margin-left: 8px;
+  }
+
+  .history-btn {
     margin-left: 8px;
   }
 }
@@ -703,6 +834,12 @@ export default {
 .command-suggestion {
   display: flex;
   align-items: center;
+  padding: 4px 8px;
+  cursor: pointer;
+
+  &:hover {
+    background-color: #2c2c2c;
+  }
 
   .command-keyword {
     color: #00b4b4;
@@ -718,5 +855,12 @@ export default {
 
 .minecraft-command-input {
   width: 100%;
+}
+
+// 历史记录表格中的长文本显示省略
+:deep(.el-table) {
+  .cell {
+    white-space: nowrap;
+  }
 }
 </style>

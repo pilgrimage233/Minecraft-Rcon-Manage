@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.ruoyi.common.annotation.Excel;
 import com.ruoyi.common.core.domain.BaseEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
@@ -15,6 +16,7 @@ import java.util.Date;
  * @author ruoyi
  * @date 2023-12-26
  */
+@EqualsAndHashCode(callSuper = true)
 @Data
 public class WhitelistInfo extends BaseEntity {
     private static final long serialVersionUID = 1L;

@@ -10,20 +10,22 @@ import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
+import com.ruoyi.common.utils.spring.SpringUtils;
+import com.ruoyi.server.async.AsyncManager;
 import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.RconService;
+import com.ruoyi.server.domain.HistoryCommand;
 import com.ruoyi.server.domain.ServerInfo;
+import com.ruoyi.server.service.IHistoryCommandService;
 import com.ruoyi.server.service.IServerInfoService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -41,10 +43,15 @@ public class ServerInfoController extends BaseController {
     private IServerInfoService serverInfoService;
 
     @Autowired
+    private IHistoryCommandService historyCommandService;
+
+    @Autowired
     private RedisCache redisCache;
 
     @Autowired
     private RconService rconService;
+    @Autowired
+    private SpringUtils springUtils;
 
     /**
      * 查询服务器信息列表
@@ -256,8 +263,11 @@ public class ServerInfoController extends BaseController {
      * @return AjaxResult
      */
     @PostMapping("/rcon/execute/{id}")
-    public AjaxResult execute(@PathVariable String id, @RequestBody Map<String, String> command) {
-        if (command == null || command.isEmpty()) {
+    public AjaxResult execute(@PathVariable String id, @RequestBody Map<String, String> request) {
+        // 获取登录用户
+        String name = SecurityContextHolder.getContext().getAuthentication().getName();
+
+        if (request == null || request.isEmpty()) {
             return error("指令不能为空");
         }
 
@@ -265,17 +275,40 @@ public class ServerInfoController extends BaseController {
             return error("服务器标识不能为空");
         }
 
+        final String command = request.get("command");
+        log.info("执行指令->id: {}, command: {}", id, command);
+
+        final HistoryCommand historyCommand = new HistoryCommand();
+        historyCommand.setServerId(Long.parseLong(id));
+        historyCommand.setCommand(command);
+        final long l = System.currentTimeMillis();
         RconClient rconClient = MapCache.get(id);
         if (rconClient == null) {
+            historyCommand.setStatus("NO");
             return error("服务器未连接");
         }
         Map<String, Object> result = new HashMap<>();
         try {
-            final String msg = rconClient.sendCommand(command.get("command"));
+            final String msg = rconClient.sendCommand(command);
+            historyCommand.setRunTime(System.currentTimeMillis() - l + "ms");
+            historyCommand.setStatus("OK");
+            historyCommand.setResponse(msg);
+            historyCommand.setUser(name);
+            log.info("指令执行成功, 返回消息: {}", msg);
+
             result.put("response", msg);
             return success(result);
         } catch (Exception e) {
+            historyCommand.setStatus("NO");
             return error("指令发送失败");
+        } finally {
+            // 异步保存历史指令
+            AsyncManager.getInstance().execute(new TimerTask() {
+                @Override
+                public void run() {
+                    historyCommandService.insertHistoryCommand(historyCommand);
+                }
+            });
         }
 
     }

@@ -3,6 +3,7 @@ package com.ruoyi.server.domain;
 import com.ruoyi.common.annotation.Excel;
 import com.ruoyi.common.core.domain.BaseEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
@@ -12,6 +13,7 @@ import org.apache.commons.lang3.builder.ToStringStyle;
  * @author ruoyi
  * @date 2024-03-22
  */
+@EqualsAndHashCode(callSuper = true)
 @Data
 public class IpLimitInfo extends BaseEntity {
     private static final long serialVersionUID = 1L;
