@@ -4,22 +4,17 @@ import com.ruoyi.common.core.domain.entity.SysUser;
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.MapCache;
-import com.ruoyi.server.common.ObjectCache;
-import com.ruoyi.server.common.EmailService;
-import com.ruoyi.server.domain.ServerCommandInfo;
-import com.ruoyi.server.domain.WhitelistInfo;
-import com.ruoyi.server.service.IWhitelistInfoService;
+import com.ruoyi.server.common.constant.Command;
+import com.ruoyi.server.common.service.EmailService;
+import com.ruoyi.server.common.service.RconService;
+import com.ruoyi.server.domain.permission.WhitelistInfo;
+import com.ruoyi.server.service.permission.IWhitelistInfoService;
 import com.ruoyi.system.service.ISysUserService;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.ibatis.logging.Log;
-import org.apache.ibatis.logging.LogFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -33,12 +28,18 @@ public class WhiteListTask {
 
     @Autowired
     private IWhitelistInfoService whitelistInfoService;
+
     @Autowired
     private ISysUserService userService;
+
     @Autowired
     private RedisCache redisCache;
+
     @Autowired
     private EmailService pushEmail;
+
+    @Autowired
+    private RconService rconService;
 
 
     /**
@@ -96,6 +97,25 @@ public class WhiteListTask {
             return;
         }
 
+        // // 获取指令信息
+        // Map<String, ServerCommandInfo> map = null;
+        // if (ObjectCache.containsKey("serverCommandInfo")) {
+        //     // 从缓存中获取指令信息
+        //     map = ObjectCache.getCommandInfo();
+        // } else {
+        //     log.error("缓存中不存在指令信息");
+        //     return;
+        // }
+        // ServerCommandInfo commandInfo = null;
+        // if (map != null && map.containsKey(serverId)) {
+        //     // 从缓存中获取指令信息
+        //     commandInfo = map.get(serverId);
+        //     if (commandInfo == null) {
+        //         log.error("缓存中不存在服务器:[{}]的指令信息", serverId);
+        //         return;
+        //     }
+        // }
+
         // 查询已通过审核的白名单
         WhitelistInfo whitelistInfo = new WhitelistInfo();
         whitelistInfo.setStatus("1");
@@ -105,7 +125,7 @@ public class WhiteListTask {
             return;
         }
 
-        List<WhitelistInfo> newList = new ArrayList<>();
+        List<WhitelistInfo> users = new ArrayList<>();
         for (WhitelistInfo info : whitelistInfos) {
             // log.debug("已通过审核的白名单：" + info.getUserName());
             if (info.getServers() == null || info.getServers().isEmpty()) {
@@ -113,72 +133,54 @@ public class WhiteListTask {
             }
             String[] split = info.getServers().split(",");
             if (Arrays.asList(split).contains("all") || Arrays.asList(split).contains(serverId)) {
-                newList.add(info);
+                users.add(info);
             }
         }
 
         // 查询对应服务器现有白名单列表
-        String list = MapCache.get(serverId).sendCommand("whitelist list");
+        String list = MapCache.get(serverId).sendCommand(Command.WHITELIST_LIST);
         log.debug("现有白名单列表：{}", list);
-        String[] split = new String[0];
-        String[] split1 = new String[0];
+        Set<String> online = new HashSet<>();
+        Set<String> offline = new HashSet<>();
         if (StringUtils.isNotEmpty(list) && list.contains("There are")) {
-            String[] temp = list.split("whitelisted player\\(s\\):")[1].trim().split(", ");
-            split = new String[temp.length];
-            split1 = new String[temp.length];
-            System.arraycopy(temp, 0, split1, 0, temp.length);
-            for (int i = 0; i < temp.length; i++) {
-                split[i] = temp[i].toLowerCase().trim();
-            }
+            // 正版玩家
+            online = new HashSet<>(Arrays.asList(list.split("whitelisted player\\(s\\):")[1].trim().split(", ")));
+            // 离线转小写
+            offline = new HashSet<>(Arrays.asList(list.split("whitelisted player\\(s\\):")[1].trim().toLowerCase().split(", ")));
+
         }
 
-        List<String> user = new ArrayList<>();
-        List<String> remove = new ArrayList<>();
-
-        // 获取指令信息
-        Map<String, ServerCommandInfo> map = null;
-        if (ObjectCache.containsKey("serverCommandInfo")) {
-            // 从缓存中获取指令信息
-            map = ObjectCache.getCommandInfo();
-        } else {
-            log.error("缓存中不存在指令信息");
-            return;
-        }
-        ServerCommandInfo commandInfo = null;
-        if (map != null && map.containsKey(serverId)) {
-            // 从缓存中获取指令信息
-            commandInfo = map.get(serverId);
-            if (commandInfo == null) {
-                log.error("缓存中不存在服务器:[{}]的指令信息", serverId);
-                return;
-            }
-        }
-
-        // 现有白名单列表比对已通过审核的白名单列表
-        for (WhitelistInfo info : newList) {
-            // 防止白名单过多，延迟0.8秒
-            if (newList.size() >= 10) {
-                Thread.sleep(800);
-            }
-            // 正版玩家不忽略大小写
+        // 待同步用户
+        List<WhitelistInfo> newList = new ArrayList<>();
+        for (WhitelistInfo info : users) {
             if (info.getOnlineFlag() == 1L) {
-                if (!Arrays.asList(split1).contains(info.getUserName())) {
-                    MapCache.get(serverId).sendCommand(commandInfo.getOnlineAddWhitelistCommand().replace("{player}", info.getUserName()));
-                    user.add(info.getUserName());
+                if (!online.contains(info.getUserName())) {
+                    newList.add(info);
                 }
             } else {
-                if (!Arrays.asList(split).contains(info.getUserName().toLowerCase())) {
-                    MapCache.get(serverId).sendCommand(commandInfo.getOfflineAddWhitelistCommand().replace("{player}", info.getUserName()));
-                    user.add(info.getUserName().toLowerCase());
+                if (!offline.contains(info.getUserName().toLowerCase())) {
+                    newList.add(info);
                 }
             }
+        }
+
+        // 同步白名单
+        List<String> user = new ArrayList<>();
+        for (WhitelistInfo info : newList) {
+            // 防止白名单过多，延迟0.5秒
+            if (newList.size() >= 5) {
+                Thread.sleep(500);
+            }
+            rconService.sendCommand(serverId, String.format(Command.WHITELIST_ADD, info.getUserName()), info.getOnlineFlag() == 1L);
+            user.add(info.getUserName());
         }
 
         // 如果服务器白名单不在数据库中，则移除
-        for (String s : split1) {
+        List<String> remove = new ArrayList<>();
+        for (String s : online) {
             boolean flag = false;
             boolean onlineFlag = false;
-            for (WhitelistInfo info : newList) {
+            for (WhitelistInfo info : users) {
                 // 正版玩家不忽略大小写
                 if (info.getOnlineFlag() == 1L && s.equals(info.getUserName())) {
                     flag = true;
@@ -190,11 +192,7 @@ public class WhiteListTask {
                 }
             }
             if (!flag) {
-                if (onlineFlag) {
-                    MapCache.get(serverId).sendCommand(commandInfo.getOnlineRmWhitelistCommand().replace("{player}", s));
-                } else {
-                    MapCache.get(serverId).sendCommand(commandInfo.getOfflineRmWhitelistCommand().replace("{player}", s));
-                }
+                rconService.sendCommand(serverId, String.format(Command.WHITELIST_REMOVE, s), onlineFlag);
                 remove.add(s);
             }
         }

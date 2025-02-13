@@ -145,12 +145,11 @@
           >删除
           </el-button>
           <el-button
-            v-hasPermi="['server:serverlist:console']"
             icon="el-icon-monitor"
             size="mini"
             type="text"
             @click="openConsole(scope.row)"
-          >控制台
+          >终端
           </el-button>
         </template>
       </el-table-column>
@@ -295,7 +294,7 @@
 
         <el-table-column
           align="center"
-          label="运行时间"
+          label="耗时"
           prop="runTime"
           width="160"
         />
@@ -557,24 +556,26 @@ export default {
       this.terminal = new Terminal({
         cursorBlink: true,
         theme: {
-          background: '#1e1e1e',
+          background: '#1a1a1a',
           foreground: '#f0f0f0',
           cursor: '#f0f0f0',
-          selection: 'rgba(255, 255, 255, 0.3)',
+          selection: 'rgba(255, 255, 255, 0.2)',
           black: '#000000',
-          red: '#e06c75',
-          green: '#98c379',
-          yellow: '#d19a66',
-          blue: '#61afef',
-          magenta: '#c678dd',
-          cyan: '#56b6c2',
-          white: '#d0d0d0',
+          red: '#ff5555',
+          green: '#50fa7b',
+          yellow: '#f1fa8c',
+          blue: '#6272a4',
+          magenta: '#ff79c6',
+          cyan: '#8be9fd',
+          white: '#f8f8f2',
         },
-        fontSize: 14,
+        fontSize: 15,
         fontFamily: 'Consolas, "Courier New", monospace',
-        lineHeight: 1.2,
+        lineHeight: 1.3,
         scrollback: 1000,
-        allowTransparency: true
+        allowTransparency: true,
+        padding: 10,
+        windowsMode: true,  // 更好的 Windows 兼容性
       });
 
       this.fitAddon = new FitAddon();
@@ -593,21 +594,26 @@ export default {
     async connectToServer() {
       try {
         this.terminal.clear();
-        this.terminal.writeln('正在连接到服务器...');
+        this.terminal.writeln('\x1b[90m正在连接到服务器...\x1b[0m');
 
         const response = await connectRcon(this.currentServer.id);
 
         if (response.code === 200) {
           this.isConnected = true;
-          this.terminal.writeln('\x1b[32m连接成功!\x1b[0m');
-          this.terminal.writeln(`已连接到 ${this.currentServer.nameTag} (${this.currentServer.ip}:${this.currentServer.rconPort})`);
-          this.terminal.writeln('输入命令开始操作...\n');
+          this.terminal.writeln('');  // 添加空行
+          this.terminal.writeln('\x1b[32m✓ 连接成功!\x1b[0m');
+          this.terminal.writeln('\x1b[34m┌──────────────────────────────────────┐\x1b[0m');
+          this.terminal.writeln(`\x1b[34m│\x1b[0m 服务器: ${this.currentServer.nameTag}`);
+          this.terminal.writeln(`\x1b[34m│\x1b[0m 地址: ${this.currentServer.ip}:${this.currentServer.rconPort}`);
+          this.terminal.writeln('\x1b[34m└──────────────────────────────────────┘\x1b[0m');
+          this.terminal.writeln('');
+          this.terminal.writeln('\x1b[90m输入命令开始操作，输入 help 获取帮助\x1b[0m\n');
         } else {
           throw new Error(response.msg);
         }
       } catch (error) {
         this.isConnected = false;
-        this.terminal.writeln('\x1b[31m连接失败: ' + error.message + '\x1b[0m');
+        this.terminal.writeln('\x1b[31m✗ 连接失败: ' + error.message + '\x1b[0m');
       }
     },
     /** 重新连接服务器 */
@@ -630,13 +636,27 @@ export default {
       try {
         // 高亮显示发送的命令
         const highlightedCommand = highlightMinecraftSyntax(this.command);
-        this.terminal.writeln('> ' + highlightedCommand);
+        this.terminal.writeln('\x1b[36m❯\x1b[0m ' + highlightedCommand);
 
         const response = await executeCommand(this.currentServer.id, this.command);
 
         if (response.code === 200) {
-          // 显示命令执行结果
-          this.terminal.writeln(response.data.response);
+          const responseText = response.data.response;
+          if (responseText) {
+            this.terminal.writeln(''); // 添加空行
+            const lines = responseText.split(/([\/])/g);
+            lines.forEach((line, index) => {
+              if (line === '/') {
+                if (index < lines.length - 1) {
+                  this.terminal.writeln('\n' + line + lines[index + 1]);
+                  lines[index + 1] = '';
+                }
+              } else if (line.trim() && !lines[index - 1]?.includes('/')) {
+                this.terminal.writeln(line);
+              }
+            });
+            this.terminal.writeln(''); // 添加空行
+          }
         } else {
           throw new Error(response.msg);
         }
@@ -648,8 +668,7 @@ export default {
           this.$refs.commandInput.$refs.input.blur();
         }
       } catch (error) {
-        this.terminal.writeln('\x1b[31m错误: ' + error.message + '\x1b[0m');
-        // 如果是连接断开错误，更新连接状态
+        this.terminal.writeln('\x1b[31m✗ 错误: ' + error.message + '\x1b[0m');
         if (error.message.includes('连接已断开')) {
           this.isConnected = false;
         }
@@ -743,27 +762,29 @@ export default {
   display: flex;
   flex-direction: column;
   height: 600px;
-  background: #1e1e1e;
+  background: #1a1a1a;
   border-radius: 4px;
   overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .terminal-header {
   display: flex;
   align-items: center;
   padding: 8px 16px;
-  background: #252526;
+  background: #282a36;
   border-bottom: 1px solid #333;
 
   .status-indicator {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #f56c6c;
+    background: #ff5555;
     margin-right: 8px;
+    transition: background-color 0.3s ease;
 
     &.connected {
-      background: #67c23a;
+      background: #50fa7b;
     }
   }
 
@@ -785,7 +806,7 @@ export default {
 .terminal-wrapper {
   flex: 1;
   padding: 16px;
-  background: #1e1e1e;
+  background: #1a1a1a;
   overflow: hidden;
 
   #terminal {
@@ -801,32 +822,35 @@ export default {
 
 .console-input {
   padding: 16px;
-  background: #252526;
+  background: #282a36;
   border-top: 1px solid #333;
 
   :deep(.el-input-group__append) {
-    background: #409eff;
-    border-color: #409eff;
+    background: #6272a4;
+    border-color: #6272a4;
     color: white;
+    transition: all 0.3s ease;
 
     &:hover {
-      background: #66b1ff;
-      border-color: #66b1ff;
+      background: #7282b4;
+      border-color: #7282b4;
     }
 
     &:active {
-      background: #3a8ee6;
-      border-color: #3a8ee6;
+      background: #5262a4;
+      border-color: #5262a4;
     }
   }
 
   :deep(.el-input__inner) {
-    background: #1e1e1e;
+    background: #1a1a1a;
     border-color: #333;
     color: #fff;
+    transition: all 0.3s ease;
 
     &:focus {
-      border-color: #409eff;
+      border-color: #6272a4;
+      box-shadow: 0 0 0 2px rgba(98, 114, 164, 0.1);
     }
   }
 }

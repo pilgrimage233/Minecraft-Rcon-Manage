@@ -1,6 +1,6 @@
 package com.ruoyi.server.common;
 
-import com.ruoyi.server.domain.ServerCommandInfo;
+import com.ruoyi.server.domain.server.ServerCommandInfo;
 
 import java.util.HashMap;
 import java.util.Map;
