@@ -10,9 +10,9 @@ import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
-import com.ruoyi.common.utils.spring.SpringUtils;
 import com.ruoyi.server.async.AsyncManager;
 import com.ruoyi.server.common.MapCache;
+import com.ruoyi.server.common.constant.CacheKey;
 import com.ruoyi.server.common.service.RconService;
 import com.ruoyi.server.domain.other.HistoryCommand;
 import com.ruoyi.server.domain.server.ServerInfo;
@@ -50,8 +50,6 @@ public class ServerInfoController extends BaseController {
 
     @Autowired
     private RconService rconService;
-    @Autowired
-    private SpringUtils springUtils;
 
     /**
      * 查询服务器信息列表
@@ -124,12 +122,12 @@ public class ServerInfoController extends BaseController {
     @GetMapping("/getServerList")
     public AjaxResult getServerList() {
         // 判断Redis是否存在缓存
-        if (redisCache.hasKey("serverInfo")) {
-            return success((List<ServerInfo>) redisCache.getCacheObject("serverInfo"));
+        if (redisCache.hasKey(CacheKey.SERVER_INFO_KEY)) {
+            return success((List<ServerInfo>) redisCache.getCacheObject(CacheKey.SERVER_INFO_KEY));
         } else {
             // 不存在则走数据库并缓存
             List<ServerInfo> list = serverInfoService.selectServerInfoList(new ServerInfo());
-            redisCache.setCacheObject("serverInfo", list, 1, TimeUnit.DAYS);
+            redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, list, 1, TimeUnit.DAYS);
             return success(list);
         }
     }
@@ -147,9 +145,9 @@ public class ServerInfoController extends BaseController {
             }
         });
         // 服务器信息缓存
-        redisCache.setCacheObject("serverInfo", serverInfoService.selectServerInfoList(new ServerInfo()), 1, TimeUnit.DAYS);
+        redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, serverInfoService.selectServerInfoList(new ServerInfo()), 1, TimeUnit.DAYS);
         // 服务器信息缓存更新时间
-        redisCache.setCacheObject("serverInfoUpdateTime", new Date());
+        redisCache.setCacheObject(CacheKey.SERVER_INFO_UPDATE_TIME_KEY, new Date());
         // 初始化Rcon连接
         ServerInfo info = new ServerInfo();
         info.setStatus(1L);
@@ -266,6 +264,9 @@ public class ServerInfoController extends BaseController {
     public AjaxResult execute(@PathVariable String id, @RequestBody Map<String, String> request) {
         // 获取登录用户
         String name = SecurityContextHolder.getContext().getAuthentication().getName();
+        if (StringUtils.isEmpty(name)) {
+            return error("用户未登录");
+        }
 
         if (request == null || request.isEmpty()) {
             return error("指令不能为空");
@@ -310,7 +311,7 @@ public class ServerInfoController extends BaseController {
                 }
             });
         }
-
     }
+
 
 }

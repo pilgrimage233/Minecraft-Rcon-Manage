@@ -4,6 +4,8 @@ import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.MapCache;
+import com.ruoyi.server.common.constant.CacheKey;
+import com.ruoyi.server.common.constant.RconMsg;
 import com.ruoyi.server.common.service.RconService;
 import com.ruoyi.server.domain.permission.BanlistInfo;
 import com.ruoyi.server.domain.permission.OperatorList;
@@ -103,7 +105,16 @@ public class ServerInfoServiceImpl implements IServerInfoService {
      */
     @Override
     public int updateServerInfo(ServerInfo serverInfo) {
-        return serverInfoMapper.updateServerInfo(serverInfo);
+        final int result = serverInfoMapper.updateServerInfo(serverInfo);
+        // 更新缓存
+        if (result > 0) {
+            this.rebuildCache();
+            // 初始化Rcon连接
+            if (MapCache.containsKey(serverInfo.getId().toString())) {
+                rconService.init(serverInfo);
+            }
+        }
+        return result;
     }
 
     /**
@@ -125,7 +136,18 @@ public class ServerInfoServiceImpl implements IServerInfoService {
      */
     @Override
     public int deleteServerInfoById(Long id) {
-        return serverInfoMapper.deleteServerInfoById(id);
+        int result = serverInfoMapper.deleteServerInfoById(id);
+
+        // 关闭Rcon连接
+        if (MapCache.containsKey(id.toString())) {
+            RconService.close(id.toString());
+            MapCache.remove(id.toString());
+        }
+        if (result > 0) {
+            this.rebuildCache();
+        }
+
+        return result;
     }
 
     /**
@@ -138,11 +160,11 @@ public class ServerInfoServiceImpl implements IServerInfoService {
         Map<String, Object> result = new HashMap<>();
         List<ServerInfo> serverInfo;
         // 从Redis缓存中获取serverInfo
-        if (redisCache.hasKey("serverInfo")) {
-            serverInfo = redisCache.getCacheObject("serverInfo");
+        if (redisCache.hasKey(CacheKey.SERVER_INFO_KEY)) {
+            serverInfo = redisCache.getCacheObject(CacheKey.SERVER_INFO_KEY);
         } else {
             serverInfo = serverInfoMapper.selectServerInfoList(new ServerInfo());
-            redisCache.setCacheObject("serverInfo", serverInfo, 3, TimeUnit.DAYS);
+            redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, serverInfo, 3, TimeUnit.DAYS);
         }
         if (serverInfo != null) {
             for (ServerInfo info : serverInfo) {
@@ -236,5 +258,15 @@ public class ServerInfoServiceImpl implements IServerInfoService {
         result.put("serverCount", serverInfo.size());
 
         return result;
+    }
+
+    public void rebuildCache() {
+        redisCache.deleteObject(CacheKey.SERVER_INFO_KEY);
+        final List<ServerInfo> serverInfos = selectServerInfoList(new ServerInfo());
+        if (serverInfos == null || serverInfos.isEmpty()) {
+            log.error(RconMsg.SERVER_EMPTY);
+        }
+        redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, serverInfos, 3, TimeUnit.DAYS);
+        redisCache.setCacheObject(CacheKey.SERVER_INFO_UPDATE_TIME_KEY, DateUtils.getNowDate());
     }
 }

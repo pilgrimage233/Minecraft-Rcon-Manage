@@ -3,8 +3,10 @@ package com.ruoyi.server.controller.open;
 import com.google.common.util.concurrent.RateLimiter;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
+import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.MapCache;
+import com.ruoyi.server.common.constant.CacheKey;
 import com.ruoyi.server.service.server.IServerInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.CrossOrigin;
@@ -15,7 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 公共接口
@@ -26,14 +28,13 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequestMapping("/api/v1")
 public class PublicInterfaceController extends BaseController {
 
-    private static final long CACHE_DURATION = 300 * 1000; // 缓存时间5分钟
-
     private final RateLimiter rateLimiter = RateLimiter.create(10.0); // 每秒最多10个请求
-
-    private final Map<String, CachedWhitelist> whitelistCache = new ConcurrentHashMap<>();
 
     @Autowired
     private IServerInfoService serverInfoService;
+
+    @Autowired
+    private RedisCache redisCache;
 
     /**
      * 聚合查询
@@ -55,9 +56,11 @@ public class PublicInterfaceController extends BaseController {
 
         try {
             // 检查缓存
-            CachedWhitelist cached = whitelistCache.get("whitelist");
-            if (cached != null && !cached.isExpired()) {
-                return success(cached.data);
+            if (redisCache.hasKey(CacheKey.WHITE_LIST_KEY) && redisCache.getCacheObject(CacheKey.WHITE_LIST_KEY) != null) {
+                final Map<String, String> cacheObject = redisCache.getCacheObject(CacheKey.WHITE_LIST_KEY);
+                cacheObject.remove("@type");
+                // logger.info("获取白名单列表缓存");
+                return success(cacheObject);
             }
 
             Map<String, String> map = new HashMap<>();
@@ -79,7 +82,7 @@ public class PublicInterfaceController extends BaseController {
             // 更新缓存
             if (!map.isEmpty()) {
                 logger.info("更新白名单列表缓存");
-                whitelistCache.put("whitelist", new CachedWhitelist(map));
+                redisCache.setCacheObject(CacheKey.WHITE_LIST_KEY, map, 5, TimeUnit.MINUTES);
             }
             return success(map);
 
@@ -89,27 +92,10 @@ public class PublicInterfaceController extends BaseController {
         }
     }
 
-
-    // 添加缓存对象类
-    private static class CachedWhitelist {
-        private final Map<String, String> data;
-        private final long timestamp;
-
-        public CachedWhitelist(Map<String, String> data) {
-            this.data = data;
-            this.timestamp = System.currentTimeMillis();
-        }
-
-        public boolean isExpired() {
-            return System.currentTimeMillis() - timestamp > CACHE_DURATION;
-        }
-    }
-
     // 查询服务器在线人数
     @GetMapping("/getOnlinePlayer")
     public AjaxResult getOnlinePlayer() {
         return success(serverInfoService.getOnlinePlayer());
     }
-
 
 }

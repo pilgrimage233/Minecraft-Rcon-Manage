@@ -3,6 +3,7 @@ package com.ruoyi.web.controller.monitor;
 import com.ruoyi.common.constant.CacheConstants;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.utils.StringUtils;
+import com.ruoyi.server.common.constant.CacheKey;
 import com.ruoyi.system.domain.SysCache;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.RedisCallback;
@@ -32,6 +33,7 @@ public class CacheController {
         caches.add(new SysCache(CacheConstants.REPEAT_SUBMIT_KEY, "防重提交"));
         caches.add(new SysCache(CacheConstants.RATE_LIMIT_KEY, "限流处理"));
         caches.add(new SysCache(CacheConstants.PWD_ERR_CNT_KEY, "密码错误次数"));
+        caches.add(new SysCache(CacheKey.SERVER_MANAGER_KEY, "服务器管理"));
     }
 
     @PreAuthorize("@ss.hasPermi('monitor:cache:list')")

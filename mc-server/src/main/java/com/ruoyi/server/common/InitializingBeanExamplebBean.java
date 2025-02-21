@@ -2,18 +2,20 @@ package com.ruoyi.server.common;
 
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.DateUtils;
+import com.ruoyi.server.common.constant.CacheKey;
 import com.ruoyi.server.common.constant.RconMsg;
 import com.ruoyi.server.common.service.RconService;
 import com.ruoyi.server.domain.server.ServerInfo;
+import com.ruoyi.server.service.other.IRegularCmdService;
 import com.ruoyi.server.service.server.IServerCommandInfoService;
 import com.ruoyi.server.service.server.IServerInfoService;
 import lombok.extern.slf4j.Slf4j;
+import org.quartz.Scheduler;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -32,6 +34,12 @@ public class InitializingBeanExamplebBean implements InitializingBean {
     @Autowired
     private RconService rconService;
 
+    @Autowired
+    private Scheduler scheduler;
+
+    @Autowired
+    private IRegularCmdService regularCmdService;
+
     /**
      * InitializingBean afterPropertiesSet
      * 在bean初始化后执行一些操作
@@ -39,7 +47,7 @@ public class InitializingBeanExamplebBean implements InitializingBean {
      * 作者：Memory
      */
     @Override
-    public void afterPropertiesSet() throws ExecutionException, InterruptedException {
+    public void afterPropertiesSet() {
         log.debug("InitializingBean afterPropertiesSet begin...");
         // 判断Redis缓存是否存在
         // if (redisCache.hasKey("serverInfo") && redisCache.hasKey("serverInfoUpdateTime")) {
@@ -56,10 +64,10 @@ public class InitializingBeanExamplebBean implements InitializingBean {
             log.error(RconMsg.SERVER_EMPTY);
         }
 
-        redisCache.setCacheObject("serverInfo", serverInfos, 3, TimeUnit.DAYS);
+        redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, serverInfos, 3, TimeUnit.DAYS);
 
         // 服务器信息缓存更新时间
-        redisCache.setCacheObject("serverInfoUpdateTime", DateUtils.getNowDate());
+        redisCache.setCacheObject(CacheKey.SERVER_INFO_UPDATE_TIME_KEY, DateUtils.getNowDate());
 
         // 初始化缓存服务器指令
         commandInfoService.initServerCommandInfo();
@@ -80,8 +88,5 @@ public class InitializingBeanExamplebBean implements InitializingBean {
 
         log.debug("InitializingBean afterPropertiesSet end...");
 
-
     }
-
-
 }

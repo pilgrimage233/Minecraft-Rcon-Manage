@@ -13,7 +13,7 @@
         <el-input
           v-model="queryParams.onlineAddWhitelistCommand"
           clearable
-          placeholder="请输入在线加白"
+          placeholder="请输入在线加白指令"
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
@@ -21,7 +21,7 @@
         <el-input
           v-model="queryParams.offlineAddWhitelistCommand"
           clearable
-          placeholder="请输入离线加白"
+          placeholder="请输入离线加白指令"
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
@@ -29,7 +29,7 @@
         <el-input
           v-model="queryParams.onlineRmWhitelistCommand"
           clearable
-          placeholder="请输入在线移白"
+          placeholder="请输入在线移白指令"
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
@@ -37,23 +37,23 @@
         <el-input
           v-model="queryParams.offlineRmWhitelistCommand"
           clearable
-          placeholder="请输入离线移白"
+          placeholder="请输入离线移白指令"
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
-      <el-form-item label="在线加封" prop="onlineAddBanCommand">
+      <el-form-item label="在线封禁" prop="onlineAddBanCommand">
         <el-input
           v-model="queryParams.onlineAddBanCommand"
           clearable
-          placeholder="请输入在线加封"
+          placeholder="请输入在线封禁指令"
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
-      <el-form-item label="离线加封" prop="offlineAddBanCommand">
+      <el-form-item label="离线封禁" prop="offlineAddBanCommand">
         <el-input
           v-model="queryParams.offlineAddBanCommand"
           clearable
-          placeholder="请输入离线加封"
+          placeholder="请输入离线封禁指令"
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
@@ -61,7 +61,7 @@
         <el-input
           v-model="queryParams.onlineRmBanCommand"
           clearable
-          placeholder="请输入在线解封"
+          placeholder="请输入在线解封指令"
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
@@ -69,7 +69,7 @@
         <el-input
           v-model="queryParams.offlineRmBanCommand"
           clearable
-          placeholder="请输入离线解封"
+          placeholder="请输入离线解封指令"
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>

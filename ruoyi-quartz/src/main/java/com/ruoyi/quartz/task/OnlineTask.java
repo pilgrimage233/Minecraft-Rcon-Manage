@@ -6,6 +6,7 @@ import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.http.HttpUtils;
 import com.ruoyi.server.common.MapCache;
+import com.ruoyi.server.common.constant.CacheKey;
 import com.ruoyi.server.common.service.RconService;
 import com.ruoyi.server.domain.permission.WhitelistInfo;
 import com.ruoyi.server.domain.player.PlayerDetails;
@@ -194,7 +195,7 @@ public class OnlineTask {
         }
 
         // 获取缓存中的在线玩家
-        Set<String> cacheOnlinePlayer = cache.getCacheObject("onlinePlayer");
+        Set<String> cacheOnlinePlayer = cache.getCacheObject(CacheKey.ONLINE_PLAYER_KEY);
         if (cacheOnlinePlayer == null) {
             cacheOnlinePlayer = new HashSet<>();
         }
@@ -255,7 +256,7 @@ public class OnlineTask {
         }
 
         // 更新缓存为当前在线玩家
-        cache.setCacheObject("onlinePlayer", onlinePlayer);
+        cache.setCacheObject(CacheKey.ONLINE_PLAYER_KEY, onlinePlayer);
     }
 
     /**
@@ -264,8 +265,8 @@ public class OnlineTask {
     public void commandRetry() {
         log.debug("commandRetry start");
         Map<String, Object> map = new HashMap<>();
-        if (cache.hasKey("commandCache")) {
-            map = cache.getCacheObject("commandCache");
+        if (cache.hasKey(CacheKey.ERROR_COMMAND_CACHE_KEY)) {
+            map = cache.getCacheObject(CacheKey.ERROR_COMMAND_CACHE_KEY);
 
             // 发送缓存中的命令
             for (Map.Entry<String, Object> entry : map.entrySet()) {
@@ -298,6 +299,13 @@ public class OnlineTask {
                 if (commands.isEmpty()) {
                     // 删除缓存
                     map.remove(key);
+                }
+                if (map.isEmpty()) {
+                    // 删除缓存
+                    cache.deleteObject(CacheKey.ERROR_COMMAND_CACHE_KEY);
+                } else {
+                    // 更新缓存
+                    cache.setCacheObject(CacheKey.ERROR_COMMAND_CACHE_KEY, map);
                 }
 
             }

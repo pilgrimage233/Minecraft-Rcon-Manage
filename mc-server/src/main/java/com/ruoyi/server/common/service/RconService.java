@@ -6,6 +6,7 @@ import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.DomainToIp;
 import com.ruoyi.server.common.MapCache;
+import com.ruoyi.server.common.constant.CacheKey;
 import com.ruoyi.server.common.constant.Command;
 import com.ruoyi.server.common.constant.RconMsg;
 import com.ruoyi.server.domain.server.ServerCommandInfo;
@@ -44,63 +45,67 @@ public class RconService {
      * @param command
      * @param onlineFlag
      */
-    public void sendCommand(String key, String command, boolean onlineFlag) {
+    public String sendCommand(String key, String command, boolean onlineFlag) {
         int maxRetries = 5;
         int retryCount = 0;
+        StringBuilder result = new StringBuilder();
 
         while (retryCount < maxRetries) {
             try {
                 if (key.contains("all")) {
+                    // 使用 CompletableFuture.allOf 等待所有命令执行完成
+                    List<CompletableFuture<String>> futures = new ArrayList<>();
+
                     MapCache.getMap().forEach((k, client) -> {
                         final String replaced = replaceCommand(k, command, onlineFlag);
-                        CompletableFuture.runAsync(() -> {
-                            client.sendCommand(replaced);
+                        CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
+                            try {
+                                return client.sendCommand(replaced);
+                            } catch (Exception e) {
+                                log.error("发送命令失败: {}", e.getMessage());
+                                return "Error: " + e.getMessage();
+                            }
                         });
+                        futures.add(future);
                     });
+
+                    // 等待所有命令执行完成
+                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+                    // 收集所有结果
+                    for (CompletableFuture<String> future : futures) {
+                        result.append(future.get()).append("\n");
+                    }
                 } else {
                     if (MapCache.get(key) == null) {
                         throw new RuntimeException("RconClient not found for key: " + key);
                     }
+
                     final String replaced = replaceCommand(key, command, onlineFlag);
-                    CompletableFuture.runAsync(() -> {
-                        MapCache.get(key).sendCommand(replaced);
-                    }).get(3, TimeUnit.SECONDS);
+                    final RconClient client = MapCache.get(key);
+
+                    // 同步执行命令
+                    result.append(client.sendCommand(replaced));
                 }
-                log.debug(RconMsg.SEND_COMMAND + "{}", command);
-                return;
+                log.debug("发送命令成功: {}", command);
+                return result.toString();
+                
             } catch (Exception e) {
                 retryCount++;
                 log.warn("发送命令失败，第{}次重试: {}", retryCount, e.getMessage());
-                // e.printStackTrace();
+
                 if (retryCount >= maxRetries) {
                     log.error("发送命令最终失败: {}", e.getMessage());
                     // 重连并回调
                     if (reconnect(key)) {
                         log.debug("重连成功，重新发送命令: {}", command);
-                        this.sendCommand(key, command, onlineFlag);
+                        return this.sendCommand(key, command, onlineFlag);
                     } else {
                         log.error("重连失败，无法发送命令: {}", command);
-                        Map<String, Object> cache = new HashMap<>();
-                        // 命令缓存
-                        if (redisCache.hasKey("commandCache")) {
-                            cache = redisCache.getCacheObject("commandCache");
-                            if (cache.containsKey(key)) {
-                                Set<String> set = (Set<String>) cache.get(key);
-                                set.add(command);
-                                cache.put(key, set);
-                            } else {
-                                Set<String> set = new HashSet<>();
-                                set.add(command);
-                                cache.put(key, set);
-                            }
-                        } else {
-                            Set<String> set = new HashSet<>();
-                            set.add(command);
-                            cache.put(key, set);
-                        }
-                        redisCache.setCacheObject("commandCache", cache);
+                        handleCommandError(key, command);
                     }
                 }
+
                 try {
                     Thread.sleep(1000L * retryCount);
                 } catch (InterruptedException ie) {
@@ -109,6 +114,30 @@ public class RconService {
                 }
             }
         }
+        return null;
+    }
+
+    // 处理命令错误的辅助方法
+    private void handleCommandError(String key, String command) {
+        Map<String, Object> cache = new HashMap<>();
+        // 命令缓存
+        if (redisCache.hasKey(CacheKey.ERROR_COMMAND_CACHE_KEY)) {
+            cache = redisCache.getCacheObject(CacheKey.ERROR_COMMAND_CACHE_KEY);
+            if (cache.containsKey(key)) {
+                Set<String> set = (Set<String>) cache.get(key);
+                set.add(command);
+                cache.put(key, set);
+            } else {
+                Set<String> set = new HashSet<>();
+                set.add(command);
+                cache.put(key, set);
+            }
+        } else {
+            Set<String> set = new HashSet<>();
+            set.add(command);
+            cache.put(key, set);
+        }
+        redisCache.setCacheObject(CacheKey.ERROR_COMMAND_CACHE_KEY, cache);
     }
 
     /**
@@ -121,6 +150,11 @@ public class RconService {
             log.error(RconMsg.MAIN_INFO_EMPTY);
             return false;
         }
+        if ((!MapCache.isEmpty()) && MapCache.containsKey(info.getId().toString())) {
+            MapCache.get(info.getId().toString()).close();
+        }
+
+        final String ERROR_COUNT_KEY = CacheKey.ERROR_COUNT_KEY;
         AtomicReference<RconClient> client = new AtomicReference<>();
         try {
             // 使用异步线程初始化Rcon连接，超时时间为5秒
@@ -142,19 +176,19 @@ public class RconService {
             log.debug(RconMsg.CONNECT_SUCCESS + "{}", info.getNameTag());
 
             // 清除错误次数
-            if (redisCache.hasKey("errorCount")) {
-                redisCache.deleteObject("errorCount");
+            if (redisCache.hasKey(ERROR_COUNT_KEY)) {
+                redisCache.deleteObject(ERROR_COUNT_KEY);
             }
             return true;
         } catch (Exception e) {
             // 记录错误次数
-            if (redisCache.hasKey("errorCount")) {
-                final Integer errorCount = redisCache.getCacheObject("errorCount");
-                redisCache.setCacheObject("errorCount", errorCount + 1);
+            if (redisCache.hasKey(ERROR_COUNT_KEY)) {
+                final Integer errorCount = redisCache.getCacheObject(ERROR_COUNT_KEY);
+                redisCache.setCacheObject(ERROR_COUNT_KEY, errorCount + 1);
             } else {
-                redisCache.setCacheObject("errorCount", 1);
+                redisCache.setCacheObject(ERROR_COUNT_KEY, 1);
             }
-            if ((Integer) redisCache.getCacheObject("errorCount") >= 10 && (Integer) redisCache.getCacheObject("errorCount") % 10 == 0) {
+            if ((Integer) redisCache.getCacheObject(ERROR_COUNT_KEY) >= 10 && (Integer) redisCache.getCacheObject(ERROR_COUNT_KEY) % 10 == 0) {
                 try {
                     emailService.push(ADMIN_EMAIL, "服务器异常", "服务器异常，请检查服务器连接状态，告警时间：" + DateUtils.getTime() + "\n错误次数：" + redisCache.getCacheObject("errorCount"));
                 } catch (ExecutionException | InterruptedException ex) {
@@ -181,7 +215,7 @@ public class RconService {
 
         try {
             // 从Redis缓存读取服务器信息
-            serverInfo = redisCache.getCacheObject("serverInfo");
+            serverInfo = redisCache.getCacheObject(CacheKey.SERVER_INFO_KEY);
         } catch (Exception e) {
             log.error(RconMsg.ERROR_MSG + "{}", e.getMessage());
             return false;

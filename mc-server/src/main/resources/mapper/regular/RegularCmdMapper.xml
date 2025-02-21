@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.server.mapper.other.RegularCmdMapper">
+
+    <resultMap type="RegularCmd" id="RegularCmdResult">
+        <result property="id" column="id"/>
+        <result property="taskName" column="task_name"/>
+        <result property="taskId" column="task_id"/>
+        <result property="cmd" column="cmd"/>
+        <result property="executeServer" column="execute_server"/>
+        <result property="result" column="result"/>
+        <result property="historyCount" column="history_count"/>
+        <result property="historyResult" column="history_result"/>
+        <result property="cron" column="cron"/>
+        <result property="status" column="status"/>
+        <result property="executeCount" column="execute_count"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="createBy" column="create_by"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectRegularCmdVo">
+        select id,
+               task_name,
+               task_id,
+               cmd,
+               execute_server,
+               result,
+               history_count,
+               history_result,
+               cron,
+               status,
+               execute_count,
+               create_time,
+               update_time,
+               create_by,
+               update_by,
+               remark
+        from regular_cmd
+    </sql>
+
+    <select id="selectRegularCmdList" parameterType="RegularCmd" resultMap="RegularCmdResult">
+        <include refid="selectRegularCmdVo"/>
+        <where>
+            <if test="taskName != null  and taskName != ''">
+                and task_name = #{taskName}
+            </if>
+            <if test="taskId != null ">
+                and task_id = #{taskId}
+            </if>
+            <if test="cmd != null  and cmd != ''">
+                and cmd = #{cmd}
+            </if>
+            <if test="executeServer != null  and executeServer != ''">
+                and execute_server = #{executeServer}
+            </if>
+            <if test="result != null  and result != ''">
+                and result = #{result}
+            </if>
+            <if test="historyCount != null ">
+                and history_count = #{historyCount}
+            </if>
+            <if test="historyResult != null  and historyResult != ''">
+                and history_result = #{historyResult}
+            </if>
+            <if test="cron != null  and cron != ''">
+                and cron = #{cron}
+            </if>
+            <if test="status != null ">
+                and status = #{status}
+            </if>
+            <if test="executeCount != null ">
+                and execute_count = #{executeCount}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectRegularCmdById" parameterType="Long"
+            resultMap="RegularCmdResult">
+        <include refid="selectRegularCmdVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertRegularCmd" parameterType="RegularCmd" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into regular_cmd
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="taskName != null and taskName != ''">task_name,
+            </if>
+            <if test="taskId != null and taskId != ''">task_id,
+            </if>
+            <if test="cmd != null and cmd != ''">cmd,
+            </if>
+            <if test="executeServer != null and executeServer != ''">execute_server,
+            </if>
+            <if test="result != null">result,
+            </if>
+            <if test="historyCount != null">history_count,
+            </if>
+            <if test="historyResult != null">history_result,
+            </if>
+            <if test="cron != null and cron != ''">cron,
+            </if>
+            <if test="status != null">status,
+            </if>
+            <if test="executeCount != null">execute_count,
+            </if>
+            <if test="createTime != null">create_time,
+            </if>
+            <if test="updateTime != null">update_time,
+            </if>
+            <if test="createBy != null">create_by,
+            </if>
+            <if test="updateBy != null">update_by,
+            </if>
+            <if test="remark != null">remark,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="taskName != null and taskName != ''">#{taskName},
+            </if>
+            <if test="taskId != null and taskId != ''">#{taskId},
+            </if>
+            <if test="cmd != null and cmd != ''">#{cmd},
+            </if>
+            <if test="executeServer != null and executeServer != ''">#{executeServer},
+            </if>
+            <if test="result != null">#{result},
+            </if>
+            <if test="historyCount != null">#{historyCount},
+            </if>
+            <if test="historyResult != null">#{historyResult},
+            </if>
+            <if test="cron != null and cron != ''">#{cron},
+            </if>
+            <if test="status != null">#{status},
+            </if>
+            <if test="executeCount != null">#{executeCount},
+            </if>
+            <if test="createTime != null">#{createTime},
+            </if>
+            <if test="updateTime != null">#{updateTime},
+            </if>
+            <if test="createBy != null">#{createBy},
+            </if>
+            <if test="updateBy != null">#{updateBy},
+            </if>
+            <if test="remark != null">#{remark},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateRegularCmd" parameterType="RegularCmd">
+        update regular_cmd
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="taskName != null and taskName != ''">task_name =
+                #{taskName},
+            </if>
+            <if test="taskId != null and taskId != ''">task_id =
+                #{taskId},
+            </if>
+            <if test="cmd != null and cmd != ''">cmd =
+                #{cmd},
+            </if>
+            <if test="executeServer != null and executeServer != ''">execute_server =
+                #{executeServer},
+            </if>
+            <if test="result != null">result =
+                #{result},
+            </if>
+            <if test="historyCount != null">history_count =
+                #{historyCount},
+            </if>
+            <if test="historyResult != null">history_result =
+                #{historyResult},
+            </if>
+            <if test="cron != null and cron != ''">cron =
+                #{cron},
+            </if>
+            <if test="status != null">status =
+                #{status},
+            </if>
+            <if test="executeCount != null">execute_count =
+                #{executeCount},
+            </if>
+            <if test="createTime != null">create_time =
+                #{createTime},
+            </if>
+            <if test="updateTime != null">update_time =
+                #{updateTime},
+            </if>
+            <if test="createBy != null">create_by =
+                #{createBy},
+            </if>
+            <if test="updateBy != null">update_by =
+                #{updateBy},
+            </if>
+            <if test="remark != null">remark =
+                #{remark},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteRegularCmdById" parameterType="Long">
+        delete
+        from regular_cmd
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteRegularCmdByIds" parameterType="String">
+        delete from regular_cmd where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

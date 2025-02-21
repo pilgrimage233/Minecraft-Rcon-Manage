@@ -2,6 +2,7 @@ package com.ruoyi.server.common;
 
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.server.async.AsyncManager;
+import com.ruoyi.server.common.constant.CacheKey;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -29,13 +30,13 @@ public class RunScript {
         AsyncManager.getInstance().shutdown();
 
         // 清除缓存
-        if (redisCache.deleteObject("serverInfo")) {
+        if (redisCache.deleteObject(CacheKey.SERVER_INFO_KEY)) {
             log.info("清除服务器信息缓存成功");
         } else {
             log.error("清除服务器信息缓存失败");
         }
 
-        if (redisCache.deleteObject("serverInfoUpdateTime")) {
+        if (redisCache.deleteObject(CacheKey.SERVER_INFO_UPDATE_TIME_KEY)) {
             log.info("清除服务器信息缓存更新时间成功");
         } else {
             log.error("清除服务器信息缓存更新时间失败");

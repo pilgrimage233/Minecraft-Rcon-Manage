@@ -5,6 +5,7 @@ import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.MapCache;
+import com.ruoyi.server.common.constant.CacheKey;
 import com.ruoyi.server.common.service.RconService;
 import com.ruoyi.server.domain.server.ServerInfo;
 import com.ruoyi.server.service.server.IServerInfoService;
@@ -38,11 +39,11 @@ public class RconTask {
 
     // 定时刷新Redis缓存
     public void refreshRedisCache() {
-        redisCache.deleteObject("serverInfo");
+        redisCache.deleteObject(CacheKey.SERVER_INFO_KEY);
         // 服务器信息缓存
-        redisCache.setCacheObject("serverInfo", serverInfoService.selectServerInfoList(new ServerInfo()), 3, TimeUnit.DAYS);
+        redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, serverInfoService.selectServerInfoList(new ServerInfo()), 3, TimeUnit.DAYS);
         // 服务器信息缓存更新时间
-        redisCache.setCacheObject("serverInfoUpdateTime", DateUtils.getNowDate());
+        redisCache.setCacheObject(CacheKey.SERVER_INFO_UPDATE_TIME_KEY, DateUtils.getNowDate());
     }
 
     // 定时刷新Map缓存
@@ -69,7 +70,7 @@ public class RconTask {
         if (MapCache.getMap().isEmpty()) {
             return;
         }
-        if (!redisCache.hasKey("serverInfo")) {
+        if (!redisCache.hasKey(CacheKey.SERVER_INFO_KEY)) {
             refreshRedisCache();
         }
 
