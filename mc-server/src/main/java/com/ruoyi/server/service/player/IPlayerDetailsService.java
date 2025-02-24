@@ -53,6 +53,14 @@ public interface IPlayerDetailsService {
     public int deletePlayerDetailsByIds(Long[] ids);
 
     /**
+     * 根据条件删除玩家详情信息
+     *
+     * @param info
+     * @return
+     */
+    public int deletePlayerDetailsByInfo(PlayerDetails info);
+
+    /**
      * 删除玩家详情信息
      *
      * @param id 玩家详情主键

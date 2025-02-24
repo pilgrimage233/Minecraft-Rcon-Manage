@@ -209,6 +209,28 @@
         </foreach>
     </delete>
 
+    <!--根据信息删除-->
+    <delete id="deletePlayerDetailsByInfo" parameterType="PlayerDetails">
+        delete from player_details
+        <where>
+            <if test="userName != null and userName != ''">
+                and lower(user_name) = #{userName}
+            </if>
+            <if test="qq != null and qq != ''">
+                and qq = #{qq}
+            </if>
+            <if test="identity != null and identity != ''">
+                and identity = #{identity}
+            </if>
+            <if test="province != null and province != ''">
+                and province = #{province}
+            </if>
+            <if test="city != null and city != ''">
+                and city = #{city}
+            </if>
+        </where>
+    </delete>
+
     <!--根据提供的多个用户名更新最后在线时间-->
     <update id="updateLastOnlineTimeByUserNames" parameterType="map">
         update player_details

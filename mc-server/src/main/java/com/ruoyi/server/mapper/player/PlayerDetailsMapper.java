@@ -62,6 +62,8 @@ public interface PlayerDetailsMapper {
      */
     public int deletePlayerDetailsByIds(Long[] ids);
 
+    public int deletePlayerDetailsByInfo(PlayerDetails info);
+
     /**
      * 根据用户名称更新最后在线时间
      *

@@ -113,6 +113,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers(HttpMethod.GET, "/", "/*.html", "/**/*.html", "/**/*.css", "/**/*.js", "/profile/**").permitAll()
                 .antMatchers("/swagger-ui.html", "/swagger-resources/**", "/webjars/**", "/*/api-docs", "/druid/**").permitAll()
                 .antMatchers("/mc/whitelist/apply").permitAll()
+                .antMatchers("/mc/whitelist/verify").permitAll()
                 .antMatchers("/server/serverlist/getOnlinePlayer").permitAll()
                 .antMatchers("/mc/whitelist/check").permitAll()
                 .antMatchers("/mc/whitelist/getWhiteList").permitAll()

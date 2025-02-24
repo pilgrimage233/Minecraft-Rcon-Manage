@@ -171,15 +171,17 @@ const submitForm = () => {
   } else if (!/^\d{5,11}$/.test(form.qqNum)) {
     ElMessage.error('QQ号格式错误');
   } else {
-    fullscreenLoading.value = true;  // 使用新的loading状态
+    fullscreenLoading.value = true;
     // 先获取用户IP
     fetch('https://ip.useragentinfo.com/json')
         .then(response => response.json())
         .then(data => {
-          // 发送表单请求，带上IP信息
+          // 发送表单请求，带上IP信息和origin头
           return http.post('/mc/whitelist/apply', form, {
             headers: {
-              'X-Real-IP': data.ip
+              'X-Real-IP': data.ip,
+              // 添加origin头,获取当前页面的origin
+              'origin': window.location.origin
             }
           });
         })
@@ -189,12 +191,12 @@ const submitForm = () => {
           } else {
             ElMessage.error(res.data.msg || '未知错误，请联系管理员');
           }
-          fullscreenLoading.value = false;  // 关闭loading
+          fullscreenLoading.value = false;
         })
         .catch((error) => {
           console.error('提交表单请求出错：', error);
           ElMessage.error('提交表单时发生错误，请检查网络或联系管理员');
-          fullscreenLoading.value = false;  // 关闭loading
+          fullscreenLoading.value = false;
         });
   }
 };

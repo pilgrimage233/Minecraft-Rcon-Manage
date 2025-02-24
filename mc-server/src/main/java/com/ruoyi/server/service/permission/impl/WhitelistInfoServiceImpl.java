@@ -8,9 +8,11 @@ import com.ruoyi.server.common.service.EmailService;
 import com.ruoyi.server.common.service.RconService;
 import com.ruoyi.server.domain.permission.BanlistInfo;
 import com.ruoyi.server.domain.permission.WhitelistInfo;
+import com.ruoyi.server.domain.player.PlayerDetails;
 import com.ruoyi.server.mapper.permission.WhitelistInfoMapper;
 import com.ruoyi.server.service.permission.IBanlistInfoService;
 import com.ruoyi.server.service.permission.IWhitelistInfoService;
+import com.ruoyi.server.service.player.IPlayerDetailsService;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -48,6 +50,9 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
 
     @Autowired
     private RconService rconService;
+
+    @Autowired
+    private IPlayerDetailsService playerDetailsService;
 
     /**
      * 查询白名单
@@ -433,6 +438,21 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
      */
     @Override
     public int deleteWhitelistInfoByIds(Long[] ids) {
+        final PlayerDetails details = new PlayerDetails();
+        // 删除玩家详情
+        for (Long id : ids) {
+            WhitelistInfo whitelistInfo = selectWhitelistInfoById(id);
+            if (whitelistInfo == null) {
+                return 0;
+            }
+
+            details.setQq(whitelistInfo.getQqNum());
+            playerDetailsService.deletePlayerDetailsByInfo(details);
+
+            // 尝试删除白名单
+            rconService.sendCommand("all", String.format(Command.WHITELIST_REMOVE, whitelistInfo.getUserName()),
+                    whitelistInfo.getOnlineFlag() == 1);
+        }
         return whitelistInfoMapper.deleteWhitelistInfoByIds(ids);
     }
 

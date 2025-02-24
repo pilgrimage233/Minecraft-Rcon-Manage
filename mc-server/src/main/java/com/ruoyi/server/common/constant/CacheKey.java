@@ -18,4 +18,6 @@ public class CacheKey {
 
     public static final String WHITE_LIST_KEY = "server_manager:white_list";
 
+    public static final String VERIFY_KEY = "server_manager:verify:";
+
 }

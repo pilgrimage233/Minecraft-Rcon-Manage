@@ -19,6 +19,11 @@ const router = createRouter({
             component: () => import('../views/NotFound.vue')
         },
         {
+            path: '/verify',
+            name: 'verify',
+            component: () => import('../views/VerifyWhitelist.vue')
+        },
+        {
             path: '/:pathMatch(.*)*',
             redirect: '/404'
         }

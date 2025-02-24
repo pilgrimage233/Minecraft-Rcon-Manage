@@ -37,6 +37,109 @@ public class EmailTemplates {
 
     public static final String QQ_EMAIL = "@qq.com";
 
+    public static final String EMAIL_VERIFY_TITLE = "邮箱验证";
+
+    public static final String EMAIL_VERIFY_TEMPLATE = "<!DOCTYPE html>\n" +
+            "<html>\n" +
+            "<head>\n" +
+            "    <meta charset=\"UTF-8\">\n" +
+            "    <title>邮箱验证</title>\n" +
+            "    <style>\n" +
+            "        body {\n" +
+            "            margin: 0;\n" +
+            "            padding: 0;\n" +
+            "            font-family: 'Helvetica Neue', Arial, sans-serif;\n" +
+            "            background-color: #f5f5f5;\n" +
+            "        }\n" +
+            "        .container {\n" +
+            "            max-width: 600px;\n" +
+            "            margin: 20px auto;\n" +
+            "            background: #ffffff;\n" +
+            "            border-radius: 16px;\n" +
+            "            overflow: hidden;\n" +
+            "            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);\n" +
+            "        }\n" +
+            "        .header {\n" +
+            "            background: linear-gradient(135deg, #1e2f45, #2c3e50);\n" +
+            "            color: white;\n" +
+            "            padding: 30px;\n" +
+            "            text-align: center;\n" +
+            "        }\n" +
+            "        .header h1 {\n" +
+            "            margin: 0;\n" +
+            "            font-size: 24px;\n" +
+            "            font-weight: 600;\n" +
+            "        }\n" +
+            "        .content {\n" +
+            "            padding: 30px;\n" +
+            "            color: #2c3e50;\n" +
+            "        }\n" +
+            "        .verify-button {\n" +
+            "            display: block;\n" +
+            "            width: 200px;\n" +
+            "            margin: 30px auto;\n" +
+            "            padding: 15px 25px;\n" +
+            "            background: #409EFF;\n" +
+            "            color: white;\n" +
+            "            text-decoration: none;\n" +
+            "            text-align: center;\n" +
+            "            border-radius: 8px;\n" +
+            "            font-weight: 500;\n" +
+            "            font-size: 16px;\n" +
+            "            transition: all 0.3s ease;\n" +
+            "        }\n" +
+            "        .verify-button:hover {\n" +
+            "            background: #66b1ff;\n" +
+            "            transform: translateY(-2px);\n" +
+            "        }\n" +
+            "        .verify-code {\n" +
+            "            text-align: center;\n" +
+            "            font-size: 24px;\n" +
+            "            font-weight: bold;\n" +
+            "            color: #409EFF;\n" +
+            "            margin: 20px 0;\n" +
+            "            letter-spacing: 5px;\n" +
+            "        }\n" +
+            "        .footer {\n" +
+            "            background: #f8f9fa;\n" +
+            "            padding: 20px;\n" +
+            "            text-align: center;\n" +
+            "            color: #909399;\n" +
+            "            font-size: 14px;\n" +
+            "        }\n" +
+            "        .warning {\n" +
+            "            color: #E6A23C;\n" +
+            "            font-size: 14px;\n" +
+            "            margin-top: 20px;\n" +
+            "        }\n" +
+            "    </style>\n" +
+            "</head>\n" +
+            "<body>\n" +
+            "    <div class=\"container\">\n" +
+            "        <div class=\"header\">\n" +
+            "            <h1>邮箱验证</h1>\n" +
+            "        </div>\n" +
+            "        \n" +
+            "        <div class=\"content\">\n" +
+            "            <p>亲爱的用户：</p>\n" +
+            "            <p>您好！感谢您游玩我们的服务器。请点击下面的按钮验证您的邮箱：</p>\n" +
+            "            \n" +
+            "            <a href=\"{verifyLink}\" class=\"verify-button\">验证邮箱</a>\n" +
+            "            \n" +
+            "            <p>如果按钮无法点击，请复制以下链接到浏览器地址栏访问：</p>\n" +
+            "            <p style=\"word-break: break-all; color: #409EFF;\">{verifyLink}</p>\n" +
+            "            \n" +
+            "            <p class=\"warning\">注意：该验证链接将在30分钟后失效，请尽快完成验证。</p>\n" +
+            "        </div>\n" +
+            "        \n" +
+            "        <div class=\"footer\">\n" +
+            "            <p>此邮件由系统自动发送，请勿回复</p>\n" +
+            "            <p>© 2024 Minecraft. All rights reserved.</p>\n" +
+            "        </div>\n" +
+            "    </div>\n" +
+            "</body>\n" +
+            "</html>";
+
     public static final String WHITELIST_NOTIFICATION_TEMPLATE = "<!DOCTYPE html>\n" +
             "<html>\n" +
             "<head>\n" +
@@ -742,5 +845,10 @@ public class EmailTemplates {
         );
 
         return template;
+    }
+
+    // 获取邮箱验证模板
+    public static String getEmailVerifyTemplate(String verifyLink) {
+        return EMAIL_VERIFY_TEMPLATE.replace("{verifyLink}", verifyLink);
     }
 }

@@ -134,6 +134,17 @@ public class PlayerDetailsServiceImpl implements IPlayerDetailsService {
     }
 
     /**
+     * 根据条件删除玩家详情信息
+     *
+     * @param info
+     * @return
+     */
+    @Override
+    public int deletePlayerDetailsByInfo(PlayerDetails info) {
+        return playerDetailsMapper.deletePlayerDetailsByInfo(info);
+    }
+
+    /**
      * 删除玩家详情信息
      *
      * @param id 玩家详情主键

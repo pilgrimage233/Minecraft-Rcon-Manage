@@ -9,14 +9,15 @@ import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
 import com.ruoyi.common.core.domain.AjaxResult;
 import com.ruoyi.common.core.page.TableDataInfo;
+import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.enums.BusinessType;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.http.HttpUtils;
-import com.ruoyi.common.utils.ip.IpUtils;
 import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.server.async.AsyncManager;
 import com.ruoyi.server.common.EmailTemplates;
+import com.ruoyi.server.common.constant.CacheKey;
 import com.ruoyi.server.common.service.EmailService;
 import com.ruoyi.server.domain.other.IpLimitInfo;
 import com.ruoyi.server.domain.permission.WhitelistInfo;
@@ -32,9 +33,12 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 /**
@@ -69,21 +73,21 @@ public class WhitelistInfoController extends BaseController {
     @Autowired
     private EmailService pushEmail;
 
+    @Autowired
+    private RedisCache redisCache;
+
+    @Value("${ruoyi.app-url}")
+    private String appUrl;
+    @Autowired
+    private EmailService emailService;
+
     public WhitelistInfoController() {
         this.dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
         this.dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
     }
 
-    /**
-     * 提交白名单
-     * 此接口不受权限控制！
-     *
-     * @param whitelistInfo
-     * @return
-     */
     @PostMapping("/apply")
-    @CrossOrigin(origins = "https://app.yousb.sbs", maxAge = 3600)
-    public AjaxResult apply(@RequestBody WhitelistInfo whitelistInfo, @RequestHeader Map<String, String> header) throws JsonProcessingException {
+    public AjaxResult apply(@RequestBody WhitelistInfo whitelistInfo, @RequestHeader Map<String, String> header) throws JsonProcessingException, ExecutionException, InterruptedException {
 
         if (whitelistInfo == null || whitelistInfo.getUserName() == null || whitelistInfo.getQqNum() == null) {
             return error("申请信息不能为空!");
@@ -149,99 +153,191 @@ public class WhitelistInfoController extends BaseController {
         }
         IpLimitInfo ipLimitInfo = new IpLimitInfo();
         // IP限流
-        if (StringUtils.isNotEmpty(ip) && !IpUtils.internalIp(ip)) {
-            // 查询IP是否存在
-            ipLimitInfo.setIp(ip);
-            List<IpLimitInfo> ipLimitInfos = iIpLimitInfoService.selectIpLimitInfoList(ipLimitInfo);
-            if (ipLimitInfos.isEmpty()) {
-                ipLimitInfo.setCreateTime(new Date());
-                ipLimitInfo.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
-                ipLimitInfo.setCount(1L); // 第一次访问
-                ipLimitInfo.setIp(ip); // IP地址
-                ipLimitInfo.setUserAgent(userAgent); // 用户代理
-                ipLimitInfo.setUuid(UUID.randomUUID().toString());
-                // whitelistInfo序列化成json
-                ObjectMapper mapper = new ObjectMapper();
-                // 忽略null值
-                mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-                ipLimitInfo.setBodyParams(mapper.writeValueAsString(whitelistInfo));
+        if (StringUtils.isEmpty(ip)) {
+            return error("申请失败,请勿使用代理!");
+        }
 
-                // 获取IP地理位置1.0
-                SearchHttpAK searchHttpAK = new SearchHttpAK();
-                Map<String, String> params = new HashMap<>();
-                params.put("ip", ip);
-                params.put("coor", "bd09ll");
-                params.put("ak", SearchHttpAK.AK);
+        // 查询IP是否存在
+        ipLimitInfo.setIp(ip);
+        List<IpLimitInfo> ipLimitInfos = iIpLimitInfoService.selectIpLimitInfoList(ipLimitInfo);
+        if (ipLimitInfos.isEmpty()) {
+            ipLimitInfo.setCreateTime(new Date());
+            ipLimitInfo.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
+            ipLimitInfo.setCount(1L); // 第一次访问
+            ipLimitInfo.setIp(ip); // IP地址
+            ipLimitInfo.setUserAgent(userAgent); // 用户代理
+            ipLimitInfo.setUuid(UUID.randomUUID().toString());
+            // whitelistInfo序列化成json
+            ObjectMapper mapper = new ObjectMapper();
+            // 忽略null值
+            mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+            ipLimitInfo.setBodyParams(mapper.writeValueAsString(whitelistInfo));
+
+            // 获取IP地理位置1.0
+            SearchHttpAK searchHttpAK = new SearchHttpAK();
+            Map<String, String> params = new HashMap<>();
+            params.put("ip", ip);
+            params.put("coor", "bd09ll");
+            params.put("ak", SearchHttpAK.AK);
+            try {
+                JSONObject json = searchHttpAK.requestGetAK(SearchHttpAK.URL, params);
+                if (json != null && json.containsKey("content") && json.getJSONObject("content").containsKey("address_detail")) {
+                    JSONObject addressDetail = json.getJSONObject("content").getJSONObject("address_detail");
+                    JSONObject point = json.getJSONObject("content").getJSONObject("point");
+                    ipLimitInfo.setProvince(addressDetail.getString("province"));
+                    ipLimitInfo.setCity(addressDetail.getString("city"));
+                    ipLimitInfo.setLongitude(point.getString("x")); // 经度
+                    ipLimitInfo.setLatitude(point.getString("y")); // 纬度
+                }
+            } catch (Exception e) {
+                logger.error("获取IP地理位置失败", e);
+
+            }
+
+            if (ipLimitInfo.getCity() == null || ipLimitInfo.getCity().isEmpty()) {
+                // 获取IP地理位置2.0
                 try {
-                    JSONObject json = searchHttpAK.requestGetAK(SearchHttpAK.URL, params);
-                    if (json != null && json.containsKey("content") && json.getJSONObject("content").containsKey("address_detail")) {
-                        JSONObject addressDetail = json.getJSONObject("content").getJSONObject("address_detail");
-                        JSONObject point = json.getJSONObject("content").getJSONObject("point");
-                        ipLimitInfo.setProvince(addressDetail.getString("province"));
-                        ipLimitInfo.setCity(addressDetail.getString("city"));
-                        ipLimitInfo.setLongitude(point.getString("x")); // 经度
-                        ipLimitInfo.setLatitude(point.getString("y")); // 纬度
+                    String result = HttpUtils.sendGet("http://ip-api.com/json/" + ip);
+                    JSONObject json = JSONObject.parseObject(result);
+                    if (json.containsKey("city")) {
+                        ipLimitInfo.setCity(json.getString("city"));
+                    }
+                    if (json.containsKey("regionName")) {
+                        ipLimitInfo.setProvince(json.getString("regionName"));
+                    }
+                    if (json.containsKey("lat")) {
+                        ipLimitInfo.setLatitude(json.getString("lat"));
+                    }
+                    if (json.containsKey("lon")) {
+                        ipLimitInfo.setLongitude(json.getString("lon"));
                     }
                 } catch (Exception e) {
                     logger.error("获取IP地理位置失败", e);
-
                 }
-
-                if (ipLimitInfo.getCity() == null || ipLimitInfo.getCity().isEmpty()) {
-                    // 获取IP地理位置2.0
-                    try {
-                        String result = HttpUtils.sendGet("http://ip-api.com/json/" + ip);
-                        JSONObject json = JSONObject.parseObject(result);
-                        if (json.containsKey("city")) {
-                            ipLimitInfo.setCity(json.getString("city"));
-                        }
-                        if (json.containsKey("regionName")) {
-                            ipLimitInfo.setProvince(json.getString("regionName"));
-                        }
-                        if (json.containsKey("lat")) {
-                            ipLimitInfo.setLatitude(json.getString("lat"));
-                        }
-                        if (json.containsKey("lon")) {
-                            ipLimitInfo.setLongitude(json.getString("lon"));
-                        }
-                    } catch (Exception e) {
-                        logger.error("获取IP地理位置失败", e);
-                    }
-                }
-
-                iIpLimitInfoService.insertIpLimitInfo(ipLimitInfo);
-            } else {
-                ipLimitInfo = ipLimitInfos.get(0);
-
-                if (ipLimitInfo.getCount() >= Long.parseLong(iplimit)) {
-                    return error("请求次数达到上限，请联系管理员!");
-                }
-
-                if (ipLimitInfo.getCreateBy() == null || ipLimitInfo.getCreateBy().isEmpty()) {
-                    ipLimitInfo.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
-                } else if (ipLimitInfo.getCount() == 1) {
-                    ipLimitInfo.setUpdateBy(ipLimitInfo.getCreateBy() + "::" + whitelistInfo.getUserName());
-                } else {
-                    ipLimitInfo.setUpdateBy(ipLimitInfo.getUpdateBy() + "::" + whitelistInfo.getUserName());
-                }
-                ipLimitInfo.setCount(ipLimitInfo.getCount() + 1);
-                ipLimitInfo.setUpdateTime(new Date());
-
-                iIpLimitInfoService.updateIpLimitInfo(ipLimitInfo);
             }
 
-            // 新增玩家详情
-            PlayerDetails details = new PlayerDetails();
-            details.setUserName(whitelistInfo.getUserName());
-            details.setQq(whitelistInfo.getQqNum());
-            details.setCity(ipLimitInfo.getCity());
-            details.setProvince(ipLimitInfo.getProvince());
-            details.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
-            details.setCreateTime(new Date());
-            details.setIdentity(Identity.PLAYER.getValue());
-            playerDetailsService.insertPlayerDetails(details);
+            iIpLimitInfoService.insertIpLimitInfo(ipLimitInfo);
+        } else {
+            ipLimitInfo = ipLimitInfos.get(0);
 
+            if (ipLimitInfo.getCount() >= Long.parseLong(iplimit)) {
+                return error("请求次数达到上限，请联系管理员!");
+            }
+
+            if (ipLimitInfo.getCreateBy() == null || ipLimitInfo.getCreateBy().isEmpty()) {
+                ipLimitInfo.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
+            } else if (ipLimitInfo.getCount() == 1) {
+                ipLimitInfo.setUpdateBy(ipLimitInfo.getCreateBy() + "::" + whitelistInfo.getUserName());
+            } else {
+                ipLimitInfo.setUpdateBy(ipLimitInfo.getUpdateBy() + "::" + whitelistInfo.getUserName());
+            }
+            ipLimitInfo.setCount(ipLimitInfo.getCount() + 1);
+            ipLimitInfo.setUpdateTime(new Date());
+
+            iIpLimitInfoService.updateIpLimitInfo(ipLimitInfo);
         }
+        // 新增玩家详情
+        PlayerDetails details = new PlayerDetails();
+        details.setUserName(whitelistInfo.getUserName());
+        details.setQq(whitelistInfo.getQqNum());
+        details.setCity(ipLimitInfo.getCity());
+        details.setProvince(ipLimitInfo.getProvince());
+        details.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
+        details.setCreateTime(new Date());
+        details.setIdentity(Identity.PLAYER.getValue());
+
+        // 使用QQ号生成验证码
+        String code;
+        try {
+            // 基于QQ号生成固定验证码
+            // 改为1800秒(30分钟)来匹配缓存过期时间
+            String rawKey = whitelistInfo.getQqNum() + "_" + System.currentTimeMillis() / 1000 / 1800;
+            // 使用MD5加密并取前8位作为验证码
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] bytes = md.digest(rawKey.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : bytes) {
+                sb.append(String.format("%02x", b));
+            }
+            code = sb.substring(0, 8);
+
+            // 检查是否已存在该验证码
+            if (redisCache.hasKey(CacheKey.VERIFY_KEY + code)) {
+                return error("请勿重复提交申请!");
+            }
+        } catch (Exception e) {
+            logger.error("生成验证码失败", e);
+            return error("系统错误,请稍后重试!");
+        }
+
+        // 缓存对象,30分钟
+        Map<String, Object> data = new HashMap<>();
+        data.put("whitelistInfo", whitelistInfo);
+        data.put("details", details);
+        redisCache.setCacheObject(CacheKey.VERIFY_KEY + code, data, 30, TimeUnit.MINUTES);
+
+        // 获取前端地址，如果有路径就去掉
+        if (header.containsKey("origon")) {
+            appUrl = header.get("origon");
+        } else if (header.containsKey("referer")) {
+            appUrl = header.get("referer");
+        }
+
+        // 修改验证链接生成逻辑
+        if (appUrl.endsWith("/")) {
+            appUrl = appUrl.substring(0, appUrl.length() - 1);
+        }
+        // 改为前端验证页面的地址
+        String url = appUrl + "/#/verify?code=" + code;
+
+        // 发送邮件通知
+        emailService.push(whitelistInfo.getQqNum() + EmailTemplates.QQ_EMAIL,
+                EmailTemplates.EMAIL_VERIFY_TITLE, EmailTemplates.getEmailVerifyTemplate(url));
+
+        return success("验证邮件已发送,请查收! 如果未收到邮件,请检查垃圾箱或联系管理员!");
+    }
+
+    /**
+     * 验证白名单
+     * 此接口不受权限控制！
+     *
+     * @param code
+     * @return
+     */
+    @GetMapping("/verify")
+    public AjaxResult verify(@RequestParam String code) {
+
+        if (StringUtils.isEmpty(code)) {
+            return error("验证失败,请勿直接访问此链接!");
+        }
+
+        if (!redisCache.hasKey(CacheKey.VERIFY_KEY + code)) {
+            return error("验证失败,验证码已过期!");
+        }
+
+        Map<String, Object> data = redisCache.getCacheObject(CacheKey.VERIFY_KEY + code);
+
+        if (data == null) {
+            return error("验证失败,数据为空!");
+        }
+        WhitelistInfo whitelistInfo;
+        PlayerDetails details;
+
+        try {
+            // 从JSONObject转换为WhitelistInfo
+            JSONObject whitelistInfoJson = (JSONObject) data.get("whitelistInfo");
+            whitelistInfo = whitelistInfoJson.toJavaObject(WhitelistInfo.class);
+
+            // 从JSONObject转换为PlayerDetails 
+            JSONObject detailsJson = (JSONObject) data.get("details");
+            details = detailsJson.toJavaObject(PlayerDetails.class);
+        } catch (Exception e) {
+            logger.error("数据转换失败", e);
+            return error("验证失败,数据格式错误!");
+        }
+
+        // 保存玩家详情
+        playerDetailsService.insertPlayerDetails(details);
 
         // 补全基础申请信息
         if (whitelistInfo.getOnlineFlag() == 1) {
@@ -277,11 +373,12 @@ public class WhitelistInfoController extends BaseController {
         whitelistInfo.setStatus("0"); // 审核状态 0-未审核，1-审核通过，2-审核不通过
 
         if (whitelistInfoService.insertWhitelistInfo(whitelistInfo) != 0) {
+            // 删除验证码
+            redisCache.deleteObject(CacheKey.VERIFY_KEY + code);
             // 发送邮件通知
             TimerTask timerTask = new TimerTask() {
                 @Override
                 public void run() {
-
                     try {
                         pushEmail.push(whitelistInfo.getQqNum() + EmailTemplates.QQ_EMAIL,
                                 EmailTemplates.TITLE,
@@ -293,7 +390,6 @@ public class WhitelistInfoController extends BaseController {
                     } catch (ExecutionException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
-
                 }
             };
             asyncManager.execute(timerTask);
