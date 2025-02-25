@@ -157,6 +157,30 @@ public class WhitelistInfoController extends BaseController {
             return error("申请失败,请勿使用代理!");
         }
 
+        // 使用QQ号生成验证码
+        String code;
+        try {
+            // 基于QQ号生成固定验证码
+            // 改为1800秒(30分钟)来匹配缓存过期时间
+            String rawKey = whitelistInfo.getQqNum() + "_" + System.currentTimeMillis() / 1000 / 1800;
+            // 使用MD5加密并取前8位作为验证码
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] bytes = md.digest(rawKey.getBytes(StandardCharsets.UTF_8));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : bytes) {
+                sb.append(String.format("%02x", b));
+            }
+            code = sb.substring(0, 8);
+
+            // 检查是否已存在该验证码
+            if (redisCache.hasKey(CacheKey.VERIFY_KEY + code)) {
+                return error("请勿重复提交申请!");
+            }
+        } catch (Exception e) {
+            logger.error("生成验证码失败", e);
+            return error("系统错误,请稍后重试!");
+        }
+
         // 查询IP是否存在
         ipLimitInfo.setIp(ip);
         List<IpLimitInfo> ipLimitInfos = iIpLimitInfoService.selectIpLimitInfoList(ipLimitInfo);
@@ -246,30 +270,6 @@ public class WhitelistInfoController extends BaseController {
         details.setCreateTime(new Date());
         details.setIdentity(Identity.PLAYER.getValue());
 
-        // 使用QQ号生成验证码
-        String code;
-        try {
-            // 基于QQ号生成固定验证码
-            // 改为1800秒(30分钟)来匹配缓存过期时间
-            String rawKey = whitelistInfo.getQqNum() + "_" + System.currentTimeMillis() / 1000 / 1800;
-            // 使用MD5加密并取前8位作为验证码
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] bytes = md.digest(rawKey.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : bytes) {
-                sb.append(String.format("%02x", b));
-            }
-            code = sb.substring(0, 8);
-
-            // 检查是否已存在该验证码
-            if (redisCache.hasKey(CacheKey.VERIFY_KEY + code)) {
-                return error("请勿重复提交申请!");
-            }
-        } catch (Exception e) {
-            logger.error("生成验证码失败", e);
-            return error("系统错误,请稍后重试!");
-        }
-
         // 缓存对象,30分钟
         Map<String, Object> data = new HashMap<>();
         data.put("whitelistInfo", whitelistInfo);
@@ -312,7 +312,7 @@ public class WhitelistInfoController extends BaseController {
         }
 
         if (!redisCache.hasKey(CacheKey.VERIFY_KEY + code)) {
-            return error("验证失败,验证码已过期!");
+            return error("验证失败,验证码无效!");
         }
 
         Map<String, Object> data = redisCache.getCacheObject(CacheKey.VERIFY_KEY + code);
