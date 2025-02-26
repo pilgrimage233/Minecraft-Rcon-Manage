@@ -56,7 +56,7 @@ public class ServerCommandInfoServiceImpl implements IServerCommandInfoService {
     @Override
     public int insertServerCommandInfo(ServerCommandInfo serverCommandInfo) {
         serverCommandInfo.setCreateTime(DateUtils.getNowDate());
-
+        int result = 0;
         // 判断是否为多个服务器
         if (serverCommandInfo.getServerId().contains(",")) {
             int index = 0;
@@ -72,10 +72,15 @@ public class ServerCommandInfoServiceImpl implements IServerCommandInfoService {
                     index++;
                 }
             }
-            return index;
+            result = index;
         } else {
-            return serverCommandInfoMapper.insertServerCommandInfo(serverCommandInfo);
+            result = serverCommandInfoMapper.insertServerCommandInfo(serverCommandInfo);
         }
+        if (result != 0) {
+            // 更新缓存
+            initServerCommandInfo();
+        }
+        return result;
     }
 
     /**
@@ -87,7 +92,12 @@ public class ServerCommandInfoServiceImpl implements IServerCommandInfoService {
     @Override
     public int updateServerCommandInfo(ServerCommandInfo serverCommandInfo) {
         serverCommandInfo.setUpdateTime(DateUtils.getNowDate());
-        return serverCommandInfoMapper.updateServerCommandInfo(serverCommandInfo);
+        final int i = serverCommandInfoMapper.updateServerCommandInfo(serverCommandInfo);
+        if (i == 1) {
+            // 更新缓存
+            initServerCommandInfo();
+        }
+        return i;
     }
 
     /**

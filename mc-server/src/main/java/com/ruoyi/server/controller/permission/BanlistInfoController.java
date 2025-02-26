@@ -79,7 +79,7 @@ public class BanlistInfoController extends BaseController {
     @AddOrUpdateFilter(edit = true)
     @PutMapping
     public AjaxResult edit(@RequestBody BanlistInfo banlistInfo) {
-        return toAjax(banlistInfoService.updateBanlistInfo(banlistInfo));
+        return toAjax(banlistInfoService.updateBanlistInfo(banlistInfo, true));
     }
 
     /**

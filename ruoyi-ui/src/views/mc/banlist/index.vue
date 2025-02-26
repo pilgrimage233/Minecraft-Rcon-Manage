@@ -138,7 +138,14 @@
           <el-input v-model="form.userName" placeholder="请输入用户名称"/>
         </el-form-item>
         <el-form-item label="封禁状态" prop="state">
-          <el-input v-model="form.state" placeholder="请输入封禁状态"/>
+          <el-radio-group v-model="form.state" size="small">
+            <el-radio
+              v-for="item in [{label: '解禁', value: 0}, {label: '封禁', value: 1}]"
+              :key="item.value"
+              :label="item.value"
+            >{{ item.label }}
+            </el-radio>
+          </el-radio-group>
         </el-form-item>
         <el-form-item label="封禁原因" prop="reason">
           <el-input v-model="form.reason" placeholder="请输入封禁原因"/>

@@ -262,7 +262,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 banlistInfo.setState(0L);
                 banlistInfo.setUpdateBy(name);
                 banlistInfo.setUpdateTime(new Date());
-                banlistInfoService.updateBanlistInfo(banlistInfo);
+                banlistInfoService.updateBanlistInfo(banlistInfo, false);
             }
             if (!whitelistInfo.getStatus().equals("1")) {
                 whitelistInfo.setAddState("0");
@@ -287,8 +287,9 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
 
         try {
             sendCommand(whitelistInfo, String.format(Command.BAN_ADD, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
-            // 全局广播
-            sendCommand(whitelistInfo, "say §4[全局封禁] §c" + whitelistInfo.getUserName() + " §4已被全局封禁,原因: §c[" + whitelistInfo.getBannedReason() + "] §4审核人: §c" + name, true);
+            sendCommand(whitelistInfo, String.format(Command.WHITELIST_REMOVE, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
+            // 全局广播，使用英文
+            rconService.sendCommand("all", "broadcast &c" + whitelistInfo.getUserName() + " &7has been banned by &c" + name + "&7, reason: &c" + whitelistInfo.getBannedReason(), false);
 
             try {
                 pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
@@ -322,7 +323,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 banlistInfo.setState(1L);
                 banlistInfo.setUpdateBy(name);
                 banlistInfo.setUpdateTime(new Date());
-                banlistInfoService.updateBanlistInfo(banlistInfo);
+                banlistInfoService.updateBanlistInfo(banlistInfo, false);
             }
         } else {
             // 如果没有封禁记录则新增封禁记录

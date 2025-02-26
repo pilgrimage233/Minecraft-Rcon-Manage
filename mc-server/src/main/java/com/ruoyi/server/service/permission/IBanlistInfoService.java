@@ -41,7 +41,7 @@ public interface IBanlistInfoService {
      * @param banlistInfo 封禁管理
      * @return 结果
      */
-    public int updateBanlistInfo(BanlistInfo banlistInfo);
+    public int updateBanlistInfo(BanlistInfo banlistInfo, boolean flag);
 
     /**
      * 批量删除封禁管理

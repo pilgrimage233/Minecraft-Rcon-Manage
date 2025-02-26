@@ -1,8 +1,12 @@
 package com.ruoyi.server.service.permission.impl;
 
 import com.ruoyi.common.utils.DateUtils;
+import com.ruoyi.server.common.constant.Command;
+import com.ruoyi.server.common.service.RconService;
 import com.ruoyi.server.domain.permission.BanlistInfo;
+import com.ruoyi.server.domain.permission.WhitelistInfo;
 import com.ruoyi.server.mapper.permission.BanlistInfoMapper;
+import com.ruoyi.server.mapper.permission.WhitelistInfoMapper;
 import com.ruoyi.server.service.permission.IBanlistInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -19,6 +23,12 @@ import java.util.List;
 public class BanlistInfoServiceImpl implements IBanlistInfoService {
     @Autowired
     private BanlistInfoMapper banlistInfoMapper;
+
+    @Autowired
+    private WhitelistInfoMapper whitelistInfoMapper;
+
+    @Autowired
+    private RconService rconService;
 
     /**
      * 查询封禁管理
@@ -61,12 +71,41 @@ public class BanlistInfoServiceImpl implements IBanlistInfoService {
      * @return 结果
      */
     @Override
-    public int updateBanlistInfo(BanlistInfo banlistInfo) {
+    public int updateBanlistInfo(BanlistInfo banlistInfo, boolean flag) {
         banlistInfo.setUpdateTime(DateUtils.getNowDate());
-        // 解封状态
-       /* if (banlistInfo.getState() == 0) {
-            RconUtil.sendCommand("all",RconUtil.replaceCommand("all", "pardon %s", banlistInfo.getUserName()));
-        }*/
+        if (flag) {
+            final WhitelistInfo whitelistInfo = whitelistInfoMapper.selectWhitelistInfoById(banlistInfo.getWhiteId());
+            if (banlistInfo.getState() == 1) {
+                if (whitelistInfo != null) {
+                    // 封禁
+                    rconService.sendCommand("all", String.format(Command.BAN_ADD, whitelistInfo.getUserName()),
+                            whitelistInfo.getOnlineFlag() == 1);
+                    // 移除
+                    rconService.sendCommand("all", String.format(Command.WHITELIST_REMOVE, whitelistInfo.getUserName()),
+                            whitelistInfo.getOnlineFlag() == 1);
+
+                    // 更新白名单状态
+                    whitelistInfo.setStatus("0");
+                    whitelistInfo.setAddState("9");
+                    whitelistInfo.setUpdateBy(banlistInfo.getUpdateBy());
+                    whitelistInfo.setUpdateTime(DateUtils.getNowDate());
+                    whitelistInfoMapper.updateWhitelistInfo(whitelistInfo);
+                }
+            } else {
+                if (whitelistInfo != null) {
+                    // 发送解封命令
+                    rconService.sendCommand("all", String.format(Command.BAN_REMOVE, whitelistInfo.getUserName()),
+                            whitelistInfo.getOnlineFlag() == 1);
+
+                    // 更新白名单状态
+                    whitelistInfo.setStatus("0");
+                    whitelistInfo.setAddState("0");
+                    whitelistInfo.setUpdateBy(banlistInfo.getUpdateBy());
+                    whitelistInfo.setUpdateTime(DateUtils.getNowDate());
+                    whitelistInfoMapper.updateWhitelistInfo(whitelistInfo);
+                }
+            }
+        }
         return banlistInfoMapper.updateBanlistInfo(banlistInfo);
     }
 

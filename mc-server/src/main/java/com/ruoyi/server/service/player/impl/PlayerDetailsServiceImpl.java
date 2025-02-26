@@ -1,6 +1,7 @@
 package com.ruoyi.server.service.player.impl;
 
 import com.ruoyi.common.utils.DateUtils;
+import com.ruoyi.server.common.constant.Command;
 import com.ruoyi.server.common.service.RconService;
 import com.ruoyi.server.domain.permission.OperatorList;
 import com.ruoyi.server.domain.player.PlayerDetails;
@@ -85,18 +86,28 @@ public class PlayerDetailsServiceImpl implements IPlayerDetailsService {
             playerDetails.setUpdateBy(name);
             playerDetails.setUpdateTime(DateUtils.getNowDate());
             if (playerDetails.getIdentity().equals(Identity.OPERATOR.getValue())) {
-                final OperatorList operator = new OperatorList();
-                operator.setStatus(1L);
+                OperatorList operator = new OperatorList();
                 operator.setUserName(playerDetails.getUserName());
-                operator.setCreateTime(DateUtils.getNowDate());
-                operator.setCreateBy(name);
-                if (playerDetails.getRemark() != null) {
-                    operator.setRemark(playerDetails.getRemark());
+                // 查询玩家之前是否获得过管理员权限
+                final List<OperatorList> operatorLists = operatorListService.selectOperatorListList(operator);
+                if (operatorLists != null && !operatorLists.isEmpty()) {
+                    operator = operatorLists.get(0);
+                    operator.setStatus(1L);
+                    operator.setUpdateBy(name);
+                    operator.setUpdateTime(DateUtils.getNowDate());
+                    operatorListService.updateOperatorList(operator);
+                } else {
+                    operator.setStatus(1L);
+                    operator.setCreateTime(DateUtils.getNowDate());
+                    operator.setCreateBy(name);
+                    if (playerDetails.getRemark() != null) {
+                        operator.setRemark(playerDetails.getRemark());
+                    }
+                    operatorListService.insertOperatorList(operator);
                 }
-                operatorListService.insertOperatorList(operator);
 
                 // 发送命令
-                rconService.sendCommand("all", String.format("op %s", playerDetails.getUserName()), true);
+                rconService.sendCommand("all", String.format(Command.OP_ADD, playerDetails.getUserName()), true);
             }
 
             if (playerDetails.getIdentity().equals(Identity.PLAYER.getValue())) {
@@ -114,7 +125,7 @@ public class PlayerDetailsServiceImpl implements IPlayerDetailsService {
                         operatorListService.updateOperatorList(operator);
 
                         // 发送命令
-                        rconService.sendCommand("all", String.format("deop %s", playerDetails.getUserName()), true);
+                        rconService.sendCommand("all", String.format(Command.OP_REMOVE, playerDetails.getUserName()), true);
                     }
                 }
             }

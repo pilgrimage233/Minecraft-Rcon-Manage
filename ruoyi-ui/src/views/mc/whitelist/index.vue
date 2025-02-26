@@ -443,7 +443,7 @@ export default {
       const id = row.id || this.ids
       getWhitelist(id).then(response => {
         this.form = response.data;
-        this.form.banFlag === 'true';
+        this.form.banFlag = this.form.addState === '9';
         this.open = true;
         this.title = "修改白名单";
         if (this.form.addState === '2') {

@@ -347,22 +347,21 @@ export default {
         this.form = response.data;
         this.open = true;
         this.title = "修改指令管理";
-        // 根据servers字段回显服务器列表
+        // 根据serverId字段回显服务器列表，支持多个服务器ID
         if (this.form.serverId !== null) {
-          this.serverOptions.forEach((option) => {
-            if (option.value == this.form.serverId) {
-              this.serverList.push(option.value);
-            }
-          });
+          this.serverList = this.form.serverId.split(',').map(id => parseInt(id));
         }
       });
-
     },
     /** 提交按钮 */
     submitForm() {
       this.$refs["form"].validate(valid => {
         if (valid) {
-          // 服务器ID
+          if (this.serverList.length === 0) {
+            this.$modal.msgError("请选择服务器");
+            return;
+          }
+          // 服务器ID，保持原有格式
           this.form.serverId = this.serverList.join(",");
 
           if (this.form.id != null) {
