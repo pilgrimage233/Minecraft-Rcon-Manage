@@ -634,3 +634,64 @@ INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, comp
                             remark)
 VALUES (2062, '玩家详情导出', 2057, 5, '#', '', null, 1, 0, 'F', '0', '0', 'player:details:export', '#', 'admin',
         '2024-12-31 03:34:39', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2063, '管理员名单', 2000, 1, 'operator', 'player/operator/index', null, 1, 0, 'C', '0', '0',
+        'player:operator:list', 'user', 'admin', '2025-01-11 12:20:35', 'admin', '2025-01-11 12:21:19',
+        '管理员名单菜单');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2064, '管理员名单查询', 2063, 1, '#', '', null, 1, 0, 'F', '0', '0', 'player:operator:query', '#', 'admin',
+        '2025-01-11 12:20:35', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2065, '管理员名单新增', 2063, 2, '#', '', null, 1, 0, 'F', '0', '0', 'player:operator:add', '#', 'admin',
+        '2025-01-11 12:20:35', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2066, '管理员名单修改', 2063, 3, '#', '', null, 1, 0, 'F', '0', '0', 'player:operator:edit', '#', 'admin',
+        '2025-01-11 12:20:35', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2067, '管理员名单删除', 2063, 4, '#', '', null, 1, 0, 'F', '0', '0', 'player:operator:remove', '#', 'admin',
+        '2025-01-11 12:20:35', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2068, '管理员名单导出', 2063, 5, '#', '', null, 1, 0, 'F', '0', '0', 'player:operator:export', '#', 'admin',
+        '2025-01-11 12:20:35', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2069, '定时命令', 2000, 1, 'regular', 'regular/command/index', null, 1, 0, 'C', '0', '0',
+        'regular:command:list', 'time', 'admin', '2025-02-14 23:47:25', 'admin', '2025-02-14 23:54:39', '定时命令菜单');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2070, '定时命令查询', 2069, 1, '#', '', null, 1, 0, 'F', '0', '0', 'regular:command:query', '#', 'admin',
+        '2025-02-14 23:47:26', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2071, '定时命令新增', 2069, 2, '#', '', null, 1, 0, 'F', '0', '0', 'regular:command:add', '#', 'admin',
+        '2025-02-14 23:47:26', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2072, '定时命令修改', 2069, 3, '#', '', null, 1, 0, 'F', '0', '0', 'regular:command:edit', '#', 'admin',
+        '2025-02-14 23:47:26', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2073, '定时命令删除', 2069, 4, '#', '', null, 1, 0, 'F', '0', '0', 'regular:command:remove', '#', 'admin',
+        '2025-02-14 23:47:26', '', null, '');
+INSERT INTO ruoyi.sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2074, '定时命令导出', 2069, 5, '#', '', null, 1, 0, 'F', '0', '0', 'regular:command:export', '#', 'admin',
+        '2025-02-14 23:47:26', '', null, '');
