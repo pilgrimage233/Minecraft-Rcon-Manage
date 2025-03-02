@@ -74,13 +74,13 @@ spring:
   # redis 配置
   redis:
     # 地址
-    host: 10.0.0.150
+    host: 127.0.0.1
     # 端口，默认为6379
     port: 6379
     # 数据库索引
     database: 0
     # 密码
-    password: redis_x8Qzrh
+    password:
     # 连接超时时间
     timeout: 10s
     lettuce:
@@ -146,3 +146,9 @@ whitelist:
   # ip限流
   iplimit: 3
   email: 2873336923@qq.com
+
+# 加密配置
+encrypt:
+  # 加密密钥 使用 openssl rand -base64 16 命令生成 16
+  # 严格保管，不可泄露！
+  key: uXCYKknS1LECgDnYwMA/Ag==

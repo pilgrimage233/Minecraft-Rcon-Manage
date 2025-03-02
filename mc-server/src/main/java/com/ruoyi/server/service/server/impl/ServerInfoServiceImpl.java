@@ -4,6 +4,7 @@ import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.MapCache;
+import com.ruoyi.server.common.PasswordManager;
 import com.ruoyi.server.common.constant.CacheKey;
 import com.ruoyi.server.common.constant.RconMsg;
 import com.ruoyi.server.common.service.RconService;
@@ -94,7 +95,22 @@ public class ServerInfoServiceImpl implements IServerInfoService {
     public int insertServerInfo(ServerInfo serverInfo) {
         // 设置随机UUID
         serverInfo.setUuid(UUID.randomUUID().toString());
-        return serverInfoMapper.insertServerInfo(serverInfo);
+        try {
+            // 设置Rcon密码
+            serverInfo.setRconPassword(PasswordManager.encrypt(serverInfo.getRconPassword()));
+        } catch (Exception e) {
+            log.error("密码加密失败：" + e.getMessage());
+        }
+        final int result = serverInfoMapper.insertServerInfo(serverInfo);
+        // 更新缓存
+        if (result > 0) {
+            this.rebuildCache();
+            // 初始化Rcon连接
+            if (MapCache.containsKey(serverInfo.getId().toString())) {
+                rconService.init(serverInfo);
+            }
+        }
+        return result;
     }
 
     /**
@@ -105,6 +121,12 @@ public class ServerInfoServiceImpl implements IServerInfoService {
      */
     @Override
     public int updateServerInfo(ServerInfo serverInfo) {
+        try {
+            // 设置Rcon密码
+            serverInfo.setRconPassword(PasswordManager.encrypt(serverInfo.getRconPassword()));
+        } catch (Exception e) {
+            log.error("密码加密失败：" + e.getMessage());
+        }
         final int result = serverInfoMapper.updateServerInfo(serverInfo);
         // 更新缓存
         if (result > 0) {

@@ -6,6 +6,7 @@ import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.DomainToIp;
 import com.ruoyi.server.common.MapCache;
+import com.ruoyi.server.common.PasswordManager;
 import com.ruoyi.server.common.constant.CacheKey;
 import com.ruoyi.server.common.constant.Command;
 import com.ruoyi.server.common.constant.RconMsg;
@@ -89,7 +90,7 @@ public class RconService {
                 }
                 log.debug("发送命令成功: {}", command);
                 return result.toString();
-                
+
             } catch (Exception e) {
                 retryCount++;
                 log.warn("发送命令失败，第{}次重试: {}", retryCount, e.getMessage());
@@ -160,7 +161,7 @@ public class RconService {
             // 使用异步线程初始化Rcon连接，超时时间为5秒
             CompletableFuture.runAsync(() -> {
                 try {
-                    client.set(RconClient.open(DomainToIp.domainToIp(info.getIp()), info.getRconPort().intValue(), info.getRconPassword()));
+                    client.set(RconClient.open(DomainToIp.domainToIp(info.getIp()), info.getRconPort().intValue(), PasswordManager.decrypt(info.getRconPassword())));
                     log.debug(RconMsg.INIT_RCON + "{}", info.getNameTag());
                 } catch (Exception e) {
                     log.error(RconMsg.CONNECT_ERROR + "{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), info.getRconPassword());
