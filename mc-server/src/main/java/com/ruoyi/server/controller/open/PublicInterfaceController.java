@@ -43,7 +43,13 @@ public class PublicInterfaceController extends BaseController {
      */
     @GetMapping("/aggregateQuery")
     public AjaxResult aggregateQuery() {
-        return success(serverInfoService.aggregateQuery());
+        final Map<String, Object> result = serverInfoService.aggregateQuery();
+        if (!result.isEmpty()) {
+            return success(result);
+        } else {
+            return error("服务器为空");
+        }
+
     }
 
     @GetMapping("getWhiteList")

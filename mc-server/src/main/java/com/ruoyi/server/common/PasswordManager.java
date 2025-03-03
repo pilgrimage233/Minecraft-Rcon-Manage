@@ -19,12 +19,14 @@ public class PasswordManager {
     private static final String TRANSFORMATION = "AES/GCM/NoPadding";
     private static final int GCM_IV_LENGTH = 12;
     private static final int GCM_TAG_LENGTH = 128;
-    private static Environment env;
+
+    @Autowired
+    private Environment env;
 
     /**
      * 加密（返回格式：BASE64(IV + 密文)）
      */
-    public static String encrypt(String plaintext) throws Exception {
+    public String encrypt(String plaintext) throws Exception {
         byte[] key = loadKeyFromEnv();
         byte[] iv = generateSecureIV();
 
@@ -39,7 +41,7 @@ public class PasswordManager {
     /**
      * 解密
      */
-    public static String decrypt(String encrypted) throws Exception {
+    public String decrypt(String encrypted) throws Exception {
         byte[] key = loadKeyFromEnv();
         byte[] combined = Base64.getDecoder().decode(encrypted);
 
@@ -54,7 +56,7 @@ public class PasswordManager {
     }
 
     // 安全密钥加载（通过环境变量）
-    private static byte[] loadKeyFromEnv() {
+    private byte[] loadKeyFromEnv() {
         String keyBase64 = env.getProperty("encrypt.key");
         if (keyBase64 == null) {
             throw new SecurityException("加密密钥未配置");
@@ -63,26 +65,21 @@ public class PasswordManager {
     }
 
     // 辅助方法
-    private static byte[] generateSecureIV() {
+    private byte[] generateSecureIV() {
         byte[] iv = new byte[GCM_IV_LENGTH];
         new SecureRandom().nextBytes(iv);
         return iv;
     }
 
-    private static byte[] combineIVAndCipher(byte[] iv, byte[] cipherText) {
+    private byte[] combineIVAndCipher(byte[] iv, byte[] cipherText) {
         byte[] combined = new byte[iv.length + cipherText.length];
         System.arraycopy(iv, 0, combined, 0, iv.length);
         System.arraycopy(cipherText, 0, combined, iv.length, cipherText.length);
         return combined;
     }
 
-    @Autowired
-    public void setEnvironment(Environment env) {
-        PasswordManager.env = env;
-    }
-
     // 字节分割工具类
-    private static class ByteSplitter {
+    private class ByteSplitter {
         private final byte[] data;
         private final int splitPosition;
 

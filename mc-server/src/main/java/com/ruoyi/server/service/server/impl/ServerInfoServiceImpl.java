@@ -3,9 +3,11 @@ package com.ruoyi.server.service.server.impl;
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
+import com.ruoyi.server.async.AsyncManager;
 import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.PasswordManager;
 import com.ruoyi.server.common.constant.CacheKey;
+import com.ruoyi.server.common.constant.Command;
 import com.ruoyi.server.common.constant.RconMsg;
 import com.ruoyi.server.common.service.RconService;
 import com.ruoyi.server.domain.permission.BanlistInfo;
@@ -20,6 +22,7 @@ import com.ruoyi.server.service.permission.IBanlistInfoService;
 import com.ruoyi.server.service.permission.IOperatorListService;
 import com.ruoyi.server.service.permission.IWhitelistInfoService;
 import com.ruoyi.server.service.server.IServerInfoService;
+import lombok.SneakyThrows;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.BeanUtils;
@@ -62,6 +65,9 @@ public class ServerInfoServiceImpl implements IServerInfoService {
     @Autowired
     private IBanlistInfoService banlistInfoService;
 
+    @Autowired
+    private PasswordManager PasswordManager;
+
 
     /**
      * 查询服务器信息
@@ -91,6 +97,7 @@ public class ServerInfoServiceImpl implements IServerInfoService {
      * @param serverInfo 服务器信息
      * @return 结果
      */
+    @SneakyThrows
     @Override
     public int insertServerInfo(ServerInfo serverInfo) {
         // 设置随机UUID
@@ -110,6 +117,14 @@ public class ServerInfoServiceImpl implements IServerInfoService {
                 rconService.init(serverInfo);
             }
         }
+        // 异步同步黑名单
+        AsyncManager.getInstance().execute(new TimerTask() {
+            @Override
+            public void run() {
+                syncBanList(serverInfo);
+            }
+        });
+
         return result;
     }
 
@@ -121,13 +136,42 @@ public class ServerInfoServiceImpl implements IServerInfoService {
      */
     @Override
     public int updateServerInfo(ServerInfo serverInfo) {
-        try {
-            // 设置Rcon密码
-            serverInfo.setRconPassword(PasswordManager.encrypt(serverInfo.getRconPassword()));
-        } catch (Exception e) {
-            log.error("密码加密失败：" + e.getMessage());
+        boolean sync = false;
+        // 判断IP和端口是否变化，如果变化就同步黑名单
+        final ServerInfo old = serverInfoMapper.selectServerInfoById(serverInfo.getId());
+        if (old != null) {
+            if (!old.getIp().equals(serverInfo.getIp()) || !Objects.equals(old.getRconPort(), serverInfo.getRconPort())) {
+                sync = true;
+            }
         }
+        // 判断加密后的密码是否相同，如果相同就不要修改
+        if (old != null) {
+            if (old.getRconPassword().equals(serverInfo.getRconPassword())) {
+                serverInfo.setRconPassword(null);
+            } else {
+                try {
+                    // 设置Rcon密码
+                    if (StringUtils.isNotEmpty(serverInfo.getRconPassword())) {
+                        serverInfo.setRconPassword(PasswordManager.encrypt(serverInfo.getRconPassword()));
+                    }
+                } catch (Exception e) {
+                    log.error("密码加密失败：" + e.getMessage());
+                }
+            }
+        }
+        // 更新服务器信息
         final int result = serverInfoMapper.updateServerInfo(serverInfo);
+
+        // 异步同步黑名单
+        if (sync) {
+            AsyncManager.getInstance().execute(new TimerTask() {
+                @Override
+                public void run() {
+                    syncBanList(serverInfo);
+                }
+            });
+        }
+
         // 更新缓存
         if (result > 0) {
             this.rebuildCache();
@@ -291,4 +335,61 @@ public class ServerInfoServiceImpl implements IServerInfoService {
         redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, serverInfos, 3, TimeUnit.DAYS);
         redisCache.setCacheObject(CacheKey.SERVER_INFO_UPDATE_TIME_KEY, DateUtils.getNowDate());
     }
+
+    @SneakyThrows
+    public void syncBanList(ServerInfo serverInfo) {
+        log.info("同步黑名单 服务器ID ---> " + serverInfo.getNameTag());
+        // 简单的黑名单同步
+        if (serverInfo.getStatus() == 1) {
+            final BanlistInfo banlistInfo = new BanlistInfo();
+            banlistInfo.setState(1L);
+            final List<BanlistInfo> banlistInfos = banlistInfoService.selectBanlistInfoList(banlistInfo);
+
+            List<Long> ids = new ArrayList<>();
+
+            if (banlistInfos == null || banlistInfos.isEmpty()) {
+                return;
+            }
+
+            banlistInfos.forEach(o -> ids.add(o.getWhiteId()));
+            final List<WhitelistInfo> whitelistInfos = whitelistInfo.selectWhitelistInfoByIds(ids);
+            Map<Long, WhitelistInfo> map = whitelistInfos.stream()
+                    .collect(Collectors.toMap(WhitelistInfo::getId, info -> info, (a, b) -> b));
+
+            List<String> names = new ArrayList<>();
+            // 同步黑名单
+            if (map.isEmpty()) {
+                return;
+            }
+
+            for (BanlistInfo info : banlistInfos) {
+                if (map.containsKey(info.getWhiteId())) {
+                    final WhitelistInfo whitelistInfo = map.get(info.getWhiteId());
+                    if (whitelistInfo != null) {
+                        try {
+                            if (MapCache.containsKey(serverInfo.getId().toString())) {
+                                try {
+                                    MapCache.get(serverInfo.getId().toString()).
+                                            sendCommand(String.format(Command.BAN_ADD, whitelistInfo.getUserName()));
+                                } catch (Exception e) {
+                                    // 尝试重连
+                                    if (rconService.init(serverInfo)) {
+                                        // 回调
+                                        syncBanList(serverInfo);
+                                    }
+                                }
+                            }
+                            names.add(info.getUserName());
+                        } catch (Exception e) {
+                            log.error("同步黑名单失败：" + e.getMessage());
+                        }
+                    }
+                    // 防止Rcon频繁操作
+                    if (banlistInfos.size() > 5) Thread.sleep(500);
+                }
+            }
+            log.info("同步黑名单成功：" + names);
+        }
+    }
+
 }

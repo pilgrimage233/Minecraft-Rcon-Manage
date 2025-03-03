@@ -20,6 +20,14 @@ public interface IWhitelistInfoService {
     public WhitelistInfo selectWhitelistInfoById(Long id);
 
     /**
+     * 查询白名单
+     *
+     * @param ids 白名单主键集合
+     * @return 白名单
+     */
+    public List<WhitelistInfo> selectWhitelistInfoByIds(List<Long> ids);
+
+    /**
      * 查询白名单列表
      *
      * @param whitelistInfo 白名单

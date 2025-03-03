@@ -38,6 +38,8 @@ public class RconService {
     private EmailService emailService;
     @Autowired
     private RedisCache redisCache;
+    @Autowired
+    private PasswordManager PasswordManager;
 
     /**
      * 发送Rcon命令
@@ -158,18 +160,40 @@ public class RconService {
         final String ERROR_COUNT_KEY = CacheKey.ERROR_COUNT_KEY;
         AtomicReference<RconClient> client = new AtomicReference<>();
         try {
+            String decryptedPassword;
+            try {
+                try {
+                    decryptedPassword = PasswordManager.decrypt(info.getRconPassword());
+                    log.debug("密码解密成功: {}", info.getNameTag());
+                } catch (NullPointerException e) {
+                    // 环境变量未初始化，使用原始密码
+                    log.warn("环境变量未初始化，使用原始密码: {}", info.getNameTag());
+                    decryptedPassword = info.getRconPassword();
+                }
+            } catch (Exception e) {
+                log.error("密码解密失败: {} - {}", info.getNameTag(), e.getMessage());
+                // e.printStackTrace();
+                // 尝试使用原始密码
+                log.warn("尝试使用原始密码连接: {}", info.getNameTag());
+                decryptedPassword = info.getRconPassword();
+            }
+
             // 使用异步线程初始化Rcon连接，超时时间为5秒
+            String finalDecryptedPassword = decryptedPassword;
             CompletableFuture.runAsync(() -> {
                 try {
-                    client.set(RconClient.open(DomainToIp.domainToIp(info.getIp()), info.getRconPort().intValue(), PasswordManager.decrypt(info.getRconPassword())));
+                    client.set(RconClient.open(DomainToIp.domainToIp(info.getIp()),
+                            info.getRconPort().intValue(),
+                            finalDecryptedPassword));
                     log.debug(RconMsg.INIT_RCON + "{}", info.getNameTag());
                 } catch (Exception e) {
-                    log.error(RconMsg.CONNECT_ERROR + "{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), info.getRconPassword());
+                    log.error(RconMsg.CONNECT_ERROR + "{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), "******");
                     log.error(RconMsg.ERROR_MSG + "{}", e.getMessage());
                 }
-            }).get(3, TimeUnit.SECONDS);
+            }).get(5, TimeUnit.SECONDS);
 
             if (client.get() == null) {
+                log.error("RconClient初始化失败，client为null: {}", info.getNameTag());
                 throw new RuntimeException("RconClient is null");
             }
 

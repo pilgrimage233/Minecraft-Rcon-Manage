@@ -269,6 +269,7 @@ public class WhitelistInfoController extends BaseController {
         details.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
         details.setCreateTime(new Date());
         details.setIdentity(Identity.PLAYER.getValue());
+        details.setGameTime(0L);
 
         // 缓存对象,30分钟
         Map<String, Object> data = new HashMap<>();

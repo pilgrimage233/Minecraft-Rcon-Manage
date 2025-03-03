@@ -6,11 +6,9 @@ import com.ruoyi.server.common.constant.CacheKey;
 import com.ruoyi.server.common.constant.RconMsg;
 import com.ruoyi.server.common.service.RconService;
 import com.ruoyi.server.domain.server.ServerInfo;
-import com.ruoyi.server.service.other.IRegularCmdService;
 import com.ruoyi.server.service.server.IServerCommandInfoService;
 import com.ruoyi.server.service.server.IServerInfoService;
 import lombok.extern.slf4j.Slf4j;
-import org.quartz.Scheduler;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -33,12 +31,6 @@ public class InitializingBeanExamplebBean implements InitializingBean {
 
     @Autowired
     private RconService rconService;
-
-    @Autowired
-    private Scheduler scheduler;
-
-    @Autowired
-    private IRegularCmdService regularCmdService;
 
     /**
      * InitializingBean afterPropertiesSet

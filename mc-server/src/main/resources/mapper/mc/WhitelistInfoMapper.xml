@@ -50,6 +50,15 @@
         where id = #{id}
     </select>
 
+    <!--根据list 多id查询-->
+    <select id="selectWhitelistInfoByIds" parameterType="java.util.List" resultMap="WhitelistInfoResult">
+        <include refid="selectWhitelistInfoVo"/>
+        where id in
+        <foreach item="id" collection="list" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
     <insert id="insertWhitelistInfo" parameterType="WhitelistInfo" useGeneratedKeys="true" keyProperty="id">
         insert into whitelist_info
         <trim prefix="(" suffix=")" suffixOverrides=",">

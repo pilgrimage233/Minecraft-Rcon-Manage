@@ -93,6 +93,17 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
     }
 
     /**
+     * 查询白名单
+     *
+     * @param ids 白名单主键集合
+     * @return 白名单
+     */
+    @Override
+    public List<WhitelistInfo> selectWhitelistInfoByIds(List<Long> ids) {
+        return whitelistInfoMapper.selectWhitelistInfoByIds(ids);
+    }
+
+    /**
      * 查询白名单列表
      *
      * @param whitelistInfo 白名单
@@ -406,6 +417,16 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 log.error("添加白名单失败,请联系管理员!");
                 return 0;
             }
+        }
+        // 详情关联ID
+        PlayerDetails details = new PlayerDetails();
+        details.setQq(whitelistInfo.getQqNum());
+        final List<PlayerDetails> playerDetails = playerDetailsService.selectPlayerDetailsList(details);
+
+        if (!playerDetails.isEmpty()) {
+            details = playerDetails.get(0);
+            details.setWhitelistId(whitelistInfo.getId());
+            playerDetailsService.updatePlayerDetails(details, false);
         }
 
         try {

@@ -2,6 +2,7 @@ package com.ruoyi.server.service.server.impl;
 
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.server.common.ObjectCache;
+import com.ruoyi.server.common.service.RconService;
 import com.ruoyi.server.domain.server.ServerCommandInfo;
 import com.ruoyi.server.mapper.server.ServerCommandInfoMapper;
 import com.ruoyi.server.service.server.IServerCommandInfoService;
@@ -79,6 +80,7 @@ public class ServerCommandInfoServiceImpl implements IServerCommandInfoService {
         if (result != 0) {
             // 更新缓存
             initServerCommandInfo();
+            RconService.COMMAND_INFO = ObjectCache.getCommandInfo();
         }
         return result;
     }
@@ -96,6 +98,7 @@ public class ServerCommandInfoServiceImpl implements IServerCommandInfoService {
         if (i == 1) {
             // 更新缓存
             initServerCommandInfo();
+            RconService.COMMAND_INFO = ObjectCache.getCommandInfo();
         }
         return i;
     }
