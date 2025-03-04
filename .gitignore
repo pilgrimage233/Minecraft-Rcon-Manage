@@ -41,7 +41,8 @@ nbdist/
 *.log
 *.xml.versionsBackup
 *.swp
-config
+# 忽略项目配置
+/config
 
 !*/build/*.java
 !*/build/*.html

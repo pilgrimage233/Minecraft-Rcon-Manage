@@ -8,9 +8,8 @@
     <artifactId>ruoyi</artifactId>
     <version>3.8.7</version>
 
-    <name>ruoyi</name>
-    <url>http://www.ruoyi.vip</url>
-    <description>若依管理系统</description>
+    <name>Endlss</name>
+    <description>Minecraft服务器管理系统</description>
 
     <properties>
         <ruoyi.version>3.8.7</ruoyi.version>
@@ -85,7 +84,11 @@
                     </exclusion>
                 </exclusions>
             </dependency>
-
+            <dependency>
+                <groupId>org.snakeyaml</groupId>
+                <artifactId>snakeyaml-engine</artifactId>
+                <version>2.7.0</version>
+            </dependency>
             <!-- io常用工具类 -->
             <dependency>
                 <groupId>commons-io</groupId>

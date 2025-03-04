@@ -18,7 +18,7 @@ ruoyi:
 # 开发环境配置
 server:
   # 服务器的HTTP端口，默认为8080
-  port: 8081
+  port: 8080
   servlet:
     # 应用的访问路径
     context-path: /
@@ -136,10 +136,22 @@ xss:
   # 匹配链接
   urlPatterns: /system/*,/monitor/*,/tool/*
 
-aliyun:
-  account: support@mcpeach.cc
-  password: 85G9BUobquaJ6nNt
+# 邮件服务配置
+email:
+  # 是否启用邮件服务
   enable: true
+  # 邮件服务提供商类型：aliyun, qq, 163, gmail, outlook等
+  type: aliyun
+  # 发件人邮箱账号
+  account: support@mcpeach.cc
+  # 发件人邮箱密码或授权码
+  password: 85G9BUobquaJ6nNt
+  # 发件人显示名称
+  senderName: "Minecraft Server"
+  # 自定义SMTP服务器配置（可选）
+  # smtpHost: smtp.example.com
+  # smtpPort: 465
+  # ssl: true
 
 whitelist:
   easyauth: true

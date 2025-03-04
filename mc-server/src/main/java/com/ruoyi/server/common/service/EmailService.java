@@ -1,8 +1,9 @@
 package com.ruoyi.server.common.service;
 
+import com.ruoyi.server.config.EmailConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.NotNull;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.mail.*;
@@ -21,17 +22,12 @@ import java.util.concurrent.ExecutionException;
 @Slf4j
 @Component
 public class EmailService {
-    // 读取yaml配置的id和secret
-    @Value("${aliyun.account}")
-    private String account;
-    @Value("${aliyun.password}")
-    private String password;
-    @Value("${aliyun.enable}")
-    private String enable;
+    @Autowired
+    private EmailConfig emailConfig;
 
     public void push(String email, String title, String content) throws ExecutionException, InterruptedException {
         // 是否开启邮件推送
-        if (!"true".equals(enable)) {
+        if (!emailConfig.isEnable()) {
             return;
         }
 
@@ -52,7 +48,7 @@ public class EmailService {
             //建立邮件对象
             MimeMessage message = new MimeMessage(session);
             //设置邮件的发件人
-            InternetAddress from = new InternetAddress(account, "Support"); //from 参数,可实现代发，注意：代发容易被收信方拒信或进入垃圾箱。
+            InternetAddress from = new InternetAddress(emailConfig.getAccount(), emailConfig.getSenderName()); //from 参数,可实现代发，注意：代发容易被收信方拒信或进入垃圾箱。
             message.setFrom(from);
             //设置邮件的收件人
             String[] to = {email};//收件人列表
@@ -83,19 +79,24 @@ public class EmailService {
     private @NotNull Properties getProperties() {
         final String SSL_FACTORY = "javax.net.ssl.SSLSocketFactory";
         Properties props = System.getProperties();
+        EmailConfig.SmtpConfig smtpConfig = emailConfig.getCurrentSmtpConfig();
+        
         //协议
         props.setProperty("mail.transport.protocol", "smtp");
-        props.setProperty("mail.smtp.host", "smtp.qiye.aliyun.com");//smtp服务器地址
-        //props.setProperty("mail.smtp.port", "25");//非加密端口
-        // 使用ssl加密方式，进行如下配置：
-        props.setProperty("mail.smtp.socketFactory.class", SSL_FACTORY);
-        props.setProperty("mail.smtp.socketFactory.fallback", "false");
-        props.setProperty("mail.smtp.socketFactory.port", "465");
+        props.setProperty("mail.smtp.host", smtpConfig.getSmtpHost());
+        props.setProperty("mail.smtp.port", String.valueOf(smtpConfig.getSmtpPort()));
 
-        props.setProperty("mail.smtp.auth", "true");//表示SMTP发送邮件，需要进行身份验证
-        props.setProperty("mail.smtp.from", account);//mailfrom 参数
-        props.setProperty("mail.user", account);//发件人的账号
-        props.setProperty("mail.password", password);// 发件人的账号的密码，如果开启三方客户端安全密码请使用新生产的密码
+        if (smtpConfig.isSsl()) {
+            props.setProperty("mail.smtp.socketFactory.class", SSL_FACTORY);
+            props.setProperty("mail.smtp.socketFactory.fallback", "false");
+            props.setProperty("mail.smtp.socketFactory.port", String.valueOf(smtpConfig.getSmtpPort()));
+        }
+
+        props.setProperty("mail.smtp.auth", "true");
+        props.setProperty("mail.smtp.from", emailConfig.getAccount());
+        props.setProperty("mail.user", emailConfig.getAccount());
+        props.setProperty("mail.password", emailConfig.getPassword());
+        
         return props;
     }
 }
