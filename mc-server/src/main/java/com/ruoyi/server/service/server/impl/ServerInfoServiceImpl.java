@@ -81,6 +81,17 @@ public class ServerInfoServiceImpl implements IServerInfoService {
     }
 
     /**
+     * 查询服务器信息
+     *
+     * @param ids 服务器信息主键
+     * @return 服务器信息
+     */
+    @Override
+    public List<ServerInfo> selectServerInfoByIds(List<Long> ids) {
+        return serverInfoMapper.selectServerInfoByIds(ids);
+    }
+
+    /**
      * 查询服务器信息列表
      *
      * @param serverInfo 服务器信息
@@ -332,6 +343,13 @@ public class ServerInfoServiceImpl implements IServerInfoService {
         if (serverInfos == null || serverInfos.isEmpty()) {
             log.error(RconMsg.SERVER_EMPTY);
         }
+        Map<String, ServerInfo> map = new HashMap<>();
+        if (serverInfos != null) {
+            for (ServerInfo serverInfo : serverInfos) {
+                map.put(serverInfo.getId().toString(), serverInfo);
+            }
+        }
+        redisCache.setCacheObject(CacheKey.SERVER_INFO_MAP_KEY, map);
         redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, serverInfos, 3, TimeUnit.DAYS);
         redisCache.setCacheObject(CacheKey.SERVER_INFO_UPDATE_TIME_KEY, DateUtils.getNowDate());
     }

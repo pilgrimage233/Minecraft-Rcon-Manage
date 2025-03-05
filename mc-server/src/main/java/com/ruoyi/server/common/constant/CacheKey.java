@@ -8,6 +8,8 @@ public class CacheKey {
 
     public static final String SERVER_INFO_KEY = "server_manager:server_info";
 
+    public static final String SERVER_INFO_MAP_KEY = "server_manager:server_info_map";
+
     public static final String SERVER_INFO_UPDATE_TIME_KEY = "server_manager:server_info_updateTime";
 
     public static final String COMMAND_INFO_KEY = "server_manager:command_info";

@@ -1,8 +1,14 @@
 package com.ruoyi.server.common;
 
 import com.ruoyi.common.utils.StringUtils;
+import org.springframework.stereotype.Component;
 
+import java.util.List;
+import java.util.Map;
+
+@Component
 public class EmailTemplates {
+
     public static final String TITLE = "白名单审核通知";
 
     public static final String SUCCESS_CONTENT = "您好：%s，您的白名单已于：%s 日通过审核，审核人：%s 请您遵守相关规定，祝您游戏愉快！";
@@ -268,14 +274,7 @@ public class EmailTemplates {
             "            <!-- 通过时显示 -->\n" +
             "            <p>服务器信息：</p>\n" +
             "            <div class=\"info-box\">\n" +
-            "                <div class=\"info-item\">\n" +
-            "                    <span class=\"info-label\">服务器地址：</span>\n" +
-            "                    <span class=\"info-value\">fun.rrat.fun</span>\n" +
-            "                </div>\n" +
-            "                <div class=\"info-item\">\n" +
-            "                    <span class=\"info-label\">游戏版本：</span>\n" +
-            "                    <span class=\"info-value\">1.21.1</span>\n" +
-            "                </div>\n" +
+            "                   {info}                    " +
             "            </div>\n" +
             "            \n" +
             "            <p>温馨提示：</p>\n" +
@@ -727,14 +726,59 @@ public class EmailTemplates {
 
     // 替换模板中的变量
     public static String getWhitelistNotification(String username, String gameId, String applyTime,
-                                                  String reviewTime, String titte) {
+                                                  String reviewTime, String titte, String appUrl, List<Map<String, Object>> infoList) {
         String template = WHITELIST_NOTIFICATION_TEMPLATE;
 
-        // 替换变量
+        // 定义单个服务器信息的HTML模板
+        String serverInfoTemplate =
+                "<div class=\"server-info-block\" style=\"margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;\">\n" +
+                        "    <div class=\"info-item\">\n" +
+                        "        <span class=\"info-label\">服务器名称：</span>\n" +
+                        "        <span class=\"info-value\">{name}</span>\n" +
+                        "    </div>\n" +
+                        "    <div class=\"info-item\">\n" +
+                        "        <span class=\"info-label\">服务器地址：</span>\n" +
+                        "        <span class=\"info-value\">{serverAddress}:{port}</span>\n" +
+                        "    </div>\n" +
+                        "    <div class=\"info-item\">\n" +
+                        "        <span class=\"info-label\">游戏版本：</span>\n" +
+                        "        <span class=\"info-value\">{core}-{version}</span>\n" +
+                        "    </div>\n" +
+                        "</div>";
+
+        // 替换基本变量
         template = template.replace("{username}", username)
                 .replace("{gameId}", gameId)
                 .replace("{applyTime}", applyTime)
                 .replace("{reviewTime}", reviewTime);
+
+        // 处理服务器信息
+        if (infoList == null || infoList.isEmpty()) {
+            // 如果没有服务器信息，提供链接查看
+            String URL = appUrl + "/#/player-servers/" + gameId;
+            String linkHtml = "<div style='text-align: center;'>" +
+                    "<a href=\"" + URL + "\" class=\"button\" " +
+                    "style=\"display: inline-block; padding: 12px 24px; background: #409EFF; " +
+                    "color: white; text-decoration: none; border-radius: 24px; margin: 20px 0; " +
+                    "font-weight: 500; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);\" " +
+                    "onmouseover=\"this.style.background='#66b1ff'; this.style.transform='translateY(-2px)';\" " +
+                    "onmouseout=\"this.style.background='#409EFF'; this.style.transform='translateY(0)';\">" +
+                    "查看服务器信息</a></div>";
+            template = template.replace("{info}", linkHtml);
+        } else {
+            // 有服务器信息，生成服务器信息HTML
+            StringBuilder serverInfoHtml = new StringBuilder();
+            for (Map<String, Object> infoMap : infoList) {
+                String serverInfo = serverInfoTemplate;
+                serverInfo = serverInfo.replace("{name}", (String) infoMap.get("name"))
+                        .replace("{serverAddress}", (String) infoMap.get("serverAddress"))
+                        .replace("{port}", String.valueOf(infoMap.get("port")))
+                        .replace("{core}", (String) infoMap.get("core"))
+                        .replace("{version}", (String) infoMap.get("version"));
+                serverInfoHtml.append(serverInfo);
+            }
+            template = template.replace("{info}", serverInfoHtml.toString());
+        }
 
         // 根据审核结果显示不同状态
         switch (titte) {

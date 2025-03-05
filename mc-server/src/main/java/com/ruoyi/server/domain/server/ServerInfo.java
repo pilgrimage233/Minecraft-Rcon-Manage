@@ -36,9 +36,33 @@ public class ServerInfo extends BaseEntity {
     private String nameTag;
 
     /**
-     * 服务器IP
+     * 游玩地址
      */
-    @Excel(name = "服务器IP")
+    @Excel(name = "游玩地址")
+    private String playAddress;
+
+    /**
+     * 地址端口号
+     */
+    @Excel(name = "地址端口号")
+    private Integer playAddressPort;
+
+    /**
+     * 服务器版本
+     */
+    @Excel(name = "服务器版本")
+    private String serverVersion;
+
+    /**
+     * 服务器核心
+     */
+    @Excel(name = "服务器核心")
+    private String serverCore;
+
+    /**
+     * RCON远程地址
+     */
+    @Excel(name = "RCON远程地址")
     private String ip;
 
     /**
@@ -65,6 +89,10 @@ public class ServerInfo extends BaseEntity {
                 .append("id", getId())
                 .append("uuid", getUuid())
                 .append("nameTag", getNameTag())
+                .append("playAddress", getPlayAddress())
+                .append("playAddressPort", getPlayAddressPort())
+                .append("serverVersion", getServerVersion())
+                .append("serverCore", getServerCore())
                 .append("ip", getIp())
                 .append("rconPort", getRconPort())
                 .append("rconPassword", getRconPassword())

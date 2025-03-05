@@ -9,19 +9,21 @@ import com.ruoyi.server.common.service.RconService;
 import com.ruoyi.server.domain.permission.BanlistInfo;
 import com.ruoyi.server.domain.permission.WhitelistInfo;
 import com.ruoyi.server.domain.player.PlayerDetails;
+import com.ruoyi.server.domain.server.ServerInfo;
 import com.ruoyi.server.mapper.permission.WhitelistInfoMapper;
 import com.ruoyi.server.service.permission.IBanlistInfoService;
 import com.ruoyi.server.service.permission.IWhitelistInfoService;
 import com.ruoyi.server.service.player.IPlayerDetailsService;
+import com.ruoyi.server.service.server.IServerInfoService;
 import lombok.extern.slf4j.Slf4j;
 import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.List;
+import java.util.*;
 
 /**
  * 白名单Service业务层处理
@@ -46,6 +48,9 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
     private IBanlistInfoService banlistInfoService;
 
     @Autowired
+    private IServerInfoService serverInfoService;
+
+    @Autowired
     private EmailService pushEmail;
 
     @Autowired
@@ -53,6 +58,9 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
 
     @Autowired
     private IPlayerDetailsService playerDetailsService;
+
+    @Value("${ruoyi.app-url}")
+    private String appUrl;
 
     /**
      * 查询白名单
@@ -431,17 +439,49 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
 
         try {
             if (flag) {
+                List<Map<String, Object>> data = null;
+                final String servers = whitelistInfo.getServers();
+
+                if (!servers.contains("all")) {
+                    List<Long> ids = new ArrayList<>();
+                    for (String s : servers.split(",")) {
+                        ids.add(Long.parseLong(s));
+                    }
+                    if (ids.size() <= 3) {
+                        final List<ServerInfo> serverInfos = serverInfoService.selectServerInfoByIds(ids);
+
+                        data = new ArrayList<>();
+                        Map<String, Object> map = null;
+                        if (!serverInfos.isEmpty()) {
+                            for (ServerInfo serverInfo : serverInfos) {
+                                map = new HashMap<>();
+                                map.put("name", serverInfo.getNameTag());
+                                map.put("serverAddress", serverInfo.getPlayAddress());
+                                map.put("port", serverInfo.getPlayAddressPort());
+                                map.put("core", serverInfo.getServerCore());
+                                map.put("version", serverInfo.getServerVersion());
+                                data.add(map);
+                            }
+                        }
+                    }
+                }
+
                 pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
                         EmailTemplates.SUCCESS_TITLE,
-                        EmailTemplates.getWhitelistNotification(
-                                whitelistInfo.getQqNum(),
-                                whitelistInfo.getUserName(),
-                                dateFormat.format(whitelistInfo.getTime()),
-                                DateUtils.getTime(),
-                                EmailTemplates.SUCCESS_TITLE)
+                        EmailTemplates.getWhitelistNotification
+                                (
+                                        whitelistInfo.getQqNum(),
+                                        whitelistInfo.getUserName(),
+                                        dateFormat.format(whitelistInfo.getTime()),
+                                        DateUtils.getTime(),
+                                        EmailTemplates.SUCCESS_TITLE,
+                                        appUrl,
+                                        data
+                                )
                 );
             }
         } catch (Exception e) {
+            e.printStackTrace();
             log.error("发送邮件失败,请联系管理员!");
             return 0;
         }

@@ -13,7 +13,9 @@ import org.springframework.beans.factory.InitializingBean;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -55,6 +57,14 @@ public class InitializingBeanExamplebBean implements InitializingBean {
         if (serverInfos == null || serverInfos.isEmpty()) {
             log.error(RconMsg.SERVER_EMPTY);
         }
+        Map<String, ServerInfo> map = new HashMap<>();
+        if (serverInfos != null) {
+            for (ServerInfo serverInfo : serverInfos) {
+                map.put(serverInfo.getId().toString(), serverInfo);
+            }
+        }
+
+        redisCache.setCacheObject(CacheKey.SERVER_INFO_MAP_KEY, map);
 
         redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, serverInfos, 3, TimeUnit.DAYS);
 

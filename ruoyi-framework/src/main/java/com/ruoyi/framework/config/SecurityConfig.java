@@ -118,6 +118,7 @@ public class SecurityConfig extends WebSecurityConfigurerAdapter {
                 .antMatchers("/mc/whitelist/check").permitAll()
                 .antMatchers("/mc/whitelist/getWhiteList").permitAll()
                 .antMatchers("/server/serverlist/sendCommand").permitAll()
+                .antMatchers("/server/serverlist/getServerInfoByGameId/*").permitAll()
                 .antMatchers("/mojang/user/**").permitAll()
                 .antMatchers("/mojang/**").permitAll()
                 .antMatchers("/api/v1/**").permitAll()

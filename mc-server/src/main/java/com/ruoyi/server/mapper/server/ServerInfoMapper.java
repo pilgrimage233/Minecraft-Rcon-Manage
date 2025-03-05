@@ -22,6 +22,14 @@ public interface ServerInfoMapper {
     public ServerInfo selectServerInfoById(Long id);
 
     /**
+     * 查询服务器信息
+     *
+     * @param ids 服务器信息主键
+     * @return 服务器信息
+     */
+    public List<ServerInfo> selectServerInfoByIds(List<Long> ids);
+
+    /**
      * 查询服务器信息列表
      *
      * @param serverInfo 服务器信息

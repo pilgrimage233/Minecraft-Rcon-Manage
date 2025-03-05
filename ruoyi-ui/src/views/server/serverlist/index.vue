@@ -111,9 +111,17 @@
     <el-table v-loading="loading" :data="serverlistList" @selection-change="handleSelectionChange">
       <el-table-column align="center" type="selection" width="55"/>
       <el-table-column align="center" label="主键ID" prop="id"/>
-      <el-table-column align="center" label="服务器名称标签" prop="nameTag"/>
-      <el-table-column align="center" label="服务器IP" prop="ip"/>
+      <el-table-column align="center" label="服务器名称" prop="nameTag"/>
+      <el-table-column align="center" label="远程地址" prop="ip"/>
       <el-table-column align="center" label="远程端口号" prop="rconPort"/>
+      <el-table-column align="center" label="游玩地址" prop="playAddress"/>
+      <el-table-column align="center" label="地址端口" prop="playAddressPort"/>
+      <el-table-column align="center" label="版本" prop="serverVersion"/>
+      <el-table-column align="center" label="核心" prop="serverCore">
+        <template slot-scope="scope">
+          <el-tag v-if="scope.row.serverCore">{{ scope.row.serverCore }}</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column align="center" label="创建时间" prop="createTime" width="180">
         <template slot-scope="scope">
           <span>{{ parseTime(scope.row.createTime, '{y}-{m}-{d} {h}:{i}') }}</span>
@@ -167,11 +175,50 @@
     <el-dialog :title="title" :visible.sync="open" append-to-body width="500px">
       <el-form ref="form" :model="form" :rules="rules" label-position="left" label-width="100px"
                size="medium">
-        <el-form-item label="服务器名称" prop="nameTag">
-          <el-input v-model="form.nameTag" :style="{width: '100%'}" clearable placeholder="请输入服务器名称">
-          </el-input>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="游玩地址" prop="playAddress">
+              <el-input v-model="form.playAddress" :style="{width: '95%'}" clearable placeholder="请输入游玩地址">
+              </el-input>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="地址端口" prop="playAddressPort">
+              <el-input v-model="form.playAddressPort" :style="{width: '95%'}" clearable placeholder="请输入游玩端口">
+              </el-input>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row>
+          <el-col :span="12">
+            <el-form-item label="服务器版本" prop="serverVersion">
+              <el-input
+                v-model="form.serverVersion"
+                :style="{width: '95%'}"
+                clearable
+                placeholder="请输入服务器版本">
+              </el-input>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="服务器核心" prop="serverCore">
+              <el-select v-model="form.serverCore" :style="{width: '95%'}" clearable placeholder="请选择服务器核心">
+                <el-option
+                  v-for="item in serverCoreOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value"
+                >
+                </el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-form-item v-if="form.serverCore === 'Custom'" label="自定义核心" prop="customServerCore">
+          <el-input v-model="form.customServerCore" :style="{width: '95%'}" clearable
+                    placeholder="请输入自定义服务器核心名称"></el-input>
         </el-form-item>
-        <el-form-item label="IP/域名" prop="ip">
+        <el-form-item label="RCON地址" prop="ip">
           <el-input v-model="form.ip" :style="{width: '100%'}" clearable placeholder="请输入服务器IP/域名">
           </el-input>
         </el-form-item>
@@ -390,6 +437,22 @@ export default {
         createBy: null,
         status: null,
       },
+      /** 服务器核心选项 */
+      serverCoreOptions: [
+        {value: 'Vanilla', label: 'Vanilla'},
+        {value: 'Spigot', label: 'Spigot'},
+        {value: 'Paper', label: 'Paper'},
+        {value: 'Forge', label: 'Forge'},
+        {value: 'Fabric', label: 'Fabric'},
+        {value: 'Bukkit', label: 'Bukkit'},
+        {value: 'CraftBukkit', label: 'CraftBukkit'},
+        {value: 'Sponge', label: 'Sponge'},
+        {value: 'Mohist', label: 'Mohist'},
+        {value: 'CatServer', label: 'CatServer'},
+        {value: 'Arclight', label: 'Arclight'},
+        {value: 'Purpur', label: 'Purpur'},
+        {value: 'Custom', label: '自定义'}
+      ],
       // 表单参数
       form: {},
       // 表单校验
@@ -413,6 +476,26 @@ export default {
           required: true,
           message: '请输入远程密码',
           trigger: 'blur'
+        }],
+        playAddress: [{
+          required: true,
+          message: '请输入游玩地址',
+          trigger: 'blur'
+        }],
+        playAddressPort: [{
+          required: true,
+          message: '请输入游玩端口',
+          trigger: 'blur'
+        }],
+        serverVersion: [{
+          required: true,
+          message: '请输入服务器版本',
+          trigger: 'blur'
+        }],
+        serverCore: [{
+          required: true,
+          message: '请选择服务器核心',
+          trigger: 'change'
         }]
       },
       consoleVisible: false,
@@ -458,7 +541,11 @@ export default {
         rconPort: null,
         rconPassword: null,
         status: null,
-        remark: null
+        remark: null,
+        playAddress: null,
+        playAddressPort: null,
+        serverVersion: null,
+        serverCore: null
       };
       this.resetForm("form");
     },
