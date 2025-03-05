@@ -172,18 +172,46 @@ const submitForm = () => {
     ElMessage.error('QQ号格式错误');
   } else {
     fullscreenLoading.value = true;
-    // 先获取用户IP
-    fetch('https://ip.useragentinfo.com/json')
-        .then(response => response.json())
-        .then(data => {
-          // 发送表单请求，带上IP信息和origin头
-          return http.post('/mc/whitelist/apply', form, {
-            headers: {
-              'X-Real-IP': data.ip,
-              // 添加origin头,获取当前页面的origin
-              'origin': window.location.origin
-            }
+
+    // 尝试获取用户IP，添加备用接
+    const getIpFromPrimarySource = () => {
+      return fetch('https://ip.useragentinfo.com/json', {
+        // 忽略SSL错误
+        mode: 'no-cors'
+      })
+          .then(response => response.json())
+          .catch(error => {
+            console.warn('主要IP获取接口失败，尝试备用接口:', error);
+            return getIpFromBackupSource();
           });
+    };
+
+    // 备用IP获取接口
+    const getIpFromBackupSource = () => {
+      return fetch('https://ipinfo.io/json')
+          .then(response => response.json())
+          .catch(error => {
+            console.warn('备用IP获取接口也失败:', error);
+            // 返回一个空对象，表示无法获取IP
+            return {};
+          });
+    };
+
+    // 开始获取IP
+    getIpFromPrimarySource()
+        .then(data => {
+          // 准备请求头
+          const headers = {
+            'origin': window.location.origin
+          };
+
+          // 如果成功获取到IP，添加到请求头
+          if (data && data.ip) {
+            headers['X-Real-IP'] = data.ip;
+          }
+
+          // 发送表单请求
+          return http.post('/mc/whitelist/apply', form, {headers});
         })
         .then((res) => {
           if (res.data.code === 200) {
