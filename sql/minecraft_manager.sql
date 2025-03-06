@@ -822,28 +822,35 @@ CREATE TABLE `server_command_info`
 -- Table structure for server_info
 -- ----------------------------
 DROP TABLE IF EXISTS `server_info`;
-CREATE TABLE `server_info`
+create table server_info
 (
-    `id`            int                                                    NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-    `uuid`          varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin  NOT NULL COMMENT '随机UUID',
-    `name_tag`      varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '服务器名称标签',
-    `ip`            varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '服务器IP',
-    `rcon_port`     int                                                    NOT NULL COMMENT 'RCON远程端口号',
-    `rcon_password` varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL COMMENT '远程密码/MD5加密',
-    `create_time`   datetime                                               NULL DEFAULT NULL COMMENT '创建时间',
-    `create_by`     varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL COMMENT '创建者',
-    `update_time`   datetime                                               NULL DEFAULT NULL COMMENT '更新时间',
-    `update_by`     varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NULL DEFAULT NULL COMMENT '更新者',
-    `status`        int                                                    NOT NULL COMMENT '启用状态',
-    `remark`        text CHARACTER SET utf8mb4 COLLATE utf8mb4_bin         NULL COMMENT '描述',
-    PRIMARY KEY (`id`) USING BTREE,
-    INDEX `server_info_id_index` (`id` ASC) USING BTREE,
-    INDEX `server_info_name_tag_index` (`name_tag` ASC) USING BTREE
-) ENGINE = InnoDB
-  AUTO_INCREMENT = 4
-  CHARACTER SET = utf8mb4
-  COLLATE = utf8mb4_bin COMMENT = '服务器信息'
-  ROW_FORMAT = DYNAMIC;
+    id                int auto_increment comment '主键ID'
+        primary key,
+    uuid              varchar(64)  not null comment '随机UUID',
+    name_tag          varchar(128) not null comment '服务器名称标签',
+    play_address      varchar(128) not null comment '游玩地址',
+    play_address_port int          not null comment '地址端口号(默认25565）',
+    server_version    varchar(64)  null comment '服务器版本',
+    server_core       varchar(64)  null comment '服务器核心',
+    ip                varchar(128) not null comment 'RCON远程地址',
+    rcon_port         int          not null comment 'RCON远程端口号',
+    rcon_password     varchar(256) not null comment '远程密码/MD5加密',
+    create_time       datetime     null comment '创建时间',
+    create_by         varchar(128) null comment '创建者',
+    update_time       datetime     null comment '更新时间',
+    update_by         varchar(128) null comment '更新者',
+    status            int          not null comment '启用状态',
+    remark            text         null comment '描述'
+)
+    comment '服务器信息' collate = utf8mb4_bin;
+
+create index server_info_id_index
+    on server_info (id);
+
+create index server_info_name_tag_index
+    on server_info (name_tag);
+
+
 
 -- ----------------------------
 -- Records of server_info
