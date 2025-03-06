@@ -1,0 +1,74 @@
+version: '3'
+services:
+  # 后端服务
+  endless-server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: endless-server
+    ports:
+      - "8081:8080"
+    depends_on:
+      - endless-mysql
+      - endless-redis
+    environment:
+      - SPRING_DATASOURCE_DRUID_MASTER_URL=jdbc:mysql://endless-mysql:3306/minecraft_manager?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2B8
+      - SPRING_DATASOURCE_DRUID_MASTER_USERNAME=root
+      - SPRING_DATASOURCE_DRUID_MASTER_PASSWORD=password
+      - SPRING_DATASOURCE_DRUID_INITIALSIZE=5
+      - SPRING_DATASOURCE_DRUID_MINIDLE=10
+      - SPRING_DATASOURCE_DRUID_MAXACTIVE=20
+      - SPRING_REDIS_HOST=endless-redis
+    restart: always
+    networks:
+      - endless-net
+
+  # 前端服务
+  endless-ui:
+    build:
+      context: ./ruoyi-ui
+      dockerfile: Dockerfile
+    container_name: endless-ui
+    ports:
+      - "80:80"
+    depends_on:
+      - endless-server
+    restart: always
+    networks:
+      - endless-net
+
+  # MySQL服务
+  endless-mysql:
+    image: mysql:8.0.41
+    container_name: endless-mysql
+    ports:
+      - "13306:3306"  # 将主机端口从3306改为13306
+    environment:
+      MYSQL_ROOT_PASSWORD: password
+      MYSQL_DATABASE: minecraft_manager
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./sql:/docker-entrypoint-initdb.d/
+    restart: always
+    networks:
+      - endless-net
+
+  # Redis服务
+  endless-redis:
+    image: redis:6.0
+    container_name: endless-redis
+    ports:
+      - "16379:6379"
+    volumes:
+      - redis-data:/data
+    restart: always
+    networks:
+      - endless-net
+
+networks:
+  endless-net:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:
