@@ -138,6 +138,12 @@
             <artifactId>lombok</artifactId>
         </dependency>
 
+        <!--引入Hutool-->
+        <dependency>
+            <groupId>cn.hutool</groupId>
+            <artifactId>hutool-all</artifactId>
+            <version>5.8.35</version>
+        </dependency>
         <!--     <dependency>
                  <groupId>com.github.pilgrimage233.minecraft-rcon-client</groupId>
                  <artifactId>minecraft-rcon-client</artifactId>

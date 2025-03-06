@@ -33,7 +33,7 @@ server:
     accept-count: 1000
     threads:
       # tomcat最大线程数，默认为200
-      max: 800
+      max: 200
       # Tomcat启动初始化的线程数，默认值10
       min-spare: 10
 
@@ -163,4 +163,14 @@ whitelist:
 encrypt:
   # 加密密钥 使用 openssl rand -base64 16 命令生成
   # 严格保管，不可泄露！
-  key: uXCYKknS1LECgDnYwMA/Ag==
+  key: o85Ultxa3spqSVd3RcUP1w==
+
+qq:
+  bot:
+    enable: true
+    ws:
+      url: ws://10.0.0.150:3001  # 替换为实际的WebSocket URL
+    http:
+      url: http://10.0.0.150:3000 # 替换为实际的HTTP Server URL
+    token: 123
+    group_id: 702055554 # 需要的群号 ， 隔开

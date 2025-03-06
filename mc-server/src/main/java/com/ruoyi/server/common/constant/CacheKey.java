@@ -22,4 +22,6 @@ public class CacheKey {
 
     public static final String VERIFY_KEY = "server_manager:verify:";
 
+    public static final String VERIFY_FOR_BOT_KEY = "server_manager:verify:bot:";
+
 }

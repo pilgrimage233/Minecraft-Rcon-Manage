@@ -68,11 +68,11 @@
 
 ### 环境要求
 
-- JDK 1.8+
-- Maven 3.0+
+- JDK 1.8
+- Maven 3.2
 - MySQL 5.7+
 - Redis 5.0+
-- Node.js 12+
+- Node.js 16
 
 ### 开发环境部署
 
@@ -122,22 +122,22 @@ spring:
 
 ```javascript
 // 修改 ruoyi-ui/vue.config.js 中的target API接口地址
-proxy: {
-   // detail: https://cli.vuejs.org/config/#devserver-proxy
-   [process.env.VUE_APP_BASE_API]
-:
-   {
-      // target: `http://localhost:8081`,
-      changeOrigin: true,
-              pathRewrite
-   :
-      {
-         ['^' + process.env.VUE_APP_BASE_API]
-      :
-         ''
+  devServer: {
+    host: '0.0.0.0', // 如果要支持ipv6，可以设置成 ::，这样既支持ipv4又支持ipv6
+    port: port,
+    open: true,
+    proxy: {
+      // detail: https://cli.vuejs.org/config/#devserver-proxy
+      [process.env.VUE_APP_BASE_API]: {
+        target: `http://localhost:8080`,
+        changeOrigin: true,
+        pathRewrite: {
+          ['^' + process.env.VUE_APP_BASE_API]: ''
+        }
       }
-   }
-}
+    },
+    disableHostCheck: true
+  }
 ```
 
 #### 4. 启动服务
@@ -225,9 +225,11 @@ server {
 
 ```javascript
 // 此前端需要切换到Node.js 18版本
-// 修改接口地址 whitelist/.env
-VITE_API_URL = http
-://localhost:8081
+// 此前端需要切换到Node.js 18版本
+// 此前端需要切换到Node.js 18版本
+// 如果觉得麻烦可以选择cloudflare pages部署 免费 免费 免费
+// 修改接口地址 whitelist/.env   这个地方可以写后端地址，但我更推荐写后台代理后的地址，就是Ruoyi_ui部署后的域名+prod-api，比如我的是http://localhost:80/prod-api
+VITE_API_URL = http://localhost:8081
 ```
 
 ## 系统使用指南

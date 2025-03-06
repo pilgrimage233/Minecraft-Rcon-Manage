@@ -306,39 +306,102 @@ public class WhitelistInfoController extends BaseController {
      * @return
      */
     @GetMapping("/verify")
-    public AjaxResult verify(@RequestParam String code) {
-
+    @CrossOrigin(origins = {"https://app.yousb.sbs", "http://mc.yousb.sbs"}, maxAge = 3600)
+    public AjaxResult verify(@RequestParam String code, @RequestHeader Map<String, String> header) {
         if (StringUtils.isEmpty(code)) {
             return error("验证失败,请勿直接访问此链接!");
         }
 
-        if (!redisCache.hasKey(CacheKey.VERIFY_KEY + code)) {
+        // 检查验证码是否存在（区分来源）
+        String webKey = CacheKey.VERIFY_KEY + code;
+        String botKey = CacheKey.VERIFY_FOR_BOT_KEY + code;
+        String cacheKey = null;
+
+        if (redisCache.hasKey(webKey)) {
+            cacheKey = webKey;
+        } else if (redisCache.hasKey(botKey)) {
+            cacheKey = botKey;
+        }
+
+        if (cacheKey == null) {
             return error("验证失败,验证码无效!");
         }
 
-        Map<String, Object> data = redisCache.getCacheObject(CacheKey.VERIFY_KEY + code);
-
-        if (data == null) {
+        // 获取缓存数据
+        Object cacheData = redisCache.getCacheObject(cacheKey);
+        if (cacheData == null) {
             return error("验证失败,数据为空!");
         }
+
         WhitelistInfo whitelistInfo;
-        PlayerDetails details;
+        PlayerDetails details = null;
 
         try {
-            // 从JSONObject转换为WhitelistInfo
-            JSONObject whitelistInfoJson = (JSONObject) data.get("whitelistInfo");
-            whitelistInfo = whitelistInfoJson.toJavaObject(WhitelistInfo.class);
+            // 根据来源处理不同的数据结构
+            if (cacheKey.equals(webKey)) {
+                // Web端申请的数据处理
+                Map<String, Object> data = (Map<String, Object>) cacheData;
+                JSONObject whitelistInfoJson = (JSONObject) data.get("whitelistInfo");
+                whitelistInfo = whitelistInfoJson.toJavaObject(WhitelistInfo.class);
 
-            // 从JSONObject转换为PlayerDetails 
-            JSONObject detailsJson = (JSONObject) data.get("details");
-            details = detailsJson.toJavaObject(PlayerDetails.class);
+                JSONObject detailsJson = (JSONObject) data.get("details");
+                details = detailsJson.toJavaObject(PlayerDetails.class);
+            } else {
+                // QQ机器人申请的数据处理
+                whitelistInfo = (WhitelistInfo) cacheData;
+
+                // 为QQ机器人申请创建PlayerDetails
+                details = new PlayerDetails();
+                details.setUserName(whitelistInfo.getUserName());
+                details.setQq(whitelistInfo.getQqNum());
+                details.setCreateBy("BOT::apply::" + whitelistInfo.getUserName());
+                details.setCreateTime(new Date());
+                details.setIdentity(Identity.PLAYER.getValue());
+                details.setGameTime(0L);
+
+                // 尝试获取IP地理位置（如果header中有IP信息）
+                String ip = header.get("x-real-ip");
+                if (ip == null) {
+                    ip = header.get("x-forwarded-for");
+                }
+                if (ip == null) {
+                    ip = header.get("proxy-client-ip");
+                }
+                if (ip == null) {
+                    ip = header.get("wl-proxy-client-ip");
+                }
+                if (ip == null) {
+                    ip = header.get("http_client_ip");
+                }
+                if (ip == null) {
+                    ip = header.get("http_x_forwarded_for");
+                }
+
+                if (StringUtils.isNotEmpty(ip)) {
+                    try {
+                        // 获取IP地理位置
+                        String result = HttpUtils.sendGet("http://ip-api.com/json/" + ip);
+                        JSONObject json = JSONObject.parseObject(result);
+                        if (json.containsKey("city")) {
+                            details.setCity(json.getString("city"));
+                        }
+                        if (json.containsKey("regionName")) {
+                            details.setProvince(json.getString("regionName"));
+                        }
+                    } catch (Exception e) {
+                        logger.error("获取IP地理位置失败", e);
+                    }
+                }
+            }
         } catch (Exception e) {
             logger.error("数据转换失败", e);
             return error("验证失败,数据格式错误!");
         }
 
         // 保存玩家详情
-        playerDetailsService.insertPlayerDetails(details);
+        if (details != null) {
+            playerDetailsService.insertPlayerDetails(details);
+        }
 
         // 补全基础申请信息
         if (whitelistInfo.getOnlineFlag() == 1) {
@@ -357,17 +420,20 @@ public class WhitelistInfoController extends BaseController {
                     String uuid = json.getString("id");
                     // 格式化成带横杠的UUID
                     uuid = uuid.substring(0, 8) + "-" + uuid.substring(8, 12) + "-" + uuid.substring(12, 16) + "-" + uuid.substring(16, 20) + "-" + uuid.substring(20);
-
                     whitelistInfo.setUserUuid(uuid);
                 }
             } catch (Exception e) {
                 logger.error("获取正版UUID失败", e);
             }
         } else {
-            // 盗版随机生成一个UUID,加了白名单修复mod的服务器不匹配ID
+            // 盗版随机生成一个UUID
             whitelistInfo.setUserUuid(UUID.randomUUID().toString());
         }
-        whitelistInfo.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
+
+        // 设置创建信息
+        String createBy = cacheKey.startsWith(CacheKey.VERIFY_KEY) ?
+                "WEB::apply::" : "BOT::apply::";
+        whitelistInfo.setCreateBy(createBy + whitelistInfo.getUserName());
         whitelistInfo.setCreateTime(new Date());
         whitelistInfo.setTime(new Date());
         whitelistInfo.setAddState("0"); // 添加状态：0-未添加，1-已添加
@@ -375,8 +441,9 @@ public class WhitelistInfoController extends BaseController {
 
         if (whitelistInfoService.insertWhitelistInfo(whitelistInfo) != 0) {
             // 删除验证码
-            redisCache.deleteObject(CacheKey.VERIFY_KEY + code);
-            // 发送邮件通知
+            redisCache.deleteObject(cacheKey);
+
+            // 发送邮件通知申请人
             TimerTask timerTask = new TimerTask() {
                 @Override
                 public void run() {
@@ -394,12 +461,17 @@ public class WhitelistInfoController extends BaseController {
                 }
             };
             asyncManager.execute(timerTask);
+
             // 通知管理员
+            String finalCacheKey = cacheKey;
             TimerTask timerTask2 = new TimerTask() {
                 @Override
                 public void run() {
                     try {
-                        pushEmail.push(ADMIN_EMAIL, EmailTemplates.TITLE, "用户[" + whitelistInfo.getUserName() + "]的白名单申请已提交,请尽快审核!");
+                        pushEmail.push(ADMIN_EMAIL, EmailTemplates.TITLE,
+                                "用户[" + whitelistInfo.getUserName() + "]通过" +
+                                        (finalCacheKey.startsWith(CacheKey.VERIFY_KEY) ? "网页" : "QQ机器人") +
+                                        "提交了白名单申请,请尽快审核!");
                     } catch (ExecutionException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
@@ -411,7 +483,6 @@ public class WhitelistInfoController extends BaseController {
         } else {
             return error(EmailTemplates.APPLY_ERROR);
         }
-
     }
 
     /**
@@ -485,123 +556,10 @@ public class WhitelistInfoController extends BaseController {
     public AjaxResult cheack(@RequestParam Map<String, String> params) {
 
         if (params.isEmpty()) {
-            return error("申请信息不能为空!");
+            return error("查询信息不能为空!");
         }
 
-        Map<String, Object> map = new LinkedHashMap<>();
-        WhitelistInfo whitelistInfo = new WhitelistInfo();
-        if (params.containsKey("id") && !params.get("id").isEmpty()) {
-            whitelistInfo.setUserName(params.get("id").toLowerCase());
-        }
-        if (params.containsKey("qq") && !params.get("qq").isEmpty()) {
-            whitelistInfo.setQqNum(params.get("qq"));
-        }
-
-        if (!whitelistInfoService.checkRepeat(whitelistInfo).isEmpty()) {
-            List<WhitelistInfo> whitelistInfos = whitelistInfoService.checkRepeat(whitelistInfo);
-            WhitelistInfo obj = whitelistInfos.get(0);
-
-            map.put("游戏ID", obj.getUserName());
-            map.put("QQ号", obj.getQqNum());
-            // map.put("提交时间", dateFormat.format(obj.getAddTime()));  // 容余
-            if (obj.getOnlineFlag() == 1) {
-                map.put("账号类型", "正版");
-            } else {
-                map.put("账号类型", "离线");
-            }
-
-            PlayerDetails playerDetails = new PlayerDetails();
-            playerDetails.setUserName(obj.getUserName().toLowerCase());
-            final List<PlayerDetails> details = playerDetailsService.selectPlayerDetailsList(playerDetails);
-
-            if (!details.isEmpty()) {
-                playerDetails = details.get(0);
-            }
-
-            // if (playerDetails.getProvince() != null) {
-            //     map.put("省份", playerDetails.getProvince());
-            // }
-
-            // 直辖市
-            String[] directCity = {"北京市", "天津市", "上海市", "重庆市"};
-            if (playerDetails.getCity() != null) {
-                if (Arrays.asList(directCity).contains(playerDetails.getCity())) {
-                    map.put("城市", playerDetails.getCity());
-                } else {
-                    map.put("城市", playerDetails.getProvince() + "-" + playerDetails.getCity());
-                }
-            }
-
-
-            if (playerDetails.getIdentity() != null) {
-                String identity;
-                switch (playerDetails.getIdentity()) {
-                    case "player":
-                        identity = Identity.PLAYER.getDesc();
-                        break;
-                    case "operator":
-                        identity = Identity.OPERATOR.getDesc();
-                        break;
-                    case "banned":
-                        identity = Identity.BANNED.getDesc();
-                        break;
-                    default:
-                        identity = Identity.OTHER.getDesc();
-                        break;
-                }
-                map.put("身份", identity);
-            }
-
-            if (playerDetails.getLastOnlineTime() != null && playerDetails.getLastOfflineTime() != null) {
-                // 在线时间和离线时间取最大的
-                map.put("最后上线时间", playerDetails.getLastOnlineTime().getTime()
-                        > playerDetails.getLastOfflineTime().getTime()
-                        ? dateFormat.format(playerDetails.getLastOnlineTime())
-                        : dateFormat.format(playerDetails.getLastOfflineTime()));
-            } else if (playerDetails.getLastOnlineTime() != null) {
-                map.put("最后上线时间", dateFormat.format(playerDetails.getLastOnlineTime()));
-            }
-
-            if (playerDetails.getGameTime() != null) {
-                if (playerDetails.getGameTime() > 60) {
-                    map.put("游戏时间", playerDetails.getGameTime() / 60 + "小时");
-                } else {
-                    map.put("游戏时间", playerDetails.getGameTime() + "分钟");
-                }
-            }
-
-            if (StringUtils.isNotEmpty(playerDetails.getParameters())) {
-                // 取历史名称
-                final JSONObject jsonObject = JSONObject.parseObject(playerDetails.getParameters());
-                if (jsonObject.containsKey("name_history")) {
-                    map.put("历史名称", jsonObject.getJSONArray("name_history"));
-                }
-            }
-
-            map.put("审核人", obj.getReviewUsers());
-            // map.put("UUID", obj.getUserUuid());
-            switch (obj.getAddState()) {
-                case "1":
-                    map.put("审核状态", "已通过");
-                    map.put("审核时间", dateFormat.format(obj.getAddTime()));
-                    break;
-                case "2":
-                    map.put("审核状态", "未通过/已移除");
-                    map.put("移除时间", dateFormat.format(obj.getRemoveTime()));
-                    map.put("移除原因", obj.getRemoveReason());
-                    break;
-                case "9":
-                    map.put("审核状态", "已封禁");
-                    map.put("封禁时间", dateFormat.format(obj.getRemoveTime()));
-                    map.put("封禁原因", obj.getRemoveReason());
-                    break;
-                default:
-                    map.put("审核状态", "待审核");
-                    map.put("UUID", obj.getUserUuid());
-                    break;
-            }
-        }
-        return success(map);
+        return success(whitelistInfoService.check(params));
     }
 
 }
