@@ -3,7 +3,7 @@ ruoyi:
   # 名称
   name: MinecraftManager
   # 版本
-  version: 2.0
+  version: 2.1
   # 版权年份
   copyrightYear: 2025
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
@@ -165,6 +165,7 @@ encrypt:
   # 严格保管，不可泄露！
   key: o85Ultxa3spqSVd3RcUP1w==
 
+# QQ机器人配置
 qq:
   bot:
     enable: true
@@ -173,4 +174,5 @@ qq:
     http:
       url: http://10.0.0.150:3000 # 替换为实际的HTTP Server URL
     token: 123
-    group_id: 702055554 # 需要的群号 ， 隔开
+    group_id: 702055554 # 群聊ID，多个用逗号分隔
+    manager: 2873336923,996111175 # 管理员QQ号，多个用逗号分隔

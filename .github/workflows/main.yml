@@ -1,4 +1,4 @@
-name: Java8 Release
+name: Endless Manager Release
 
 on:
   push:
@@ -10,10 +10,11 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 代码检出
     - name: Checkout code
       uses: actions/checkout@v4
 
-    # 修改为JDK8环境
+      # 设置Java8环境
     - name: Set up JDK 8
       uses: actions/setup-java@v4
       with:
@@ -21,15 +22,41 @@ jobs:
         distribution: 'temurin'
         cache: 'maven'
 
-    - name: Build Project
+      # 构建项目
+    - name: Build with Maven
       run: mvn -B clean package -DskipTests -DskipFront=true
 
-    # Ruoyi项目JAR路径示例
-    - name: Upload Release Asset
+      # 提取自定义版本号
+    - name: Get Endless Version
+      id: get-version
+      run: |
+        VERSION=$(mvn help:evaluate -Dexpression=endless.version -q -DforceStdout)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      # 创建GitHub Release
+    - name: Create Release
+      id: create-release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.get-version.outputs.version }}
+        release_name: Endless Manager v${{ steps.get-version.outputs.version }}
+        draft: false
+        prerelease: false
+
+      # 上传JAR到Release
+    - name: Upload JAR Asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create-release.outputs.upload_url }}
-        asset_path: ./ruoyi-admin/target/endless-manager.jar  # 精确匹配打包名称
-        asset_name: ruoyi-admin-${{ steps.get-version.outputs.version }}.jar
+        asset_path: ./ruoyi-admin/target/endless-manager-${{ steps.get-version.outputs.version }}.jar
+        asset_name: endless-manager-${{ steps.get-version.outputs.version }}.jar
+
+      # 可选：验证文件路径
+    - name: Verify Build Output
+      run: |
+        echo "Generated JAR path:"
+        ls -l ./ruoyi-admin/target/*.jar

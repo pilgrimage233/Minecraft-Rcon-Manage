@@ -20,6 +20,7 @@
     </distributionManagement>
 
     <properties>
+        <endless.version>2.1</endless.version>
         <ruoyi.version>3.8.7</ruoyi.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -203,7 +204,9 @@
                 </configuration>
             </plugin>
         </plugins>
+        <finalName>endless-manager-${endless.version}</finalName>
     </build>
+
 
     <repositories>
         <repository>
