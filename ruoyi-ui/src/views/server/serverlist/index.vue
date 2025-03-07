@@ -218,6 +218,10 @@
           <el-input v-model="form.customServerCore" :style="{width: '95%'}" clearable
                     placeholder="请输入自定义服务器核心名称"></el-input>
         </el-form-item>
+        <el-form-item label="服务器名称" prop="nameTag">
+          <el-input v-model="form.nameTag" :style="{width: '100%'}" clearable placeholder="请输入服务器名称">
+          </el-input>
+        </el-form-item>
         <el-form-item label="RCON地址" prop="ip">
           <el-input v-model="form.ip" :style="{width: '100%'}" clearable placeholder="请输入服务器IP/域名">
           </el-input>
