@@ -1,0 +1,33 @@
+name: Java 8 CI
+
+on:
+  push:
+    branches: [ "master" ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    # 关键修改点：JDK 8配置
+    - name: Set up JDK 8
+      uses: actions/setup-java@v4
+      with:
+        java-version: '8'
+        distribution: 'temurin'
+        cache: 'maven'
+
+    # Ruoyi项目可能需要跳过前端构建
+    - name: Build with Maven
+      run: mvn -B clean package -DskipTests -DskipFront=true
+
+    - name: Publish Package
+      run: mvn -B deploy -DskipTests
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
