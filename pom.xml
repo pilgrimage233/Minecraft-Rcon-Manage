@@ -187,7 +187,6 @@
         <module>ruoyi-generator</module>
         <module>ruoyi-common</module>
         <module>mc-server</module>
-        <module>mc-node</module>
     </modules>
     <packaging>pom</packaging>
 
