@@ -124,6 +124,13 @@
       </el-table-column>
       <el-table-column align="center" label="游戏名称" prop="userName" show-overflow-tooltip/>
       <el-table-column align="center" label="UUID" prop="userUuid" show-overflow-tooltip/>
+      <el-table-column align="center" label="渠道来源" prop="createBy">
+        <template slot-scope="scope">
+          <el-tag v-if="scope.row.createBy && scope.row.createBy.startsWith('BOT')" type="warning">机器人</el-tag>
+          <el-tag v-else-if="scope.row.createBy && scope.row.createBy.startsWith('WEB')" type="success">网站</el-tag>
+          <el-tag v-else type="info">其他</el-tag>
+        </template>
+      </el-table-column>
       <el-table-column align="center" label="正版标识" prop="onlineFlag">
         <template slot-scope="scope">
           <dict-tag :options="dict.type.online_status" :value="scope.row.onlineFlag"/>

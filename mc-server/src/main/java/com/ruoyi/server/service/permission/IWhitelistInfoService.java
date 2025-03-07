@@ -50,7 +50,7 @@ public interface IWhitelistInfoService {
      * @param whitelistInfo 白名单
      * @return 结果
      */
-    public int updateWhitelistInfo(WhitelistInfo whitelistInfo);
+    public int updateWhitelistInfo(WhitelistInfo whitelistInfo, String user);
 
     /**
      * 批量删除白名单

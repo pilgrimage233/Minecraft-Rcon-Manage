@@ -18,6 +18,7 @@ public class QQBotProperties {
     private WebSocket ws;
     private Http http;
     private String groupId;
+    private String manager;
 
     /**
      * 获取群号列表
@@ -30,6 +31,22 @@ public class QQBotProperties {
             return Collections.emptyList();
         }
         return Arrays.stream(groupId.split(","))
+                .map(String::trim)
+                .map(Long::parseLong)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 获取管理员QQ号列表
+     * 将配置中的管理员QQ号字符串转换为Long类型的List
+     *
+     * @return 管理员QQ号List
+     */
+    public List<Long> getManagers() {
+        if (manager == null || manager.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        return Arrays.stream(manager.split(","))
                 .map(String::trim)
                 .map(Long::parseLong)
                 .collect(Collectors.toList());

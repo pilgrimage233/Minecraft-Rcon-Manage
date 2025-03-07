@@ -19,14 +19,13 @@ import com.ruoyi.server.async.AsyncManager;
 import com.ruoyi.server.common.EmailTemplates;
 import com.ruoyi.server.common.constant.CacheKey;
 import com.ruoyi.server.common.service.EmailService;
-import com.ruoyi.server.domain.other.IpLimitInfo;
 import com.ruoyi.server.domain.permission.WhitelistInfo;
 import com.ruoyi.server.domain.player.PlayerDetails;
 import com.ruoyi.server.enums.Identity;
-import com.ruoyi.server.sdk.SearchHttpAK;
 import com.ruoyi.server.service.other.IIpLimitInfoService;
 import com.ruoyi.server.service.permission.IWhitelistInfoService;
 import com.ruoyi.server.service.player.IPlayerDetailsService;
+import com.ruoyi.server.utils.WhitelistUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -88,7 +87,6 @@ public class WhitelistInfoController extends BaseController {
 
     @PostMapping("/apply")
     public AjaxResult apply(@RequestBody WhitelistInfo whitelistInfo, @RequestHeader Map<String, String> header) throws JsonProcessingException, ExecutionException, InterruptedException {
-
         if (whitelistInfo == null || whitelistInfo.getUserName() == null || whitelistInfo.getQqNum() == null) {
             return error("申请信息不能为空!");
         }
@@ -97,22 +95,7 @@ public class WhitelistInfoController extends BaseController {
         logger.info("header:{}", header);
 
         // 获取IP地址
-        String ip = header.get("x-real-ip");
-        if (ip == null) {
-            ip = header.get("x-forwarded-for");
-        }
-        if (ip == null) {
-            ip = header.get("proxy-client-ip");
-        }
-        if (ip == null) {
-            ip = header.get("wl-proxy-client-ip");
-        }
-        if (ip == null) {
-            ip = header.get("http_client_ip");
-        }
-        if (ip == null) {
-            ip = header.get("http_x_forwarded_for");
-        }
+        String ip = WhitelistUtils.getIpFromHeader(header);
 
         // 获取UA头
         if (!header.containsKey("user-agent")) {
@@ -149,12 +132,16 @@ public class WhitelistInfoController extends BaseController {
                 default:
                     return success("正在审核,请勿重复提交申请~ 如有纰漏或加急请联系管理员!");
             }
-
         }
-        IpLimitInfo ipLimitInfo = new IpLimitInfo();
-        // IP限流
-        if (StringUtils.isEmpty(ip)) {
-            return error("申请失败,请勿使用代理!");
+
+        // IP限流检查
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        String bodyParams = mapper.writeValueAsString(whitelistInfo);
+        AjaxResult limitResult = WhitelistUtils.checkIpLimit(ip, iIpLimitInfoService, iplimit,
+                whitelistInfo.getUserName(), userAgent, bodyParams);
+        if (limitResult != null) {
+            return limitResult;
         }
 
         // 使用QQ号生成验证码
@@ -181,95 +168,25 @@ public class WhitelistInfoController extends BaseController {
             return error("系统错误,请稍后重试!");
         }
 
-        // 查询IP是否存在
-        ipLimitInfo.setIp(ip);
-        List<IpLimitInfo> ipLimitInfos = iIpLimitInfoService.selectIpLimitInfoList(ipLimitInfo);
-        if (ipLimitInfos.isEmpty()) {
-            ipLimitInfo.setCreateTime(new Date());
-            ipLimitInfo.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
-            ipLimitInfo.setCount(1L); // 第一次访问
-            ipLimitInfo.setIp(ip); // IP地址
-            ipLimitInfo.setUserAgent(userAgent); // 用户代理
-            ipLimitInfo.setUuid(UUID.randomUUID().toString());
-            // whitelistInfo序列化成json
-            ObjectMapper mapper = new ObjectMapper();
-            // 忽略null值
-            mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
-            ipLimitInfo.setBodyParams(mapper.writeValueAsString(whitelistInfo));
-
-            // 获取IP地理位置1.0
-            SearchHttpAK searchHttpAK = new SearchHttpAK();
-            Map<String, String> params = new HashMap<>();
-            params.put("ip", ip);
-            params.put("coor", "bd09ll");
-            params.put("ak", SearchHttpAK.AK);
-            try {
-                JSONObject json = searchHttpAK.requestGetAK(SearchHttpAK.URL, params);
-                if (json != null && json.containsKey("content") && json.getJSONObject("content").containsKey("address_detail")) {
-                    JSONObject addressDetail = json.getJSONObject("content").getJSONObject("address_detail");
-                    JSONObject point = json.getJSONObject("content").getJSONObject("point");
-                    ipLimitInfo.setProvince(addressDetail.getString("province"));
-                    ipLimitInfo.setCity(addressDetail.getString("city"));
-                    ipLimitInfo.setLongitude(point.getString("x")); // 经度
-                    ipLimitInfo.setLatitude(point.getString("y")); // 纬度
-                }
-            } catch (Exception e) {
-                logger.error("获取IP地理位置失败", e);
-
-            }
-
-            if (ipLimitInfo.getCity() == null || ipLimitInfo.getCity().isEmpty()) {
-                // 获取IP地理位置2.0
-                try {
-                    String result = HttpUtils.sendGet("http://ip-api.com/json/" + ip);
-                    JSONObject json = JSONObject.parseObject(result);
-                    if (json.containsKey("city")) {
-                        ipLimitInfo.setCity(json.getString("city"));
-                    }
-                    if (json.containsKey("regionName")) {
-                        ipLimitInfo.setProvince(json.getString("regionName"));
-                    }
-                    if (json.containsKey("lat")) {
-                        ipLimitInfo.setLatitude(json.getString("lat"));
-                    }
-                    if (json.containsKey("lon")) {
-                        ipLimitInfo.setLongitude(json.getString("lon"));
-                    }
-                } catch (Exception e) {
-                    logger.error("获取IP地理位置失败", e);
-                }
-            }
-
-            iIpLimitInfoService.insertIpLimitInfo(ipLimitInfo);
-        } else {
-            ipLimitInfo = ipLimitInfos.get(0);
-
-            if (ipLimitInfo.getCount() >= Long.parseLong(iplimit)) {
-                return error("请求次数达到上限，请联系管理员!");
-            }
-
-            if (ipLimitInfo.getCreateBy() == null || ipLimitInfo.getCreateBy().isEmpty()) {
-                ipLimitInfo.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
-            } else if (ipLimitInfo.getCount() == 1) {
-                ipLimitInfo.setUpdateBy(ipLimitInfo.getCreateBy() + "::" + whitelistInfo.getUserName());
-            } else {
-                ipLimitInfo.setUpdateBy(ipLimitInfo.getUpdateBy() + "::" + whitelistInfo.getUserName());
-            }
-            ipLimitInfo.setCount(ipLimitInfo.getCount() + 1);
-            ipLimitInfo.setUpdateTime(new Date());
-
-            iIpLimitInfoService.updateIpLimitInfo(ipLimitInfo);
-        }
         // 新增玩家详情
         PlayerDetails details = new PlayerDetails();
         details.setUserName(whitelistInfo.getUserName());
         details.setQq(whitelistInfo.getQqNum());
-        details.setCity(ipLimitInfo.getCity());
-        details.setProvince(ipLimitInfo.getProvince());
         details.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
         details.setCreateTime(new Date());
         details.setIdentity(Identity.PLAYER.getValue());
         details.setGameTime(0L);
+
+        // 获取地理位置
+        if (StringUtils.isNotEmpty(ip)) {
+            String[] location = WhitelistUtils.getIpLocation(ip);
+            if (location[0] != null) {
+                details.setProvince(location[0]);
+            }
+            if (location[1] != null) {
+                details.setCity(location[1]);
+            }
+        }
 
         // 缓存对象,30分钟
         Map<String, Object> data = new HashMap<>();
@@ -306,7 +223,6 @@ public class WhitelistInfoController extends BaseController {
      * @return
      */
     @GetMapping("/verify")
-    @CrossOrigin(origins = {"https://app.yousb.sbs", "http://mc.yousb.sbs"}, maxAge = 3600)
     public AjaxResult verify(@RequestParam String code, @RequestHeader Map<String, String> header) {
         if (StringUtils.isEmpty(code)) {
             return error("验证失败,请勿直接访问此链接!");
@@ -316,14 +232,15 @@ public class WhitelistInfoController extends BaseController {
         String webKey = CacheKey.VERIFY_KEY + code;
         String botKey = CacheKey.VERIFY_FOR_BOT_KEY + code;
         String cacheKey = null;
+        final boolean isFromBot;
 
         if (redisCache.hasKey(webKey)) {
             cacheKey = webKey;
+            isFromBot = false;
         } else if (redisCache.hasKey(botKey)) {
             cacheKey = botKey;
-        }
-
-        if (cacheKey == null) {
+            isFromBot = true;
+        } else {
             return error("验证失败,验证码无效!");
         }
 
@@ -338,7 +255,7 @@ public class WhitelistInfoController extends BaseController {
 
         try {
             // 根据来源处理不同的数据结构
-            if (cacheKey.equals(webKey)) {
+            if (!isFromBot) {
                 // Web端申请的数据处理
                 Map<String, Object> data = (Map<String, Object>) cacheData;
                 JSONObject whitelistInfoJson = (JSONObject) data.get("whitelistInfo");
@@ -358,41 +275,31 @@ public class WhitelistInfoController extends BaseController {
                 details.setCreateTime(new Date());
                 details.setIdentity(Identity.PLAYER.getValue());
                 details.setGameTime(0L);
+            }
 
-                // 尝试获取IP地理位置（如果header中有IP信息）
-                String ip = header.get("x-real-ip");
-                if (ip == null) {
-                    ip = header.get("x-forwarded-for");
-                }
-                if (ip == null) {
-                    ip = header.get("proxy-client-ip");
-                }
-                if (ip == null) {
-                    ip = header.get("wl-proxy-client-ip");
-                }
-                if (ip == null) {
-                    ip = header.get("http_client_ip");
-                }
-                if (ip == null) {
-                    ip = header.get("http_x_forwarded_for");
-                }
+            // 获取IP地址
+            String ip = WhitelistUtils.getIpFromHeader(header);
 
-                if (StringUtils.isNotEmpty(ip)) {
-                    try {
-                        // 获取IP地理位置
-                        String result = HttpUtils.sendGet("http://ip-api.com/json/" + ip);
-                        JSONObject json = JSONObject.parseObject(result);
-                        if (json.containsKey("city")) {
-                            details.setCity(json.getString("city"));
-                        }
-                        if (json.containsKey("regionName")) {
-                            details.setProvince(json.getString("regionName"));
-                        }
-                    } catch (Exception e) {
-                        logger.error("获取IP地理位置失败", e);
-                    }
+            // 如果是网页请求，需要进行IP限流检查
+            if (!isFromBot && StringUtils.isNotEmpty(ip)) {
+                AjaxResult limitResult = WhitelistUtils.checkIpLimit(ip, iIpLimitInfoService, iplimit,
+                        whitelistInfo.getUserName(), header.get("user-agent"), null);
+                if (limitResult != null) {
+                    return limitResult;
                 }
             }
+
+            // 如果IP存在且details不为空，获取地理位置
+            if (StringUtils.isNotEmpty(ip) && details != null) {
+                String[] location = WhitelistUtils.getIpLocation(ip);
+                if (location[0] != null) {
+                    details.setProvince(location[0]);
+                }
+                if (location[1] != null) {
+                    details.setCity(location[1]);
+                }
+            }
+
         } catch (Exception e) {
             logger.error("数据转换失败", e);
             return error("验证失败,数据格式错误!");
@@ -431,9 +338,7 @@ public class WhitelistInfoController extends BaseController {
         }
 
         // 设置创建信息
-        String createBy = cacheKey.startsWith(CacheKey.VERIFY_KEY) ?
-                "WEB::apply::" : "BOT::apply::";
-        whitelistInfo.setCreateBy(createBy + whitelistInfo.getUserName());
+        whitelistInfo.setCreateBy((isFromBot ? "BOT::apply::" : "WEB::apply::") + whitelistInfo.getUserName());
         whitelistInfo.setCreateTime(new Date());
         whitelistInfo.setTime(new Date());
         whitelistInfo.setAddState("0"); // 添加状态：0-未添加，1-已添加
@@ -463,14 +368,13 @@ public class WhitelistInfoController extends BaseController {
             asyncManager.execute(timerTask);
 
             // 通知管理员
-            String finalCacheKey = cacheKey;
             TimerTask timerTask2 = new TimerTask() {
                 @Override
                 public void run() {
                     try {
                         pushEmail.push(ADMIN_EMAIL, EmailTemplates.TITLE,
                                 "用户[" + whitelistInfo.getUserName() + "]通过" +
-                                        (finalCacheKey.startsWith(CacheKey.VERIFY_KEY) ? "网页" : "QQ机器人") +
+                                        (isFromBot ? "QQ机器人" : "网页") +
                                         "提交了白名单申请,请尽快审核!");
                     } catch (ExecutionException | InterruptedException e) {
                         throw new RuntimeException(e);
@@ -538,7 +442,7 @@ public class WhitelistInfoController extends BaseController {
     @AddOrUpdateFilter(edit = true)
     @PutMapping
     public AjaxResult edit(@RequestBody WhitelistInfo whitelistInfo) {
-        return toAjax(whitelistInfoService.updateWhitelistInfo(whitelistInfo));
+        return toAjax(whitelistInfoService.updateWhitelistInfo(whitelistInfo, getUsername()));
     }
 
     /**

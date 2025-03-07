@@ -143,8 +143,19 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
      * @return 结果
      */
     @Override
-    public int updateWhitelistInfo(WhitelistInfo whitelistInfo) {
-        String name = SecurityContextHolder.getContext().getAuthentication().getName();
+    public int updateWhitelistInfo(WhitelistInfo whitelistInfo, String user) {
+        String name = null;
+        try {
+            name = SecurityContextHolder.getContext().getAuthentication().getName();
+        } catch (Exception e) {
+            if (name == null) {
+                name = user;
+            }
+        }
+
+        if (name == null && user == null) {
+            log.error("获取用户信息失败,请联系管理员!");
+        }
 
         if (whitelistInfo.getAddState().isEmpty()) {
             return 0;
