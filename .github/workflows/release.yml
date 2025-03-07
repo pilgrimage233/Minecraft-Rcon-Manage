@@ -1,16 +1,18 @@
-name: Endless Manager Release
+name: Auto Release
 
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - master
 
 jobs:
-  release:
+  build-and-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
 
     steps:
-      # 代码检出
+      # 检出代码
     - name: Checkout code
       uses: actions/checkout@v4
 
@@ -20,20 +22,22 @@ jobs:
       with:
         java-version: '8'
         distribution: 'temurin'
-        cache: 'maven'
-
-      # 构建项目
-    - name: Build with Maven
-      run: mvn -B clean package -DskipTests -DskipFront=true
 
       # 提取自定义版本号
-    - name: Get Endless Version
+    - name: Get Custom Version
       id: get-version
       run: |
         VERSION=$(mvn help:evaluate -Dexpression=endless.version -q -DforceStdout)
         echo "version=$VERSION" >> $GITHUB_OUTPUT
 
-      # 创建GitHub Release
+      # 构建项目
+    - name: Build Project
+      run: |
+        mvn -B clean package -DskipTests
+        # 重命名JAR文件包含版本号
+        cp ruoyi-admin/target/endless-manager.jar ruoyi-admin/target/endless-manager-${{ steps.get-version.outputs.version }}.jar
+
+      # 创建Release
     - name: Create Release
       id: create-release
       uses: actions/create-release@v1
@@ -41,12 +45,12 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         tag_name: v${{ steps.get-version.outputs.version }}
-        release_name: Endless Manager v${{ steps.get-version.outputs.version }}
+        release_name: Release v${{ steps.get-version.outputs.version }}
         draft: false
         prerelease: false
 
-      # 上传JAR到Release
-    - name: Upload JAR Asset
+      # 上传JAR文件
+    - name: Upload Release Asset
       uses: actions/upload-release-asset@v1
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -54,9 +58,3 @@ jobs:
         upload_url: ${{ steps.create-release.outputs.upload_url }}
         asset_path: ./ruoyi-admin/target/endless-manager-${{ steps.get-version.outputs.version }}.jar
         asset_name: endless-manager-${{ steps.get-version.outputs.version }}.jar
-
-      # 可选：验证文件路径
-    - name: Verify Build Output
-      run: |
-        echo "Generated JAR path:"
-        ls -l ./ruoyi-admin/target/*.jar
