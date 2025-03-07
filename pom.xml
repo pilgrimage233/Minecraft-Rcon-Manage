@@ -6,10 +6,18 @@
 
     <groupId>com.ruoyi</groupId>
     <artifactId>ruoyi</artifactId>
-    <version>3.8.7</version>
+    <version>2.0</version>
 
     <name>Endlss</name>
     <description>Minecraft服务器管理系统</description>
+
+    <distributionManagement>
+        <repository>
+            <id>github</id>
+            <name>GitHub Packages</name>
+            <url>https://maven.pkg.github.com/pilgrimage233/Minecraft-Rcon-Manage</url>
+        </repository>
+    </distributionManagement>
 
     <properties>
         <ruoyi.version>3.8.7</ruoyi.version>
@@ -83,11 +91,6 @@
                         <artifactId>swagger-models</artifactId>
                     </exclusion>
                 </exclusions>
-            </dependency>
-            <dependency>
-                <groupId>org.snakeyaml</groupId>
-                <artifactId>snakeyaml-engine</artifactId>
-                <version>2.7.0</version>
             </dependency>
             <!-- io常用工具类 -->
             <dependency>
@@ -184,6 +187,7 @@
         <module>ruoyi-generator</module>
         <module>ruoyi-common</module>
         <module>mc-server</module>
+        <module>mc-node</module>
     </modules>
     <packaging>pom</packaging>
 
