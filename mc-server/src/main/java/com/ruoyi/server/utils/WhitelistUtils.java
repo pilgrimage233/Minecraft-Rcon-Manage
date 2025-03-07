@@ -26,22 +26,61 @@ public class WhitelistUtils {
      */
     public static String getIpFromHeader(Map<String, String> header) {
         String[] ipHeaders = {
+                // 基础代理头
                 "x-real-ip",
                 "x-forwarded-for",
+                "forwarded",               // 标准化的代理头(RFC7239)
+
+                // 云服务商专用头
+                "cf-connecting-ip",        // Cloudflare
+                "fastly-client-ip",        // Fastly
+                "true-client-ip",          // Akamai & Cloudflare(旧版)
+                "x-cloudfront-viewer-ip",  // AWS CloudFront
+                "x-azure-socketip",        // Azure
+                "x-gcp-forwarding-rule-ip",// Google Cloud
+
+                // 反向代理软件头
                 "proxy-client-ip",
-                "wl-proxy-client-ip",
+                "wl-proxy-client-ip",      // WebLogic
                 "http_client_ip",
-                "http_x_forwarded_for"
+                "http_x_forwarded_for",
+                "x-cluster-client-ip",     // 集群场景
+
+                // 安全防护/CDN扩展头
+                "x-original-forwarded-for",// 某些WAF添加
+                "x-authress-client-ip",    // Authress身份服务
+                "x-apigateway-api-id",     // API网关场景
+
+                // 特殊网络设备头
+                "x-bluecoat-via",          // Blue Coat代理
+                "x-ivy-client-ip",         // F5 BIG-IP
+
+                // 移动端专用头
+                "x-mobile-client-ip",      // 移动运营商代理
+                "x-nokia-msisdn",
+
+                // 协议扩展头
+                "x-envoy-external-ip",     // Envoy代理
+                "x-nginx-proxy-ip",
+
+                // 备用头（按需添加）
+                "client-ip",               // 部分旧系统
+                "remote-addr",             // 直接连接IP（需验证可信性）
+                "x-host-ip"
         };
 
         for (String headerName : ipHeaders) {
-            String ip = header.get(headerName);
-            if (ip != null && !ip.isEmpty()) {
-                return ip;
+            if (header.containsKey(headerName) && header.get(headerName) != null) {
+                String ip = header.get(headerName);
+                if (!ip.startsWith("192.168.") && !ip.startsWith("10.") && !ip.startsWith("172.")) {
+                    ip = extractIpFromHeader(ip);
+                    return ip;
+                }
             }
         }
         return null;
     }
+
 
     /**
      * 检查IP限流
@@ -136,7 +175,7 @@ public class WhitelistUtils {
             log.error("百度地图API获取IP地理位置失败", e);
         }
 
-        // 如果主要接口失败，使用备用接口：ip-api.com
+        // 备用接口1：ip-api.com
         if ((location[0] == null || location[0].isEmpty()) &&
                 (location[1] == null || location[1].isEmpty())) {
             try {
@@ -158,6 +197,57 @@ public class WhitelistUtils {
                 }
             } catch (Exception e) {
                 log.error("ip-api.com获取IP地理位置失败", e);
+            }
+        }
+
+        // 备用接口2：ipapi.co
+        if ((location[0] == null || location[0].isEmpty()) &&
+                (location[1] == null || location[1].isEmpty())) {
+            try {
+                String result = HttpUtils.sendGet("https://ipapi.co/" + ip + "/json/");
+                JSONObject json = JSONObject.parseObject(result);
+                if (json != null) {
+                    if (json.containsKey("region")) {
+                        location[0] = json.getString("region");
+                    }
+                    if (json.containsKey("city")) {
+                        location[1] = json.getString("city");
+                    }
+                    if (json.containsKey("longitude")) {
+                        location[2] = json.getString("longitude");
+                    }
+                    if (json.containsKey("latitude")) {
+                        location[3] = json.getString("latitude");
+                    }
+                }
+            } catch (Exception e) {
+                log.error("ipapi.co获取IP地理位置失败", e);
+            }
+        }
+
+        // 备用接口3：ipinfo.io
+        if ((location[0] == null || location[0].isEmpty()) &&
+                (location[1] == null || location[1].isEmpty())) {
+            try {
+                String result = HttpUtils.sendGet("https://ipinfo.io/" + ip + "/json");
+                JSONObject json = JSONObject.parseObject(result);
+                if (json != null) {
+                    if (json.containsKey("region")) {
+                        location[0] = json.getString("region");
+                    }
+                    if (json.containsKey("city")) {
+                        location[1] = json.getString("city");
+                    }
+                    if (json.containsKey("loc")) {
+                        String[] coords = json.getString("loc").split(",");
+                        if (coords.length == 2) {
+                            location[2] = coords[1]; // 经度
+                            location[3] = coords[0]; // 纬度
+                        }
+                    }
+                }
+            } catch (Exception e) {
+                log.error("ipinfo.io获取IP地理位置失败", e);
             }
         }
 
@@ -184,4 +274,13 @@ public class WhitelistUtils {
             ipLimitInfo.setLatitude(location[3]);
         }
     }
+
+    // 提取第一个有效IP（处理X-Forwarded-For多IP场景）
+    private static String extractIpFromHeader(String headerValue) {
+        if (headerValue.contains(",")) {
+            return headerValue.split(",")[0].trim();
+        }
+        return headerValue.trim();
+    }
+
 } 
