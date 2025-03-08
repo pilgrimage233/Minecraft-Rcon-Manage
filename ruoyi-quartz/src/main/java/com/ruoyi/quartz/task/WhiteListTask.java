@@ -177,6 +177,13 @@ public class WhiteListTask {
 
         // 如果服务器白名单不在数据库中，则移除
         List<String> remove = new ArrayList<>();
+
+        // 重新获取现有白名单列表
+        list = MapCache.get(serverId).sendCommand(Command.WHITELIST_LIST);
+        if (StringUtils.isNotEmpty(list) && list.contains("There are")) {
+            // 正版玩家
+            online = new HashSet<>(Arrays.asList(list.split("whitelisted player\\(s\\):")[1].trim().split(", ")));
+        }
         for (String s : online) {
             boolean flag = false;
             boolean onlineFlag = false;

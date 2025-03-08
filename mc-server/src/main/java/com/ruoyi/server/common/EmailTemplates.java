@@ -794,7 +794,7 @@ public class EmailTemplates {
             case SUCCESS_TITLE:
                 template = template.replace(
                         "<!-- 审核通过模板 -->",
-                        "<div class=\"status approved\"><span>🎉 恭喜，您的白名单申请已通过！🎉</span></div>"
+                        "<div class=\"status approved\"><span>🎉 恭喜，您的白名单申请已通过！</span></div>"
                 ).replace(
                         "<!-- 审核拒绝模板 -->",
                         ""

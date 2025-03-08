@@ -75,7 +75,7 @@ public class WhitelistInfoController extends BaseController {
     @Autowired
     private RedisCache redisCache;
 
-    @Value("${ruoyi.app-url}")
+    @Value("${app-url}")
     private String appUrl;
     @Autowired
     private EmailService emailService;

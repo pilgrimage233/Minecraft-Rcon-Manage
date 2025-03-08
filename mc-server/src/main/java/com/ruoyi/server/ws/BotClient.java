@@ -64,7 +64,7 @@ public class BotClient extends WebSocketClient {
     @Autowired
     private RconService rconService;
 
-    @Value("${ruoyi.app-url}")
+    @Value("${app-url}")
     private String appUrl;
 
     /**
@@ -659,7 +659,11 @@ public class BotClient extends WebSocketClient {
                 StringBuilder response = new StringBuilder();
                 response.append("[CQ:at,qq=").append(message.getSender().getUserId()).append("] ");
                 response.append("指令已发送至服务器 ").append(serverId).append("\n");
-                response.append("执行结果：\n").append(result != null ? result : "无返回结果");
+                if (!result.trim().isEmpty()) {
+                    response.append("执行结果：\n").append(result);
+                } else {
+                    response.append("指令已执行，无返回结果。");
+                }
                 sendMessage(message, response.toString());
             } catch (Exception e) {
                 log.error("发送RCON指令失败: {}", e.getMessage());

@@ -1,9 +1,9 @@
 # 项目相关配置
 ruoyi:
   # 名称
-  name: MinecraftManager
+  name: EndlessManager
   # 版本
-  version: 2.1.1
+  version: 2.1.2
   # 版权年份
   copyrightYear: 2025
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
@@ -12,8 +12,9 @@ ruoyi:
   addressEnabled: false
   # 验证码类型 math 数字计算 char 字符验证
   captchaType: math
-  # 接口地址
-  app-url: https://app.yousb.sbs/
+
+# 白名单页面网站地址
+app-url: https://app.yousb.sbs/
 
 # 开发环境配置
 server:

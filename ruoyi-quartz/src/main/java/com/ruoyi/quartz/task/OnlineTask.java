@@ -267,24 +267,41 @@ public class OnlineTask {
         Map<String, Object> map = new HashMap<>();
         if (cache.hasKey(CacheKey.ERROR_COMMAND_CACHE_KEY)) {
             map = cache.getCacheObject(CacheKey.ERROR_COMMAND_CACHE_KEY);
+            if (map.isEmpty()) {
+                return;
+            }
+            map.remove("@type");
 
             // 发送缓存中的命令
             for (Map.Entry<String, Object> entry : map.entrySet()) {
                 String key = entry.getKey();
                 Set<String> commands = (Set<String>) entry.getValue();
-                RconClient client = MapCache.get(key);
-
-                if (client == null) {
-                    log.error("RconClient not found for key: {}", key);
+                if (commands.isEmpty()) {
                     continue;
                 }
+                boolean flag = key.contains("all");
 
                 // 已执行命令
                 Set<String> executedCommands = new HashSet<>();
 
                 for (String command : commands) {
                     try {
-                        client.sendCommand(command);
+                        if (flag) {
+                            MapCache.getMap().forEach((k, v) -> {
+                                try {
+                                    v.sendCommand(command);
+                                } catch (Exception e) {
+                                    log.error("Failed to send command: {}", command, e);
+                                }
+                            });
+                        } else {
+                            if (MapCache.containsKey(key)) {
+                                MapCache.get(key).sendCommand(command);
+                            } else {
+                                // 移除
+                                executedCommands.add(command);
+                            }
+                        }
                         log.info("Successfully sent command: {}", command);
 
                         executedCommands.add(command);

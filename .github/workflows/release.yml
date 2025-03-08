@@ -19,6 +19,21 @@ jobs:
         with:
           java-version: '8'
           distribution: 'temurin'
+          cache: 'maven'
+
+      - name: Configure Maven Settings
+        run: |
+          mkdir -p ~/.m2
+          echo "<settings>
+            <mirrors>
+              <mirror>
+                <id>central</id>
+                <name>Maven Central</name>
+                <url>https://repo1.maven.org/maven2</url>
+                <mirrorOf>central</mirrorOf>
+              </mirror>
+            </mirrors>
+          </settings>" > ~/.m2/settings.xml
 
       - name: Get Custom Version
         id: get-version
@@ -42,6 +57,8 @@ jobs:
 
       - name: Upload JAR
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create-release.outputs.upload_url }}
           asset_path: ./ruoyi-admin/target/endless-manager-${{ steps.get-version.outputs.version }}.jar

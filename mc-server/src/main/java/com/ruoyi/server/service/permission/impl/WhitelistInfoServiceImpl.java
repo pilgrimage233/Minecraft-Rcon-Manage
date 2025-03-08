@@ -62,7 +62,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
     @Autowired
     private IPlayerDetailsService playerDetailsService;
 
-    @Value("${ruoyi.app-url}")
+    @Value("${app-url}")
     private String appUrl;
 
     /**
@@ -148,9 +148,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         try {
             name = SecurityContextHolder.getContext().getAuthentication().getName();
         } catch (Exception e) {
-            if (name == null) {
-                name = user;
-            }
+            name = user;
         }
 
         if (name == null && user == null) {
@@ -264,7 +262,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
     private @Nullable Integer handleUnban(WhitelistInfo whitelistInfo, String name) {
         // 是否为解除封禁
         BanlistInfo banlistInfo = new BanlistInfo();
-        banlistInfo.setWhiteId(whitelistInfo.getId());
+        banlistInfo.setUserName(whitelistInfo.getUserName());
         List<BanlistInfo> banlistInfos = banlistInfoService.selectBanlistInfoList(banlistInfo);
         if (!banlistInfos.isEmpty()) {
             banlistInfo = banlistInfos.get(0);
