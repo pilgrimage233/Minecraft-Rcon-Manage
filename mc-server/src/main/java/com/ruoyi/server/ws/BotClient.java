@@ -6,6 +6,8 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.StringUtils;
+import com.ruoyi.framework.web.domain.Server;
+import com.ruoyi.framework.web.domain.server.SysFile;
 import com.ruoyi.server.common.EmailTemplates;
 import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.constant.BotApi;
@@ -209,7 +211,7 @@ public class BotClient extends WebSocketClient {
         if (isShuttingDown) {
             return;
         }
-        
+
         if (reconnectTask == null || reconnectTask.isDone()) {
             try {
                 reconnectTask = scheduler.scheduleAtFixedRate(() -> {
@@ -246,6 +248,13 @@ public class BotClient extends WebSocketClient {
             String msg = message.getMessage().trim();
             String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
 
+            // 优先处理退群消息
+            if (message.getNoticeType() != null && message.getNoticeType().startsWith("group")) {
+                if (message.getNoticeType().equals("group_decrease")) {
+                    handleGroupDecrease(message);
+                }
+            }
+
             if (msg.startsWith("白名单申请")) {
                 handleWhitelistApplication(message);
             } else if (msg.startsWith("查询白名单")) {
@@ -260,6 +269,52 @@ public class BotClient extends WebSocketClient {
                 handlePlayerQuery(message);
             } else if (msg.startsWith("查询在线")) {
                 handleOnlineQuery(message);
+            } else if (msg.startsWith("运行状态")) {
+                handleHostStatus(message);
+            }
+        }
+    }
+
+    /**
+     * 退群相关处理
+     *
+     * @param message
+     */
+    private void handleGroupDecrease(QQMessage message) {
+        if (properties.getGroupIds().contains(message.getGroupId())) {
+            log.info("QQ群[{}]有用户退群 - 用户: {}", message.getGroupId(), message.getUserId());
+            // 退群用户的QQ号
+            Long userId = message.getUserId();
+            // 查询白名单信息
+            WhitelistInfo whitelistInfo = new WhitelistInfo();
+            whitelistInfo.setQqNum(String.valueOf(userId));
+            List<WhitelistInfo> whitelistInfos = whitelistInfoService.selectWhitelistInfoList(whitelistInfo);
+            if (whitelistInfos.isEmpty()) {
+                return;
+            }
+            whitelistInfo = whitelistInfos.get(0);
+            // 设置退群状态
+            whitelistInfo.setAddState("true");
+            whitelistInfo.setRemoveReason("用户退群-主动");
+            // 更新白名单信息
+            int result = whitelistInfoService.updateWhitelistInfo(whitelistInfo, message.getUserId().toString());
+            if (result > 0) {
+                log.info("用户 {} 退群，已更新白名单信息", userId);
+                StringBuilder warningMsg = new StringBuilder();
+                warningMsg.append("⚠️ 警告：玩家退群通知 ⚠️\n")
+                        .append("━━━━━━━━━━━━━━━\n")
+                        .append("👤 玩家信息：\n")
+                        .append("▫️ 游戏ID：").append(whitelistInfo.getUserName()).append("\n")
+                        .append("▫️ QQ号：").append(userId).append("\n")
+                        .append("━━━━━━━━━━━━━━━\n")
+                        .append("❗ 该玩家已主动退出群聊\n")
+                        .append("❗ 白名单已自动移除\n")
+                        .append("❗ 如需恢复白名单，请重新申请\n")
+                        .append("━━━━━━━━━━━━━━━");
+                sendMessage(message, warningMsg.toString());
+            } else {
+                log.error("用户 {} 退群，更新白名单信息失败", userId);
+                sendMessage(message, "⚠️ 系统提示：玩家 " + userId + " 退群处理失败，请管理员手动处理！");
             }
         }
     }
@@ -801,6 +856,78 @@ public class BotClient extends WebSocketClient {
 
         } catch (Exception e) {
             log.error("处理在线查询失败: {}", e.getMessage());
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 查询失败，请稍后重试。");
+        }
+    }
+
+    /**
+     * 处理主机状态查询请求
+     * 查询运行该项目的服务器主机状态，包括系统信息、CPU、内存、JVM等
+     *
+     * @param message QQ消息对象
+     */
+    private void handleHostStatus(QQMessage message) {
+
+        // 检查是否是管理员
+        if (!properties.getManagers().contains(message.getSender().getUserId())) {
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 您没有权限执行此操作。");
+            return;
+        }
+
+        try {
+            String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
+
+            Server server = new Server();
+            server.copyTo();
+
+            // 构建返回消息
+            StringBuilder response = new StringBuilder(base + " 主机运行状态如下：\n\n");
+
+            // CPU信息
+            response.append("CPU状态：\n");
+            response.append("核心数：").append(server.getCpu().getCpuNum()).append("\n");
+            response.append("CPU总使用率：").append(server.getCpu().getTotal()).append("%\n");
+            response.append("系统使用率：").append(server.getCpu().getSys()).append("%\n");
+            response.append("用户使用率：").append(server.getCpu().getUsed()).append("%\n");
+            response.append("当前等待率：").append(server.getCpu().getWait()).append("%\n");
+            response.append("当前空闲率：").append(server.getCpu().getFree()).append("%\n\n");
+
+            // 内存信息
+            response.append("内存状态：\n");
+            response.append("总内存：").append(server.getMem().getTotal()).append("G\n");
+            response.append("已用内存：").append(server.getMem().getUsed()).append("G\n");
+            response.append("剩余内存：").append(server.getMem().getFree()).append("G\n");
+            response.append("内存使用率：").append(server.getMem().getUsage()).append("%\n\n");
+
+            // JVM信息
+            response.append("JVM状态：\n");
+            response.append("总内存：").append(server.getJvm().getTotal()).append("M\n");
+            response.append("已用内存：").append(server.getJvm().getUsed()).append("M\n");
+            response.append("剩余内存：").append(server.getJvm().getFree()).append("M\n");
+            response.append("内存使用率：").append(server.getJvm().getUsage()).append("%\n");
+            response.append("JDK版本：").append(server.getJvm().getVersion()).append("\n\n");
+
+            // 系统信息
+            response.append("系统信息：\n");
+            response.append("服务器名称：").append(server.getSys().getComputerName()).append("\n");
+            response.append("操作系统：").append(server.getSys().getOsName()).append("\n");
+            response.append("系统架构：").append(server.getSys().getOsArch()).append("\n");
+
+            // 磁盘信息
+            response.append("\n磁盘状态：\n");
+            for (SysFile sysFile : server.getSysFiles()) {
+                response.append(sysFile.getDirName()).append("（").append(sysFile.getTypeName()).append("）：\n");
+                response.append("总大小：").append(sysFile.getTotal()).append("GB\n");
+                response.append("已用大小：").append(sysFile.getUsed()).append("GB\n");
+                response.append("剩余大小：").append(sysFile.getFree()).append("GB\n");
+                response.append("使用率：").append(sysFile.getUsage()).append("%\n");
+            }
+
+            // 发送消息
+            sendMessage(message, response.toString());
+
+        } catch (Exception e) {
+            log.error("处理主机状态查询失败: " + e.getMessage(), e);
             sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 查询失败，请稍后重试。");
         }
     }

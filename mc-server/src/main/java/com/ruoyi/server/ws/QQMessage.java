@@ -25,6 +25,9 @@ public class QQMessage {
     @JSONField(name = "message_type")
     private String messageType;
 
+    @JSONField(name = "notice_type")
+    private String noticeType;
+
     private Sender sender;
 
     @JSONField(name = "raw_message")

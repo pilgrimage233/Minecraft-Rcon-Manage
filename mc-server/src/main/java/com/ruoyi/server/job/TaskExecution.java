@@ -40,11 +40,13 @@ public class TaskExecution {
         try {
             final String result = rconService.sendCommand(executeServer, regular.getCmd(), false);
             log.info("服务器 [{}] 执行结果：{}", executeServer, result);
+            if (StringUtils.isNotEmpty(result)) {
+                regular.setResult(result);
+            }
 
-            regular.setResult(result);
             // 历史结果
             JSONObject json = new JSONObject();
-            if (regular.getHistoryResult() != null) {
+            if (regular.getHistoryResult() != null && StringUtils.isNotEmpty(regular.getHistoryResult())) {
                 json = JSONObject.parseObject(regular.getHistoryResult());
                 json.put(DateUtils.getTime(), result);
                 if (json.size() > regular.getHistoryCount()) {

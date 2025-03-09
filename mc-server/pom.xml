@@ -27,6 +27,10 @@
             <groupId>com.ruoyi</groupId>
             <artifactId>ruoyi-system</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.ruoyi</groupId>
+            <artifactId>ruoyi-framework</artifactId>
+        </dependency>
         <!-- Java WebSocket -->
         <dependency>
             <groupId>org.java-websocket</groupId>
