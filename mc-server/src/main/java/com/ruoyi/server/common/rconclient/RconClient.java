@@ -391,11 +391,11 @@ public class RconClient implements Closeable {
             byte[] bodyBytes = new byte[responseBuffer.remaining()];
             responseBuffer.get(bodyBytes);
 
-            if (bodyBytes.length <= 2) {
-                return "";
+            if (bodyBytes.length >= 2 && bodyBytes[bodyBytes.length - 1] == 0 && bodyBytes[bodyBytes.length - 2] == 0) {
+                return new String(bodyBytes, 0, bodyBytes.length - 2, PAYLOAD_CHARSET).trim();
+            } else {
+                return new String(bodyBytes, PAYLOAD_CHARSET).trim();
             }
-            int endIndex = bodyBytes.length - 2;
-            return new String(bodyBytes, 0, endIndex, PAYLOAD_CHARSET).trim();
         } finally {
             if (buffer != null) {
                 returnBuffer(buffer);
@@ -462,8 +462,9 @@ public class RconClient implements Closeable {
 
             LOGGER.fine(String.format("响应大小: %d 字节", size));
 
-            // Ensure size is reasonable before allocating buffer
-            int dataSize = Math.min(size - (2 * Byte.BYTES), MAX_RESPONSE_SIZE);
+            // 确保在分配缓冲区前大小合理
+            // 注意：这里不再减去2个字节，而是读取完整数据
+            int dataSize = Math.min(size, MAX_RESPONSE_SIZE);
 
             // LOGGER.fine("正在读取响应数据");
             dataBuffer = getBuffer(dataSize);
@@ -479,29 +480,8 @@ public class RconClient implements Closeable {
 
             dataBuffer.flip();
 
-            // LOGGER.fine("正在读取空字节");
-            nullsBuffer = getBuffer(2 * Byte.BYTES);
-            nullsBuffer.limit(2 * Byte.BYTES);
-
-            try {
-                readFully(nullsBuffer);
-            } catch (IOException e) {
-                LOGGER.warning("读取空字节时出错: " + e.getMessage() + " - 继续执行");
-                // Continue anyway, as we already have the main data
-            }
-
-            nullsBuffer.flip();
-
-            // Only check null bytes if we successfully read them
-            if (nullsBuffer.remaining() >= 2) {
-                byte null1 = nullsBuffer.get(0);
-                byte null2 = nullsBuffer.get(1);
-
-                if (null1 != 0 || null2 != 0) {
-                    LOGGER.warning(String.format("协议警告：期望2个空字节但收到 %d 和 %d", null1, null2));
-                    // Continue anyway, as this is not critical
-                }
-            }
+            // 不再单独读取空字节，而是作为数据的一部分
+            // 在sendInternal中处理
 
             ByteBuffer result = ByteBuffer.allocate(dataBuffer.remaining());
             result.order(ByteOrder.LITTLE_ENDIAN);
