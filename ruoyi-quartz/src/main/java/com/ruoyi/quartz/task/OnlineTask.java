@@ -1,12 +1,12 @@
 package com.ruoyi.quartz.task;
 
 import com.alibaba.fastjson2.JSONObject;
-import com.github.t9t.minecraftrconclient.RconClient;
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.common.utils.http.HttpUtils;
 import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.constant.CacheKey;
+import com.ruoyi.server.common.rconclient.RconClient;
 import com.ruoyi.server.common.service.RconService;
 import com.ruoyi.server.domain.permission.WhitelistInfo;
 import com.ruoyi.server.domain.player.PlayerDetails;

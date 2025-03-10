@@ -1,6 +1,5 @@
 package com.ruoyi.server.common.service;
 
-import com.github.t9t.minecraftrconclient.RconClient;
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
@@ -10,6 +9,7 @@ import com.ruoyi.server.common.PasswordManager;
 import com.ruoyi.server.common.constant.CacheKey;
 import com.ruoyi.server.common.constant.Command;
 import com.ruoyi.server.common.constant.RconMsg;
+import com.ruoyi.server.common.rconclient.RconClient;
 import com.ruoyi.server.domain.server.ServerCommandInfo;
 import com.ruoyi.server.domain.server.ServerInfo;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +21,7 @@ import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -180,21 +181,35 @@ public class RconService {
 
             // 使用异步线程初始化Rcon连接，超时时间为5秒
             String finalDecryptedPassword = decryptedPassword;
-            CompletableFuture.runAsync(() -> {
+            String serverIp = DomainToIp.domainToIp(info.getIp());
+            int port = info.getRconPort().intValue();
+
+            log.info("正在连接RCON服务器: {}:{} (解析IP: {})", info.getIp(), port, serverIp);
+
+            CompletableFuture<RconClient> rconFuture = CompletableFuture.supplyAsync(() -> {
                 try {
-                    client.set(RconClient.open(DomainToIp.domainToIp(info.getIp()),
-                            info.getRconPort().intValue(),
-                            finalDecryptedPassword));
-                    log.debug(RconMsg.INIT_RCON + "{}", info.getNameTag());
+                    return RconClient.open(serverIp, port, finalDecryptedPassword);
                 } catch (Exception e) {
-                    log.error(RconMsg.CONNECT_ERROR + "{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), "******");
-                    log.error(RconMsg.ERROR_MSG + "{}", e.getMessage());
+                    log.error("连接失败:{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), "******");
+                    log.error("连接失败详细信息: ", e);
+                    return null;
                 }
-            }).get(5, TimeUnit.SECONDS);
+            });
+
+            try {
+                // 等待连接完成，设置超时
+                client.set(rconFuture.get(10, TimeUnit.SECONDS));
+            } catch (TimeoutException e) {
+                log.error("连接超时: {} ({}:{})", info.getNameTag(), serverIp, port);
+                throw new RuntimeException("RCON连接超时: " + info.getNameTag() + " (" + serverIp + ":" + port + ")");
+            } catch (ExecutionException e) {
+                log.error("连接执行错误: {} ({}:{})", info.getNameTag(), serverIp, port);
+                throw new RuntimeException("RCON连接失败: " + info.getNameTag() + " (" + serverIp + ":" + port + ")", e.getCause());
+            }
 
             if (client.get() == null) {
-                log.error("RconClient初始化失败，client为null: {}", info.getNameTag());
-                throw new RuntimeException("RconClient is null");
+                log.error("RCON连接失败: {} ({}:{})", info.getNameTag(), serverIp, port);
+                throw new RuntimeException("RCON连接失败: " + info.getNameTag() + " (" + serverIp + ":" + port + ")");
             }
 
             MapCache.put(info.getId().toString(), client.get());
@@ -220,8 +235,8 @@ public class RconService {
                     log.error("邮件发送失败: {}", ex.getMessage());
                 }
             }
-            log.error(RconMsg.CONNECT_ERROR + "{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), info.getRconPassword());
-            log.error(RconMsg.ERROR_MSG + "{}", e.getMessage());
+            log.error("连接失败:{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), "******");
+            log.error("连接失败详细信息: ", e);
             return false;
         }
     }

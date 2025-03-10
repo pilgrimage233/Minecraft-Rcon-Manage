@@ -127,12 +127,12 @@
         </dependency>
 
         <!-- https://mvnrepository.com/artifact/com.github.t9t.minecraft-rcon-client/minecraft-rcon-client -->
-        <dependency>
-            <groupId>com.github.t9t.minecraft-rcon-client</groupId>
-            <artifactId>minecraft-rcon-client</artifactId>
-            <version>1.0.0</version>
-        </dependency>
-
+        <!--      <dependency>
+                  <groupId>com.github.t9t.minecraft-rcon-client</groupId>
+                  <artifactId>minecraft-rcon-client</artifactId>
+                  <version>1.0.0</version>
+              </dependency>
+      -->
         <dependency>
             <groupId>org.projectlombok</groupId>
             <artifactId>lombok</artifactId>

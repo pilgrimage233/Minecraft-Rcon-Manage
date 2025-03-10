@@ -1,11 +1,11 @@
 package com.ruoyi.quartz.task;
 
-import com.github.t9t.minecraftrconclient.RconClient;
 import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.DateUtils;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.constant.CacheKey;
+import com.ruoyi.server.common.rconclient.RconClient;
 import com.ruoyi.server.common.service.RconService;
 import com.ruoyi.server.domain.server.ServerInfo;
 import com.ruoyi.server.service.server.IServerInfoService;

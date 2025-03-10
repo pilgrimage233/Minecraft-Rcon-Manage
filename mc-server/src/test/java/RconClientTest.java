@@ -1,6 +1,7 @@
-import com.github.t9t.minecraftrconclient.RconClient;
+
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.DomainToIp;
+import com.ruoyi.server.common.rconclient.RconClient;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;

@@ -886,7 +886,7 @@ public class BotClient extends WebSocketClient {
             // CPU信息
             response.append("CPU状态：\n");
             response.append("核心数：").append(server.getCpu().getCpuNum()).append("\n");
-            response.append("CPU总使用率：").append(server.getCpu().getTotal()).append("%\n");
+            // response.append("CPU总使用率：").append(server.getCpu().getTotal()).append("%\n");
             response.append("系统使用率：").append(server.getCpu().getSys()).append("%\n");
             response.append("用户使用率：").append(server.getCpu().getUsed()).append("%\n");
             response.append("当前等待率：").append(server.getCpu().getWait()).append("%\n");

@@ -1,6 +1,6 @@
 package com.ruoyi.server.controller.server;
 
-import com.github.t9t.minecraftrconclient.RconClient;
+
 import com.ruoyi.common.annotation.AddOrUpdateFilter;
 import com.ruoyi.common.annotation.Log;
 import com.ruoyi.common.core.controller.BaseController;
@@ -13,6 +13,7 @@ import com.ruoyi.common.utils.poi.ExcelUtil;
 import com.ruoyi.server.async.AsyncManager;
 import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.constant.CacheKey;
+import com.ruoyi.server.common.rconclient.RconClient;
 import com.ruoyi.server.common.service.RconService;
 import com.ruoyi.server.domain.other.HistoryCommand;
 import com.ruoyi.server.domain.permission.WhitelistInfo;
@@ -268,7 +269,12 @@ public class ServerInfoController extends BaseController {
     @PostMapping("/rcon/execute/{id}")
     public AjaxResult execute(@PathVariable String id, @RequestBody Map<String, String> request) {
         // 获取登录用户
-        String name = SecurityContextHolder.getContext().getAuthentication().getName();
+        String name = null;
+        try {
+            name = SecurityContextHolder.getContext().getAuthentication().getName();
+        } catch (Exception e) {
+            name = getLoginUser().getUsername();
+        }
         if (StringUtils.isEmpty(name)) {
             return error("用户未登录");
         }
@@ -299,7 +305,6 @@ public class ServerInfoController extends BaseController {
             historyCommand.setRunTime(System.currentTimeMillis() - l + "ms");
             historyCommand.setStatus("OK");
             historyCommand.setResponse(msg);
-            historyCommand.setUser(name);
             log.info("指令执行成功, 返回消息: {}", msg);
 
             result.put("response", msg);
@@ -308,6 +313,7 @@ public class ServerInfoController extends BaseController {
             historyCommand.setStatus("NO");
             return error("指令发送失败");
         } finally {
+            historyCommand.setUser(name);
             // 异步保存历史指令
             AsyncManager.getInstance().execute(new TimerTask() {
                 @Override

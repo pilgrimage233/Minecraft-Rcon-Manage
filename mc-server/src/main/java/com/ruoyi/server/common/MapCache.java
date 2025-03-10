@@ -1,6 +1,7 @@
 package com.ruoyi.server.common;
 
-import com.github.t9t.minecraftrconclient.RconClient;
+
+import com.ruoyi.server.common.rconclient.RconClient;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
