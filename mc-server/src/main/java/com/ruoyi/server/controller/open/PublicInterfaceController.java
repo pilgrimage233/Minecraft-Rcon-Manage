@@ -9,7 +9,6 @@ import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.constant.CacheKey;
 import com.ruoyi.server.service.server.IServerInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -53,7 +52,6 @@ public class PublicInterfaceController extends BaseController {
     }
 
     @GetMapping("getWhiteList")
-    @CrossOrigin(origins = "https://app.yousb.sbs", maxAge = 3600)
     public AjaxResult getWhiteList() {
         // 限流检查
         if (!rateLimiter.tryAcquire()) {

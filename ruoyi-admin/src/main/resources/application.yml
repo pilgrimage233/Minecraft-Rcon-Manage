@@ -3,7 +3,7 @@ ruoyi:
   # 名称
   name: EndlessManager
   # 版本
-  version: 2.3
+  version: 2.3.1
   # 版权年份
   copyrightYear: 2025
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
@@ -174,6 +174,7 @@ qq:
       url: ws://10.0.0.150:3001  # 替换为实际的WebSocket URL
     http:
       url: http://10.0.0.150:3000 # 替换为实际的HTTP Server URL
+    command-prefix: /
     token: 123
     group_id: 702055554 # 群聊ID，多个用逗号分隔
     manager: 2873336923,996111175 # 管理员QQ号，多个用逗号分隔
