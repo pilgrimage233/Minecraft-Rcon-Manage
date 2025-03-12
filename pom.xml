@@ -20,7 +20,7 @@
     </distributionManagement>
 
     <properties>
-        <endless.version>2.3</endless.version>
+        <endless.version>2.3.1</endless.version>
         <ruoyi.version>3.8.7</ruoyi.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -188,6 +188,7 @@
         <module>ruoyi-generator</module>
         <module>ruoyi-common</module>
         <module>mc-server</module>
+        <module>qq-bot</module>
     </modules>
     <packaging>pom</packaging>
 

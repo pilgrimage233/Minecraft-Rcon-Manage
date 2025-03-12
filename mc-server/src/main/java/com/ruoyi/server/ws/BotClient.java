@@ -24,6 +24,7 @@ import org.java_websocket.handshake.ServerHandshake;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
@@ -66,8 +67,12 @@ public class BotClient extends WebSocketClient {
     @Autowired
     private RconService rconService;
 
+    @Autowired
+    private Environment env;
+
     @Value("${app-url}")
     private String appUrl;
+
 
     /**
      * 构造函数
@@ -231,6 +236,29 @@ public class BotClient extends WebSocketClient {
     }
 
     /**
+     * 获取命令前缀
+     * 如果配置文件中未设置或为空，则返回默认值"/"
+     */
+    private String getCommandPrefix() {
+        return env.containsProperty("qq.bot.command-prefix") && StringUtils.isNotEmpty(env.getProperty("qq.bot.command-prefix"))
+                ? env.getProperty("qq.bot.command-prefix") : "/";
+    }
+
+    /**
+     * 检查消息是否是命令
+     *
+     * @param message 消息内容
+     * @return 如果是命令则返回去除前缀的内容，否则返回null
+     */
+    private String parseCommand(String message) {
+        String prefix = getCommandPrefix();
+        if (message.startsWith(prefix)) {
+            return message.substring(prefix.length()).trim();
+        }
+        return null;
+    }
+
+    /**
      * 处理接收到的QQ消息
      * 可以在这里添加自定义的消息处理逻辑
      *
@@ -253,26 +281,73 @@ public class BotClient extends WebSocketClient {
                 if (message.getNoticeType().equals("group_decrease")) {
                     handleGroupDecrease(message);
                 }
+                return;
             }
 
-            if (msg.startsWith("白名单申请")) {
+            // 解析命令
+            String command = parseCommand(msg);
+            if (StringUtils.isEmpty(command)) {
+                return;
+            }
+
+            // 处理help命令
+            if (command.startsWith("help")) {
+                handleHelpCommand(message);
+                return;
+            }
+
+            // 处理其他命令
+            if (command.startsWith("白名单申请")) {
                 handleWhitelistApplication(message);
-            } else if (msg.startsWith("查询白名单")) {
+            } else if (command.startsWith("查询白名单")) {
                 handleWhitelistQuery(message);
-            } else if (msg.startsWith("过审") || msg.startsWith("拒审")) {
+            } else if (command.startsWith("过审") || command.startsWith("拒审")) {
                 handleWhitelistReview(message);
-            } else if (msg.startsWith("封禁") || msg.startsWith("解封")) {
+            } else if (command.startsWith("封禁") || command.startsWith("解封")) {
                 handleBanOperation(message);
-            } else if (msg.startsWith("发送指令")) {
+            } else if (command.startsWith("发送指令")) {
                 handleRconCommand(message);
-            } else if (msg.startsWith("查询玩家")) {
+            } else if (command.startsWith("查询玩家")) {
                 handlePlayerQuery(message);
-            } else if (msg.startsWith("查询在线")) {
+            } else if (command.startsWith("查询在线")) {
                 handleOnlineQuery(message);
-            } else if (msg.startsWith("运行状态")) {
+            } else if (command.startsWith("运行状态")) {
                 handleHostStatus(message);
             }
         }
+    }
+
+    /**
+     * 处理help命令
+     * 显示所有可用的命令及其用法
+     *
+     * @param message QQ消息对象
+     */
+    private void handleHelpCommand(QQMessage message) {
+        String prefix = getCommandPrefix();
+        StringBuilder help = new StringBuilder();
+        help.append("[CQ:at,qq=").append(message.getSender().getUserId()).append("] 可用命令列表：\n\n");
+
+        // 所有用户可用的命令
+        help.append("普通用户命令：\n");
+        help.append(prefix).append("help - 显示此帮助信息\n");
+        help.append(prefix).append("白名单申请 <玩家ID> <正版/离线> - 申请白名单\n");
+        help.append(prefix).append("查询白名单 - 查询自己的白名单状态\n");
+        help.append(prefix).append("查询玩家 <玩家ID> - 查询指定玩家信息\n");
+        help.append(prefix).append("查询在线 - 查询所有服务器在线玩家\n\n");
+
+        // 管理员命令
+        if (properties.getManagers().contains(message.getSender().getUserId())) {
+            help.append("管理员命令：\n");
+            help.append(prefix).append("过审 <玩家ID> - 通过玩家的白名单申请\n");
+            help.append(prefix).append("拒审 <玩家ID> - 拒绝玩家的白名单申请\n");
+            help.append(prefix).append("封禁 <玩家ID> <原因> - 封禁玩家\n");
+            help.append(prefix).append("解封 <玩家ID> - 解除玩家封禁\n");
+            help.append(prefix).append("发送指令 <服务器ID/all> <指令内容> - 向服务器发送RCON指令\n");
+            help.append(prefix).append("运行状态 - 查看服务器主机运行状态\n");
+        }
+
+        sendMessage(message, help.toString());
     }
 
     /**
@@ -538,12 +613,18 @@ public class BotClient extends WebSocketClient {
         jsonObject.put("message", msg);
         final QQBotProperties.Http http = properties.getHttp();
 
-        // 设置Authorization头
-        final HttpResponse response = HttpUtil.createPost(http.getUrl() + BotApi.SEND_GROUP_MSG)
-                // .header("Authorization", "Bearer " + properties.getToken())
-                .body(jsonObject.toJSONString())
-                .execute();
-        log.info("发送消息结果: {}", response);
+        try {
+            final HttpResponse response = HttpUtil.createPost(http.getUrl() + BotApi.SEND_GROUP_MSG)
+                    // 设置Authorization头
+                    .header("Authorization", "Bearer " + properties.getToken())
+                    .body(jsonObject.toJSONString())
+                    .execute();
+            log.info("发送消息结果: {}", response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            log.error("发送消息失败: {}", e.getMessage());
+        }
+
     }
 
     /**
