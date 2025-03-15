@@ -75,24 +75,21 @@ public class BotManager {
                     stopBot(id);
                 });
 
-        // 启动新增的机器人
-        configs.stream()
-                .filter(config -> !currentBotIds.contains(config.getId()))
-                .forEach(config -> {
-                    log.info("启动新增的机器人: {}", config.getId());
-                    startBot(config);
-                });
+        // 处理所有配置中的机器人
+        configs.forEach(config -> {
+            Long botId = config.getId();
+            BotClient client = botClients.get(botId);
 
-        // 更新现有机器人的配置
-        configs.stream()
-                .filter(config -> currentBotIds.contains(config.getId()))
-                .forEach(config -> {
-                    BotClient client = botClients.get(config.getId());
-                    if (client != null) {
-                        log.info("更新机器人配置: {}", config.getId());
-                        client.init(config);
-                    }
-                });
+            if (client == null) {
+                // 如果是新机器人，启动它
+                log.info("启动新增的机器人: {}", botId);
+                startBot(config);
+            } else {
+                // 如果是现有机器人，只更新配置
+                log.info("更新机器人配置: {}", botId);
+                client.init(config);
+            }
+        });
     }
 
     /**
