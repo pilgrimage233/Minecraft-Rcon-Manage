@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.server.mapper.bot.QqBotConfigMapper">
+
+    <resultMap type="QqBotConfig" id="QqBotConfigResult">
+        <result property="id" column="id"/>
+        <result property="name" column="name"/>
+        <result property="botQq" column="bot_qq"/>
+        <result property="httpUrl" column="http_url"/>
+        <result property="wsUrl" column="ws_url"/>
+        <result property="token" column="token"/>
+        <result property="groupIds" column="group_ids"/>
+        <result property="commandPrefix" column="command_prefix"/>
+        <result property="description" column="description"/>
+        <result property="lastLoginTime" column="last_login_time"/>
+        <result property="lastHeartbeatTime" column="last_heartbeat_time"/>
+        <result property="errorMsg" column="error_msg"/>
+        <result property="status" column="status"/>
+        <result property="createTime" column="create_time"/>
+        <result property="createBy" column="create_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectQqBotConfigVo">
+        select id,
+               name,
+               bot_qq,
+               http_url,
+               ws_url,
+               token,
+               group_ids,
+               command_prefix,
+               description,
+               last_login_time,
+               last_heartbeat_time,
+               error_msg,
+               status,
+               create_time,
+               create_by,
+               update_time,
+               update_by,
+               remark
+        from qq_bot_config
+    </sql>
+
+    <select id="selectQqBotConfigList" parameterType="QqBotConfig" resultMap="QqBotConfigResult">
+        <include refid="selectQqBotConfigVo"/>
+        <where>
+            <if test="name != null  and name != ''">
+                and name like concat('%', #{name}, '%')
+            </if>
+            <if test="botQq != null  and botQq != ''">
+                and bot_qq = #{botQq}
+            </if>
+            <if test="status != null ">
+                and status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectQqBotConfigById" parameterType="Long"
+            resultMap="QqBotConfigResult">
+        <include refid="selectQqBotConfigVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertQqBotConfig" parameterType="QqBotConfig" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into qq_bot_config
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="name != null and name != ''">name,
+            </if>
+            <if test="botQq != null">bot_qq,
+            </if>
+            <if test="httpUrl != null and httpUrl != ''">http_url,
+            </if>
+            <if test="wsUrl != null and wsUrl != ''">ws_url,
+            </if>
+            <if test="token != null">token,
+            </if>
+            <if test="groupIds != null and groupIds != ''">group_ids,
+            </if>
+            <if test="commandPrefix != null">command_prefix,
+            </if>
+            <if test="description != null">description,
+            </if>
+            <if test="lastLoginTime != null">last_login_time,
+            </if>
+            <if test="lastHeartbeatTime != null">last_heartbeat_time,
+            </if>
+            <if test="errorMsg != null">error_msg,
+            </if>
+            <if test="status != null">status,
+            </if>
+            <if test="createTime != null">create_time,
+            </if>
+            <if test="createBy != null">create_by,
+            </if>
+            <if test="updateTime != null">update_time,
+            </if>
+            <if test="updateBy != null">update_by,
+            </if>
+            <if test="remark != null">remark,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="name != null and name != ''">#{name},
+            </if>
+            <if test="botQq != null">#{botQq},
+            </if>
+            <if test="httpUrl != null and httpUrl != ''">#{httpUrl},
+            </if>
+            <if test="wsUrl != null and wsUrl != ''">#{wsUrl},
+            </if>
+            <if test="token != null">#{token},
+            </if>
+            <if test="groupIds != null and groupIds != ''">#{groupIds},
+            </if>
+            <if test="commandPrefix != null">#{commandPrefix},
+            </if>
+            <if test="description != null">#{description},
+            </if>
+            <if test="lastLoginTime != null">#{lastLoginTime},
+            </if>
+            <if test="lastHeartbeatTime != null">#{lastHeartbeatTime},
+            </if>
+            <if test="errorMsg != null">#{errorMsg},
+            </if>
+            <if test="status != null">#{status},
+            </if>
+            <if test="createTime != null">#{createTime},
+            </if>
+            <if test="createBy != null">#{createBy},
+            </if>
+            <if test="updateTime != null">#{updateTime},
+            </if>
+            <if test="updateBy != null">#{updateBy},
+            </if>
+            <if test="remark != null">#{remark},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateQqBotConfig" parameterType="QqBotConfig">
+        update qq_bot_config
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="name != null and name != ''">name =
+                #{name},
+            </if>
+            <if test="botQq != null">bot_qq =
+                #{botQq},
+            </if>
+            <if test="httpUrl != null and httpUrl != ''">http_url =
+                #{httpUrl},
+            </if>
+            <if test="wsUrl != null and wsUrl != ''">ws_url =
+                #{wsUrl},
+            </if>
+            <if test="token != null">token =
+                #{token},
+            </if>
+            <if test="groupIds != null and groupIds != ''">group_ids =
+                #{groupIds},
+            </if>
+            <if test="commandPrefix != null">command_prefix =
+                #{commandPrefix},
+            </if>
+            <if test="description != null">description =
+                #{description},
+            </if>
+            <if test="lastLoginTime != null">last_login_time =
+                #{lastLoginTime},
+            </if>
+            <if test="lastHeartbeatTime != null">last_heartbeat_time =
+                #{lastHeartbeatTime},
+            </if>
+            <if test="errorMsg != null">error_msg =
+                #{errorMsg},
+            </if>
+            <if test="status != null">status =
+                #{status},
+            </if>
+            <if test="createTime != null">create_time =
+                #{createTime},
+            </if>
+            <if test="createBy != null">create_by =
+                #{createBy},
+            </if>
+            <if test="updateTime != null">update_time =
+                #{updateTime},
+            </if>
+            <if test="updateBy != null">update_by =
+                #{updateBy},
+            </if>
+            <if test="remark != null">remark =
+                #{remark},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteQqBotConfigById" parameterType="Long">
+        delete
+        from qq_bot_config
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteQqBotConfigByIds" parameterType="String">
+        delete from qq_bot_config where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

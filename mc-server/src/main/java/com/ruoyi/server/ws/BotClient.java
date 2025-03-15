@@ -14,89 +14,136 @@ import com.ruoyi.server.common.constant.BotApi;
 import com.ruoyi.server.common.constant.CacheKey;
 import com.ruoyi.server.common.service.EmailService;
 import com.ruoyi.server.common.service.RconService;
+import com.ruoyi.server.domain.bot.QqBotConfig;
+import com.ruoyi.server.domain.bot.QqBotManager;
+import com.ruoyi.server.domain.bot.QqBotManagerGroup;
 import com.ruoyi.server.domain.permission.WhitelistInfo;
+import com.ruoyi.server.service.bot.IQqBotConfigService;
+import com.ruoyi.server.service.bot.IQqBotManagerService;
 import com.ruoyi.server.service.permission.IWhitelistInfoService;
 import com.ruoyi.server.service.server.IServerInfoService;
-import com.ruoyi.server.ws.config.QQBotProperties;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.core.env.Environment;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.*;
 
 /**
  * QQ机器人WebSocket客户端
  * 用于与QQ机器人服务器建立长连接，实时接收消息
- * 只有在配置文件中启用（qq.bot.enable=true）时才会创建此客户端
  */
 @Slf4j
 @Component
-@ConditionalOnProperty(prefix = "qq.bot", name = "enable", havingValue = "true")
-public class BotClient extends WebSocketClient {
+@Scope("prototype")
+public class BotClient {
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private final QQBotProperties properties;
+    private final RedisCache redisCache;
     private ScheduledFuture<?> reconnectTask;
     private volatile boolean isShuttingDown = false;
-
-    @Autowired
-    private RedisCache redisCache;
-
-    @Autowired
-    private EmailService emailService;
-
-    @Autowired
-    private IWhitelistInfoService whitelistInfoService;
-
-    @Autowired
-    private IServerInfoService serverInfoService;
-
-    @Autowired
-    private RconService rconService;
-
-    @Autowired
-    private Environment env;
-
-    @Value("${app-url}")
-    private String appUrl;
-
+    private final EmailService emailService;
+    private final IWhitelistInfoService whitelistInfoService;
+    private final IServerInfoService serverInfoService;
+    private final RconService rconService;
+    private final IQqBotConfigService qqBotConfigService;
+    private final IQqBotManagerService qqBotManagerService;
+    private final String appUrl;
+    /**
+     * -- GETTER --
+     * 获取机器人配置
+     *
+     * @return 机器人配置
+     */
+    @Getter
+    private QqBotConfig config;
+    private WebSocketClient wsClient;
 
     /**
      * 构造函数
-     * 初始化WebSocket客户端，设置认证token
-     *
-     * @param properties QQ机器人配置属性
+     * 初始化依赖
      */
-    public BotClient(QQBotProperties properties) {
-        super(URI.create("ws://localhost"), new HashMap<String, String>() {{
-            put("Authorization", "Bearer " + properties.getToken());
-        }});
-        this.properties = properties;
+    @Autowired
+    public BotClient(RedisCache redisCache,
+                     EmailService emailService,
+                     IWhitelistInfoService whitelistInfoService,
+                     IServerInfoService serverInfoService,
+                     RconService rconService,
+                     IQqBotConfigService qqBotConfigService,
+                     IQqBotManagerService qqBotManagerService,
+                     @Value("${app-url}") String appUrl) {
+        this.redisCache = redisCache;
+        this.emailService = emailService;
+        this.whitelistInfoService = whitelistInfoService;
+        this.serverInfoService = serverInfoService;
+        this.rconService = rconService;
+        this.qqBotConfigService = qqBotConfigService;
+        this.qqBotManagerService = qqBotManagerService;
+        this.appUrl = appUrl;
+
+        log.info("BotClient 实例已创建，依赖注入完成");
     }
 
     /**
-     * Spring Bean初始化时调用
+     * 初始化机器人客户端
      * 使用配置的URL创建WebSocket连接
+     *
+     * @param config 机器人配置
      */
-    @PostConstruct
-    public void init() {
+    public void init(QqBotConfig config) {
         try {
-            this.uri = URI.create(properties.getWs().getUrl());
-            connect();
-            log.info("QQ机器人WebSocket客户端已初始化，连接地址: {}", properties.getWs().getUrl());
+            this.config = config;
+            if (config == null) {
+                log.error("机器人配置为空");
+                return;
+            }
+
+            // 如果已存在连接，先关闭
+            if (wsClient != null) {
+                try {
+                    wsClient.close();
+                } catch (Exception e) {
+                    log.error("关闭旧WebSocket连接时发生错误: {}", e.getMessage());
+                }
+            }
+
+            // 创建新的WebSocket连接
+            Map<String, String> headers = new HashMap<>();
+            headers.put("Authorization", "Bearer " + config.getToken());
+
+            wsClient = new WebSocketClient(URI.create(config.getWsUrl()), headers) {
+                @Override
+                public void onOpen(ServerHandshake handshakedata) {
+                    BotClient.this.onOpen(handshakedata);
+                }
+
+                @Override
+                public void onMessage(String message) {
+                    BotClient.this.onMessage(message);
+                }
+
+                @Override
+                public void onClose(int code, String reason, boolean remote) {
+                    BotClient.this.onClose(code, reason, remote);
+                }
+
+                @Override
+                public void onError(Exception ex) {
+                    BotClient.this.onError(ex);
+                }
+            };
+
+            wsClient.connect();
+            log.info("QQ机器人WebSocket客户端已初始化，连接地址: {}", config.getWsUrl());
         } catch (Exception e) {
             log.error("QQ机器人WebSocket客户端初始化失败: {}", e.getMessage());
             scheduleReconnect();
@@ -131,10 +178,12 @@ public class BotClient extends WebSocketClient {
             }
 
             // 关闭WebSocket连接
-            try {
-                close();
-            } catch (Exception e) {
-                log.error("关闭WebSocket连接时发生错误: {}", e.getMessage());
+            if (wsClient != null) {
+                try {
+                    wsClient.close();
+                } catch (Exception e) {
+                    log.error("关闭WebSocket连接时发生错误: {}", e.getMessage());
+                }
             }
 
             log.info("QQ机器人WebSocket客户端已关闭");
@@ -144,95 +193,88 @@ public class BotClient extends WebSocketClient {
     }
 
     /**
-     * WebSocket连接成功时的回调方法
-     * 当与服务器建立连接后调用
-     *
-     * @param handshakedata 握手信息
+     * WebSocket连接打开时的回调
      */
-    @Override
     public void onOpen(ServerHandshake handshakedata) {
-        log.info("已成功连接到QQ机器人WebSocket服务器");
-        // 连接成功后取消重连任务
-        if (reconnectTask != null) {
-            reconnectTask.cancel(false);
-            reconnectTask = null;
-        }
+        log.info("WebSocket连接已建立");
     }
 
     /**
-     * 接收到WebSocket消息时的回调方法
-     * 当服务器发送消息时调用，负责解析消息并处理
-     *
-     * @param message 收到的消息内容
+     * 接收到WebSocket消息时的回调
      */
-    @Override
     public void onMessage(String message) {
         try {
-            log.info("收到消息: {}", message);
+            log.debug("收到消息: {}", message);
             QQMessage qqMessage = JSON.parseObject(message, QQMessage.class);
             handleMessage(qqMessage);
         } catch (Exception e) {
-            log.error("消息解析失败: {}", e.getMessage());
+            log.error("处理WebSocket消息时发生错误: {}", e.getMessage());
         }
     }
 
     /**
-     * WebSocket连接关闭时的回调方法
-     * 当连接断开时调用，会触发重连机制
-     *
-     * @param code   关闭代码
-     * @param reason 关闭原因
-     * @param remote 是否由服务器端关闭
+     * WebSocket连接关闭时的回调
      */
-    @Override
     public void onClose(int code, String reason, boolean remote) {
-        log.info("WebSocket连接已关闭 - 关闭方: {}, 状态码: {}, 原因: {}",
-                (remote ? "服务器" : "客户端"), code, reason);
+        log.info("WebSocket连接已关闭: code={}, reason={}, remote={}", code, reason, remote);
         if (!isShuttingDown) {
             scheduleReconnect();
         }
     }
 
     /**
-     * WebSocket发生错误时的回调方法
-     * 当连接出现异常时调用，会触发重连机制
-     *
-     * @param ex 异常信息
+     * WebSocket发生错误时的回调
      */
-    @Override
     public void onError(Exception ex) {
-        log.error("WebSocket连接发生错误: {}", ex.getMessage());
+        log.error("WebSocket发生错误: {}", ex.getMessage());
         if (!isShuttingDown) {
             scheduleReconnect();
         }
     }
 
     /**
-     * 安排重连任务
-     * 在连接断开或发生错误时，每30秒尝试重新连接一次
-     * 直到连接成功为止
+     * 检查WebSocket连接是否打开
+     */
+    public boolean isOpen() {
+        return wsClient != null && wsClient.isOpen();
+    }
+
+    /**
+     * 重新连接WebSocket
+     */
+    public void reconnect() {
+        if (wsClient != null) {
+            try {
+                wsClient.reconnect();
+            } catch (Exception e) {
+                log.error("重新连接失败: {}", e.getMessage());
+                scheduleReconnect();
+            }
+        } else {
+            init(config);
+        }
+    }
+
+    /**
+     * 安排重新连接任务
      */
     private void scheduleReconnect() {
         if (isShuttingDown) {
             return;
         }
 
-        if (reconnectTask == null || reconnectTask.isDone()) {
-            try {
-                reconnectTask = scheduler.scheduleAtFixedRate(() -> {
-                    try {
-                        if (!isOpen() && !isShuttingDown) {
-                            log.info("正在尝试重新连接...");
-                            reconnect();
-                        }
-                    } catch (Exception e) {
-                        log.error("重连失败: {}", e.getMessage());
-                    }
-                }, 0, 30, TimeUnit.SECONDS);
-            } catch (RejectedExecutionException e) {
-                log.warn("调度器已关闭，无法创建重连任务");
-            }
+        if (reconnectTask != null && !reconnectTask.isDone()) {
+            return;
         }
+
+        reconnectTask = scheduler.schedule(() -> {
+            try {
+                log.info("尝试重新连接WebSocket...");
+                reconnect();
+            } catch (Exception e) {
+                log.error("重新连接失败: {}", e.getMessage());
+            }
+        }, 5, TimeUnit.SECONDS);
     }
 
     /**
@@ -240,8 +282,7 @@ public class BotClient extends WebSocketClient {
      * 如果配置文件中未设置或为空，则返回默认值"/"
      */
     private String getCommandPrefix() {
-        return env.containsProperty("qq.bot.command-prefix") && StringUtils.isNotEmpty(env.getProperty("qq.bot.command-prefix"))
-                ? env.getProperty("qq.bot.command-prefix") : "/";
+        return StringUtils.isNotEmpty(config.getCommandPrefix()) ? config.getCommandPrefix() : "/";
     }
 
     /**
@@ -267,7 +308,7 @@ public class BotClient extends WebSocketClient {
     private void handleMessage(QQMessage message) {
         // 处理消息的具体逻辑
         if ("group".equals(message.getMessageType()) &&
-                properties.getGroupIds().contains(message.getGroupId())) {
+                config.getGroupIdList().contains(message.getGroupId())) {
             log.info("收到QQ群[{}]消息 - 发送者: {}, 内容: {}",
                     message.getGroupId(),
                     message.getSender().getUserId(),
@@ -286,6 +327,7 @@ public class BotClient extends WebSocketClient {
 
             // 解析命令
             String command = parseCommand(msg);
+            message.setMessage(command);
             if (StringUtils.isEmpty(command)) {
                 return;
             }
@@ -313,6 +355,10 @@ public class BotClient extends WebSocketClient {
                 handleOnlineQuery(message);
             } else if (command.startsWith("运行状态")) {
                 handleHostStatus(message);
+            } else if (command.startsWith("添加管理")) {
+                handleAddManager(message);
+            } else if (command.startsWith("添加超管")) {
+                handleAddSuperManager(message);
             }
         }
     }
@@ -337,7 +383,8 @@ public class BotClient extends WebSocketClient {
         help.append(prefix).append("查询在线 - 查询所有服务器在线玩家\n\n");
 
         // 管理员命令
-        if (properties.getManagers().contains(message.getSender().getUserId())) {
+        List<QqBotManager> managers = config.selectManagerForThisGroup(message.getGroupId(), message.getUserId());
+        if (!managers.isEmpty() && managers.get(0).getPermissionType() == 0) {
             help.append("管理员命令：\n");
             help.append(prefix).append("过审 <玩家ID> - 通过玩家的白名单申请\n");
             help.append(prefix).append("拒审 <玩家ID> - 拒绝玩家的白名单申请\n");
@@ -345,6 +392,13 @@ public class BotClient extends WebSocketClient {
             help.append(prefix).append("解封 <玩家ID> - 解除玩家封禁\n");
             help.append(prefix).append("发送指令 <服务器ID/all> <指令内容> - 向服务器发送RCON指令\n");
             help.append(prefix).append("运行状态 - 查看服务器主机运行状态\n");
+
+            // 超级管理员命令
+            if (!managers.isEmpty() && managers.get(0).getPermissionType() == 0) {
+                help.append("\n超级管理员命令：\n");
+                help.append(prefix).append("添加管理 <QQ号> [群号] - 添加普通管理员，不填群号默认为当前群\n");
+                help.append(prefix).append("添加超管 <QQ号> [群号] - 添加超级管理员，不填群号默认为当前群\n");
+            }
         }
 
         sendMessage(message, help.toString());
@@ -356,7 +410,7 @@ public class BotClient extends WebSocketClient {
      * @param message
      */
     private void handleGroupDecrease(QQMessage message) {
-        if (properties.getGroupIds().contains(message.getGroupId())) {
+        if (config.getGroupIdList().contains(message.getGroupId())) {
             log.info("QQ群[{}]有用户退群 - 用户: {}", message.getGroupId(), message.getUserId());
             // 退群用户的QQ号
             Long userId = message.getUserId();
@@ -607,16 +661,19 @@ public class BotClient extends WebSocketClient {
     private void sendMessage(QQMessage message, String msg) {
         log.info("message: {}", message);
         // 发送消息
-        // Map<String, String> body = new HashMap<>();
-        JSONObject jsonObject = new JSONObject();
-        jsonObject.put("group_id", message.getGroupId().toString());
-        jsonObject.put("message", msg);
-        final QQBotProperties.Http http = properties.getHttp();
-
         try {
-            final HttpResponse response = HttpUtil.createPost(http.getUrl() + BotApi.SEND_GROUP_MSG)
+            if (config == null) {
+                log.error("无法发送消息：机器人配置为空");
+                return;
+            }
+
+            JSONObject jsonObject = new JSONObject();
+            jsonObject.put("group_id", message.getGroupId().toString());
+            jsonObject.put("message", msg);
+
+            final HttpResponse response = HttpUtil.createPost(config.getHttpUrl() + BotApi.SEND_GROUP_MSG)
                     // 设置Authorization头
-                    .header("Authorization", "Bearer " + properties.getToken())
+                    .header("Authorization", "Bearer " + config.getToken())
                     .body(jsonObject.toJSONString())
                     .execute();
             log.info("发送消息结果: {}", response);
@@ -624,7 +681,6 @@ public class BotClient extends WebSocketClient {
             e.printStackTrace();
             log.error("发送消息失败: {}", e.getMessage());
         }
-
     }
 
     /**
@@ -635,14 +691,21 @@ public class BotClient extends WebSocketClient {
      */
     private void handleWhitelistReview(QQMessage message) {
         try {
+            log.info("开始处理白名单审核请求");
+
             // 检查是否是管理员
-            if (!properties.getManagers().contains(message.getSender().getUserId())) {
+            List<QqBotManager> managers = config.selectManagerForThisGroup(message.getGroupId(), message.getUserId());
+            if (managers.isEmpty()) {
+                log.info("用户 {} 不是群 {} 的管理员", message.getUserId(), message.getGroupId());
                 sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 您没有权限执行此操作。");
                 return;
             }
 
+            log.info("用户 {} 是群 {} 的管理员，权限验证通过", message.getUserId(), message.getGroupId());
+
             String[] parts = message.getMessage().trim().split("\\s+");
             if (parts.length < 2) {
+                log.info("命令格式错误: {}", message.getMessage());
                 sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 格式错误，正确格式：过审/拒审 玩家ID");
                 return;
             }
@@ -650,10 +713,14 @@ public class BotClient extends WebSocketClient {
             String command = parts[0];
             String playerId = parts[1];
 
+            log.info("处理白名单审核 - 命令: {}, 玩家ID: {}", command, playerId);
+
             // 查询白名单信息
             WhitelistInfo whitelistInfo = new WhitelistInfo();
             whitelistInfo.setUserName(playerId);
+            log.info("开始查询玩家 {} 的白名单信息", playerId);
             List<WhitelistInfo> whitelistInfos = whitelistInfoService.selectWhitelistInfoList(whitelistInfo);
+            log.info("查询结果: 找到 {} 条记录", whitelistInfos.size());
 
             if (whitelistInfos.isEmpty()) {
                 sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 未找到玩家 " + playerId + " 的白名单申请。");
@@ -661,31 +728,41 @@ public class BotClient extends WebSocketClient {
             }
 
             whitelistInfo = whitelistInfos.get(0);
+            log.info("获取到玩家 {} 的白名单信息: {}", playerId, whitelistInfo);
 
             // 设置审核状态
             if (command.equals("过审")) {
+                log.info("执行过审操作");
                 whitelistInfo.setStatus("1"); // 通过
                 whitelistInfo.setAddState("1");
                 whitelistInfo.setServers("all"); // 默认添加到所有服务器
             } else {
+                log.info("执行拒审操作");
                 whitelistInfo.setStatus("2"); // 拒绝
                 whitelistInfo.setAddState("2");
                 whitelistInfo.setRemoveReason("管理员拒绝");
             }
 
             // 更新白名单信息
+            log.info("开始更新白名单信息");
             int result = whitelistInfoService.updateWhitelistInfo(whitelistInfo, message.getSender().getUserId().toString());
+            log.info("更新结果: {}", result);
 
             if (result > 0) {
                 String status = command.equals("过审") ? "通过" : "拒绝";
+                log.info("白名单审核成功: {}", status);
                 sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 已" + status + "玩家 " + playerId + " 的白名单申请。");
             } else {
+                log.warn("白名单审核失败: 更新数据库返回 {}", result);
                 sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 审核操作失败，请稍后重试。");
             }
 
+            // 更新管理员最后活跃时间
+            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
+
         } catch (Exception e) {
             e.printStackTrace();
-            log.error("处理白名单审核失败: {}", e.getMessage());
+            log.error("处理白名单审核失败: {}", e.getMessage(), e);
             sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 审核失败，请稍后重试。");
         }
     }
@@ -699,7 +776,7 @@ public class BotClient extends WebSocketClient {
     private void handleBanOperation(QQMessage message) {
         try {
             // 检查是否是管理员
-            if (!properties.getManagers().contains(message.getSender().getUserId())) {
+            if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
                 sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 您没有权限执行此操作。");
                 return;
             }
@@ -752,6 +829,9 @@ public class BotClient extends WebSocketClient {
                 sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 操作失败，请稍后重试。");
             }
 
+            // 更新管理员最后活跃时间
+            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
+
         } catch (Exception e) {
             e.printStackTrace();
             log.error("处理封禁/解封操作失败: {}", e.getMessage());
@@ -768,9 +848,15 @@ public class BotClient extends WebSocketClient {
     private void handleRconCommand(QQMessage message) {
         try {
             // 检查是否是管理员
-            if (!properties.getManagers().contains(message.getSender().getUserId())) {
+            if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
                 sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 您没有权限执行此操作。");
                 return;
+            }
+            final List<QqBotManager> qqBotManagers = config.selectManagerForThisGroup(message.getGroupId(), message.getUserId());
+            final QqBotManager qqBotManager = qqBotManagers.get(0);
+            if (qqBotManager.getPermissionType() != 0) {
+                // 权限不足
+                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 权限不足！");
             }
 
             String[] parts = message.getMessage().trim().split("\\s+", 3);
@@ -805,6 +891,9 @@ public class BotClient extends WebSocketClient {
                 log.error("发送RCON指令失败: {}", e.getMessage());
                 sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 指令发送失败：" + e.getMessage());
             }
+
+            // 更新管理员最后活跃时间
+            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
 
         } catch (Exception e) {
             e.printStackTrace();
@@ -948,9 +1037,8 @@ public class BotClient extends WebSocketClient {
      * @param message QQ消息对象
      */
     private void handleHostStatus(QQMessage message) {
-
         // 检查是否是管理员
-        if (!properties.getManagers().contains(message.getSender().getUserId())) {
+        if (!config.getManagerIdList().contains(message.getSender().getUserId())) {
             sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 您没有权限执行此操作。");
             return;
         }
@@ -1007,9 +1095,236 @@ public class BotClient extends WebSocketClient {
             // 发送消息
             sendMessage(message, response.toString());
 
+            // 更新管理员最后活跃时间
+            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
+
         } catch (Exception e) {
             log.error("处理主机状态查询失败: " + e.getMessage(), e);
             sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 查询失败，请稍后重试。");
         }
     }
+
+    /**
+     * 更新机器人配置中的管理员信息
+     * 在添加或修改管理员后调用此方法以刷新配置
+     */
+    public void updateManagerConfig() {
+        try {
+            if (config == null) {
+                log.error("无法更新管理员配置：机器人配置为空");
+                return;
+            }
+
+            // 从数据库重新获取最新的机器人配置
+            QqBotConfig latestConfig = qqBotConfigService.selectQqBotConfigById(config.getId());
+            if (latestConfig == null) {
+                log.error("无法获取机器人配置：ID {} 不存在", config.getId());
+                return;
+            }
+
+            // 更新当前配置
+            this.config = latestConfig;
+            log.info("机器人 {} 的管理员配置已更新", config.getId());
+        } catch (Exception e) {
+            log.error("更新管理员配置失败: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 处理添加管理员命令
+     * 超级管理员可以通过发送"添加管理 QQ号 [群号]"来添加普通管理员
+     * 如果不指定群号，则默认为当前群
+     *
+     * @param message QQ消息对象
+     */
+    private void handleAddManager(QQMessage message) {
+        try {
+            String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
+
+            // 检查是否是超级管理员
+            List<QqBotManager> managers = config.selectManagerForThisGroup(message.getGroupId(), message.getUserId());
+            if (managers.isEmpty() || managers.get(0).getPermissionType() != 0) {
+                sendMessage(message, base + " 您没有权限执行此操作，此操作仅限超级管理员使用。");
+                return;
+            }
+
+            String[] parts = message.getMessage().trim().split("\\s+");
+            if (parts.length < 2) {
+                sendMessage(message, base + " 格式错误，正确格式：添加管理 QQ号 [群号]，不填群号默认为当前群");
+                return;
+            }
+
+            String targetQQ = parts[1];
+            // 如果没有指定群号，使用当前群号
+            String groupId = parts.length > 2 ? parts[2] : String.valueOf(message.getGroupId());
+
+            // 查询是否已存在该QQ号的管理员
+            QqBotManager manager = new QqBotManager();
+            manager.setManagerQq(targetQQ);
+            manager.setPermissionType(1L);
+            List<QqBotManager> managers1 = qqBotManagerService.selectQqBotManagerList(manager);
+            if (!managers1.isEmpty()) {
+                sendMessage(message, base + " 该QQ号已是管理员，无需重复添加。");
+                return;
+            }
+
+            // 调用API查询QQ号信息
+            Map<String, Object> params = new HashMap<>();
+            params.put("user_id", targetQQ);
+            final String response = HttpUtil.post(config.getHttpUrl() + BotApi.GET_STRANGER_INFO, params);
+            final JSONObject jsonObject = JSON.parseObject(response);
+            if (jsonObject.getInteger("retcode") != 0) {
+                sendMessage(message, base + " 未查询到该QQ号的信息，请检查QQ号是否正确。");
+                return;
+            }
+            // 设置管理员名称
+            String managerName = jsonObject.getJSONObject("data").getString("nick");
+
+            // 创建新的管理员对象
+            QqBotManager newManager = new QqBotManager();
+            newManager.setBotId(config.getId());
+            newManager.setManagerQq(targetQQ);
+            newManager.setPermissionType(1L); // 1表示普通管理员
+            newManager.setManagerName(managerName);
+            newManager.setStatus(1L); // 1表示启用状态
+
+            // 创建群组关联
+            QqBotManagerGroup group = new QqBotManagerGroup();
+            group.setGroupId(groupId);
+            group.setStatus(1L);
+
+            // 设置群组列表
+            List<QqBotManagerGroup> groups = new ArrayList<>();
+            groups.add(group);
+            newManager.setQqBotManagerGroupList(groups);
+
+            // 调用服务添加管理员
+            int result = qqBotManagerService.insertQqBotManager(newManager);
+
+            if (result > 0) {
+                // 更新管理员配置
+                updateManagerConfig();
+                sendMessage(message, base + " 已成功添加管理员，QQ：" + targetQQ + "，群号：" + groupId);
+            } else {
+                sendMessage(message, base + " 添加管理员失败，请稍后重试。");
+            }
+
+            // 更新管理员最后活跃时间
+            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
+
+        } catch (Exception e) {
+            log.error("处理添加管理员失败: {}", e.getMessage());
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 添加管理员失败，请稍后重试。");
+        }
+    }
+
+    /**
+     * 处理添加超级管理员命令
+     * 超级管理员可以通过发送"添加超管 QQ号 [群号]"来添加其他超级管理员
+     * 如果不指定群号，则默认为当前群
+     *
+     * @param message QQ消息对象
+     */
+    private void handleAddSuperManager(QQMessage message) {
+        try {
+            String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
+
+            // 检查是否是超级管理员
+            List<QqBotManager> managers = config.selectManagerForThisGroup(message.getGroupId(), message.getUserId());
+            if (managers.isEmpty() || managers.get(0).getPermissionType() != 0) {
+                sendMessage(message, base + " 您没有权限执行此操作，此操作仅限超级管理员使用。");
+                return;
+            }
+
+            String[] parts = message.getMessage().trim().split("\\s+");
+            if (parts.length < 2) {
+                sendMessage(message, base + " 格式错误，正确格式：添加超管 QQ号 [群号]，不填群号默认为当前群");
+                return;
+            }
+
+            String targetQQ = parts[1];
+            // 如果没有指定群号，使用当前群号
+            String groupId = parts.length > 2 ? parts[2] : String.valueOf(message.getGroupId());
+
+            // 查询是否已存在该QQ号的超级管理员
+            QqBotManager manager = new QqBotManager();
+            manager.setManagerQq(targetQQ);
+            manager.setPermissionType(0L);
+            List<QqBotManager> superManagers = qqBotManagerService.selectQqBotManagerList(manager);
+            if (!superManagers.isEmpty()) {
+                sendMessage(message, base + " 该QQ号已是超级管理员，无需重复添加。");
+                return;
+            }
+
+            // 调用API查询QQ号信息
+            Map<String, Object> params = new HashMap<>();
+            params.put("user_id", targetQQ);
+            final String response = HttpUtil.post(config.getHttpUrl() + BotApi.GET_STRANGER_INFO, params);
+            final JSONObject jsonObject = JSON.parseObject(response);
+            if (jsonObject.getInteger("retcode") != 0) {
+                sendMessage(message, base + " 未查询到该QQ号的信息，请检查QQ号是否正确。");
+                return;
+            }
+            // 设置管理员名称
+            String managerName = jsonObject.getJSONObject("data").getString("nick");
+
+            // 创建新的超级管理员对象
+            QqBotManager newManager = new QqBotManager();
+            newManager.setBotId(config.getId());
+            newManager.setManagerQq(targetQQ);
+            newManager.setPermissionType(0L); // 0表示超级管理员
+            newManager.setManagerName(managerName);
+            newManager.setStatus(1L); // 1表示启用状态
+
+            // 创建群组关联
+            QqBotManagerGroup group = new QqBotManagerGroup();
+            group.setGroupId(groupId);
+            group.setStatus(1L);
+
+            // 设置群组列表
+            List<QqBotManagerGroup> groups = new ArrayList<>();
+            groups.add(group);
+            newManager.setQqBotManagerGroupList(groups);
+
+            // 调用服务添加超级管理员
+            int result = qqBotManagerService.insertQqBotManager(newManager);
+
+            if (result > 0) {
+                // 更新管理员配置
+                updateManagerConfig();
+                sendMessage(message, base + " 已成功添加超级管理员，QQ：" + targetQQ + "，群号：" + groupId);
+            } else {
+                sendMessage(message, base + " 添加超级管理员失败，请稍后重试。");
+            }
+
+            // 更新管理员最后活跃时间
+            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
+
+        } catch (Exception e) {
+            log.error("处理添加超级管理员失败: {}", e.getMessage());
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 添加超级管理员失败，请稍后重试。");
+        }
+    }
+
+    private void updateQqBotManagerLastActiveTime(Long userId, Long botId) {
+        if (botId == null || userId == null) {
+            log.info("更新管理员最后活跃时间失败：参数为空");
+            return;
+        }
+
+        QqBotManager manager = new QqBotManager();
+        manager.setManagerQq(userId.toString());
+        manager.setBotId(botId);
+        manager.setLastActiveTime(new Date());
+
+        final int i = qqBotManagerService.updateQqBotManagerLastActiveTime(manager);
+
+        if (i > 0) {
+            log.info("更新管理员 {} 最后活跃时间成功", userId);
+        } else {
+            log.info("更新管理员 {} 最后活跃时间失败", userId);
+        }
+    }
+
+
 }

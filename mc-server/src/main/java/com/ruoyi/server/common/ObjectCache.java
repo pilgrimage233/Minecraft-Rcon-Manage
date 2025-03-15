@@ -2,8 +2,8 @@ package com.ruoyi.server.common;
 
 import com.ruoyi.server.domain.server.ServerCommandInfo;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * ClassName: ObjectCache <br>
@@ -15,7 +15,7 @@ import java.util.Map;
  */
 public class ObjectCache {
 
-    private static final Map<String, Object> CACHE = new HashMap<>();
+    private static final Map<String, Object> CACHE = new ConcurrentHashMap<>();
 
     public static void put(String key, Object value) {
         CACHE.put(key, value);

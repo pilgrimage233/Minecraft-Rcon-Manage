@@ -453,16 +453,16 @@
     [[$]]
     #refs["${businessName}Ref"].validate(valid => {
       if (valid) {
-          #foreach($column in $columns)
-              #if($column.htmlType == "checkbox")
-                form.value.$column.javaField = form.value.$
-                {
-                  column.javaField
-                }
-              .
-                join(",");
-              #end
-          #end
+        #foreach($column in $columns)
+        #if($column.htmlType == "checkbox")
+        form.value.$column.javaField = form.value.$
+        {
+          column.javaField
+        }
+      .
+        join(",");
+        #end
+        #end
         if (form.value.${
           pkColumn.javaField
         }

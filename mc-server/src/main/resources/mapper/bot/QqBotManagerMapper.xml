@@ -1,0 +1,291 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.ruoyi.server.mapper.bot.QqBotManagerMapper">
+
+    <resultMap type="QqBotManager" id="QqBotManagerResult">
+        <result property="id" column="id"/>
+        <result property="botId" column="bot_id"/>
+        <result property="managerName" column="manager_name"/>
+        <result property="managerQq" column="manager_qq"/>
+        <result property="permissionType" column="permission_type"/>
+        <result property="lastActiveTime" column="last_active_time"/>
+        <result property="status" column="status"/>
+        <result property="createTime" column="create_time"/>
+        <result property="createBy" column="create_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <resultMap id="QqBotManagerQqBotManagerGroupResult" type="QqBotManager" extends="QqBotManagerResult">
+        <collection property="qqBotManagerGroupList" notNullColumn="sub_id"
+                    javaType="java.util.List" resultMap="QqBotManagerGroupResult"/>
+    </resultMap>
+
+    <resultMap type="QqBotManagerGroup" id="QqBotManagerGroupResult">
+        <result property="id" column="sub_id"/>
+        <result property="managerId" column="sub_manager_id"/>
+        <result property="groupId" column="sub_group_id"/>
+        <result property="status" column="sub_status"/>
+        <result property="createTime" column="sub_create_time"/>
+        <result property="createBy" column="sub_create_by"/>
+        <result property="updateTime" column="sub_update_time"/>
+        <result property="updateBy" column="sub_update_by"/>
+        <result property="remark" column="sub_remark"/>
+    </resultMap>
+
+    <sql id="selectQqBotManagerVo">
+        select id,
+               bot_id,
+               manager_name,
+               manager_qq,
+               permission_type,
+               last_active_time,
+               status,
+               create_time,
+               create_by,
+               update_time,
+               update_by,
+               remark
+        from qq_bot_manager
+    </sql>
+
+    <select id="selectQqBotManagerList" parameterType="QqBotManager" resultMap="QqBotManagerResult">
+        <include refid="selectQqBotManagerVo"/>
+        <where>
+            <if test="managerName != null  and managerName != ''">
+                and manager_name like concat('%', #{managerName}, '%')
+            </if>
+            <if test="managerQq != null  and managerQq != ''">
+                and manager_qq = #{managerQq}
+            </if>
+            <if test="permissionType != null ">
+                and permission_type = #{permissionType}
+            </if>
+            <if test="status != null ">
+                and status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectQqBotManagerById" parameterType="Long"
+            resultMap="QqBotManagerQqBotManagerGroupResult">
+        select a.id,
+               a.bot_id,
+               a.manager_name,
+               a.manager_qq,
+               a.permission_type,
+               a.last_active_time,
+               a.status,
+               a.create_time,
+               a.create_by,
+               a.update_time,
+               a.update_by,
+               a.remark,
+               b.id          as
+                   sub_id,
+               b.manager_id  as
+                   sub_manager_id,
+               b.group_id    as
+                   sub_group_id,
+               b.status      as
+                   sub_status,
+               b.create_time as
+                   sub_create_time,
+               b.create_by   as
+                   sub_create_by,
+               b.update_time as
+                   sub_update_time,
+               b.update_by   as
+                   sub_update_by,
+               b.remark      as
+                   sub_remark
+        from qq_bot_manager a
+                 left join qq_bot_manager_group b on b.manager_id = a.id
+        where a.id = #{id}
+    </select>
+
+    <select id="selectQqBotManagerByBotIdAndManagerQqAndGroupId" parameterType="map"
+            resultMap="QqBotManagerResult">
+        select a.id,
+               a.bot_id,
+               a.manager_name,
+               a.manager_qq,
+               a.permission_type,
+               a.last_active_time,
+               a.status,
+               a.create_time,
+               a.create_by,
+               a.update_time,
+               a.update_by,
+               a.remark
+        from qq_bot_manager a
+                 inner join qq_bot_manager_group b on a.id = b.manager_id
+        where a.bot_id = #{botId}
+          and a.manager_qq = #{managerQq}
+          and b.group_id = #{groupId}
+          and a.status = 1
+          and b.status = 1
+    </select>
+
+    <insert id="insertQqBotManager" parameterType="QqBotManager" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into qq_bot_manager
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="botId != null">bot_id,
+            </if>
+            <if test="managerName != null">manager_name,
+            </if>
+            <if test="managerQq != null and managerQq != ''">manager_qq,
+            </if>
+            <if test="permissionType != null">permission_type,
+            </if>
+            <if test="lastActiveTime != null">last_active_time,
+            </if>
+            <if test="status != null">status,
+            </if>
+            <if test="createTime != null">create_time,
+            </if>
+            <if test="createBy != null">create_by,
+            </if>
+            <if test="updateTime != null">update_time,
+            </if>
+            <if test="updateBy != null">update_by,
+            </if>
+            <if test="remark != null">remark,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="botId != null">#{botId},
+            </if>
+            <if test="managerName != null">#{managerName},
+            </if>
+            <if test="managerQq != null and managerQq != ''">#{managerQq},
+            </if>
+            <if test="permissionType != null">#{permissionType},
+            </if>
+            <if test="lastActiveTime != null">#{lastActiveTime},
+            </if>
+            <if test="status != null">#{status},
+            </if>
+            <if test="createTime != null">#{createTime},
+            </if>
+            <if test="createBy != null">#{createBy},
+            </if>
+            <if test="updateTime != null">#{updateTime},
+            </if>
+            <if test="updateBy != null">#{updateBy},
+            </if>
+            <if test="remark != null">#{remark},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateQqBotManager" parameterType="QqBotManager">
+        update qq_bot_manager
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="botId != null">bot_id =
+                #{botId},
+            </if>
+            <if test="managerName != null">manager_name =
+                #{managerName},
+            </if>
+            <if test="managerQq != null and managerQq != ''">manager_qq =
+                #{managerQq},
+            </if>
+            <if test="permissionType != null">permission_type =
+                #{permissionType},
+            </if>
+            <if test="lastActiveTime != null">last_active_time =
+                #{lastActiveTime},
+            </if>
+            <if test="status != null">status =
+                #{status},
+            </if>
+            <if test="createTime != null">create_time =
+                #{createTime},
+            </if>
+            <if test="createBy != null">create_by =
+                #{createBy},
+            </if>
+            <if test="updateTime != null">update_time =
+                #{updateTime},
+            </if>
+            <if test="updateBy != null">update_by =
+                #{updateBy},
+            </if>
+            <if test="remark != null">remark =
+                #{remark},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <!--update qq_bot_manager set last_active_time = ? where manager_qq = ? and bot_id = ?;-->
+    <update id="updateQqBotManagerLastActiveTime" parameterType="QqBotManager">
+        update qq_bot_manager
+        set last_active_time = #{lastActiveTime}
+        where manager_qq = #{managerQq}
+          and bot_id = #{botId}
+    </update>
+
+    <delete id="deleteQqBotManagerById" parameterType="Long">
+        delete
+        from qq_bot_manager
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteQqBotManagerByIds" parameterType="String">
+        delete from qq_bot_manager where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteQqBotManagerGroupByManagerIds" parameterType="String">
+        delete from qq_bot_manager_group where manager_id in
+        <foreach item="managerId" collection="array" open="(" separator="," close=")">
+            #{managerId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteQqBotManagerGroupByManagerId" parameterType="Long">
+        delete
+        from qq_bot_manager_group
+        where manager_id = #{managerId}
+    </delete>
+
+    <insert id="batchQqBotManagerGroup">
+        insert into qq_bot_manager_group
+        ( id , manager_id , group_id , status , create_time , create_by , update_time , update_by , remark) values
+        <foreach item="item" index="index" collection="list" separator=",">
+            ( #{item.id
+                }, #{item.managerId
+                }, #{item.groupId
+                }, #{item.status
+                }, #{item.createTime
+                }, #{item.createBy
+                }, #{item.updateTime
+                }, #{item.updateBy
+                }, #{item.remark
+                })
+        </foreach>
+    </insert>
+
+    <delete id="deleteQqBotManagerGroupByBotId" parameterType="Long">
+        delete
+        from qq_bot_manager_group
+        where manager_id in (select id
+                             from qq_bot_manager
+                             where bot_id = #{botId})
+    </delete>
+
+    <delete id="deleteQqBotManagerByBotId" parameterType="Long">
+        delete
+        from qq_bot_manager
+        where bot_id = #{botId}
+    </delete>
+
+</mapper>

@@ -483,16 +483,16 @@
         [[$]]
         #refs["form"].validate(valid => {
           if (valid) {
-              #foreach($column in $columns)
-                  #if($column.htmlType == "checkbox")
-                    this.form.$column.javaField = this.form.$
-                    {
-                      column.javaField
-                    }
-                  .
-                    join(",");
-                  #end
-              #end
+            #foreach($column in $columns)
+            #if($column.htmlType == "checkbox")
+            this.form.$column.javaField = this.form.$
+            {
+              column.javaField
+            }
+          .
+            join(",");
+            #end
+            #end
             if (this.form.${
               pkColumn.javaField
             }

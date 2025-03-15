@@ -524,23 +524,27 @@
     [[$]]
     #refs["${businessName}Ref"].validate(valid => {
       if (valid) {
-          #foreach($column in $columns)
-              #if($column.htmlType == "checkbox")
-                form.value.$column.javaField = form.value.$
-                {
-                  column.javaField
-                }
-              .
-                join(",");
-              #end
-          #end
-          #if($table.sub)
-            form.value.$
-            {
-              subclassName
-            }
-            List = ${subclassName}List.value;
-          #end
+        #foreach($column in $columns)
+        #if($column.htmlType == "checkbox")
+        form.value.$column.javaField = form.value.$
+        {
+          column.javaField
+        }
+      .
+        join(",");
+        #end
+        #end
+        #if($table.sub)
+        form.value.$
+        {
+          subclassName
+        }
+        List = $
+        {
+          subclassName
+        }
+        List.value;
+        #end
         if (form.value.${
           pkColumn.javaField
         }
@@ -627,96 +631,118 @@
     });
   }
 
-      #if($table.sub)
+  #if($table.sub)
 
-      /** ${subTable.functionName}序号 */
-      function row$ {
+  /** ${subTable.functionName}序号 */
+  function row$ {
+    subClassName
+  }
+
+  Index({row, rowIndex})
+  {
+    row.index = rowIndex + 1;
+  }
+
+  /** ${subTable.functionName}添加按钮操作 */
+  function handleAdd$ {
+    subClassName
+  }
+
+  ()
+  {
+    let obj = {};
+    #foreach($column in $subTable.columns)
+    #if($column.pk || $column.javaField == $
+    {
+      subTableFkclassName
+    }
+  )
+    #elseif($column.list && "" != $javaField)
+    obj.$column.javaField = "";
+    #end
+    #end
+    $
+    {
+      subclassName
+    }
+    List.value.push(obj);
+  }
+
+  /** ${subTable.functionName}删除按钮操作 */
+  function handleDelete$ {
+    subClassName
+  }
+
+  ()
+  {
+    if (checked${
+      subClassName
+    }
+  .
+    value.length == 0
+  )
+    {
+      proxy.
+    #
+      [[$modal]]
+    #.
+      msgError("请先选择要删除的${subTable.functionName}数据");
+    }
+  else
+    {
+      const $
+      {
+        subclassName
+      }
+      s = $
+      {
+        subclassName
+      }
+      List.value;
+      const checked$
+      {
         subClassName
       }
-
-      Index({row, rowIndex})
+      s = checked$
       {
-        row.index = rowIndex + 1;
-      }
-
-      /** ${subTable.functionName}添加按钮操作 */
-      function handleAdd$ {
         subClassName
       }
-
-      ()
+    .
+      value;
+      $
       {
-        let obj = {};
-          #foreach($column in $subTable.columns)
-              #if($column.pk || $column.javaField == ${subTableFkclassName})
-              #elseif($column.list && "" != $javaField)
-                obj.$column.javaField = "";
-              #end
-          #end
-              ${subclassName}
-        List.value.push(obj);
+        subclassName
       }
-
-      /** ${subTable.functionName}删除按钮操作 */
-      function handleDelete$ {
-        subClassName
-      }
-
-      ()
+      List.value = $
       {
-        if (checked${
+        subclassName
+      }
+      s.filter(function (item) {
+        return checked$
+        {
           subClassName
         }
-      .
-        value.length == 0
-      )
-        {
-          proxy.
-        #
-          [[$modal]]
-        #.
-          msgError("请先选择要删除的${subTable.functionName}数据");
-        }
-      else
-        {
-          const ${subclassName}s = ${subclassName}List.value;
-          const checked$
-          {
-            subClassName
-          }
-          s = checked$
-          {
-            subClassName
-          }
-        .
-          value;
-                ${subclassName}
-          List.value = ${subclassName}s.filter(function (item) {
-            return checked$
-            {
-              subClassName
-            }
-            s.indexOf(item.index) == -1
-          });
-        }
-      }
+        s.indexOf(item.index) == -1
+      });
+    }
+  }
 
-      /** 复选框选中数据 */
-      function handle$ {
-        subClassName
-      }
+  /** 复选框选中数据 */
+  function handle$ {
+    subClassName
+  }
 
-      SelectionChange(selection)
-      {
-        checked$
-        {
-          subClassName
-        }
-      .
-        value = selection.map(item => item.index)
-      }
+  SelectionChange(selection)
+  {
+    checked$
+    {
+      subClassName
+    }
+  .
+    value = selection.map(item => item.index)
+  }
 
-      #end
+  #end
 
   /** 导出按钮操作 */
   function handleExport() {
