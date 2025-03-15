@@ -742,6 +742,7 @@ public class BotClient {
                 whitelistInfo.setAddState("2");
                 whitelistInfo.setRemoveReason("管理员拒绝");
             }
+            whitelistInfo.setAddTime(new Date());
 
             // 更新白名单信息
             log.info("开始更新白名单信息");
@@ -857,6 +858,7 @@ public class BotClient {
             if (qqBotManager.getPermissionType() != 0) {
                 // 权限不足
                 sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 权限不足！");
+                return;
             }
 
             String[] parts = message.getMessage().trim().split("\\s+", 3);

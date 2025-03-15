@@ -238,7 +238,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                     EmailTemplates.getWhitelistNotificationBan(
                             whitelistInfo.getQqNum(),
                             whitelistInfo.getUserName(),
-                            dateFormat.format(whitelistInfo.getAddTime()),
+                            dateFormat.format(whitelistInfo.getAddTime() == null ? whitelistInfo.getCreateTime() : whitelistInfo.getAddTime()),
                             DateUtils.getTime(),
                             timeTittle,
                             whitelistInfo.getRemoveReason(),

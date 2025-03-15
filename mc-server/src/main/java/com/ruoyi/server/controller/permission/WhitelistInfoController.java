@@ -340,6 +340,7 @@ public class WhitelistInfoController extends BaseController {
         // 设置创建信息
         whitelistInfo.setCreateBy((isFromBot ? "BOT::apply::" : "WEB::apply::") + whitelistInfo.getUserName());
         whitelistInfo.setCreateTime(new Date());
+        whitelistInfo.setAddTime(new Date());
         whitelistInfo.setTime(new Date());
         whitelistInfo.setAddState("0"); // 添加状态：0-未添加，1-已添加
         whitelistInfo.setStatus("0"); // 审核状态 0-未审核，1-审核通过，2-审核不通过
