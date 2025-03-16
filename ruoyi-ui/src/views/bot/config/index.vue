@@ -121,8 +121,8 @@
       </el-table-column>
       <el-table-column align="center" label="启用状态" prop="status" width="100">
         <template slot-scope="scope">
-          <el-tag :type="scope.row.status === '0' ? 'danger' : 'success'">
-            {{ scope.row.status === '0' ? '停用' : '启用' }}
+          <el-tag :type="scope.row.status === 0 ? 'danger' : 'success'">
+            {{ scope.row.status === 0 ? '停用' : '启用' }}
           </el-tag>
         </template>
       </el-table-column>

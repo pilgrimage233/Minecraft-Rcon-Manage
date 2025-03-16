@@ -7,15 +7,15 @@ import com.ruoyi.common.core.redis.RedisCache;
 import com.ruoyi.common.utils.StringUtils;
 import com.ruoyi.server.common.MapCache;
 import com.ruoyi.server.common.constant.CacheKey;
+import com.ruoyi.server.domain.permission.WhitelistInfo;
+import com.ruoyi.server.service.permission.IWhitelistInfoService;
 import com.ruoyi.server.service.server.IServerInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -31,6 +31,9 @@ public class PublicInterfaceController extends BaseController {
 
     @Autowired
     private IServerInfoService serverInfoService;
+
+    @Autowired
+    private IWhitelistInfoService whitelistInfoService;
 
     @Autowired
     private RedisCache redisCache;
@@ -51,8 +54,8 @@ public class PublicInterfaceController extends BaseController {
 
     }
 
-    @GetMapping("getWhiteList")
-    public AjaxResult getWhiteList() {
+    @GetMapping("getWhiteListForServer")
+    public AjaxResult getWhiteListForServer() {
         // 限流检查
         if (!rateLimiter.tryAcquire()) {
             return error("服务器繁忙,请稍后再试");
@@ -102,4 +105,76 @@ public class PublicInterfaceController extends BaseController {
         return success(serverInfoService.getOnlinePlayer());
     }
 
+    /**
+     * 从数据库获取白名单列表
+     *
+     * @return AjaxResult
+     */
+    @GetMapping("/getWhiteList")
+    public AjaxResult getWhiteList() {
+        // 限流检查
+        if (!rateLimiter.tryAcquire()) {
+            return error("服务器繁忙,请稍后再试");
+        }
+        Map<String, String> result = new HashMap<>();
+
+        try {
+            // 检查缓存
+            if (redisCache.hasKey(CacheKey.WHITE_LIST_KEY) && redisCache.getCacheObject(CacheKey.WHITE_LIST_KEY) != null) {
+                final Map<String, String> cacheObject = redisCache.getCacheObject(CacheKey.WHITE_LIST_KEY);
+                cacheObject.remove("@type");
+                return success(cacheObject);
+            }
+
+            // 查询已通过审核且已添加的白名单用户
+            WhitelistInfo query = new WhitelistInfo();
+            query.setStatus("1"); // 已审核通过
+            query.setAddState("1"); // 已添加
+            final List<WhitelistInfo> whitelistInfos = whitelistInfoService.selectWhitelistInfoList(query);
+
+            if (whitelistInfos.isEmpty()) {
+                return error("服务器白名单为空");
+            }
+            Map<String, Set<String>> cache = new HashMap<>();
+
+            List<String> all = new ArrayList<>();
+            // 遍历白名单列表
+            for (WhitelistInfo whitelistInfo : whitelistInfos) {
+                if (whitelistInfo.getServers().contains("all")) {
+                    all.add(whitelistInfo.getUserName());
+                } else {
+                    for (String s : whitelistInfo.getServers().split(",")) {
+                        if (cache.containsKey(s)) {
+                            cache.get(s).add(whitelistInfo.getUserName());
+                        } else {
+                            Set<String> set = new HashSet<>();
+                            set.add(whitelistInfo.getUserName());
+                            cache.put(s, set);
+                        }
+                    }
+                }
+            }
+
+            // 汇聚
+            result.put("全部成员", Arrays.toString(all.toArray()));
+
+            if (cache.isEmpty()) {
+                return success(result);
+            }
+
+            cache.forEach((String k, Set<String> v) -> {
+                if (MapCache.containsKey(k)) {  // 只查询活跃服务器
+                    final String nameTag = serverInfoService.selectServerInfoById(Long.valueOf(k)).getNameTag();
+                    result.put(nameTag, Arrays.toString(v.toArray()));
+                }
+            });
+
+        } catch (Exception e) {
+            logger.error("获取白名单列表发生异常", e);
+            return error("系统繁忙,请稍后重试");
+        }
+        return success(result);
+    }
 }
+
+
