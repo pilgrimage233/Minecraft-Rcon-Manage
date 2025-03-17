@@ -723,6 +723,128 @@ public class EmailTemplates {
             "</body>\n" +
             "</html>";
 
+    public static final String ALERT_TITLE = "系统异常告警";
+
+    public static final String ALERT_TEMPLATE = "<!DOCTYPE html>\n" +
+            "<html>\n" +
+            "<head>\n" +
+            "    <meta charset=\"UTF-8\">\n" +
+            "    <title>系统异常告警</title>\n" +
+            "    <style>\n" +
+            "        body {\n" +
+            "            margin: 0;\n" +
+            "            padding: 0;\n" +
+            "            font-family: 'Helvetica Neue', Arial, sans-serif;\n" +
+            "            background-color: #f5f5f5;\n" +
+            "        }\n" +
+            "        .container {\n" +
+            "            max-width: 600px;\n" +
+            "            margin: 20px auto;\n" +
+            "            background: #ffffff;\n" +
+            "            border-radius: 16px;\n" +
+            "            overflow: hidden;\n" +
+            "            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);\n" +
+            "        }\n" +
+            "        .header {\n" +
+            "            background: linear-gradient(135deg, #ff4d4d, #ff1a1a);\n" +
+            "            color: white;\n" +
+            "            padding: 30px;\n" +
+            "            text-align: center;\n" +
+            "        }\n" +
+            "        .header h1 {\n" +
+            "            margin: 0;\n" +
+            "            font-size: 24px;\n" +
+            "            font-weight: 600;\n" +
+            "        }\n" +
+            "        .content {\n" +
+            "            padding: 30px;\n" +
+            "            color: #2c3e50;\n" +
+            "        }\n" +
+            "        .alert-info {\n" +
+            "            background: #fff3f3;\n" +
+            "            border-left: 4px solid #ff4d4d;\n" +
+            "            padding: 15px;\n" +
+            "            margin: 20px 0;\n" +
+            "        }\n" +
+            "        .info-box {\n" +
+            "            background: #f8f9fa;\n" +
+            "            border-radius: 8px;\n" +
+            "            padding: 20px;\n" +
+            "            margin: 20px 0;\n" +
+            "        }\n" +
+            "        .info-item {\n" +
+            "            margin: 10px 0;\n" +
+            "            display: flex;\n" +
+            "            align-items: center;\n" +
+            "        }\n" +
+            "        .info-label {\n" +
+            "            font-weight: 600;\n" +
+            "            min-width: 120px;\n" +
+            "            color: #666;\n" +
+            "        }\n" +
+            "        .info-value {\n" +
+            "            color: #333;\n" +
+            "        }\n" +
+            "        .footer {\n" +
+            "            text-align: center;\n" +
+            "            padding: 20px;\n" +
+            "            background: #f8f9fa;\n" +
+            "            color: #666;\n" +
+            "        }\n" +
+            "    </style>\n" +
+            "</head>\n" +
+            "<body>\n" +
+            "    <div class=\"container\">\n" +
+            "        <div class=\"header\">\n" +
+            "            <h1>系统异常告警</h1>\n" +
+            "        </div>\n" +
+            "        \n" +
+            "        <div class=\"content\">\n" +
+            "            <div class=\"alert-info\">\n" +
+            "                <p>系统检测到异常情况，请及时处理！</p>\n" +
+            "            </div>\n" +
+            "            \n" +
+            "            <div class=\"info-box\">\n" +
+            "                <div class=\"info-item\">\n" +
+            "                    <span class=\"info-label\">异常时间：</span>\n" +
+            "                    <span class=\"info-value\">{time}</span>\n" +
+            "                </div>\n" +
+            "                <div class=\"info-item\">\n" +
+            "                    <span class=\"info-label\">异常次数：</span>\n" +
+            "                    <span class=\"info-value\">{count}</span>\n" +
+            "                </div>\n" +
+            "                <div class=\"info-item\">\n" +
+            "                    <span class=\"info-label\">异常类型：</span>\n" +
+            "                    <span class=\"info-value\">{type}</span>\n" +
+            "                </div>\n" +
+            "            </div>\n" +
+            "            \n" +
+            "            <div class=\"info-box\">\n" +
+            "                <h3>服务器信息</h3>\n" +
+            "                <div class=\"info-item\">\n" +
+            "                    <span class=\"info-label\">服务器名称：</span>\n" +
+            "                    <span class=\"info-value\">{serverName}</span>\n" +
+            "                </div>\n" +
+            "                <div class=\"info-item\">\n" +
+            "                    <span class=\"info-label\">服务器地址：</span>\n" +
+            "                    <span class=\"info-value\">{serverAddress}</span>\n" +
+            "                </div>\n" +
+            "            </div>\n" +
+            "            \n" +
+            "            <p>温馨提示：</p>\n" +
+            "            <ul>\n" +
+            "                <li>请及时检查系统运行状态</li>\n" +
+            "                <li>如遇问题可以联系系统管理员</li>\n" +
+            "            </ul>\n" +
+            "        </div>\n" +
+            "        \n" +
+            "        <div class=\"footer\">\n" +
+            "            <p>此邮件由系统自动发送，请勿回复</p>\n" +
+            "            <p>© 2024 Minecraft. All rights reserved.</p>\n" +
+            "        </div>\n" +
+            "    </div>\n" +
+            "</body>\n" +
+            "</html>";
 
     // 替换模板中的变量
     public static String getWhitelistNotification(String username, String gameId, String applyTime,
@@ -894,5 +1016,19 @@ public class EmailTemplates {
     // 获取邮箱验证模板
     public static String getEmailVerifyTemplate(String verifyLink) {
         return EMAIL_VERIFY_TEMPLATE.replace("{verifyLink}", verifyLink);
+    }
+
+    public static String getAlertNotification(String time, int count, String type,
+                                              String serverName, String serverAddress) {
+        String template = ALERT_TEMPLATE;
+
+        // 替换变量
+        template = template.replace("{time}", time)
+                .replace("{count}", String.valueOf(count))
+                .replace("{type}", type)
+                .replace("{serverName}", serverName)
+                .replace("{serverAddress}", serverAddress);
+
+        return template;
     }
 }

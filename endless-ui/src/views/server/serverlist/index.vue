@@ -173,6 +173,9 @@
 
     <!-- 添加或修改服务器信息对话框 -->
     <el-dialog :title="title" :visible.sync="open" append-to-body width="500px">
+      <div v-if="form.id" style="color: #F56C6C; margin-bottom: 15px;">
+        提示：修改服务器信息时，密码是加密后的，不需要修改保持默认即可
+      </div>
       <el-form ref="form" :model="form" :rules="rules" label-position="left" label-width="100px"
                size="medium">
         <el-row>
@@ -232,6 +235,11 @@
         </el-form-item>
         <el-form-item label="远程密码" prop="rconPassword">
           <el-input v-model="form.rconPassword" :style="{width: '100%'}" clearable placeholder="请输入远程密码">
+            <template slot="append">
+              <el-tooltip content="密码将被加密存储" placement="top">
+                <i class="el-icon-lock"></i>
+              </el-tooltip>
+            </template>
           </el-input>
         </el-form-item>
         <el-form-item label="描述" prop="remark">

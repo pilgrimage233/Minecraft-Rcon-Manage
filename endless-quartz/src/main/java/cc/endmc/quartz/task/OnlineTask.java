@@ -125,13 +125,16 @@ public class OnlineTask {
             while (retryCount < maxRetries) {
                 try {
                     // 先发送一个简单的命令测试连接
-                    String testResponse = rconClient.sendCommand("ping");
+                    String testResponse = rconClient.sendCommand("seed");
                     if (testResponse == null) {
                         throw new Exception("Connection test failed");
                     }
 
                     // 获取在线玩家列表
                     String list = rconClient.sendCommand("list");
+                    if (list == null) {
+                        list = rconClient.sendCommand("minecraft:list");
+                    }
                     if (StringUtils.isNotEmpty(list)) {
                         if (list.contains("There are")) {
                             String[] parts = list.split(":");

@@ -4,6 +4,7 @@ import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.server.common.DomainToIp;
+import cc.endmc.server.common.EmailTemplates;
 import cc.endmc.server.common.MapCache;
 import cc.endmc.server.common.PasswordManager;
 import cc.endmc.server.common.constant.CacheKey;
@@ -150,16 +151,19 @@ public class RconService {
      * @param info
      */
     public boolean init(ServerInfo info) {
+
         if (info == null) {
             log.error(RconMsg.MAIN_INFO_EMPTY);
             return false;
         }
+
         if ((!MapCache.isEmpty()) && MapCache.containsKey(info.getId().toString())) {
             MapCache.get(info.getId().toString()).close();
         }
 
         final String ERROR_COUNT_KEY = CacheKey.ERROR_COUNT_KEY;
         AtomicReference<RconClient> client = new AtomicReference<>();
+
         try {
             String decryptedPassword;
             try {
@@ -173,7 +177,6 @@ public class RconService {
                 }
             } catch (Exception e) {
                 log.error("密码解密失败: {} - {}", info.getNameTag(), e.getMessage());
-                // e.printStackTrace();
                 // 尝试使用原始密码
                 log.warn("尝试使用原始密码连接: {}", info.getNameTag());
                 decryptedPassword = info.getRconPassword();
@@ -187,13 +190,7 @@ public class RconService {
             log.info("正在连接RCON服务器: {}:{} (解析IP: {})", info.getIp(), port, serverIp);
 
             CompletableFuture<RconClient> rconFuture = CompletableFuture.supplyAsync(() -> {
-                try {
-                    return RconClient.open(serverIp, port, finalDecryptedPassword);
-                } catch (Exception e) {
-                    log.error("连接失败:{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), "******");
-                    log.error("连接失败详细信息: ", e);
-                    return null;
-                }
+                return RconClient.open(serverIp, port, finalDecryptedPassword);
             });
 
             try {
@@ -201,15 +198,10 @@ public class RconService {
                 client.set(rconFuture.get(10, TimeUnit.SECONDS));
             } catch (TimeoutException e) {
                 log.error("连接超时: {} ({}:{})", info.getNameTag(), serverIp, port);
-                throw new RuntimeException("RCON连接超时: " + info.getNameTag() + " (" + serverIp + ":" + port + ")");
-            } catch (ExecutionException e) {
-                log.error("连接执行错误: {} ({}:{})", info.getNameTag(), serverIp, port);
-                throw new RuntimeException("RCON连接失败: " + info.getNameTag() + " (" + serverIp + ":" + port + ")", e.getCause());
             }
 
             if (client.get() == null) {
                 log.error("RCON连接失败: {} ({}:{})", info.getNameTag(), serverIp, port);
-                throw new RuntimeException("RCON连接失败: " + info.getNameTag() + " (" + serverIp + ":" + port + ")");
             }
 
             MapCache.put(info.getId().toString(), client.get());
@@ -228,13 +220,37 @@ public class RconService {
             } else {
                 redisCache.setCacheObject(ERROR_COUNT_KEY, 1);
             }
-            if ((Integer) redisCache.getCacheObject(ERROR_COUNT_KEY) >= 10 && (Integer) redisCache.getCacheObject(ERROR_COUNT_KEY) % 10 == 0) {
+
+            // 获取当前错误次数
+            Integer currentErrorCount = (Integer) redisCache.getCacheObject(ERROR_COUNT_KEY);
+
+            // 每10次错误发送一次告警邮件
+            if (currentErrorCount >= 10 && currentErrorCount % 10 == 0) {
                 try {
-                    emailService.push(ADMIN_EMAIL, "服务器异常", "服务器异常，请检查服务器连接状态，告警时间：" + DateUtils.getTime() + "\n错误次数：" + redisCache.getCacheObject("errorCount"));
+                    String errorType;
+
+                    // 区分异常类型
+                    if (e.getMessage().contains("Authentication")) {
+                        errorType = "认证失败";
+                    } else {
+                        errorType = "连接异常";
+                    }
+
+                    // 使用新的告警邮件模板
+                    String emailContent = EmailTemplates.getAlertNotification(
+                            DateUtils.getTime(),           // 异常时间
+                            currentErrorCount,             // 异常次数
+                            errorType,                     // 异常类型
+                            info.getNameTag(),             // 服务器名称
+                            info.getIp() + ":" + info.getRconPort()  // 服务器地址
+                    );
+
+                    emailService.push(ADMIN_EMAIL, EmailTemplates.ALERT_TITLE, emailContent);
                 } catch (ExecutionException | InterruptedException ex) {
                     log.error("邮件发送失败: {}", ex.getMessage());
                 }
             }
+
             log.error("连接失败:{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), "******");
             log.error("连接失败详细信息: ", e);
             return false;

@@ -174,6 +174,8 @@
 
     <!-- 添加或修改指令管理对话框 -->
     <el-dialog :before-close="handleClose" :title="title" :visible.sync="open" append-to-body width="500px">
+      <div style="color: #F56C6C; margin-bottom: 15px;">提示：所有指令格式为"指令 {player}"，例如：whitelist add {player}
+      </div>
       <el-form ref="form" :model="form" :rules="rules" label-width="80px">
         <el-form-item label="服务器ID" prop="server">
           <el-select v-model="serverList" :disabled=editFlag multiple placeholder="请选择服务器">
