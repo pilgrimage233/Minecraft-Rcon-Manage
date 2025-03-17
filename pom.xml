@@ -4,8 +4,8 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
-    <groupId>com.ruoyi</groupId>
-    <artifactId>ruoyi</artifactId>
+    <groupId>cc.endmc</groupId>
+    <artifactId>endless</artifactId>
     <version>3.8.7</version>
 
     <name>Endlss</name>
@@ -144,36 +144,36 @@
 
             <!-- 定时任务-->
             <dependency>
-                <groupId>com.ruoyi</groupId>
-                <artifactId>ruoyi-quartz</artifactId>
+                <groupId>cc.endmc</groupId>
+                <artifactId>endless-quartz</artifactId>
                 <version>${ruoyi.version}</version>
             </dependency>
 
             <!-- 代码生成-->
             <dependency>
-                <groupId>com.ruoyi</groupId>
-                <artifactId>ruoyi-generator</artifactId>
+                <groupId>cc.endmc</groupId>
+                <artifactId>endless-generator</artifactId>
                 <version>${ruoyi.version}</version>
             </dependency>
 
             <!-- 核心模块-->
             <dependency>
-                <groupId>com.ruoyi</groupId>
-                <artifactId>ruoyi-framework</artifactId>
+                <groupId>cc.endmc</groupId>
+                <artifactId>endless-framework</artifactId>
                 <version>${ruoyi.version}</version>
             </dependency>
 
             <!-- 系统模块-->
             <dependency>
-                <groupId>com.ruoyi</groupId>
-                <artifactId>ruoyi-system</artifactId>
+                <groupId>cc.endmc</groupId>
+                <artifactId>endless-system</artifactId>
                 <version>${ruoyi.version}</version>
             </dependency>
 
             <!-- 通用工具-->
             <dependency>
-                <groupId>com.ruoyi</groupId>
-                <artifactId>ruoyi-common</artifactId>
+                <groupId>cc.endmc</groupId>
+                <artifactId>endless-common</artifactId>
                 <version>${ruoyi.version}</version>
             </dependency>
 
@@ -181,12 +181,12 @@
     </dependencyManagement>
 
     <modules>
-        <module>ruoyi-admin</module>
-        <module>ruoyi-framework</module>
-        <module>ruoyi-system</module>
-        <module>ruoyi-quartz</module>
-        <module>ruoyi-generator</module>
-        <module>ruoyi-common</module>
+        <module>endless-admin</module>
+        <module>endless-framework</module>
+        <module>endless-system</module>
+        <module>endless-quartz</module>
+        <module>endless-generator</module>
+        <module>endless-common</module>
         <module>mc-server</module>
     </modules>
     <packaging>pom</packaging>

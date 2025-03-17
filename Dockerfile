@@ -9,7 +9,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 WORKDIR /app
 
 # 复制jar包
-COPY ./ruoyi-admin/target/endless-manager.jar ./app.jar
+COPY ./endless-admin/target/endless-manager.jar ./app.jar
 
 # 暴露端口
 EXPOSE 8080

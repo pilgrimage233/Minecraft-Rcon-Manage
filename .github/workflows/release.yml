@@ -44,7 +44,7 @@ jobs:
       - name: Build Project
         run: |
           mvn -B clean package -DskipTests
-          cp ruoyi-admin/target/endless-manager.jar ruoyi-admin/target/endless-manager-${{ steps.get-version.outputs.version }}.jar
+          cp endless-admin/target/endless-manager.jar endless-admin/target/endless-manager-${{ steps.get-version.outputs.version }}.jar
 
       - name: Create Release
         id: create-release
@@ -53,7 +53,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ steps.get-version.outputs.version }}
-          release_name: Release v${{ steps.get-version.outputs.version }}
+          release_name: Endless v${{ steps.get-version.outputs.version }}
 
       - name: Upload JAR
         uses: actions/upload-release-asset@v1
@@ -61,6 +61,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create-release.outputs.upload_url }}
-          asset_path: ./ruoyi-admin/target/endless-manager-${{ steps.get-version.outputs.version }}.jar
+          asset_path: ./endless-admin/target/endless-manager-${{ steps.get-version.outputs.version }}.jar
           asset_name: endless-manager-${{ steps.get-version.outputs.version }}.jar
-          asset_content_type: application/java-archive  # 关键修复项
+          asset_content_type: application/java-archive

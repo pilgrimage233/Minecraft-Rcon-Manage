@@ -222,6 +222,7 @@ server {
 ```
 
 白名单申请前端部署：
+页面已独立于其他仓库，具体请移步：https://github.com/pilgrimage233/whitelist-vue
 
 ```javascript
 // 此前端需要切换到Node.js 18版本
@@ -359,15 +360,14 @@ rcon.port=25575
 ### 4. 目录结构
 
 ```
-├── ruoyi-admin        // 主启动模块
-├── ruoyi-common       // 通用模块
-├── ruoyi-framework    // 核心框架
-├── ruoyi-generator    // 代码生成
-├── ruoyi-quartz       // 定时任务
-├── ruoyi-system       // 系统管理
-├── ruoyi-ui           // 前端UI
-├── whitelist          // 前端申请UI
-└── mc-server          // Minecraft服务器管理模块
+├── endless-admin        // 主启动模块
+├── endless-common       // 通用模块
+├── endless-framework    // 核心框架
+├── endless-generator    // 代码生成
+├── endless-quartz       // 定时任务
+├── endless-system       // 系统管理
+├── endless-ui           // 前端UI
+└── mc-server            // Minecraft服务器管理模块
 ```
 
 ## 贡献指南

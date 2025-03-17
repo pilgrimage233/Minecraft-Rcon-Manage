@@ -26,7 +26,7 @@ services:
   # 前端服务
   endless-ui:
     build:
-      context: ./ruoyi-ui
+      context: endless-ui
       dockerfile: Dockerfile
     container_name: endless-ui
     ports:

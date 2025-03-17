@@ -1,7 +1,7 @@
 
-import com.ruoyi.common.utils.StringUtils;
-import com.ruoyi.server.common.DomainToIp;
-import com.ruoyi.server.common.rconclient.RconClient;
+import cc.endmc.common.utils.StringUtils;
+import cc.endmc.server.common.DomainToIp;
+import cc.endmc.server.common.rconclient.RconClient;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
