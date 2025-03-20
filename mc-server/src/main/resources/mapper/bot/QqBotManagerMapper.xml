@@ -55,6 +55,9 @@
     <select id="selectQqBotManagerList" parameterType="QqBotManager" resultMap="QqBotManagerResult">
         <include refid="selectQqBotManagerVo"/>
         <where>
+            <if test="botId != null">
+                and bot_id = #{botId}
+            </if>
             <if test="managerName != null  and managerName != ''">
                 and manager_name like concat('%', #{managerName}, '%')
             </if>

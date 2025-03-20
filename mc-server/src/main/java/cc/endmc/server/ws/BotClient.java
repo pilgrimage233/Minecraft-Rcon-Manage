@@ -14,6 +14,7 @@ import cc.endmc.server.domain.bot.QqBotConfig;
 import cc.endmc.server.domain.bot.QqBotManager;
 import cc.endmc.server.domain.bot.QqBotManagerGroup;
 import cc.endmc.server.domain.permission.WhitelistInfo;
+import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.service.bot.IQqBotConfigService;
 import cc.endmc.server.service.bot.IQqBotManagerService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
@@ -32,7 +33,12 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PreDestroy;
-import java.net.URI;
+import javax.naming.directory.Attribute;
+import javax.naming.directory.Attributes;
+import javax.naming.directory.DirContext;
+import javax.naming.directory.InitialDirContext;
+import java.io.*;
+import java.net.*;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.util.*;
@@ -338,28 +344,119 @@ public class BotClient {
                 return;
             }
 
-            // 处理其他命令
+            // 普通用户命令
             if (command.startsWith("白名单申请")) {
                 handleWhitelistApplication(message);
             } else if (command.startsWith("查询白名单")) {
                 handleWhitelistQuery(message);
-            } else if (command.startsWith("过审") || command.startsWith("拒审")) {
+            } else if (command.startsWith("查询玩家")) {
+                handlePlayerQuery(message);
+            } else if (command.startsWith("查询在线")) {
+                handleOnlineQuery(message);
+            } else if (command.startsWith("查询服务器")) {
+                handleServerList(message);
+            } else if (command.startsWith("test")) {
+                testServer(message);
+            }
+
+            // 管理员命令
+            if (command.startsWith("过审") || command.startsWith("拒审")) {
                 handleWhitelistReview(message);
             } else if (command.startsWith("封禁") || command.startsWith("解封")) {
                 handleBanOperation(message);
             } else if (command.startsWith("发送指令")) {
                 handleRconCommand(message);
-            } else if (command.startsWith("查询玩家")) {
-                handlePlayerQuery(message);
-            } else if (command.startsWith("查询在线")) {
-                handleOnlineQuery(message);
             } else if (command.startsWith("运行状态")) {
                 handleHostStatus(message);
-            } else if (command.startsWith("添加管理")) {
+            }
+
+            // 超管命令
+            if (command.startsWith("添加管理")) {
                 handleAddManager(message);
             } else if (command.startsWith("添加超管")) {
                 handleAddSuperManager(message);
             }
+        }
+    }
+
+    /**
+     * 处理服务器列表查询命令
+     *
+     * @param message QQ消息对象
+     */
+    private void handleServerList(QQMessage message) {
+        try {
+            String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
+
+            // 默认只查询在线
+            String[] parts = message.getMessage().split("\\s+");
+
+            // 获取所有服务器信息
+            final List<ServerInfo> serverInfos = serverInfoService.selectServerInfoList(new ServerInfo());
+            List<ServerInfo> servers;
+
+            if (!(parts.length > 1)) {
+                // 只获取在线的服务器
+                servers = new ArrayList<>();
+                serverInfos.forEach(serverInfo -> {
+                    if (MapCache.containsKey(String.valueOf(serverInfo.getId()))) {
+                        servers.add(serverInfo);
+                    }
+                });
+
+                if (servers.isEmpty()) {
+                    sendMessage(message, base + " 当前没有在线的服务器。");
+                    return;
+                }
+            } else if ("全部".equals(parts[1])) {
+                // 获取所有服务器，包括离线的
+                servers = serverInfos;
+
+                if (servers.isEmpty()) {
+                    sendMessage(message, base + " 当前没有任何服务器。");
+                    return;
+                }
+            } else if (parts[1].startsWith("%") && parts[1].length() > 1) {
+                final String replace = parts[1].replace("%", "");
+                // 获取指定服务器
+                servers = new ArrayList<>();
+                for (ServerInfo server : serverInfos) {
+                    if (server.getNameTag().contains(replace)) {
+                        servers.add(server);
+                    }
+                }
+
+                if (servers.isEmpty()) {
+                    sendMessage(message, base + " 未找到名称包含 " + replace + " 的服务器。");
+                    return;
+                }
+            } else {
+                sendMessage(message, base + " 格式错误，正确格式：查询服务器 [全部]/[%模糊匹配]");
+                return;
+            }
+
+            // 构建返回消息
+            StringBuilder response = new StringBuilder(base + " 服务器列表：\n\n");
+
+            // 遍历服务器信息
+            for (ServerInfo server : servers) {
+                boolean isOnline = MapCache.containsKey(String.valueOf(server.getId()));
+
+                response.append("ID: ").append(server.getId()).append("\n");
+                response.append("名称: ").append(server.getNameTag()).append("\n");
+                response.append("状态: ").append(isOnline ? "在线" : "离线").append("\n");
+                response.append("版本: ").append(server.getServerVersion()).append("\n");
+                response.append("核心: ").append(server.getServerCore()).append("\n");
+                response.append("地址: ").append(server.getPlayAddress()).append("\n");
+                response.append("端口: ").append(server.getPlayAddressPort()).append("\n\n");
+            }
+
+            // 发送消息
+            sendMessage(message, response.toString());
+
+        } catch (Exception e) {
+            log.error("处理服务器列表查询失败: {}", e.getMessage());
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 查询失败，请稍后重试。");
         }
     }
 
@@ -380,7 +477,9 @@ public class BotClient {
         help.append(prefix).append("白名单申请 <玩家ID> <正版/离线> - 申请白名单\n");
         help.append(prefix).append("查询白名单 - 查询自己的白名单状态\n");
         help.append(prefix).append("查询玩家 <玩家ID> - 查询指定玩家信息\n");
-        help.append(prefix).append("查询在线 - 查询所有服务器在线玩家\n\n");
+        help.append(prefix).append("查询在线 - 查询所有服务器在线玩家\n");
+        help.append(prefix).append("查询服务器 [全部]/[%模糊匹配] - 查询服务器列表，默认只显示在线服务器\n");
+        help.append(prefix).append("test <IP[:端口]> - 测试指定Minecraft服务器的通断，默认端口25565\n\n");
 
         // 管理员命令
         List<QqBotManager> managers = config.selectManagerForThisGroup(message.getGroupId(), message.getUserId());
@@ -676,7 +775,7 @@ public class BotClient {
                     .header("Authorization", "Bearer " + config.getToken())
                     .body(jsonObject.toJSONString())
                     .execute();
-            log.info("发送消息结果: {}", response);
+            log.info("发送消息结果: {}", response.body());
         } catch (Exception e) {
             e.printStackTrace();
             log.error("发送消息失败: {}", e.getMessage());
@@ -1328,5 +1427,313 @@ public class BotClient {
         }
     }
 
+    /**
+     * 测试Minecraft服务器通断
+     * 用户可以通过发送"test IP[:端口]"来测试服务器连通性
+     *
+     * @param message QQ消息对象
+     */
+    private void testServer(QQMessage message) {
+        try {
+            String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
+            String[] parts = message.getMessage().trim().split("\\s+");
+
+            if (parts.length < 2) {
+                sendMessage(message, base + " 格式错误，正确格式：test <IP[:端口]>，默认端口25565");
+                return;
+            }
+
+            String serverAddress = parts[1];
+            String ip;
+            int port = 25565; // 默认端口
+
+            // 解析IP和端口
+            if (serverAddress.contains(":")) {
+                String[] addressParts = serverAddress.split(":");
+                ip = addressParts[0];
+                try {
+                    port = Integer.parseInt(addressParts[1]);
+                } catch (NumberFormatException e) {
+                    sendMessage(message, base + " 端口格式错误，必须是数字");
+                    return;
+                }
+            } else {
+                ip = serverAddress;
+            }
+
+            // 发送检测中的提示消息
+            sendMessage(message, base + " 正在检测服务器 " + ip + ":" + port + " 的连通性，请稍候...");
+
+            // 尝试解析SRV记录
+            boolean hasSrv = false;
+            try {
+                // 检查是否有SRV记录
+                String srvLookup = "_minecraft._tcp." + ip;
+                log.info("尝试解析SRV记录: {}", srvLookup);
+
+                // InetAddress.getAllByName(ip); // 检查域名是否有效
+
+                DirContext dirContext = new InitialDirContext();
+                Attributes attributes = dirContext.getAttributes("dns:/" + srvLookup, new String[]{"SRV"});
+                Attribute attribute = attributes.get("SRV");
+
+                if (attribute != null) {
+                    // 解析SRV记录
+                    String srvRecord = attribute.get().toString();
+                    log.info("找到SRV记录: {}", srvRecord);
+
+                    // SRV记录格式: 优先级 权重 端口 目标主机
+                    String[] srvParts = srvRecord.split(" ");
+                    if (srvParts.length >= 4) {
+                        // 获取目标主机和端口
+                        String target = srvParts[3];
+                        // 如果主机名以点结尾，去掉结尾的点
+                        if (target.endsWith(".")) {
+                            target = target.substring(0, target.length() - 1);
+                        }
+                        int srvPort = Integer.parseInt(srvParts[2]);
+
+                        // 更新连接信息
+                        log.info("SRV解析: {} -> {}:{}", ip, target, srvPort);
+                        sendMessage(message, base + " 发现SRV记录，重定向至 " + target + ":" + srvPort);
+
+                        ip = target;
+                        port = srvPort;
+                        hasSrv = true;
+                    }
+                }
+            } catch (Exception e) {
+                // SRV记录解析失败，继续使用原始IP和端口
+                log.info("SRV记录解析失败或不存在: {}", e.getMessage());
+                if (hasSrv) {
+                    // 只有在确认有SRV但解析失败时才发送消息
+                    sendMessage(message, base + " SRV记录解析失败，将使用原始地址");
+                }
+            }
+
+            // 开始时间
+            long startTime = System.currentTimeMillis();
+
+            // 使用Java Socket尝试连接
+            try (Socket socket = new Socket()) {
+                // 设置连接超时时间为5秒
+                socket.connect(new InetSocketAddress(ip, port), 5000);
+
+                // 计算连接耗时
+                long connectTime = System.currentTimeMillis() - startTime;
+
+                // 连接成功
+                StringBuilder response = new StringBuilder();
+                response.append(base).append(" 服务器连通性测试结果：\n\n");
+                response.append("✅ 服务器 ").append(ip).append(":").append(port).append(" 可以连接\n");
+                response.append("连接耗时: ").append(connectTime).append("ms\n\n");
+
+                // 尝试获取服务器信息 (Minecraft Server List Ping)
+                try {
+                    // 创建新连接用于Server List Ping
+                    Socket pingSocket = new Socket();
+                    pingSocket.connect(new InetSocketAddress(ip, port), 5000);
+
+                    OutputStream out = pingSocket.getOutputStream();
+                    DataOutputStream dataOut = new DataOutputStream(out);
+
+                    InputStream in = pingSocket.getInputStream();
+                    DataInputStream dataIn = new DataInputStream(in);
+
+                    // 发送握手包和状态请求
+                    // 构造握手包: 包长度 + 包ID(0x00) + 协议版本 + 服务器地址长度 + 服务器地址 + 端口 + 下一状态(1表示状态)
+                    ByteArrayOutputStream handshakeBytes = new ByteArrayOutputStream();
+                    DataOutputStream handshake = new DataOutputStream(handshakeBytes);
+
+                    handshake.writeByte(0x00);         // 握手包ID
+                    writeVarInt(handshake, 47);    // 协议版本 (1.8+)
+                    writeString(handshake, ip);         // 服务器地址
+                    handshake.writeShort(port);        // 端口
+                    writeVarInt(handshake, 1);  // 下一状态 (1 = 状态)
+
+                    // 发送握手包
+                    writeVarInt(dataOut, handshakeBytes.size());
+                    dataOut.write(handshakeBytes.toByteArray());
+
+                    // 发送状态请求
+                    writeVarInt(dataOut, 1); // 包长度
+                    writeVarInt(dataOut, 0); // 包ID (0x00)
+
+                    // 读取响应
+                    // int length = readVarInt(dataIn);
+                    int packetId = readVarInt(dataIn);
+
+                    if (packetId == 0x00) {
+                        String jsonResponse = readString(dataIn);
+                        log.info("Server responded with JSON: {}", jsonResponse);
+
+                        // 解析JSON响应
+                        JSONObject serverData = JSON.parseObject(jsonResponse);
+
+                        // 添加服务器信息到响应中
+                        if (serverData.containsKey("version")) {
+                            JSONObject version = serverData.getJSONObject("version");
+                            response.append("服务器版本: ").append(version.getString("name")).append("\n");
+                        }
+
+                        if (serverData.containsKey("players")) {
+                            JSONObject players = serverData.getJSONObject("players");
+                            response.append("在线人数: ").append(players.getInteger("online"))
+                                    .append("/").append(players.getInteger("max")).append("\n");
+                        }
+
+                        if (serverData.containsKey("description")) {
+                            Object description = serverData.get("description");
+                            String motd = extractMotdFromJson(description);
+
+                            // 清除Minecraft颜色代码
+                            motd = stripMinecraftColorCodes(motd);
+                            response.append("服务器描述: ").append(motd.trim()).append("\n");
+                        }
+                    }
+
+                    pingSocket.close();
+                } catch (Exception e) {
+                    log.warn("获取服务器信息失败: {}", e.getMessage());
+                    response.append("无法获取详细服务器信息，但服务器可连接\n");
+                }
+
+                sendMessage(message, response.toString());
+            } catch (UnknownHostException e) {
+                // 域名解析失败
+                sendMessage(message, base + " ❌ 服务器连接失败：无法解析域名 " + ip);
+            } catch (ConnectException e) {
+                // 连接被拒绝
+                sendMessage(message, base + " ❌ 服务器连接失败：连接被拒绝，服务器可能未启动或端口未开放");
+            } catch (SocketTimeoutException e) {
+                // 连接超时
+                sendMessage(message, base + " ❌ 服务器连接失败：连接超时，服务器响应时间过长或不可达");
+            } catch (Exception e) {
+                // 其他连接错误
+                sendMessage(message, base + " ❌ 服务器连接失败：" + e.getMessage());
+            }
+        } catch (Exception e) {
+            log.error("测试服务器通断失败: {}", e.getMessage());
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 测试失败，请稍后重试。");
+        }
+    }
+
+    /**
+     * 从JSON中提取MOTD文本
+     * 处理Minecraft服务器返回的复杂JSON描述格式
+     *
+     * @param description JSON描述对象
+     * @return 提取出的纯文本MOTD
+     */
+    private String extractMotdFromJson(Object description) {
+        StringBuilder result = new StringBuilder();
+
+        try {
+            if (description instanceof String) {
+                // 简单字符串格式
+                return (String) description;
+            } else if (description instanceof JSONObject) {
+                JSONObject jsonObj = (JSONObject) description;
+
+                // 处理基本text字段
+                if (jsonObj.containsKey("text")) {
+                    result.append(jsonObj.getString("text"));
+                }
+
+                // 处理extra数组（包含额外文本元素）
+                if (jsonObj.containsKey("extra") && jsonObj.get("extra") instanceof List) {
+                    List<Object> extraList = (List<Object>) jsonObj.get("extra");
+                    for (Object extraItem : extraList) {
+                        // 递归处理每个元素
+                        result.append(extractMotdFromJson(extraItem));
+                    }
+                }
+            } else if (description instanceof List) {
+                // 处理数组格式
+                List<Object> list = (List<Object>) description;
+                for (Object item : list) {
+                    result.append(extractMotdFromJson(item));
+                }
+            } else {
+                // 其他类型，转为字符串
+                result.append(description.toString());
+            }
+        } catch (Exception e) {
+            log.warn("解析服务器描述失败: {}", e.getMessage());
+            return description.toString();
+        }
+
+        return result.toString();
+    }
+
+    /**
+     * 清除Minecraft颜色代码
+     * Minecraft使用§加颜色代码来表示颜色，如§a表示绿色，§c表示红色等
+     *
+     * @param text 包含颜色代码的文本
+     * @return 清除颜色代码后的文本
+     */
+    private String stripMinecraftColorCodes(String text) {
+        if (text == null) {
+            return "";
+        }
+        // 使用正则表达式去除所有Minecraft颜色代码 (§ 后跟一个字符)
+        return text.replaceAll("§[0-9a-fk-or]", "");
+    }
+
+    /**
+     * 写入VarInt类型到流
+     */
+    private void writeVarInt(DataOutputStream out, int value) throws IOException {
+        while (true) {
+            if ((value & ~0x7F) == 0) {
+                out.writeByte(value);
+                return;
+            }
+
+            out.writeByte((value & 0x7F) | 0x80);
+            value >>>= 7;
+        }
+    }
+
+    /**
+     * 读取VarInt类型
+     */
+    private int readVarInt(DataInputStream in) throws IOException {
+        int value = 0;
+        int position = 0;
+        byte currentByte;
+
+        while (true) {
+            currentByte = in.readByte();
+            value |= (currentByte & 0x7F) << position;
+
+            if ((currentByte & 0x80) == 0) break;
+
+            position += 7;
+            if (position >= 32) throw new RuntimeException("VarInt is too big");
+        }
+
+        return value;
+    }
+
+    /**
+     * 写入字符串到流
+     */
+    private void writeString(DataOutputStream out, String value) throws IOException {
+        byte[] bytes = value.getBytes(StandardCharsets.UTF_8);
+        writeVarInt(out, bytes.length);
+        out.write(bytes);
+    }
+
+    /**
+     * 读取字符串
+     */
+    private String readString(DataInputStream in) throws IOException {
+        int length = readVarInt(in);
+        byte[] bytes = new byte[length];
+        in.readFully(bytes);
+        return new String(bytes, StandardCharsets.UTF_8);
+    }
 
 }

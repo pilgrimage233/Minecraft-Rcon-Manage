@@ -571,6 +571,28 @@ export default {
         }
       },
       immediate: true
+    },
+    '$route.query.botId': {
+      handler(newVal) {
+        if (newVal) {
+          this.botId = parseInt(newVal);
+          this.botName = this.$route.query.botName;
+          this.queryParams.botId = this.botId;
+          this.getList();
+        } else {
+          this.botId = null;
+          this.botName = null;
+          this.queryParams.botId = null;
+          this.getList();
+        }
+      },
+      immediate: true
+    },
+    '$route.query.botName': {
+      handler(newVal) {
+        this.botName = newVal;
+      },
+      immediate: true
     }
   }
 };
