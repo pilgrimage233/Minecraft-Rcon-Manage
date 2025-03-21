@@ -1,8 +1,10 @@
-# 若依框架 Minecraft 服务器管理系统使用教程
-
 # Minecraft 服务器管理系统
 
 基于 RuoYi-Vue 框架开发的 Minecraft 服务器管理系统，提供白名单管理、OP管理、玩家管理等功能。
+
+## 使用教程
+具体使用教程，请到此博客查看，并且会有更新内容及计划等.
+https://blog.endmc.cc/archives/endless.html
 
 ## 功能特性
 
