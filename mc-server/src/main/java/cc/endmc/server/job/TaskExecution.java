@@ -42,20 +42,21 @@ public class TaskExecution {
             log.info("服务器 [{}] 执行结果：{}", executeServer, result);
             if (StringUtils.isNotEmpty(result)) {
                 regular.setResult(result);
+
+                // 历史结果
+                JSONObject json = new JSONObject();
+                if (regular.getHistoryResult() != null && StringUtils.isNotEmpty(regular.getHistoryResult())) {
+                    json = JSONObject.parseObject(regular.getHistoryResult());
+                    json.put(DateUtils.getTime(), result);
+                    if (json.size() > regular.getHistoryCount()) {
+                        json.remove(json.keySet().iterator().next());
+                    }
+                } else {
+                    json.put(DateUtils.getTime(), result);
+                }
+                regular.setHistoryResult(json.toJSONString());
             }
 
-            // 历史结果
-            JSONObject json = new JSONObject();
-            if (regular.getHistoryResult() != null && StringUtils.isNotEmpty(regular.getHistoryResult())) {
-                json = JSONObject.parseObject(regular.getHistoryResult());
-                json.put(DateUtils.getTime(), result);
-                if (json.size() > regular.getHistoryCount()) {
-                    json.remove(json.keySet().iterator().next());
-                }
-            } else {
-                json.put(DateUtils.getTime(), result);
-            }
-            regular.setHistoryResult(json.toJSONString());
             regular.setExecuteCount(regular.getExecuteCount() + 1);
             regular.setUpdateTime(DateUtils.getNowDate());
 

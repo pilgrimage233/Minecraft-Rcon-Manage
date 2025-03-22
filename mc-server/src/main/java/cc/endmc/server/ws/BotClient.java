@@ -1560,7 +1560,7 @@ public class BotClient {
                     writeVarInt(dataOut, 0); // 包ID (0x00)
 
                     // 读取响应
-                    // int length = readVarInt(dataIn);
+                    int length = readVarInt(dataIn);
                     int packetId = readVarInt(dataIn);
 
                     if (packetId == 0x00) {
