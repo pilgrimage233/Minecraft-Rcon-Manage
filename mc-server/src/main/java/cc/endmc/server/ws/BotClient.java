@@ -1249,7 +1249,7 @@ public class BotClient {
                 return;
             }
 
-            String[] parts = message.getMessage().trim().split("\\s+");
+            String[] parts = message.getMessage().replace(getCommandPrefix(), "").trim().split("\\s+");
             if (parts.length < 2) {
                 sendMessage(message, base + " 格式错误，正确格式：添加管理 QQ号 [群号]，不填群号默认为当前群");
                 return;
@@ -1270,11 +1270,22 @@ public class BotClient {
             }
 
             // 调用API查询QQ号信息
-            Map<String, Object> params = new HashMap<>();
-            params.put("user_id", targetQQ);
-            final String response = HttpUtil.post(config.getHttpUrl() + BotApi.GET_STRANGER_INFO, params);
-            final JSONObject jsonObject = JSON.parseObject(response);
-            if (jsonObject.getInteger("retcode") != 0) {
+            JSONObject body = new JSONObject();
+            body.put("user_id", targetQQ);
+            final HttpResponse response = HttpUtil
+                    .createPost(config.getHttpUrl() + BotApi.GET_STRANGER_INFO)
+                    .header("Authorization", "Bearer " + config.getToken())
+                    .body(body.toJSONString())
+                    .execute();
+
+            if (!response.isOk()) {
+                sendMessage(message, base + " 查询QQ号信息失败，请稍后重试。");
+                log.error("查询QQ号信息失败: {}", response);
+                return;
+            }
+
+            final JSONObject jsonObject = JSON.parseObject(response.body());
+            if (jsonObject.containsKey("retcode") && jsonObject.getInteger("retcode") != 0 || jsonObject.getJSONObject("data") == null) {
                 sendMessage(message, base + " 未查询到该QQ号的信息，请检查QQ号是否正确。");
                 return;
             }
@@ -1286,7 +1297,7 @@ public class BotClient {
             newManager.setBotId(config.getId());
             newManager.setManagerQq(targetQQ);
             newManager.setPermissionType(1L); // 1表示普通管理员
-            newManager.setManagerName(managerName);
+            newManager.setManagerName(managerName == null ? "未知" : managerName);
             newManager.setStatus(1L); // 1表示启用状态
 
             // 创建群组关联
@@ -1314,6 +1325,7 @@ public class BotClient {
             updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
 
         } catch (Exception e) {
+            e.printStackTrace();
             log.error("处理添加管理员失败: {}", e.getMessage());
             sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 添加管理员失败，请稍后重试。");
         }
@@ -1337,7 +1349,7 @@ public class BotClient {
                 return;
             }
 
-            String[] parts = message.getMessage().trim().split("\\s+");
+            String[] parts = message.getMessage().replace(getCommandPrefix(), "").trim().split("\\s+");
             if (parts.length < 2) {
                 sendMessage(message, base + " 格式错误，正确格式：添加超管 QQ号 [群号]，不填群号默认为当前群");
                 return;
@@ -1358,14 +1370,26 @@ public class BotClient {
             }
 
             // 调用API查询QQ号信息
-            Map<String, Object> params = new HashMap<>();
-            params.put("user_id", targetQQ);
-            final String response = HttpUtil.post(config.getHttpUrl() + BotApi.GET_STRANGER_INFO, params);
-            final JSONObject jsonObject = JSON.parseObject(response);
-            if (jsonObject.getInteger("retcode") != 0) {
+            JSONObject body = new JSONObject();
+            body.put("user_id", targetQQ);
+            final HttpResponse response = HttpUtil
+                    .createPost(config.getHttpUrl() + BotApi.GET_STRANGER_INFO)
+                    .header("Authorization", "Bearer " + config.getToken())
+                    .body(body.toJSONString())
+                    .execute();
+
+            if (!response.isOk()) {
+                sendMessage(message, base + " 查询QQ号信息失败，请稍后重试。");
+                log.error("查询QQ号信息失败: {}", response);
+                return;
+            }
+
+            final JSONObject jsonObject = JSON.parseObject(response.body());
+            if (jsonObject.containsKey("retcode") && jsonObject.getInteger("retcode") != 0 || jsonObject.getJSONObject("data") == null) {
                 sendMessage(message, base + " 未查询到该QQ号的信息，请检查QQ号是否正确。");
                 return;
             }
+
             // 设置管理员名称
             String managerName = jsonObject.getJSONObject("data").getString("nick");
 
@@ -1374,7 +1398,7 @@ public class BotClient {
             newManager.setBotId(config.getId());
             newManager.setManagerQq(targetQQ);
             newManager.setPermissionType(0L); // 0表示超级管理员
-            newManager.setManagerName(managerName);
+            newManager.setManagerName(managerName == null ? "未知" : managerName);
             newManager.setStatus(1L); // 1表示启用状态
 
             // 创建群组关联

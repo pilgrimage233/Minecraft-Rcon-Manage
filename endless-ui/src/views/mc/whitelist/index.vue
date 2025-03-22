@@ -78,6 +78,17 @@
     <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
         <el-button
+          v-hasPermi="['mc:whitelist:add']"
+          icon="el-icon-plus"
+          plain
+          size="mini"
+          type="primary"
+          @click="handleAdd"
+        >新增
+        </el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
           v-hasPermi="['mc:whitelist:edit']"
           :disabled="single"
           icon="el-icon-edit"
@@ -128,6 +139,7 @@
         <template slot-scope="scope">
           <el-tag v-if="scope.row.createBy && scope.row.createBy.startsWith('BOT')" type="warning">机器人</el-tag>
           <el-tag v-else-if="scope.row.createBy && scope.row.createBy.startsWith('WEB')" type="success">网站</el-tag>
+          <el-tag v-else-if="scope.row.createBy && scope.row.createBy.startsWith('ADMIN')" type="danger">管理员</el-tag>
           <el-tag v-else type="info">其他</el-tag>
         </template>
       </el-table-column>
@@ -230,7 +242,13 @@
           <el-input v-model="form.qqNum" :style="{width: '100%'}" clearable placeholder="请输入QQ号">
           </el-input>
         </el-form-item>
-        <el-form-item label="审核结果" prop="status">
+        <el-form-item label="账号类型" prop="onlineFlag">
+          <el-radio-group v-model="form.onlineFlag" size="small">
+            <el-radio :label="1">正版</el-radio>
+            <el-radio :label="0">离线</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item v-if="form.id != null" label="审核结果" prop="status">
           <el-radio-group v-model="form.status" size="small">
             <el-radio v-for="(item, index) in statusOptions" :key="index" :disabled="item.disabled"
                       :label="item.value">{{ item.label }}
@@ -247,14 +265,14 @@
             </el-option>
           </el-select>
         </el-form-item>
-        <el-form-item label="移除白名单" prop="addState">
+        <el-form-item v-if="form.id != null" label="移除白名单" prop="addState">
           <el-switch v-model="addState"></el-switch>
         </el-form-item>
         <el-form-item v-if="addState" label="移除原因" prop="removeReason">
           <el-input v-model="form.removeReason" :style="{width: '100%'}" clearable placeholder="请输入移除原因">
           </el-input>
         </el-form-item>
-        <el-form-item label="全局封禁" prop="banFlag">
+        <el-form-item v-if="form.id != null" label="全局封禁" prop="banFlag">
           <el-switch v-model="form.banFlag"></el-switch>
         </el-form-item>
         <el-form-item v-if="form.banFlag" label="封禁原因" prop="bannedReason">
@@ -272,7 +290,7 @@
 
 <script>
 import {
-  addWhitelist,
+  addWhiteListForAdmin,
   delWhitelist,
   getServerList,
   getWhitelist,
@@ -327,7 +345,7 @@ export default {
         removeTime: null
       },
       // 表单参数
-      form: {addState: false, banFlag: false},
+      form: {addState: false, banFlag: false, onlineFlag: 0},
       // 表单校验
       rules: {
         userName: [{
@@ -382,7 +400,7 @@ export default {
         time: null,
         userName: null,
         userUuid: null,
-        onlineFlag: null,
+        onlineFlag: 0,
         qqNum: null,
         remark: null,
         reviewUsers: null,
@@ -416,6 +434,12 @@ export default {
     /** 新增按钮操作 */
     handleAdd() {
       this.reset();
+      // 获取服务器列表
+      this.serverOptions = [{label: "全部", value: "all"}];
+      this.serverList = [];
+      this.handleServerList();
+      // 设置默认值
+      this.form.status = 1; // 默认通过
       this.open = true;
       this.title = "添加白名单";
     },
@@ -491,10 +515,15 @@ export default {
               this.getList();
             });
           } else {
-            addWhitelist(this.form).then(response => {
-              this.$modal.msgSuccess("新增成功");
-              this.open = false;
-              this.getList();
+            // 添加二次确认
+            this.$modal.confirm('确认添加该玩家到白名单吗？').then(() => {
+              // 使用管理员添加接口
+              addWhiteListForAdmin(this.form).then(response => {
+                this.$modal.msgSuccess("新增成功");
+                this.open = false;
+                this.getList();
+              });
+            }).catch(() => {
             });
           }
         }

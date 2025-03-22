@@ -176,7 +176,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         }
 
         // 全局封禁
-        if (Boolean.parseBoolean(whitelistInfo.getBanFlag())) {
+        if ("true".equalsIgnoreCase(whitelistInfo.getBanFlag())) {
             final Integer x = handleGlobalBan(whitelistInfo, name);
             if (x != null) return x;
         } else {
@@ -185,7 +185,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         }
 
         // 全局移除白名单
-        if (Boolean.parseBoolean(whitelistInfo.getAddState())) {
+        if ("true".equalsIgnoreCase(whitelistInfo.getAddState())) {
             final Integer x = handleWhitelistOperation(whitelistInfo, name);
             if (x != null) return x;
         }
@@ -262,7 +262,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
     private @Nullable Integer handleUnban(WhitelistInfo whitelistInfo, String name) {
         // 是否为解除封禁
         BanlistInfo banlistInfo = new BanlistInfo();
-        banlistInfo.setUserName(whitelistInfo.getUserName());
+        banlistInfo.setWhiteId(whitelistInfo.getId());
         List<BanlistInfo> banlistInfos = banlistInfoService.selectBanlistInfoList(banlistInfo);
         if (!banlistInfos.isEmpty()) {
             banlistInfo = banlistInfos.get(0);

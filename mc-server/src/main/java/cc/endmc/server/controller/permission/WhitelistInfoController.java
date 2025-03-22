@@ -29,6 +29,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
@@ -388,6 +389,71 @@ public class WhitelistInfoController extends BaseController {
         } else {
             return error(EmailTemplates.APPLY_ERROR);
         }
+    }
+
+    /**
+     * 管理员添加白名单
+     *
+     * @return 结果
+     */
+    @PostMapping("/addWhiteListForAdmin")
+    @Transactional(rollbackFor = Exception.class)
+    public AjaxResult addWhiteListForAdmin(@RequestBody WhitelistInfo whitelistInfo) {
+
+        if (whitelistInfo == null || whitelistInfo.getUserName() == null || whitelistInfo.getQqNum() == null) {
+            return error("申请信息不能为空!");
+        }
+
+        String userName = whitelistInfo.getUserName();
+
+        // 补全基础申请信息
+        if (whitelistInfo.getOnlineFlag() == 1) {
+            try {
+                String result = HttpUtils.sendGet("https://api.mojang.com/users/profiles/minecraft/" + userName);
+                if (result.isEmpty()) {
+                    return error("信息不正确或非正版用户!");
+                }
+                JSONObject json = JSONObject.parseObject(result);
+                if (json.containsKey("demo")) {
+                    return error("该账号未购买游戏!");
+                }
+                if (!json.getString("id").isEmpty()) {
+                    String uuid = json.getString("id");
+                    // 格式化成带横杠的UUID
+                    uuid = uuid.substring(0, 8) + "-" + uuid.substring(8, 12) + "-" + uuid.substring(12, 16) + "-" + uuid.substring(16, 20) + "-" + uuid.substring(20);
+                    whitelistInfo.setUserUuid(uuid);
+                }
+            } catch (Exception e) {
+                logger.error("获取正版UUID失败", e);
+                return error("获取正版UUID失败!");
+            }
+        } else {
+            // 盗版随机生成一个UUID
+            whitelistInfo.setUserUuid(UUID.randomUUID().toString());
+        }
+
+        // 设置创建信息
+        whitelistInfo.setCreateBy(("ADMIN::apply::") + whitelistInfo.getUserName());
+        whitelistInfo.setCreateTime(new Date());
+        whitelistInfo.setAddTime(new Date());
+        whitelistInfo.setTime(new Date());
+        whitelistInfo.setAddState("0"); // 添加状态：0-未添加，1-已添加
+        whitelistInfo.setStatus("0"); // 审核状态 0-未审核，1-审核通过，2-审核不通过
+
+        final int i = whitelistInfoService.insertWhitelistInfo(whitelistInfo);
+
+        if (i > 0) {
+            final PlayerDetails playerDetails = new PlayerDetails();
+            playerDetails.setUserName(whitelistInfo.getUserName());
+            playerDetails.setQq(whitelistInfo.getQqNum());
+            playerDetails.setCreateBy("ADMIN::apply::" + whitelistInfo.getUserName());
+            playerDetails.setCreateTime(new Date());
+            playerDetails.setIdentity(Identity.PLAYER.getValue());
+            playerDetails.setGameTime(0L);
+            playerDetailsService.insertPlayerDetails(playerDetails);
+        }
+
+        return success("添加成功!");
     }
 
     /**

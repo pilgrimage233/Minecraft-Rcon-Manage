@@ -50,3 +50,12 @@ export function getServerList() {
     method: 'get'
   })
 }
+
+// 管理员手动添加白名单
+export function addWhiteListForAdmin(data) {
+  return request({
+    url: '/mc/whitelist/addWhiteListForAdmin',
+    method: 'post',
+    data: data
+  })
+}
