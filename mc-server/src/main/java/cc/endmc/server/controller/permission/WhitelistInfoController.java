@@ -334,8 +334,33 @@ public class WhitelistInfoController extends BaseController {
                 logger.error("获取正版UUID失败", e);
             }
         } else {
-            // 盗版随机生成一个UUID
-            whitelistInfo.setUserUuid(UUID.randomUUID().toString());
+            // 使用Minecraft离线UUID生成算法
+            try {
+                String name = whitelistInfo.getUserName();
+                // 计算MD5哈希
+                MessageDigest md = MessageDigest.getInstance("MD5");
+                byte[] hash = md.digest(("OfflinePlayer:" + name).getBytes(StandardCharsets.UTF_8));
+                
+                // 将MD5哈希转换为UUID v3格式
+                hash[6] &= 0x0f; // 清除版本位
+                hash[6] |= 0x30; // 设置为版本3
+                hash[8] &= 0x3f; // 清除变体位
+                hash[8] |= 0x80; // 设置为变体1
+                
+                // 构建UUID字符串
+                StringBuilder uuid = new StringBuilder();
+                for (int i = 0; i < 16; i++) {
+                    if (i == 4 || i == 6 || i == 8 || i == 10) {
+                        uuid.append("-");
+                    }
+                    uuid.append(String.format("%02x", hash[i]));
+                }
+                whitelistInfo.setUserUuid(uuid.toString());
+            } catch (Exception e) {
+                logger.error("生成离线UUID失败", e);
+                // 如果生成失败，回退到随机UUID
+                whitelistInfo.setUserUuid(UUID.randomUUID().toString());
+            }
         }
 
         // 设置创建信息
@@ -428,8 +453,32 @@ public class WhitelistInfoController extends BaseController {
                 return error("获取正版UUID失败!");
             }
         } else {
-            // 盗版随机生成一个UUID
-            whitelistInfo.setUserUuid(UUID.randomUUID().toString());
+            // 使用Minecraft离线UUID生成算法
+            try {
+                // 计算MD5哈希
+                MessageDigest md = MessageDigest.getInstance("MD5");
+                byte[] hash = md.digest(("OfflinePlayer:" + userName).getBytes(StandardCharsets.UTF_8));
+                
+                // 将MD5哈希转换为UUID v3格式
+                hash[6] &= 0x0f; // 清除版本位
+                hash[6] |= 0x30; // 设置为版本3
+                hash[8] &= 0x3f; // 清除变体位
+                hash[8] |= 0x80; // 设置为变体1
+                
+                // 构建UUID字符串
+                StringBuilder uuid = new StringBuilder();
+                for (int i = 0; i < 16; i++) {
+                    if (i == 4 || i == 6 || i == 8 || i == 10) {
+                        uuid.append("-");
+                    }
+                    uuid.append(String.format("%02x", hash[i]));
+                }
+                whitelistInfo.setUserUuid(uuid.toString());
+            } catch (Exception e) {
+                logger.error("生成离线UUID失败", e);
+                // 如果生成失败，回退到随机UUID
+                whitelistInfo.setUserUuid(UUID.randomUUID().toString());
+            }
         }
 
         // 设置创建信息

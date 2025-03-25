@@ -132,7 +132,7 @@ public class OnlineTask {
 
                     // 获取在线玩家列表
                     String list = rconClient.sendCommand("list");
-                    if (list == null) {
+                    if (list == null || !list.startsWith("There are")) {
                         list = rconClient.sendCommand("minecraft:list");
                     }
                     if (StringUtils.isNotEmpty(list)) {

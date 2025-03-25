@@ -976,6 +976,40 @@ public class BotClient {
                 }
             }
 
+            // 判断是否为高危命令
+            if (isHighRiskCommand(command)) {
+                // 获取确认状态
+                String confirmKey = CacheKey.COMMAND_USE_KEY + "confirm:" + message.getSender().getUserId() + ":" + serverId + ":" + command;
+                Integer confirmCount = redisCache.getCacheObject(confirmKey);
+                
+                // 如果未确认过，或者确认次数不足
+                if (confirmCount == null) {
+                    confirmCount = 0;
+                }
+                
+                confirmCount++;
+                
+                if (confirmCount < 3) {
+                    // 更新确认次数
+                    redisCache.setCacheObject(confirmKey, confirmCount, 5, TimeUnit.MINUTES);
+                    
+                    // 发送确认消息
+                    StringBuilder warningMsg = new StringBuilder();
+                    warningMsg.append("[CQ:at,qq=").append(message.getSender().getUserId()).append("] ");
+                    warningMsg.append("⚠️ 高危命令警告 ⚠️\n\n");
+                    warningMsg.append("您正在尝试执行高危命令：").append(command).append("\n");
+                    warningMsg.append("该命令可能对服务器 ").append(serverId).append(" 造成严重影响！\n\n");
+                    warningMsg.append("确认状态：").append(confirmCount).append("/3\n");
+                    warningMsg.append("请再次发送相同指令以确认执行（5分钟内有效）");
+                    
+                    sendMessage(message, warningMsg.toString());
+                    return;
+                } else {
+                    // 清除确认状态
+                    redisCache.deleteObject(confirmKey);
+                }
+            }
+
             try {
                 // 发送RCON指令并获取结果
                 String result = rconService.sendCommand(serverId, command, true);
@@ -1001,6 +1035,141 @@ public class BotClient {
             log.error("处理RCON指令失败: {}", e.getMessage());
             sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 操作失败，请稍后重试。");
         }
+    }
+
+    /**
+     * 判断是否为高危命令
+     * 
+     * @param command 要执行的命令
+     * @return 是否为高危命令
+     */
+    private boolean isHighRiskCommand(String command) {
+        if (command == null || command.isEmpty()) {
+            return false;
+        }
+        
+        // 将命令转为小写并去除前导空格，以便更准确地匹配
+        String cmdLower = command.trim().toLowerCase();
+        
+        // 高危命令列表
+        String[] highRiskCommands = {
+            // 服务器核心命令
+            "stop",                // 关闭服务器
+            "reload",              // 重载服务器
+            "restart",             // 重启服务器
+            "shutdown",            // 关闭服务器
+            "whitelist off",       // 关闭白名单
+            "op ",                 // 给予OP权限
+            "deop ",               // 移除OP权限
+            "ban-ip ",             // IP封禁
+            "pardon-ip ",          // 解除IP封禁
+            "ban ",                // 封禁玩家
+            "pardon ",             // 解除玩家封禁
+            "save-off",            // 关闭自动保存
+            "kill @e",             // 杀死所有实体
+            "difficulty ",         // 修改游戏难度
+            "gamerule ",           // 修改游戏规则
+            "defaultgamemode ",    // 修改默认游戏模式
+            
+            // 世界编辑命令
+            "fill",                // 填充大量方块
+            "setblock",            // 设置方块
+            "worldedit",           // WorldEdit命令
+            "we",                  // WorldEdit简写
+            "/expand",             // WorldEdit扩展选区
+            "/set",                // WorldEdit设置方块
+            "/replace",            // WorldEdit替换方块
+            
+            // 多世界管理插件
+            "mv delete",           // Multiverse删除世界
+            "mv remove",           // Multiverse移除世界
+            "mv unload",           // Multiverse卸载世界
+            "mv modify",           // Multiverse修改世界设置
+            "mvtp",                // Multiverse传送
+            
+            // 权限插件
+            "pex group default set",  // PermissionsEx更改默认组权限
+            "pex user * set",         // PermissionsEx设置所有用户权限
+            "lp group default set",   // LuckPerms更改默认组权限
+            "lp user * set",          // LuckPerms设置所有用户权限
+            "lp group",               // LuckPerms组操作
+            "permissions",            // 权限操作
+            
+            // Essentials插件危险命令
+            "essentials.eco",         // 经济系统修改
+            "eco give",               // 给予金钱
+            "eco reset",              // 重置经济
+            "eco set",                // 设置金钱
+            "eco take",               // 移除金钱
+            "ess reload",             // 重载Essentials
+            "essentials reload",      // 重载Essentials
+            "god",                    // 上帝模式
+            "ext",                    // 灭火
+            "ext all",                // 灭所有火
+            "ext -a",                 // 灭所有火
+            "kickall",                // 踢出所有玩家
+            "killall",                // 杀死所有实体
+            "spawnmob",               // 生成怪物
+            "sudo",                   // 以他人身份执行命令
+            "unlimited",              // 无限物品
+            "nuke",                   // 核爆
+            "essentials.gamemode",    // 修改游戏模式
+            "tpall",                  // 传送所有人
+            "antioch",                // 圣手雷
+            "essentials.give",        // 给予物品
+            "give",                   // 给予物品
+            "item",                   // 给予物品
+            "i",                      // 给予物品简写
+            "more",                   // 更多物品
+            "backup",                 // 备份服务器
+            "fireball",               // 火球
+            "lightning",              // 闪电
+            "thunder",                // 雷暴
+            "tempban",                // 临时封禁
+            "banip",                  // IP封禁
+            "unbanip",                // 解除IP封禁
+            "mute",                   // 禁言
+            "broadcast",              // 广播
+            "essentials.clearinventory", // 清空背包
+            "clear",                  // 清空背包
+            "ci",                     // 清空背包
+            "clearinventory",         // 清空背包
+            "socialspy",              // 窥探私聊
+            "tp",                     // 传送
+            "tphere",                 // 传送到这里
+            "tppos",                  // 传送到坐标
+            "top",                    // 传送到顶部
+            "tptoggle",               // 切换传送
+            "vanish",                 // 隐身
+            "v",                      // 隐身简写
+            
+            // 其他常见插件的危险命令
+            "upc ",                   // UltraPermissions
+            "lpc ",                   // LuckPerms
+            "pex ",                   // PermissionsEx
+            "nuker ",                 // 核爆插件
+            "essentialsreload",       // Essentials重载
+            "plugman",                // 插件管理
+            "pl ",                    // 插件操作
+            "plugin ",                // 插件操作
+            "worldborder set",        // 设置世界边界
+            "timings",                // 服务器性能分析
+            "lag",                    // 卡顿分析
+            "pstop",                  // 停止服务器
+            "coreprotect ",           // CoreProtect核心保护
+            "co rollback",            // CoreProtect回滚
+            "co restore",             // CoreProtect恢复
+            "co purge"                // CoreProtect清除数据
+        };
+        
+        // 检查命令是否匹配任何高危命令
+        for (String highRiskCmd : highRiskCommands) {
+            if (cmdLower.startsWith(highRiskCmd.trim().toLowerCase())) {
+                return true;
+            }
+        }
+        
+        return false;
     }
 
     /**
@@ -1467,6 +1636,32 @@ public class BotClient {
                 return;
             }
 
+            // 检查是否是管理员，非管理员有使用次数限制
+            boolean isAdmin = !config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty();
+            
+            // 如果不是管理员，检查使用次数限制
+            if (!isAdmin) {
+                String userId = message.getSender().getUserId().toString();
+                String usageKey = CacheKey.COMMAND_USE_KEY + "test:" + userId;
+                
+                // 获取今日使用次数
+                Integer usageCount = redisCache.getCacheObject(usageKey);
+                
+                // 如果缓存中没有，初始化为0
+                if (usageCount == null) {
+                    usageCount = 0;
+                }
+                
+                // 检查是否超过每日限制(10次)
+                if (usageCount >= 10) {
+                    sendMessage(message, base + " 您今日的测试次数已用完，每位用户每天限制使用10次。");
+                    return;
+                }
+                
+                // 增加使用次数并更新缓存，设置过期时间为当天结束
+                redisCache.setCacheObject(usageKey, usageCount + 1, getSecondsUntilEndOfDay(), TimeUnit.SECONDS);
+            }
+
             String serverAddress = parts[1];
             String ip;
             int port = 25565; // 默认端口
@@ -1483,6 +1678,12 @@ public class BotClient {
                 }
             } else {
                 ip = serverAddress;
+            }
+
+            // 验证是否为有效的IP地址或域名
+            if (!isValidIpOrDomain(ip)) {
+                sendMessage(message, base + " 无效的IP地址或域名格式，请检查输入");
+                return;
             }
 
             // 发送检测中的提示消息
@@ -1758,6 +1959,45 @@ public class BotClient {
         byte[] bytes = new byte[length];
         in.readFully(bytes);
         return new String(bytes, StandardCharsets.UTF_8);
+    }
+
+    /**
+     * 计算到今天结束还剩多少秒
+     * 
+     * @return 剩余秒数
+     */
+    private Integer getSecondsUntilEndOfDay() {
+        Calendar calendar = Calendar.getInstance();
+        calendar.set(Calendar.HOUR_OF_DAY, 23);
+        calendar.set(Calendar.MINUTE, 59);
+        calendar.set(Calendar.SECOND, 59);
+        calendar.set(Calendar.MILLISECOND, 0);
+        long seconds = (calendar.getTimeInMillis() - System.currentTimeMillis()) / 1000;
+        return (int) seconds;
+    }
+
+    /**
+     * 验证字符串是否是有效的IP地址或域名
+     * 
+     * @param input 需要验证的字符串
+     * @return 是否有效
+     */
+    private boolean isValidIpOrDomain(String input) {
+        if (input == null || input.isEmpty()) {
+            return false;
+        }
+        
+        // IPv4地址正则表达式
+        String ipv4Pattern = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
+        
+        // IPv6地址正则表达式 (简化版)
+        String ipv6Pattern = "^(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:))|(([0-9a-fA-F]{1,4}:){6}(:[0-9a-fA-F]{1,4}|((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9a-fA-F]{1,4}:){5}(((:[0-9a-fA-F]{1,4}){1,2})|:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9a-fA-F]{1,4}:){4}(((:[0-9a-fA-F]{1,4}){1,3})|((:[0-9a-fA-F]{1,4})?:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9a-fA-F]{1,4}:){3}(((:[0-9a-fA-F]{1,4}){1,4})|((:[0-9a-fA-F]{1,4}){0,2}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9a-fA-F]{1,4}:){2}(((:[0-9a-fA-F]{1,4}){1,5})|((:[0-9a-fA-F]{1,4}){0,3}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9a-fA-F]{1,4}:){1}(((:[0-9a-fA-F]{1,4}){1,6})|((:[0-9a-fA-F]{1,4}){0,4}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(:(((:[0-9a-fA-F]{1,4}){1,7})|((:[0-9a-fA-F]{1,4}){0,5}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))$";
+        
+        // 域名正则表达式
+        String domainPattern = "^((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,63}$";
+        
+        // 使用正则表达式验证
+        return input.matches(ipv4Pattern) || input.matches(ipv6Pattern) || input.matches(domainPattern);
     }
 
 }

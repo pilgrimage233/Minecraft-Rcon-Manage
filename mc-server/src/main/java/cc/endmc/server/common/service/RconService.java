@@ -65,7 +65,7 @@ public class RconService {
                         final String replaced = replaceCommand(k, command, onlineFlag);
                         CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
                             try {
-                                return client.sendCommand(replaced);
+                                return stripMinecraftColorCodes(client.sendCommand(replaced));
                             } catch (Exception e) {
                                 log.error("发送命令失败: {}", e.getMessage());
                                 return "Error: " + e.getMessage();
@@ -90,7 +90,7 @@ public class RconService {
                     final RconClient client = MapCache.get(key);
 
                     // 同步执行命令
-                    result.append(client.sendCommand(replaced));
+                    result.append(stripMinecraftColorCodes(client.sendCommand(replaced)));
                 }
                 log.debug("发送命令成功: {}", command);
                 return result.toString();
@@ -365,6 +365,21 @@ public class RconService {
     @FunctionalInterface
     interface CommandReplacer {
         String replace(String command);
+    }
+
+    /**
+     * 清除Minecraft颜色代码
+     * Minecraft使用§加颜色代码来表示颜色，如§a表示绿色，§c表示红色等
+     *
+     * @param text 包含颜色代码的文本
+     * @return 清除颜色代码后的文本
+     */
+    private String stripMinecraftColorCodes(String text) {
+        if (text == null) {
+            return "";
+        }
+        // 使用正则表达式去除所有Minecraft颜色代码 (§ 后跟一个字符)
+        return text.replaceAll("§[0-9a-fk-or]", "");
     }
 }
 
