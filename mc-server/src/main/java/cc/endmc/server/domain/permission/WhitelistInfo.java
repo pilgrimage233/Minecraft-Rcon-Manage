@@ -108,6 +108,19 @@ public class WhitelistInfo extends BaseEntity {
      */
     private String bannedReason;
 
+    @Excel(name = "更新用户")
+    private String updateBy;
+
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
+    @Excel(name = "更新时间", width = 30, dateFormat = "yyyy-MM-dd HH:mm:ss")
+    private Date updateTime;
+
+    @Excel(name = "封禁状态")
+    private Long banState;
+
+    @Excel(name = "封禁原因")
+    private String banReason;
+
     @Override
     public String toString() {
         return new ToStringBuilder(this, ToStringStyle.MULTI_LINE_STYLE)
@@ -124,6 +137,12 @@ public class WhitelistInfo extends BaseEntity {
                 .append("removeReason", getRemoveReason())
                 .append("removeTime", getRemoveTime())
                 .append("servers", getServers())
+                .append("updateBy", getUpdateBy())
+                .append("updateTime", getUpdateTime())
+                .append("banFlag", getBanFlag())
+                .append("bannedReason", getBannedReason())
+                .append("banState", getBanState())
+                .append("banReason", getBanReason())
                 .toString();
     }
 }

@@ -404,6 +404,15 @@ export default {
       this.reset();
       if (this.botId) {
         this.form.botId = this.botId;
+        // 获取机器人列表以设置群组选项
+        listConfig({pageSize: 999, status: 1}).then(response => {
+          this.botOptions = response.rows;
+          // 找到当前机器人并设置群组选项
+          const selectedBot = this.botOptions.find(bot => bot.id === this.botId);
+          if (selectedBot && selectedBot.groupIds) {
+            this.groupOptions = selectedBot.groupIds.split(',').map(item => item.trim());
+          }
+        });
       } else {
         this.getBotList();
       }

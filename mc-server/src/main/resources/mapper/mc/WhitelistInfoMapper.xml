@@ -23,6 +23,8 @@
         <result property="createTime" column="create_time"/>
         <result property="updateBy" column="update_by"/>
         <result property="updateTime" column="update_time"/>
+        <result property="banState" column="ban_state"/>
+        <result property="banReason" column="ban_reason"/>
     </resultMap>
 
     <sql id="selectWhitelistInfoVo">
@@ -65,6 +67,28 @@
             <if test="createBy != null and createBy != ''">and create_by = #{createBy}</if>
         </where>
         order by id desc
+    </select>
+
+    <select id="selectWhitelistInfoListWithBan" parameterType="WhitelistInfo" resultMap="WhitelistInfoResult">
+        select w.*, b.state as ban_state, b.reason as ban_reason
+        from whitelist_info w
+        left join banlist_info b on w.id = b.white_id
+        <where>
+            <if test="time != null ">and date_format(w.time, '%Y-%m-%d') = date_format(#{time}, '%Y-%m-%d')</if>
+            <if test="userName != null  and userName != ''">and lower(w.user_name) = lower(#{userName})</if>
+            <if test="userUuid != null  and userUuid != ''">and w.user_uuid = #{userUuid}</if>
+            <if test="onlineFlag != null ">and w.online_flag = #{onlineFlag}</if>
+            <if test="qqNum != null  and qqNum != ''">and w.qq_num = #{qqNum}</if>
+            <if test="reviewUsers != null  and reviewUsers != ''">and w.review_users = #{reviewUsers}</if>
+            <if test="status != null  and status != ''">and w.status = #{status}</if>
+            <if test="addState != null  and addState != ''">and w.add_state = #{addState}</if>
+            <if test="addTime != null ">and date_format(w.add_time, '%Y-%m-%d') = date_format(#{addTime}, '%Y-%m-%d')</if>
+            <if test="removeReason != null  and removeReason != ''">and w.remove_reason = #{removeReason}</if>
+            <if test="removeTime != null ">and date_format(w.remove_time, '%Y-%m-%d') = #{removeTime}</if>
+            <if test="servers != null  and servers != ''">and w.servers = #{servers}</if>
+            <if test="createBy != null and createBy != ''">and w.create_by = #{createBy}</if>
+        </where>
+        order by w.id desc
     </select>
 
     <select id="selectWhitelistInfoById" parameterType="Long" resultMap="WhitelistInfoResult">

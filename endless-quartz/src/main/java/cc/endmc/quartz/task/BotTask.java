@@ -6,6 +6,7 @@ import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
 import cc.endmc.server.ws.BotClient;
 import cc.endmc.server.ws.BotManager;
+import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpUtil;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
@@ -63,7 +64,7 @@ public class BotTask {
         }
 
         // 获取启用机器人的群员列表
-        Map<String, Object> request = new HashMap<>();
+        JSONObject request = new JSONObject();
         request.put("no_cache", false);
 
         // 遍历所有群，检查每个用户的存在状态
@@ -80,16 +81,20 @@ public class BotTask {
 
             // 使用机器人的配置发送请求
             String botUrl = responsibleBot.getConfig().getHttpUrl();
-            final String post = HttpUtil.post(botUrl + BotApi.GET_GROUP_MEMBER_LIST, request);
-            if (post == null) {
+            final HttpResponse response = HttpUtil
+                    .createPost(botUrl + BotApi.GET_GROUP_MEMBER_LIST)
+                    .header("Authorization", "Bearer " + responsibleBot.getConfig().getToken())
+                    .body(request.toJSONString())
+                    .execute();
+            if (response == null || !response.isOk()) {
                 log.warn("群 {} 获取成员列表失败", groupId);
-                continue;
+                return;
             }
 
-            final JSONObject jsonObject = JSONObject.parseObject(post);
-            if (jsonObject.getInteger("retcode") != 0) {
-                log.warn("群 {} 获取成员列表失败: {}", groupId, jsonObject.getString("msg"));
-                continue;
+            final JSONObject jsonObject = JSONObject.parseObject(response.body());
+            if ((jsonObject.containsKey("retcode") && jsonObject.getInteger("retcode") != 0) || jsonObject.getJSONArray("data") == null) {
+                log.warn("群 {} 获取成员列表失败: {}", groupId, jsonObject);
+                return;
             }
 
             final List<JSONObject> members = jsonObject.getJSONArray("data").toJavaList(JSONObject.class);
@@ -157,7 +162,11 @@ public class BotTask {
                 msgRequest.put("message", "⚠️退群白名单移除通知：\n以下用户已退群并移除白名单：" + groupMessage);
 
                 // 发送群消息
-                String response = HttpUtil.post(responsibleBot.getConfig().getHttpUrl() + BotApi.SEND_GROUP_MSG, msgRequest.toJSONString());
+                String response = HttpUtil.createPost(responsibleBot.getConfig().getHttpUrl() + BotApi.SEND_GROUP_MSG)
+                        .header("Authorization", "Bearer " + responsibleBot.getConfig().getToken())
+                        .body(msgRequest.toJSONString())
+                        .execute()
+                        .body();
                 if (response != null) {
                     JSONObject result = JSONObject.parseObject(response);
                     if (result.getInteger("retcode") != 0) {

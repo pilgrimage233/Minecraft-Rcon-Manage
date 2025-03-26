@@ -71,7 +71,7 @@ public class EmailService {
             Transport.send(message);
             log.info("发送成功！");
         } catch (Exception e) {
-            log.error("异常：{}", String.valueOf(e));
+            log.error("邮件发送失败！异常信息：{}", String.valueOf(e));
         }
         //  log.debug("发送邮件给{}，标题：{}，内容：{}", email, title, content);
     }

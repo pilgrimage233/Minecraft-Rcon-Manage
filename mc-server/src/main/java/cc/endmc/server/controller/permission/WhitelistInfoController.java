@@ -26,6 +26,7 @@ import com.alibaba.fastjson2.JSONObject;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -86,8 +87,9 @@ public class WhitelistInfoController extends BaseController {
         this.dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
     }
 
+    @SneakyThrows
     @PostMapping("/apply")
-    public AjaxResult apply(@RequestBody WhitelistInfo whitelistInfo, @RequestHeader Map<String, String> header) throws JsonProcessingException, ExecutionException, InterruptedException {
+    public AjaxResult apply(@RequestBody WhitelistInfo whitelistInfo, @RequestHeader Map<String, String> header)  {
         if (whitelistInfo == null || whitelistInfo.getUserName() == null || whitelistInfo.getQqNum() == null) {
             return error("申请信息不能为空!");
         }
@@ -108,6 +110,10 @@ public class WhitelistInfoController extends BaseController {
             if (userAgent.contains(s)) {
                 return error("请勿使用爬虫提交申请!");
             }
+        }
+        // 判断是否为正确浏览器
+        if (!userAgent.contains("Mozilla") && !userAgent.contains("Chrome") && !userAgent.contains("Safari") && !userAgent.contains("Edge") && !userAgent.contains("Opera") && !userAgent.contains("Firefox")) {
+            return error("请使用浏览器提交申请!");
         }
 
         // 游戏ID正则匹配
@@ -281,8 +287,8 @@ public class WhitelistInfoController extends BaseController {
             // 获取IP地址
             String ip = WhitelistUtils.getIpFromHeader(header);
 
-            // 如果是网页请求，需要进行IP限流检查
-            if (!isFromBot && StringUtils.isNotEmpty(ip)) {
+            // IP限流检查
+            if (StringUtils.isNotEmpty(ip)) {
                 AjaxResult limitResult = WhitelistUtils.checkIpLimit(ip, iIpLimitInfoService, iplimit,
                         whitelistInfo.getUserName(), header.get("user-agent"), null);
                 if (limitResult != null) {
@@ -340,13 +346,13 @@ public class WhitelistInfoController extends BaseController {
                 // 计算MD5哈希
                 MessageDigest md = MessageDigest.getInstance("MD5");
                 byte[] hash = md.digest(("OfflinePlayer:" + name).getBytes(StandardCharsets.UTF_8));
-                
+
                 // 将MD5哈希转换为UUID v3格式
                 hash[6] &= 0x0f; // 清除版本位
                 hash[6] |= 0x30; // 设置为版本3
                 hash[8] &= 0x3f; // 清除变体位
                 hash[8] |= 0x80; // 设置为变体1
-                
+
                 // 构建UUID字符串
                 StringBuilder uuid = new StringBuilder();
                 for (int i = 0; i < 16; i++) {
@@ -458,13 +464,13 @@ public class WhitelistInfoController extends BaseController {
                 // 计算MD5哈希
                 MessageDigest md = MessageDigest.getInstance("MD5");
                 byte[] hash = md.digest(("OfflinePlayer:" + userName).getBytes(StandardCharsets.UTF_8));
-                
+
                 // 将MD5哈希转换为UUID v3格式
                 hash[6] &= 0x0f; // 清除版本位
                 hash[6] |= 0x30; // 设置为版本3
                 hash[8] &= 0x3f; // 清除变体位
                 hash[8] |= 0x80; // 设置为变体1
-                
+
                 // 构建UUID字符串
                 StringBuilder uuid = new StringBuilder();
                 for (int i = 0; i < 16; i++) {

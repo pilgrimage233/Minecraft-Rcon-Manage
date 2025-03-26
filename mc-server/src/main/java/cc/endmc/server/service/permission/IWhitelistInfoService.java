@@ -73,4 +73,12 @@ public interface IWhitelistInfoService {
 
     Map<String, Object> check(Map<String, String> params);
 
+    /**
+     * 查询白名单列表（包含封禁信息）
+     *
+     * @param whitelistInfo 白名单
+     * @return 白名单集合
+     */
+    public List<WhitelistInfo> selectWhitelistInfoListWithBan(WhitelistInfo whitelistInfo);
+
 }

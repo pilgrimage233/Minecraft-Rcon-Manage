@@ -25,14 +25,14 @@ CREATE TABLE `banlist_info`
 (
     `id`          bigint                                                        NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `white_id`    bigint                                                        NULL DEFAULT NULL COMMENT '关联白名单ID',
-    `user_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '用户名称',
+    `user_name`   varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '用户名称',
     `state`       bigint                                                        NULL DEFAULT NULL COMMENT '封禁状态',
-    `reason`    varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '封禁原因',
-    `remark`    varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
+    `reason`      varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '封禁原因',
+    `remark`      varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
     `create_time` datetime                                                      NULL DEFAULT NULL COMMENT '创建时间',
     `update_time` datetime                                                      NULL DEFAULT NULL COMMENT '更新时间',
-    `create_by` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '创建者',
-    `update_by` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '更新者',
+    `create_by`   varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '创建者',
+    `update_by`   varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '更新者',
     PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB
   AUTO_INCREMENT = 4
@@ -77,45 +77,6 @@ CREATE TABLE `gen_table`
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '代码生成业务表'
   ROW_FORMAT = DYNAMIC;
-
--- ----------------------------
--- Records of gen_table
--- ----------------------------
-INSERT INTO `gen_table`
-VALUES (2, 'whitelist_info', '白名单管理', NULL, NULL, 'WhitelistInfo', 'crud', 'element-ui', 'cn.showsi.server', 'mc',
-        'whitelist', '白名单', 'ruoyi', '0', '/', '{\"parentMenuId\":\"2000\"}', 'admin', '2023-12-26 21:56:56', '',
-        '2023-12-26 22:00:11', NULL);
-INSERT INTO `gen_table`
-VALUES (3, 'server_info', '服务器信息', NULL, NULL, 'ServerInfo', 'crud', 'element-ui', 'com.ruoyi.server', 'server',
-        'serverlist', '服务器信息', 'ruoyi', '0', '/', '{\"parentMenuId\":\"2000\"}', 'admin', '2024-03-10 15:46:36',
-        '', '2024-03-10 15:57:12', NULL);
-INSERT INTO `gen_table`
-VALUES (4, 'ip_limit_info', 'IP限流表', NULL, NULL, 'IpLimitInfo', 'crud', 'element-ui', 'com.ruoyi.server', 'ipinfo',
-        'limit', 'IP限流', 'ruoyi', '0', '/', '{}', 'admin', '2024-12-20 19:11:37', '', '2024-12-20 19:24:18', NULL);
-INSERT INTO `gen_table`
-VALUES (5, 'banlist_info', '封禁管理表', NULL, NULL, 'BanlistInfo', 'crud', 'element-ui', 'com.ruoyi.server', 'mc',
-        'banlist', '封禁管理', 'ruoyi', '0', '/', '{}', 'admin', '2024-12-20 19:15:07', '', '2024-12-20 19:26:41',
-        NULL);
-INSERT INTO `gen_table`
-VALUES (6, 'server_command_info', '指令管理表', NULL, NULL, 'ServerCommandInfo', 'crud', 'element-ui',
-        'com.ruoyi.server', 'mc', 'command', '指令管理', 'ruoyi', '0', '/', '{\"parentMenuId\":2000}', 'admin',
-        '2024-12-20 19:28:58', '', '2024-12-20 19:29:31', NULL);
-INSERT INTO `gen_table`
-VALUES (7, 'operator_list', '管理员列表', NULL, NULL, 'OperatorList', 'crud', 'element-ui', 'com.ruoyi.server',
-        'player', 'operator', '管理员名单', 'Memory', '0', '/', '{\"parentMenuId\":\"2000\"}', 'admin',
-        '2024-12-31 03:09:59', '', '2025-01-11 12:09:32', NULL);
-INSERT INTO `gen_table`
-VALUES (8, 'player_details', '玩家详情', NULL, NULL, 'PlayerDetails', 'crud', 'element-ui', 'com.ruoyi.server',
-        'player', 'details', '玩家详情', 'Memory', '0', '/', '{\"parentMenuId\":\"2000\"}', 'admin',
-        '2024-12-31 03:09:59', '', '2024-12-31 03:33:14', NULL);
-INSERT INTO `gen_table`
-VALUES (9, 'history_command', '历史命令', '', '', 'HistoryCommand', 'crud', 'element-ui', 'com.ruoyi.server', 'history',
-        'command', '历史命令', 'ruoyi', '0', '/', '{\"parentMenuId\":2021}', 'admin', '2025-02-11 20:08:30', '',
-        '2025-02-11 20:10:34', NULL);
-INSERT INTO `gen_table`
-VALUES (10, 'regular_cmd', '定时命令', NULL, NULL, 'RegularCmd', 'crud', 'element-ui', 'com.ruoyi.server', 'regular',
-        'command', '定时命令', 'ruoyi', '0', '/', '{\"parentMenuId\":\"2000\"}', 'admin', '2025-02-14 23:30:54', '',
-        '2025-02-14 23:39:47', NULL);
 
 -- ----------------------------
 -- Table structure for gen_table_column
@@ -507,12 +468,12 @@ CREATE TABLE `history_command`
 (
     `id`           int                                                            NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `server_id`    int                                                            NOT NULL COMMENT '服务器ID',
-    `user`     varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci   NOT NULL COMMENT '执行用户',
-    `command`  varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '执行指令',
+    `user`         varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci   NOT NULL COMMENT '执行用户',
+    `command`      varchar(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '执行指令',
     `execute_time` datetime                                                       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '执行时间',
-    `response` text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci          NULL COMMENT '执行结果',
-    `status`   varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci    NULL DEFAULT NULL COMMENT '执行状态',
-    `run_time` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci   NULL DEFAULT NULL COMMENT '运行时间(毫秒值)',
+    `response`     text CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci          NULL COMMENT '执行结果',
+    `status`       varchar(8) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci    NULL     DEFAULT NULL COMMENT '执行状态',
+    `run_time`     varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci   NULL     DEFAULT NULL COMMENT '运行时间(毫秒值)',
     PRIMARY KEY (`id`) USING BTREE,
     INDEX `history_command_server_id_index` (`server_id` ASC) USING BTREE
 ) ENGINE = InnoDB
@@ -629,14 +590,14 @@ CREATE TABLE `public_server_command`
 (
     `id`             bigint                                                        NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `server_id`      bigint                                                        NULL DEFAULT NULL COMMENT '服务器ID',
-    `command`   varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '指令',
+    `command`        varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '指令',
     `status`         bigint                                                        NULL DEFAULT NULL COMMENT '启用状态',
     `vague_matching` bigint                                                        NULL DEFAULT NULL COMMENT '模糊匹配',
-    `remark`    varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
+    `remark`         varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
     `create_time`    datetime                                                      NULL DEFAULT NULL COMMENT '创建时间',
     `update_time`    datetime                                                      NULL DEFAULT NULL COMMENT '更新时间',
-    `create_by` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '创建者',
-    `update_by` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '更新者',
+    `create_by`      varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '创建者',
+    `update_by`      varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '更新者',
     PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB
   AUTO_INCREMENT = 1
@@ -738,8 +699,8 @@ CREATE TABLE `qrtz_paused_trigger_grps`
 DROP TABLE IF EXISTS `qrtz_scheduler_state`;
 CREATE TABLE `qrtz_scheduler_state`
 (
-    `sched_name`    varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '调度名称',
-    `instance_name` varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '实例名称',
+    `sched_name`        varchar(120) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '调度名称',
+    `instance_name`     varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '实例名称',
     `last_checkin_time` bigint                                                        NOT NULL COMMENT '上次检查时间',
     `checkin_interval`  bigint                                                        NOT NULL COMMENT '检查间隔时间',
     PRIMARY KEY (`sched_name`, `instance_name`) USING BTREE
@@ -909,17 +870,17 @@ CREATE TABLE `sys_dept`
 (
     `dept_id`     bigint                                                       NOT NULL AUTO_INCREMENT COMMENT '部门id',
     `parent_id`   bigint                                                       NULL DEFAULT 0 COMMENT '父部门id',
-    `ancestors` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '祖级列表',
-    `dept_name` varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '部门名称',
+    `ancestors`   varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '祖级列表',
+    `dept_name`   varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '部门名称',
     `order_num`   int                                                          NULL DEFAULT 0 COMMENT '显示顺序',
-    `leader`    varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '负责人',
-    `phone`     varchar(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '联系电话',
-    `email`     varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '邮箱',
-    `status`    char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci     NULL DEFAULT '0' COMMENT '部门状态（0正常 1停用）',
-    `del_flag`  char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci     NULL DEFAULT '0' COMMENT '删除标志（0代表存在 2代表删除）',
-    `create_by` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '创建者',
+    `leader`      varchar(20) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '负责人',
+    `phone`       varchar(11) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '联系电话',
+    `email`       varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '邮箱',
+    `status`      char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci     NULL DEFAULT '0' COMMENT '部门状态（0正常 1停用）',
+    `del_flag`    char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci     NULL DEFAULT '0' COMMENT '删除标志（0代表存在 2代表删除）',
+    `create_by`   varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '创建者',
     `create_time` datetime                                                     NULL DEFAULT NULL COMMENT '创建时间',
-    `update_by` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '更新者',
+    `update_by`   varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '更新者',
     `update_time` datetime                                                     NULL DEFAULT NULL COMMENT '更新时间',
     PRIMARY KEY (`dept_id`) USING BTREE
 ) ENGINE = InnoDB
@@ -970,18 +931,18 @@ CREATE TABLE `sys_dict_data`
 (
     `dict_code`   bigint                                                        NOT NULL AUTO_INCREMENT COMMENT '字典编码',
     `dict_sort`   int                                                           NULL DEFAULT 0 COMMENT '字典排序',
-    `dict_label` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '字典标签',
-    `dict_value` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '字典键值',
-    `dict_type`  varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '字典类型',
-    `css_class`  varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '样式属性（其他样式扩展）',
-    `list_class` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '表格回显样式',
-    `is_default` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT 'N' COMMENT '是否默认（Y是 N否）',
-    `status`     char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT '0' COMMENT '状态（0正常 1停用）',
-    `create_by`  varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '创建者',
+    `dict_label`  varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '字典标签',
+    `dict_value`  varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '字典键值',
+    `dict_type`   varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '字典类型',
+    `css_class`   varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '样式属性（其他样式扩展）',
+    `list_class`  varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '表格回显样式',
+    `is_default`  char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT 'N' COMMENT '是否默认（Y是 N否）',
+    `status`      char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT '0' COMMENT '状态（0正常 1停用）',
+    `create_by`   varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '创建者',
     `create_time` datetime                                                      NULL DEFAULT NULL COMMENT '创建时间',
-    `update_by`  varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '更新者',
+    `update_by`   varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '更新者',
     `update_time` datetime                                                      NULL DEFAULT NULL COMMENT '更新时间',
-    `remark`     varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
+    `remark`      varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
     PRIMARY KEY (`dict_code`) USING BTREE
 ) ENGINE = InnoDB
   AUTO_INCREMENT = 118
@@ -1131,14 +1092,14 @@ DROP TABLE IF EXISTS `sys_dict_type`;
 CREATE TABLE `sys_dict_type`
 (
     `dict_id`     bigint                                                        NOT NULL AUTO_INCREMENT COMMENT '字典主键',
-    `dict_name` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '字典名称',
-    `dict_type` varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '字典类型',
-    `status`    char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT '0' COMMENT '状态（0正常 1停用）',
-    `create_by` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '创建者',
+    `dict_name`   varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '字典名称',
+    `dict_type`   varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '字典类型',
+    `status`      char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT '0' COMMENT '状态（0正常 1停用）',
+    `create_by`   varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '创建者',
     `create_time` datetime                                                      NULL DEFAULT NULL COMMENT '创建时间',
-    `update_by` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '更新者',
+    `update_by`   varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '更新者',
     `update_time` datetime                                                      NULL DEFAULT NULL COMMENT '更新时间',
-    `remark`    varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
+    `remark`      varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
     PRIMARY KEY (`dict_id`) USING BTREE,
     UNIQUE INDEX `dict_type` (`dict_type` ASC) USING BTREE
 ) ENGINE = InnoDB
@@ -1214,24 +1175,39 @@ CREATE TABLE `sys_job`
 -- ----------------------------
 -- Records of sys_job
 -- ----------------------------
-INSERT INTO `sys_job`
-VALUES (4, '同步白名单', 'DEFAULT', 'whiteListTask.syncWhitelistByServerId(\'1\')', '30 1 0/1 * * ?', '1', '1', '0',
-        'admin', '2024-12-21 18:56:29', 'admin', '2025-01-03 02:25:32', '');
-INSERT INTO `sys_job`
+INSERT INTO sys_job (job_id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent,
+                           status, create_by, create_time, update_by, update_time, remark)
+VALUES (4, '同步白名单', 'DEFAULT', 'whiteListTask.syncWhitelistByServerId(\'3\')', '30 1 0/1 * * ?', '1', '1', '0',
+        'admin', '2024-12-21 18:56:29', 'admin', '2025-03-08 19:42:48', '');
+INSERT INTO sys_job (job_id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent,
+                           status, create_by, create_time, update_by, update_time, remark)
 VALUES (5, '刷新Rcon缓存', 'DEFAULT', 'rconTask.refreshMapCache', '10 1 0/1 * * ?', '1', '1', '0', 'admin',
         '2024-12-21 18:58:15', 'admin', '2025-01-03 02:26:12', '');
-INSERT INTO `sys_job`
+INSERT INTO sys_job (job_id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent,
+                           status, create_by, create_time, update_by, update_time, remark)
 VALUES (6, '同步ID', 'DEFAULT', 'onlineTask.syncUserNameForUuid', '0 0 0 1/1 * ?', '1', '1', '0', 'admin',
         '2024-12-21 19:00:00', '', '2024-12-21 19:00:03', '');
-INSERT INTO `sys_job`
+INSERT INTO sys_job (job_id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent,
+                           status, create_by, create_time, update_by, update_time, remark)
 VALUES (7, '重建redis缓存', 'DEFAULT', 'rconTask.refreshRedisCache', '0 0 1 1/2 * ?', '1', '1', '0', 'admin',
         '2024-12-23 16:34:41', '', '2024-12-23 16:34:43', '');
-INSERT INTO `sys_job`
+INSERT INTO sys_job (job_id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent,
+                           status, create_by, create_time, update_by, update_time, remark)
 VALUES (8, '心跳检测', 'DEFAULT', 'rconTask.heartBeat', '0 0/3 * * * ?', '1', '1', '1', 'admin', '2024-12-25 23:41:20',
         'admin', '2025-01-03 02:26:19', '');
-INSERT INTO `sys_job`
+INSERT INTO sys_job (job_id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent,
+                           status, create_by, create_time, update_by, update_time, remark)
 VALUES (9, '玩家监控', 'DEFAULT', 'onlineTask.monitor', '0 0/1 * * * ?', '1', '1', '0', 'admin', '2025-01-02 05:14:41',
         '', '2025-01-02 22:56:40', '');
+INSERT INTO sys_job (job_id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent,
+                           status, create_by, create_time, update_by, update_time, remark)
+VALUES (10, '指令重试', 'DEFAULT', 'onlineTask.commandRetry', '0 0/1 * * * ?', '1', '1', '0', 'admin',
+        '2025-03-07 18:25:35', 'admin', '2025-03-07 18:27:34', '');
+INSERT INTO sys_job (job_id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent,
+                           status, create_by, create_time, update_by, update_time, remark)
+VALUES (11, '退群监控', 'DEFAULT', 'botTask.monitorWhiteList', '0 0/5 * * * ?', '1', '1', '1', 'admin',
+        '2025-03-09 19:05:55', '', '2025-03-26 22:00:30', '');
+
 
 -- ----------------------------
 -- Table structure for sys_job_log
@@ -1305,24 +1281,24 @@ DROP TABLE IF EXISTS `sys_menu`;
 CREATE TABLE `sys_menu`
 (
     `menu_id`     bigint                                                        NOT NULL AUTO_INCREMENT COMMENT '菜单ID',
-    `menu_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NOT NULL COMMENT '菜单名称',
+    `menu_name`   varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NOT NULL COMMENT '菜单名称',
     `parent_id`   bigint                                                        NULL DEFAULT 0 COMMENT '父菜单ID',
     `order_num`   int                                                           NULL DEFAULT 0 COMMENT '显示顺序',
-    `path`      varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '路由地址',
-    `component` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '组件路径',
-    `query`     varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '路由参数',
+    `path`        varchar(200) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '路由地址',
+    `component`   varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '组件路径',
+    `query`       varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '路由参数',
     `is_frame`    int                                                           NULL DEFAULT 1 COMMENT '是否为外链（0是 1否）',
     `is_cache`    int                                                           NULL DEFAULT 0 COMMENT '是否缓存（0缓存 1不缓存）',
-    `menu_type` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT '' COMMENT '菜单类型（M目录 C菜单 F按钮）',
-    `visible`   char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT '0' COMMENT '菜单状态（0显示 1隐藏）',
-    `status`    char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT '0' COMMENT '菜单状态（0正常 1停用）',
-    `perms`     varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '权限标识',
-    `icon`      varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '#' COMMENT '菜单图标',
-    `create_by` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '创建者',
+    `menu_type`   char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT '' COMMENT '菜单类型（M目录 C菜单 F按钮）',
+    `visible`     char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT '0' COMMENT '菜单状态（0显示 1隐藏）',
+    `status`      char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT '0' COMMENT '菜单状态（0正常 1停用）',
+    `perms`       varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '权限标识',
+    `icon`        varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '#' COMMENT '菜单图标',
+    `create_by`   varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '创建者',
     `create_time` datetime                                                      NULL DEFAULT NULL COMMENT '创建时间',
-    `update_by` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '更新者',
+    `update_by`   varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '更新者',
     `update_time` datetime                                                      NULL DEFAULT NULL COMMENT '更新时间',
-    `remark`    varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '备注',
+    `remark`      varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '备注',
     PRIMARY KEY (`menu_id`) USING BTREE
 ) ENGINE = InnoDB
   AUTO_INCREMENT = 2075
@@ -1333,410 +1309,746 @@ CREATE TABLE `sys_menu`
 -- ----------------------------
 -- Records of sys_menu
 -- ----------------------------
-INSERT INTO `sys_menu`
-VALUES (1, '系统管理', 0, 1, 'system', NULL, '', 1, 0, 'M', '0', '0', '', 'system', 'admin', '2023-12-26 16:54:02', '',
-        NULL, '系统管理目录');
-INSERT INTO `sys_menu`
-VALUES (2, '系统监控', 0, 2, 'monitor', NULL, '', 1, 0, 'M', '0', '0', '', 'monitor', 'admin', '2023-12-26 16:54:02',
-        '', NULL, '系统监控目录');
-INSERT INTO `sys_menu`
-VALUES (3, '系统工具', 0, 3, 'tool', NULL, '', 1, 0, 'M', '0', '0', '', 'tool', 'admin', '2023-12-26 16:54:02', '',
-        NULL, '系统工具目录');
-INSERT INTO `sys_menu`
-VALUES (4, '若依官网', 0, 4, 'http://ruoyi.vip', NULL, '', 0, 0, 'M', '1', '1', '', 'guide', 'admin',
-        '2023-12-26 16:54:02', 'admin', '2023-12-26 21:38:21', '若依官网地址');
-INSERT INTO `sys_menu`
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (1, '系统管理', 0, 5, 'system', null, '', 1, 0, 'M', '0', '0', '', 'system', 'admin', '2023-12-26 16:54:02',
+        'admin', '2025-03-04 23:09:22', '系统管理目录');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2, '系统监控', 0, 4, 'monitor', null, '', 1, 0, 'M', '0', '0', '', 'monitor', 'admin', '2023-12-26 16:54:02',
+        'admin', '2025-03-12 15:55:10', '系统监控目录');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (3, '系统工具', 0, 6, 'tool', null, '', 1, 0, 'M', '0', '0', '', 'tool', 'admin', '2023-12-26 16:54:02', 'admin',
+        '2025-03-12 15:55:25', '系统工具目录');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (100, '用户管理', 1, 1, 'user', 'system/user/index', '', 1, 0, 'C', '0', '0', 'system:user:list', 'user',
-        'admin', '2023-12-26 16:54:02', '', NULL, '用户管理菜单');
-INSERT INTO `sys_menu`
+        'admin', '2023-12-26 16:54:02', '', null, '用户管理菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (101, '角色管理', 1, 2, 'role', 'system/role/index', '', 1, 0, 'C', '0', '0', 'system:role:list', 'peoples',
-        'admin', '2023-12-26 16:54:02', '', NULL, '角色管理菜单');
-INSERT INTO `sys_menu`
+        'admin', '2023-12-26 16:54:02', '', null, '角色管理菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (102, '菜单管理', 1, 3, 'menu', 'system/menu/index', '', 1, 0, 'C', '0', '0', 'system:menu:list', 'tree-table',
-        'admin', '2023-12-26 16:54:02', '', NULL, '菜单管理菜单');
-INSERT INTO `sys_menu`
+        'admin', '2023-12-26 16:54:02', '', null, '菜单管理菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (103, '部门管理', 1, 4, 'dept', 'system/dept/index', '', 1, 0, 'C', '1', '0', 'system:dept:list', 'tree',
         'admin', '2023-12-26 16:54:02', 'admin', '2023-12-26 21:37:32', '部门管理菜单');
-INSERT INTO `sys_menu`
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (104, '岗位管理', 1, 5, 'post', 'system/post/index', '', 1, 0, 'C', '1', '0', 'system:post:list', 'post',
         'admin', '2023-12-26 16:54:02', 'admin', '2023-12-26 21:37:37', '岗位管理菜单');
-INSERT INTO `sys_menu`
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (105, '字典管理', 1, 6, 'dict', 'system/dict/index', '', 1, 0, 'C', '0', '0', 'system:dict:list', 'dict',
-        'admin', '2023-12-26 16:54:02', '', NULL, '字典管理菜单');
-INSERT INTO `sys_menu`
+        'admin', '2023-12-26 16:54:02', '', null, '字典管理菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (106, '参数设置', 1, 7, 'config', 'system/config/index', '', 1, 0, 'C', '0', '0', 'system:config:list', 'edit',
-        'admin', '2023-12-26 16:54:02', '', NULL, '参数设置菜单');
-INSERT INTO `sys_menu`
+        'admin', '2023-12-26 16:54:02', '', null, '参数设置菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (107, '通知公告', 1, 8, 'notice', 'system/notice/index', '', 1, 0, 'C', '0', '0', 'system:notice:list',
-        'message', 'admin', '2023-12-26 16:54:02', '', NULL, '通知公告菜单');
-INSERT INTO `sys_menu`
-VALUES (108, '日志管理', 1, 9, 'log', '', '', 1, 0, 'M', '0', '0', '', 'log', 'admin', '2023-12-26 16:54:02', '', NULL,
+        'message', 'admin', '2023-12-26 16:54:02', '', null, '通知公告菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (108, '日志管理', 1, 9, 'log', '', '', 1, 0, 'M', '0', '0', '', 'log', 'admin', '2023-12-26 16:54:02', '', null,
         '日志管理菜单');
-INSERT INTO `sys_menu`
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (109, '在线用户', 2, 1, 'online', 'monitor/online/index', '', 1, 0, 'C', '0', '0', 'monitor:online:list',
-        'online', 'admin', '2023-12-26 16:54:02', '', NULL, '在线用户菜单');
-INSERT INTO `sys_menu`
+        'online', 'admin', '2023-12-26 16:54:02', '', null, '在线用户菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (110, '定时任务', 2, 2, 'job', 'monitor/job/index', '', 1, 0, 'C', '0', '0', 'monitor:job:list', 'job', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '定时任务菜单');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '定时任务菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (111, '数据监控', 2, 3, 'druid', 'monitor/druid/index', '', 1, 0, 'C', '0', '0', 'monitor:druid:list', 'druid',
-        'admin', '2023-12-26 16:54:02', '', NULL, '数据监控菜单');
-INSERT INTO `sys_menu`
+        'admin', '2023-12-26 16:54:02', '', null, '数据监控菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (112, '服务监控', 2, 4, 'server', 'monitor/server/index', '', 1, 0, 'C', '0', '0', 'monitor:server:list',
-        'server', 'admin', '2023-12-26 16:54:02', '', NULL, '服务监控菜单');
-INSERT INTO `sys_menu`
+        'server', 'admin', '2023-12-26 16:54:02', '', null, '服务监控菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (113, '缓存监控', 2, 5, 'cache', 'monitor/cache/index', '', 1, 0, 'C', '0', '0', 'monitor:cache:list', 'redis',
-        'admin', '2023-12-26 16:54:02', '', NULL, '缓存监控菜单');
-INSERT INTO `sys_menu`
+        'admin', '2023-12-26 16:54:02', '', null, '缓存监控菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (114, '缓存列表', 2, 6, 'cacheList', 'monitor/cache/list', '', 1, 0, 'C', '0', '0', 'monitor:cache:list',
-        'redis-list', 'admin', '2023-12-26 16:54:02', '', NULL, '缓存列表菜单');
-INSERT INTO `sys_menu`
+        'redis-list', 'admin', '2023-12-26 16:54:02', '', null, '缓存列表菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (115, '表单构建', 3, 1, 'build', 'tool/build/index', '', 1, 0, 'C', '0', '0', 'tool:build:list', 'build',
-        'admin', '2023-12-26 16:54:02', '', NULL, '表单构建菜单');
-INSERT INTO `sys_menu`
+        'admin', '2023-12-26 16:54:02', '', null, '表单构建菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (116, '代码生成', 3, 2, 'gen', 'tool/gen/index', '', 1, 0, 'C', '0', '0', 'tool:gen:list', 'code', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '代码生成菜单');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '代码生成菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (117, '系统接口', 3, 3, 'swagger', 'tool/swagger/index', '', 1, 0, 'C', '0', '0', 'tool:swagger:list', 'swagger',
-        'admin', '2023-12-26 16:54:02', '', NULL, '系统接口菜单');
-INSERT INTO `sys_menu`
+        'admin', '2023-12-26 16:54:02', '', null, '系统接口菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (500, '操作日志', 108, 1, 'operlog', 'monitor/operlog/index', '', 1, 0, 'C', '0', '0', 'monitor:operlog:list',
-        'form', 'admin', '2023-12-26 16:54:02', '', NULL, '操作日志菜单');
-INSERT INTO `sys_menu`
+        'form', 'admin', '2023-12-26 16:54:02', '', null, '操作日志菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (501, '登录日志', 108, 2, 'logininfor', 'monitor/logininfor/index', '', 1, 0, 'C', '0', '0',
-        'monitor:logininfor:list', 'logininfor', 'admin', '2023-12-26 16:54:02', '', NULL, '登录日志菜单');
-INSERT INTO `sys_menu`
+        'monitor:logininfor:list', 'logininfor', 'admin', '2023-12-26 16:54:02', '', null, '登录日志菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1000, '用户查询', 100, 1, '', '', '', 1, 0, 'F', '0', '0', 'system:user:query', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1001, '用户新增', 100, 2, '', '', '', 1, 0, 'F', '0', '0', 'system:user:add', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1002, '用户修改', 100, 3, '', '', '', 1, 0, 'F', '0', '0', 'system:user:edit', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1003, '用户删除', 100, 4, '', '', '', 1, 0, 'F', '0', '0', 'system:user:remove', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1004, '用户导出', 100, 5, '', '', '', 1, 0, 'F', '0', '0', 'system:user:export', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1005, '用户导入', 100, 6, '', '', '', 1, 0, 'F', '0', '0', 'system:user:import', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1006, '重置密码', 100, 7, '', '', '', 1, 0, 'F', '0', '0', 'system:user:resetPwd', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1007, '角色查询', 101, 1, '', '', '', 1, 0, 'F', '0', '0', 'system:role:query', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1008, '角色新增', 101, 2, '', '', '', 1, 0, 'F', '0', '0', 'system:role:add', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1009, '角色修改', 101, 3, '', '', '', 1, 0, 'F', '0', '0', 'system:role:edit', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1010, '角色删除', 101, 4, '', '', '', 1, 0, 'F', '0', '0', 'system:role:remove', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1011, '角色导出', 101, 5, '', '', '', 1, 0, 'F', '0', '0', 'system:role:export', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1012, '菜单查询', 102, 1, '', '', '', 1, 0, 'F', '0', '0', 'system:menu:query', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1013, '菜单新增', 102, 2, '', '', '', 1, 0, 'F', '0', '0', 'system:menu:add', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1014, '菜单修改', 102, 3, '', '', '', 1, 0, 'F', '0', '0', 'system:menu:edit', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1015, '菜单删除', 102, 4, '', '', '', 1, 0, 'F', '0', '0', 'system:menu:remove', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1016, '部门查询', 103, 1, '', '', '', 1, 0, 'F', '0', '0', 'system:dept:query', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1017, '部门新增', 103, 2, '', '', '', 1, 0, 'F', '0', '0', 'system:dept:add', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1018, '部门修改', 103, 3, '', '', '', 1, 0, 'F', '0', '0', 'system:dept:edit', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1019, '部门删除', 103, 4, '', '', '', 1, 0, 'F', '0', '0', 'system:dept:remove', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1020, '岗位查询', 104, 1, '', '', '', 1, 0, 'F', '0', '0', 'system:post:query', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1021, '岗位新增', 104, 2, '', '', '', 1, 0, 'F', '0', '0', 'system:post:add', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1022, '岗位修改', 104, 3, '', '', '', 1, 0, 'F', '0', '0', 'system:post:edit', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1023, '岗位删除', 104, 4, '', '', '', 1, 0, 'F', '0', '0', 'system:post:remove', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1024, '岗位导出', 104, 5, '', '', '', 1, 0, 'F', '0', '0', 'system:post:export', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1025, '字典查询', 105, 1, '#', '', '', 1, 0, 'F', '0', '0', 'system:dict:query', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1026, '字典新增', 105, 2, '#', '', '', 1, 0, 'F', '0', '0', 'system:dict:add', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1027, '字典修改', 105, 3, '#', '', '', 1, 0, 'F', '0', '0', 'system:dict:edit', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1028, '字典删除', 105, 4, '#', '', '', 1, 0, 'F', '0', '0', 'system:dict:remove', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1029, '字典导出', 105, 5, '#', '', '', 1, 0, 'F', '0', '0', 'system:dict:export', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1030, '参数查询', 106, 1, '#', '', '', 1, 0, 'F', '0', '0', 'system:config:query', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1031, '参数新增', 106, 2, '#', '', '', 1, 0, 'F', '0', '0', 'system:config:add', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1032, '参数修改', 106, 3, '#', '', '', 1, 0, 'F', '0', '0', 'system:config:edit', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1033, '参数删除', 106, 4, '#', '', '', 1, 0, 'F', '0', '0', 'system:config:remove', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1034, '参数导出', 106, 5, '#', '', '', 1, 0, 'F', '0', '0', 'system:config:export', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1035, '公告查询', 107, 1, '#', '', '', 1, 0, 'F', '0', '0', 'system:notice:query', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1036, '公告新增', 107, 2, '#', '', '', 1, 0, 'F', '0', '0', 'system:notice:add', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1037, '公告修改', 107, 3, '#', '', '', 1, 0, 'F', '0', '0', 'system:notice:edit', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1038, '公告删除', 107, 4, '#', '', '', 1, 0, 'F', '0', '0', 'system:notice:remove', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1039, '操作查询', 500, 1, '#', '', '', 1, 0, 'F', '0', '0', 'monitor:operlog:query', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1040, '操作删除', 500, 2, '#', '', '', 1, 0, 'F', '0', '0', 'monitor:operlog:remove', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1041, '日志导出', 500, 3, '#', '', '', 1, 0, 'F', '0', '0', 'monitor:operlog:export', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1042, '登录查询', 501, 1, '#', '', '', 1, 0, 'F', '0', '0', 'monitor:logininfor:query', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1043, '登录删除', 501, 2, '#', '', '', 1, 0, 'F', '0', '0', 'monitor:logininfor:remove', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1044, '日志导出', 501, 3, '#', '', '', 1, 0, 'F', '0', '0', 'monitor:logininfor:export', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1045, '账户解锁', 501, 4, '#', '', '', 1, 0, 'F', '0', '0', 'monitor:logininfor:unlock', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1046, '在线查询', 109, 1, '#', '', '', 1, 0, 'F', '0', '0', 'monitor:online:query', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1047, '批量强退', 109, 2, '#', '', '', 1, 0, 'F', '0', '0', 'monitor:online:batchLogout', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1048, '单条强退', 109, 3, '#', '', '', 1, 0, 'F', '0', '0', 'monitor:online:forceLogout', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1049, '任务查询', 110, 1, '#', '', '', 1, 0, 'F', '0', '0', 'monitor:job:query', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1050, '任务新增', 110, 2, '#', '', '', 1, 0, 'F', '0', '0', 'monitor:job:add', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1051, '任务修改', 110, 3, '#', '', '', 1, 0, 'F', '0', '0', 'monitor:job:edit', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1052, '任务删除', 110, 4, '#', '', '', 1, 0, 'F', '0', '0', 'monitor:job:remove', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1053, '状态修改', 110, 5, '#', '', '', 1, 0, 'F', '0', '0', 'monitor:job:changeStatus', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1054, '任务导出', 110, 6, '#', '', '', 1, 0, 'F', '0', '0', 'monitor:job:export', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1055, '生成查询', 116, 1, '#', '', '', 1, 0, 'F', '0', '0', 'tool:gen:query', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1056, '生成修改', 116, 2, '#', '', '', 1, 0, 'F', '0', '0', 'tool:gen:edit', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1057, '生成删除', 116, 3, '#', '', '', 1, 0, 'F', '0', '0', 'tool:gen:remove', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1058, '导入代码', 116, 4, '#', '', '', 1, 0, 'F', '0', '0', 'tool:gen:import', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1059, '预览代码', 116, 5, '#', '', '', 1, 0, 'F', '0', '0', 'tool:gen:preview', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
 VALUES (1060, '生成代码', 116, 6, '#', '', '', 1, 0, 'F', '0', '0', 'tool:gen:code', '#', 'admin',
-        '2023-12-26 16:54:02', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2000, '服务器管理', 0, 1, 'mc', NULL, NULL, 1, 0, 'M', '0', '0', '', 'server', 'admin', '2023-12-26 21:28:37',
+        '2023-12-26 16:54:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2000, '服务器管理', 0, 1, 'mc', null, null, 1, 0, 'M', '0', '0', '', 'server', 'admin', '2023-12-26 21:28:37',
         'admin', '2023-12-26 21:56:23', '');
-INSERT INTO `sys_menu`
-VALUES (2009, '白名单管理', 2000, 1, 'whitelist', 'mc/whitelist/index', NULL, 1, 0, 'C', '0', '0', 'mc:whitelist:list',
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2009, '白名单管理', 2000, 1, 'whitelist', 'mc/whitelist/index', null, 1, 0, 'C', '0', '0', 'mc:whitelist:list',
         'peoples', 'admin', '2023-12-26 22:02:01', 'admin', '2023-12-26 22:56:52', '白名单菜单');
-INSERT INTO `sys_menu`
-VALUES (2010, '白名单查询', 2009, 1, '#', '', NULL, 1, 0, 'F', '0', '0', 'mc:whitelist:query', '#', 'admin',
-        '2023-12-26 22:02:01', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2011, '白名单新增', 2009, 2, '#', '', NULL, 1, 0, 'F', '0', '0', 'mc:whitelist:add', '#', 'admin',
-        '2023-12-26 22:02:01', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2012, '白名单修改', 2009, 3, '#', '', NULL, 1, 0, 'F', '0', '0', 'mc:whitelist:edit', '#', 'admin',
-        '2023-12-26 22:02:01', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2013, '白名单删除', 2009, 4, '#', '', NULL, 1, 0, 'F', '0', '0', 'mc:whitelist:remove', '#', 'admin',
-        '2023-12-26 22:02:01', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2014, '白名单导出', 2009, 5, '#', '', NULL, 1, 0, 'F', '0', '0', 'mc:whitelist:export', '#', 'admin',
-        '2023-12-26 22:02:01', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2021, '服务器信息', 2000, 1, 'serverlist', 'server/serverlist/index', NULL, 1, 0, 'C', '0', '0',
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2010, '白名单查询', 2009, 1, '#', '', null, 1, 0, 'F', '0', '0', 'mc:whitelist:query', '#', 'admin',
+        '2023-12-26 22:02:01', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2011, '白名单新增', 2009, 2, '#', '', null, 1, 0, 'F', '0', '0', 'mc:whitelist:add', '#', 'admin',
+        '2023-12-26 22:02:01', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2012, '白名单修改', 2009, 3, '#', '', null, 1, 0, 'F', '0', '0', 'mc:whitelist:edit', '#', 'admin',
+        '2023-12-26 22:02:01', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2013, '白名单删除', 2009, 4, '#', '', null, 1, 0, 'F', '0', '0', 'mc:whitelist:remove', '#', 'admin',
+        '2023-12-26 22:02:01', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2014, '白名单导出', 2009, 5, '#', '', null, 1, 0, 'F', '0', '0', 'mc:whitelist:export', '#', 'admin',
+        '2023-12-26 22:02:01', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2021, '服务器信息', 2000, 1, 'serverlist', 'server/serverlist/index', null, 1, 0, 'C', '0', '0',
         'server:serverlist:list', 'server', 'admin', '2024-03-10 16:00:54', 'admin', '2024-03-10 16:01:38',
         '服务器信息菜单');
-INSERT INTO `sys_menu`
-VALUES (2022, '服务器信息查询', 2021, 1, '#', '', NULL, 1, 0, 'F', '0', '0', 'server:serverlist:query', '#', 'admin',
-        '2024-03-10 16:00:54', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2023, '服务器信息新增', 2021, 2, '#', '', NULL, 1, 0, 'F', '0', '0', 'server:serverlist:add', '#', 'admin',
-        '2024-03-10 16:00:54', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2024, '服务器信息修改', 2021, 3, '#', '', NULL, 1, 0, 'F', '0', '0', 'server:serverlist:edit', '#', 'admin',
-        '2024-03-10 16:00:54', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2025, '服务器信息删除', 2021, 4, '#', '', NULL, 1, 0, 'F', '0', '0', 'server:serverlist:remove', '#', 'admin',
-        '2024-03-10 16:00:54', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2026, '服务器信息导出', 2021, 5, '#', '', NULL, 1, 0, 'F', '0', '0', 'server:serverlist:export', '#', 'admin',
-        '2024-03-10 16:00:54', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2033, 'IP限流', 2000, 1, 'limit', 'ipinfo/limit/index', NULL, 1, 0, 'C', '0', '0', 'ipinfo:limit:list',
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2022, '服务器信息查询', 2021, 1, '#', '', null, 1, 0, 'F', '0', '0', 'server:serverlist:query', '#', 'admin',
+        '2024-03-10 16:00:54', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2023, '服务器信息新增', 2021, 2, '#', '', null, 1, 0, 'F', '0', '0', 'server:serverlist:add', '#', 'admin',
+        '2024-03-10 16:00:54', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2024, '服务器信息修改', 2021, 3, '#', '', null, 1, 0, 'F', '0', '0', 'server:serverlist:edit', '#', 'admin',
+        '2024-03-10 16:00:54', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2025, '服务器信息删除', 2021, 4, '#', '', null, 1, 0, 'F', '0', '0', 'server:serverlist:remove', '#', 'admin',
+        '2024-03-10 16:00:54', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2026, '服务器信息导出', 2021, 5, '#', '', null, 1, 0, 'F', '0', '0', 'server:serverlist:export', '#', 'admin',
+        '2024-03-10 16:00:54', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2033, 'IP限流', 2000, 1, 'limit', 'ipinfo/limit/index', null, 1, 0, 'C', '0', '0', 'ipinfo:limit:list',
         'number', 'admin', '2024-12-20 19:25:20', 'admin', '2024-12-20 19:25:56', 'IP限流菜单');
-INSERT INTO `sys_menu`
-VALUES (2034, 'IP限流查询', 2033, 1, '#', '', NULL, 1, 0, 'F', '0', '0', 'ipinfo:limit:query', '#', 'admin',
-        '2024-12-20 19:25:20', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2035, 'IP限流新增', 2033, 2, '#', '', NULL, 1, 0, 'F', '0', '0', 'ipinfo:limit:add', '#', 'admin',
-        '2024-12-20 19:25:20', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2036, 'IP限流修改', 2033, 3, '#', '', NULL, 1, 0, 'F', '0', '0', 'ipinfo:limit:edit', '#', 'admin',
-        '2024-12-20 19:25:20', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2037, 'IP限流删除', 2033, 4, '#', '', NULL, 1, 0, 'F', '0', '0', 'ipinfo:limit:remove', '#', 'admin',
-        '2024-12-20 19:25:20', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2038, 'IP限流导出', 2033, 5, '#', '', NULL, 1, 0, 'F', '0', '0', 'ipinfo:limit:export', '#', 'admin',
-        '2024-12-20 19:25:20', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2039, '封禁管理', 2000, 1, 'banlist', 'mc/banlist/index', NULL, 1, 0, 'C', '0', '0', 'mc:banlist:list', 'lock',
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2034, 'IP限流查询', 2033, 1, '#', '', null, 1, 0, 'F', '0', '0', 'ipinfo:limit:query', '#', 'admin',
+        '2024-12-20 19:25:20', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2035, 'IP限流新增', 2033, 2, '#', '', null, 1, 0, 'F', '0', '0', 'ipinfo:limit:add', '#', 'admin',
+        '2024-12-20 19:25:20', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2036, 'IP限流修改', 2033, 3, '#', '', null, 1, 0, 'F', '0', '0', 'ipinfo:limit:edit', '#', 'admin',
+        '2024-12-20 19:25:20', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2037, 'IP限流删除', 2033, 4, '#', '', null, 1, 0, 'F', '0', '0', 'ipinfo:limit:remove', '#', 'admin',
+        '2024-12-20 19:25:20', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2038, 'IP限流导出', 2033, 5, '#', '', null, 1, 0, 'F', '0', '0', 'ipinfo:limit:export', '#', 'admin',
+        '2024-12-20 19:25:20', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2039, '封禁管理', 2000, 1, 'banlist', 'mc/banlist/index', null, 1, 0, 'C', '0', '0', 'mc:banlist:list', 'lock',
         'admin', '2024-12-20 19:26:57', 'admin', '2024-12-20 19:28:40', '封禁管理菜单');
-INSERT INTO `sys_menu`
-VALUES (2040, '封禁管理查询', 2039, 1, '#', '', NULL, 1, 0, 'F', '0', '0', 'mc:banlist:query', '#', 'admin',
-        '2024-12-20 19:26:57', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2041, '封禁管理新增', 2039, 2, '#', '', NULL, 1, 0, 'F', '0', '0', 'mc:banlist:add', '#', 'admin',
-        '2024-12-20 19:26:57', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2042, '封禁管理修改', 2039, 3, '#', '', NULL, 1, 0, 'F', '0', '0', 'mc:banlist:edit', '#', 'admin',
-        '2024-12-20 19:26:57', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2043, '封禁管理删除', 2039, 4, '#', '', NULL, 1, 0, 'F', '0', '0', 'mc:banlist:remove', '#', 'admin',
-        '2024-12-20 19:26:57', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2044, '封禁管理导出', 2039, 5, '#', '', NULL, 1, 0, 'F', '0', '0', 'mc:banlist:export', '#', 'admin',
-        '2024-12-20 19:26:57', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2045, '指令管理', 2000, 1, 'command', 'mc/command/index', NULL, 1, 0, 'C', '0', '0', 'mc:command:list', 'code',
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2040, '封禁管理查询', 2039, 1, '#', '', null, 1, 0, 'F', '0', '0', 'mc:banlist:query', '#', 'admin',
+        '2024-12-20 19:26:57', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2041, '封禁管理新增', 2039, 2, '#', '', null, 1, 0, 'F', '0', '0', 'mc:banlist:add', '#', 'admin',
+        '2024-12-20 19:26:57', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2042, '封禁管理修改', 2039, 3, '#', '', null, 1, 0, 'F', '0', '0', 'mc:banlist:edit', '#', 'admin',
+        '2024-12-20 19:26:57', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2043, '封禁管理删除', 2039, 4, '#', '', null, 1, 0, 'F', '0', '0', 'mc:banlist:remove', '#', 'admin',
+        '2024-12-20 19:26:57', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2044, '封禁管理导出', 2039, 5, '#', '', null, 1, 0, 'F', '0', '0', 'mc:banlist:export', '#', 'admin',
+        '2024-12-20 19:26:57', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2045, '指令管理', 2000, 1, 'command', 'mc/command/index', null, 1, 0, 'C', '0', '0', 'mc:command:list', 'code',
         'admin', '2024-12-20 19:29:44', 'admin', '2024-12-20 19:30:35', '指令管理菜单');
-INSERT INTO `sys_menu`
-VALUES (2046, '指令管理查询', 2045, 1, '#', '', NULL, 1, 0, 'F', '0', '0', 'mc:command:query', '#', 'admin',
-        '2024-12-20 19:29:44', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2047, '指令管理新增', 2045, 2, '#', '', NULL, 1, 0, 'F', '0', '0', 'mc:command:add', '#', 'admin',
-        '2024-12-20 19:29:44', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2048, '指令管理修改', 2045, 3, '#', '', NULL, 1, 0, 'F', '0', '0', 'mc:command:edit', '#', 'admin',
-        '2024-12-20 19:29:44', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2049, '指令管理删除', 2045, 4, '#', '', NULL, 1, 0, 'F', '0', '0', 'mc:command:remove', '#', 'admin',
-        '2024-12-20 19:29:44', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2050, '指令管理导出', 2045, 5, '#', '', NULL, 1, 0, 'F', '0', '0', 'mc:command:export', '#', 'admin',
-        '2024-12-20 19:29:44', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2057, '玩家详情', 2000, 1, 'details', 'player/details/index', NULL, 1, 0, 'C', '0', '0', 'player:details:list',
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2046, '指令管理查询', 2045, 1, '#', '', null, 1, 0, 'F', '0', '0', 'mc:command:query', '#', 'admin',
+        '2024-12-20 19:29:44', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2047, '指令管理新增', 2045, 2, '#', '', null, 1, 0, 'F', '0', '0', 'mc:command:add', '#', 'admin',
+        '2024-12-20 19:29:44', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2048, '指令管理修改', 2045, 3, '#', '', null, 1, 0, 'F', '0', '0', 'mc:command:edit', '#', 'admin',
+        '2024-12-20 19:29:44', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2049, '指令管理删除', 2045, 4, '#', '', null, 1, 0, 'F', '0', '0', 'mc:command:remove', '#', 'admin',
+        '2024-12-20 19:29:44', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2050, '指令管理导出', 2045, 5, '#', '', null, 1, 0, 'F', '0', '0', 'mc:command:export', '#', 'admin',
+        '2024-12-20 19:29:44', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2057, '玩家详情', 2000, 1, 'details', 'player/details/index', null, 1, 0, 'C', '0', '0', 'player:details:list',
         'list', 'admin', '2024-12-31 03:34:39', 'admin', '2024-12-31 03:46:23', '玩家详情菜单');
-INSERT INTO `sys_menu`
-VALUES (2058, '玩家详情查询', 2057, 1, '#', '', NULL, 1, 0, 'F', '0', '0', 'player:details:query', '#', 'admin',
-        '2024-12-31 03:34:39', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2059, '玩家详情新增', 2057, 2, '#', '', NULL, 1, 0, 'F', '0', '0', 'player:details:add', '#', 'admin',
-        '2024-12-31 03:34:39', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2060, '玩家详情修改', 2057, 3, '#', '', NULL, 1, 0, 'F', '0', '0', 'player:details:edit', '#', 'admin',
-        '2024-12-31 03:34:39', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2061, '玩家详情删除', 2057, 4, '#', '', NULL, 1, 0, 'F', '0', '0', 'player:details:remove', '#', 'admin',
-        '2024-12-31 03:34:39', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2062, '玩家详情导出', 2057, 5, '#', '', NULL, 1, 0, 'F', '0', '0', 'player:details:export', '#', 'admin',
-        '2024-12-31 03:34:39', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2063, '管理员名单', 2000, 1, 'operator', 'player/operator/index', NULL, 1, 0, 'C', '0', '0',
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2058, '玩家详情查询', 2057, 1, '#', '', null, 1, 0, 'F', '0', '0', 'player:details:query', '#', 'admin',
+        '2024-12-31 03:34:39', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2059, '玩家详情新增', 2057, 2, '#', '', null, 1, 0, 'F', '0', '0', 'player:details:add', '#', 'admin',
+        '2024-12-31 03:34:39', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2060, '玩家详情修改', 2057, 3, '#', '', null, 1, 0, 'F', '0', '0', 'player:details:edit', '#', 'admin',
+        '2024-12-31 03:34:39', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2061, '玩家详情删除', 2057, 4, '#', '', null, 1, 0, 'F', '0', '0', 'player:details:remove', '#', 'admin',
+        '2024-12-31 03:34:39', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2062, '玩家详情导出', 2057, 5, '#', '', null, 1, 0, 'F', '0', '0', 'player:details:export', '#', 'admin',
+        '2024-12-31 03:34:39', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2063, '管理员名单', 2000, 1, 'operator', 'player/operator/index', null, 1, 0, 'C', '0', '0',
         'player:operator:list', 'user', 'admin', '2025-01-11 12:20:35', 'admin', '2025-01-11 12:21:19',
         '管理员名单菜单');
-INSERT INTO `sys_menu`
-VALUES (2064, '管理员名单查询', 2063, 1, '#', '', NULL, 1, 0, 'F', '0', '0', 'player:operator:query', '#', 'admin',
-        '2025-01-11 12:20:35', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2065, '管理员名单新增', 2063, 2, '#', '', NULL, 1, 0, 'F', '0', '0', 'player:operator:add', '#', 'admin',
-        '2025-01-11 12:20:35', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2066, '管理员名单修改', 2063, 3, '#', '', NULL, 1, 0, 'F', '0', '0', 'player:operator:edit', '#', 'admin',
-        '2025-01-11 12:20:35', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2067, '管理员名单删除', 2063, 4, '#', '', NULL, 1, 0, 'F', '0', '0', 'player:operator:remove', '#', 'admin',
-        '2025-01-11 12:20:35', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2068, '管理员名单导出', 2063, 5, '#', '', NULL, 1, 0, 'F', '0', '0', 'player:operator:export', '#', 'admin',
-        '2025-01-11 12:20:35', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2069, '定时命令', 2000, 1, 'regular', 'regular/command/index', NULL, 1, 0, 'C', '0', '0',
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2064, '管理员名单查询', 2063, 1, '#', '', null, 1, 0, 'F', '0', '0', 'player:operator:query', '#', 'admin',
+        '2025-01-11 12:20:35', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2065, '管理员名单新增', 2063, 2, '#', '', null, 1, 0, 'F', '0', '0', 'player:operator:add', '#', 'admin',
+        '2025-01-11 12:20:35', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2066, '管理员名单修改', 2063, 3, '#', '', null, 1, 0, 'F', '0', '0', 'player:operator:edit', '#', 'admin',
+        '2025-01-11 12:20:35', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2067, '管理员名单删除', 2063, 4, '#', '', null, 1, 0, 'F', '0', '0', 'player:operator:remove', '#', 'admin',
+        '2025-01-11 12:20:35', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2068, '管理员名单导出', 2063, 5, '#', '', null, 1, 0, 'F', '0', '0', 'player:operator:export', '#', 'admin',
+        '2025-01-11 12:20:35', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2069, '定时命令', 2000, 1, 'regular', 'regular/command/index', null, 1, 0, 'C', '0', '0',
         'regular:command:list', 'time', 'admin', '2025-02-14 23:47:25', 'admin', '2025-02-14 23:54:39', '定时命令菜单');
-INSERT INTO `sys_menu`
-VALUES (2070, '定时命令查询', 2069, 1, '#', '', NULL, 1, 0, 'F', '0', '0', 'regular:command:query', '#', 'admin',
-        '2025-02-14 23:47:26', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2071, '定时命令新增', 2069, 2, '#', '', NULL, 1, 0, 'F', '0', '0', 'regular:command:add', '#', 'admin',
-        '2025-02-14 23:47:26', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2072, '定时命令修改', 2069, 3, '#', '', NULL, 1, 0, 'F', '0', '0', 'regular:command:edit', '#', 'admin',
-        '2025-02-14 23:47:26', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2073, '定时命令删除', 2069, 4, '#', '', NULL, 1, 0, 'F', '0', '0', 'regular:command:remove', '#', 'admin',
-        '2025-02-14 23:47:26', '', NULL, '');
-INSERT INTO `sys_menu`
-VALUES (2074, '定时命令导出', 2069, 5, '#', '', NULL, 1, 0, 'F', '0', '0', 'regular:command:export', '#', 'admin',
-        '2025-02-14 23:47:26', '', NULL, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2070, '定时命令查询', 2069, 1, '#', '', null, 1, 0, 'F', '0', '0', 'regular:command:query', '#', 'admin',
+        '2025-02-14 23:47:26', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2071, '定时命令新增', 2069, 2, '#', '', null, 1, 0, 'F', '0', '0', 'regular:command:add', '#', 'admin',
+        '2025-02-14 23:47:26', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2072, '定时命令修改', 2069, 3, '#', '', null, 1, 0, 'F', '0', '0', 'regular:command:edit', '#', 'admin',
+        '2025-02-14 23:47:26', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2073, '定时命令删除', 2069, 4, '#', '', null, 1, 0, 'F', '0', '0', 'regular:command:remove', '#', 'admin',
+        '2025-02-14 23:47:26', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2074, '定时命令导出', 2069, 5, '#', '', null, 1, 0, 'F', '0', '0', 'regular:command:export', '#', 'admin',
+        '2025-02-14 23:47:26', '', null, '');
+
+
+/*如果存在menu_name包含机器人的菜单，全部删除并覆盖*/
+DELETE FROM sys_menu WHERE menu_name LIKE '%机器人%';
+
+
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2082, '机器人管理', 0, 3, '/bot', null, null, 1, 0, 'M', '0', '0', '', 'qq', 'admin', '2025-03-12 15:54:38',
+        'admin', '2025-03-12 15:55:01', '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2083, '机器人配置', 2082, 1, 'config', 'bot/config/index', null, 1, 0, 'C', '0', '0', 'bot:config:list', 'dict',
+        'admin', '2025-03-12 16:16:35', 'admin', '2025-03-13 18:04:35', 'QQ机器人配置菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2084, 'QQ机器人配置查询', 2083, 1, '#', '', null, 1, 0, 'F', '0', '0', 'bot:config:query', '#', 'admin',
+        '2025-03-12 16:16:36', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2085, 'QQ机器人配置新增', 2083, 2, '#', '', null, 1, 0, 'F', '0', '0', 'bot:config:add', '#', 'admin',
+        '2025-03-12 16:16:36', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2086, 'QQ机器人配置修改', 2083, 3, '#', '', null, 1, 0, 'F', '0', '0', 'bot:config:edit', '#', 'admin',
+        '2025-03-12 16:16:36', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2087, 'QQ机器人配置删除', 2083, 4, '#', '', null, 1, 0, 'F', '0', '0', 'bot:config:remove', '#', 'admin',
+        '2025-03-12 16:16:36', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2088, 'QQ机器人配置导出', 2083, 5, '#', '', null, 1, 0, 'F', '0', '0', 'bot:config:export', '#', 'admin',
+        '2025-03-12 16:16:36', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2089, '机器人管理员', 2082, 1, 'manager', 'bot/manager/index', null, 1, 0, 'C', '1', '0', 'bot:manager:list',
+        'peoples', 'admin', '2025-03-13 18:03:44', 'admin', '2025-03-15 14:10:11', 'QQ机器人管理员菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2090, 'QQ机器人管理员查询', 2089, 1, '#', '', null, 1, 0, 'F', '0', '0', 'bot:manager:query', '#', 'admin',
+        '2025-03-13 18:03:44', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2091, 'QQ机器人管理员新增', 2089, 2, '#', '', null, 1, 0, 'F', '0', '0', 'bot:manager:add', '#', 'admin',
+        '2025-03-13 18:03:44', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2092, 'QQ机器人管理员修改', 2089, 3, '#', '', null, 1, 0, 'F', '0', '0', 'bot:manager:edit', '#', 'admin',
+        '2025-03-13 18:03:44', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2093, 'QQ机器人管理员删除', 2089, 4, '#', '', null, 1, 0, 'F', '0', '0', 'bot:manager:remove', '#', 'admin',
+        '2025-03-13 18:03:44', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                            menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                            remark)
+VALUES (2094, 'QQ机器人管理员导出', 2089, 5, '#', '', null, 1, 0, 'F', '0', '0', 'bot:manager:export', '#', 'admin',
+        '2025-03-13 18:03:44', '', null, '');
+
+
 
 -- ----------------------------
 -- Table structure for sys_notice
@@ -1745,15 +2057,15 @@ DROP TABLE IF EXISTS `sys_notice`;
 CREATE TABLE `sys_notice`
 (
     `notice_id`      int                                                           NOT NULL AUTO_INCREMENT COMMENT '公告ID',
-    `notice_title` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NOT NULL COMMENT '公告标题',
-    `notice_type`  char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NOT NULL COMMENT '公告类型（1通知 2公告）',
+    `notice_title`   varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NOT NULL COMMENT '公告标题',
+    `notice_type`    char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NOT NULL COMMENT '公告类型（1通知 2公告）',
     `notice_content` longblob                                                      NULL COMMENT '公告内容',
-    `status`       char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT '0' COMMENT '公告状态（0正常 1关闭）',
-    `create_by`    varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '创建者',
+    `status`         char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT '0' COMMENT '公告状态（0正常 1关闭）',
+    `create_by`      varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '创建者',
     `create_time`    datetime                                                      NULL DEFAULT NULL COMMENT '创建时间',
-    `update_by`    varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '更新者',
+    `update_by`      varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '更新者',
     `update_time`    datetime                                                      NULL DEFAULT NULL COMMENT '更新时间',
-    `remark`       varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
+    `remark`         varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
     PRIMARY KEY (`notice_id`) USING BTREE
 ) ENGINE = InnoDB
   AUTO_INCREMENT = 3
@@ -1815,15 +2127,15 @@ DROP TABLE IF EXISTS `sys_post`;
 CREATE TABLE `sys_post`
 (
     `post_id`     bigint                                                        NOT NULL AUTO_INCREMENT COMMENT '岗位ID',
-    `post_code` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NOT NULL COMMENT '岗位编码',
-    `post_name` varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NOT NULL COMMENT '岗位名称',
+    `post_code`   varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NOT NULL COMMENT '岗位编码',
+    `post_name`   varchar(50) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NOT NULL COMMENT '岗位名称',
     `post_sort`   int                                                           NOT NULL COMMENT '显示顺序',
-    `status`    char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NOT NULL COMMENT '状态（0正常 1停用）',
-    `create_by` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '创建者',
+    `status`      char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NOT NULL COMMENT '状态（0正常 1停用）',
+    `create_by`   varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '创建者',
     `create_time` datetime                                                      NULL DEFAULT NULL COMMENT '创建时间',
-    `update_by` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '更新者',
+    `update_by`   varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '更新者',
     `update_time` datetime                                                      NULL DEFAULT NULL COMMENT '更新时间',
-    `remark`    varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
+    `remark`      varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
     PRIMARY KEY (`post_id`) USING BTREE
 ) ENGINE = InnoDB
   AUTO_INCREMENT = 5
@@ -1850,19 +2162,19 @@ DROP TABLE IF EXISTS `sys_role`;
 CREATE TABLE `sys_role`
 (
     `role_id`             bigint                                                        NOT NULL AUTO_INCREMENT COMMENT '角色ID',
-    `role_name`  varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NOT NULL COMMENT '角色名称',
-    `role_key`   varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '角色权限字符串',
+    `role_name`           varchar(30) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NOT NULL COMMENT '角色名称',
+    `role_key`            varchar(100) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NOT NULL COMMENT '角色权限字符串',
     `role_sort`           int                                                           NOT NULL COMMENT '显示顺序',
-    `data_scope` char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT '1' COMMENT '数据范围（1：全部数据权限 2：自定数据权限 3：本部门数据权限 4：本部门及以下数据权限）',
+    `data_scope`          char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT '1' COMMENT '数据范围（1：全部数据权限 2：自定数据权限 3：本部门数据权限 4：本部门及以下数据权限）',
     `menu_check_strictly` tinyint(1)                                                    NULL DEFAULT 1 COMMENT '菜单树选择项是否关联显示',
     `dept_check_strictly` tinyint(1)                                                    NULL DEFAULT 1 COMMENT '部门树选择项是否关联显示',
-    `status`     char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NOT NULL COMMENT '角色状态（0正常 1停用）',
-    `del_flag`   char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT '0' COMMENT '删除标志（0代表存在 2代表删除）',
-    `create_by`  varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '创建者',
+    `status`              char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NOT NULL COMMENT '角色状态（0正常 1停用）',
+    `del_flag`            char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci      NULL DEFAULT '0' COMMENT '删除标志（0代表存在 2代表删除）',
+    `create_by`           varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '创建者',
     `create_time`         datetime                                                      NULL DEFAULT NULL COMMENT '创建时间',
-    `update_by`  varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '更新者',
+    `update_by`           varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT '' COMMENT '更新者',
     `update_time`         datetime                                                      NULL DEFAULT NULL COMMENT '更新时间',
-    `remark`     varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
+    `remark`              varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
     PRIMARY KEY (`role_id`) USING BTREE
 ) ENGINE = InnoDB
   AUTO_INCREMENT = 3

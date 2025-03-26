@@ -75,7 +75,13 @@ public interface WhitelistInfoMapper {
      * @param whitelistInfo
      * @return 结果
      */
-
     List<WhitelistInfo> checkRepeat(WhitelistInfo whitelistInfo);
 
+    /**
+     * 查询白名单列表（包含封禁信息）
+     *
+     * @param whitelistInfo 白名单
+     * @return 白名单集合
+     */
+    public List<WhitelistInfo> selectWhitelistInfoListWithBan(WhitelistInfo whitelistInfo);
 }

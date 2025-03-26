@@ -18,12 +18,13 @@ import cc.endmc.server.service.permission.IWhitelistInfoService;
 import cc.endmc.server.service.player.IPlayerDetailsService;
 import cc.endmc.server.service.server.IServerInfoService;
 import com.alibaba.fastjson2.JSONObject;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.Nullable;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
@@ -126,6 +127,17 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
     }
 
     /**
+     * 查询白名单列表（包含封禁信息）
+     *
+     * @param whitelistInfo 白名单
+     * @return 白名单
+     */
+    @Override
+    public List<WhitelistInfo> selectWhitelistInfoListWithBan(WhitelistInfo whitelistInfo) {
+        return whitelistInfoMapper.selectWhitelistInfoListWithBan(whitelistInfo);
+    }
+
+    /**
      * 新增白名单
      *
      * @param whitelistInfo 白名单
@@ -143,8 +155,9 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
      * @return 结果
      */
     @Override
+    @Transactional
     public int updateWhitelistInfo(WhitelistInfo whitelistInfo, String user) {
-        String name = null;
+        String name;
         try {
             name = SecurityContextHolder.getContext().getAuthentication().getName();
         } catch (Exception e) {
@@ -155,50 +168,44 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             log.error("获取用户信息失败,请联系管理员!");
         }
 
-        if (whitelistInfo.getAddState().isEmpty()) {
-            return 0;
-        }
-
-        if (whitelistInfo.getStatus().isEmpty()) {
+        if (whitelistInfo.getAddState().isEmpty() || whitelistInfo.getStatus().isEmpty()) {
             return 0;
         }
 
         // 已存在过审核的不重复发邮件
         boolean flag = true;
-        WhitelistInfo info = new WhitelistInfo();
-        info.setUserName(whitelistInfo.getUserName());
-        final List<WhitelistInfo> whitelistInfos = selectWhitelistInfoList(info);
+        WhitelistInfo old = new WhitelistInfo();
+        old.setUserName(whitelistInfo.getUserName());
+        final List<WhitelistInfo> whitelistInfos = selectWhitelistInfoListWithBan(old);
         if (!whitelistInfos.isEmpty()) {
-            info = whitelistInfos.get(0);
-            if (info.getStatus().equals("1") && whitelistInfo.getStatus().equals("1")) {
+            old = whitelistInfos.get(0);
+            if (old.getStatus().equals("1") && whitelistInfo.getStatus().equals("1")) {
                 flag = false;
             }
         }
 
         // 全局封禁
         if ("true".equalsIgnoreCase(whitelistInfo.getBanFlag())) {
-            final Integer x = handleGlobalBan(whitelistInfo, name);
-            if (x != null) return x;
-        } else {
-            final Integer x = handleUnban(whitelistInfo, name);
-            if (x != null) return x;
+            handleGlobalBan(whitelistInfo, name);
+        } else if (old.getBanState() != null && old.getBanState() == 1) {
+            // 如果存在封禁记录且状态为1，则解除封禁
+            handleUnban(whitelistInfo, name, old);
         }
 
         // 全局移除白名单
         if ("true".equalsIgnoreCase(whitelistInfo.getAddState())) {
-            final Integer x = handleWhitelistOperation(whitelistInfo, name);
-            if (x != null) return x;
+            handleWhitelistOperation(whitelistInfo, name);
         }
 
-        // 添加白名单
-        if (whitelistInfo.getStatus().equals("1")) {
-            final Integer x = handleWhitelistAddition(whitelistInfo, flag, name);
-            if (x != null) return x;
-        } else if (whitelistInfo.getStatus().equals("2")) {
-            // 拒审并移除白名单（如果原先通过）
-            final Integer x = handleWhitelistFailure(whitelistInfo, name, info);
-            if (x != null) return x;
-
+        switch (whitelistInfo.getStatus()) {
+            // 添加白名单
+            case "1":
+                handleWhitelistAddition(whitelistInfo, flag, name);
+                break;
+            case "2":
+                // 拒审并移除白名单（如果原先通过）
+                handleWhitelistFailure(whitelistInfo, name, old);
+                break;
         }
         return whitelistInfoMapper.updateWhitelistInfo(whitelistInfo);
     }
@@ -206,17 +213,16 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
     /**
      * 拒审并移除白名单
      *
-     * @param whitelistInfo
-     * @param name
-     * @param info
-     * @return
+     * @param whitelistInfo 白名单信息
+     * @param name          审核人
+     * @param old           原白名单信息
      */
-    private @Nullable Integer handleWhitelistFailure(WhitelistInfo whitelistInfo, String name, WhitelistInfo info) {
+    private void handleWhitelistFailure(WhitelistInfo whitelistInfo, String name, WhitelistInfo old) {
         String emailTitle = EmailTemplates.FAIL_TITLE;
         String timeTittle = EmailTemplates.FAIL_TIME_TITTLE;
         whitelistInfo.setReviewUsers(name);
         // 如果原先通过，拒审则删除白名单
-        if (info.getStatus().equals("1")) {
+        if (old.getStatus().equals("1")) {
             emailTitle = EmailTemplates.REMOVE_TITLE;
             timeTittle = EmailTemplates.REMOVE_TIME_TITTLE;
             whitelistInfo.setAddState("2");
@@ -227,89 +233,83 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             try {
                 sendCommand(whitelistInfo, String.format(Command.WHITELIST_REMOVE, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
             } catch (Exception e) {
-                log.error("移除白名单失败,请联系管理员!");
-                return 0;
+                throw new RuntimeException("移除白名单失败,请联系管理员!");
             }
         }
 
-        try {
-            pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
-                    emailTitle,
-                    EmailTemplates.getWhitelistNotificationBan(
-                            whitelistInfo.getQqNum(),
-                            whitelistInfo.getUserName(),
-                            dateFormat.format(whitelistInfo.getAddTime() == null ? whitelistInfo.getCreateTime() : whitelistInfo.getAddTime()),
-                            DateUtils.getTime(),
-                            timeTittle,
-                            whitelistInfo.getRemoveReason(),
-                            emailTitle)
-            );
-        } catch (Exception e) {
-            log.error("发送邮件失败,请联系管理员!");
-            return 0;
-        }
-
-        return null;
+        String finalEmailTitle = emailTitle;
+        String finalTimeTittle = timeTittle;
+        asyncManager.execute(new TimerTask() {
+            @SneakyThrows
+            @Override
+            public void run() {
+                pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                        finalEmailTitle,
+                        EmailTemplates.getWhitelistNotificationBan(
+                                whitelistInfo.getQqNum(),
+                                whitelistInfo.getUserName(),
+                                dateFormat.format(whitelistInfo.getAddTime() == null ? whitelistInfo.getCreateTime() : whitelistInfo.getAddTime()),
+                                DateUtils.getTime(),
+                                finalTimeTittle,
+                                whitelistInfo.getRemoveReason(),
+                                finalEmailTitle)
+                );
+            }
+        });
     }
 
     /**
      * 解除封禁
      *
-     * @param whitelistInfo
-     * @param name
-     * @return
+     * @param whitelistInfo 白名单信息
+     * @param name          审核人
+     * @param old          原白名单信息
      */
-    private @Nullable Integer handleUnban(WhitelistInfo whitelistInfo, String name) {
-        // 是否为解除封禁
+    private void handleUnban(WhitelistInfo whitelistInfo, String name, WhitelistInfo old) {
+        try {
+            sendCommand(whitelistInfo, String.format(Command.BAN_REMOVE, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
+
+            asyncManager.execute(new TimerTask() {
+                @SneakyThrows
+                @Override
+                public void run() {
+                    pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                            EmailTemplates.UN_BAN_TITLE,
+                            EmailTemplates.getWhitelistNotificationUnBan(
+                                    whitelistInfo.getQqNum(),
+                                    whitelistInfo.getUserName(),
+                                    dateFormat.format(old.getCreateTime()),
+                                    DateUtils.getTime()
+                            )
+                    );
+                }
+            });
+
+        } catch (Exception e) {
+            throw new RuntimeException("解除封禁失败,请联系管理员!");
+        }
+
+        // 更新封禁状态
         BanlistInfo banlistInfo = new BanlistInfo();
         banlistInfo.setWhiteId(whitelistInfo.getId());
-        List<BanlistInfo> banlistInfos = banlistInfoService.selectBanlistInfoList(banlistInfo);
-        if (!banlistInfos.isEmpty()) {
-            banlistInfo = banlistInfos.get(0);
-            // 如果isBanned为false并且封禁列表状态为1，则解除封禁
-            if (banlistInfo.getState() == 1) {
-                try {
-                    sendCommand(whitelistInfo, String.format(Command.BAN_REMOVE, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
+        banlistInfo.setState(0L);
+        banlistInfo.setUpdateBy(name);
+        banlistInfo.setUpdateTime(new Date());
+        banlistInfoService.updateBanlistInfo(banlistInfo, false);
 
-                    try {
-                        pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
-                                EmailTemplates.UN_BAN_TITLE,
-                                EmailTemplates.getWhitelistNotificationUnBan(
-                                        whitelistInfo.getQqNum(),
-                                        whitelistInfo.getUserName(),
-                                        dateFormat.format(banlistInfo.getCreateTime()),
-                                        DateUtils.getTime()
-                                )
-                        );
-                    } catch (Exception e) {
-                        log.error("发送邮件失败,原因：{}", e.getMessage());
-                        return 0;
-                    }
-
-                } catch (Exception e) {
-                    log.error("解除全局封禁失败,原因：{}", e.getMessage());
-                    return 0;
-                }
-                banlistInfo.setState(0L);
-                banlistInfo.setUpdateBy(name);
-                banlistInfo.setUpdateTime(new Date());
-                banlistInfoService.updateBanlistInfo(banlistInfo, false);
-            }
-            if (!whitelistInfo.getStatus().equals("1")) {
-                whitelistInfo.setAddState("0");
-            }
+        if (!whitelistInfo.getStatus().equals("1")) {
+            whitelistInfo.setAddState("0");
+            whitelistInfo.setStatus("0");
         }
-        return null;
     }
 
     /**
      * 全局封禁
      *
-     * @param whitelistInfo
-     * @param name
-     * @return
+     * @param whitelistInfo 白名单信息
+     * @param name          审核人
      */
-    private @Nullable Integer handleGlobalBan(WhitelistInfo whitelistInfo, String name) {
+    private void handleGlobalBan(WhitelistInfo whitelistInfo, String name) {
         whitelistInfo.setAddState("9"); // 如果全局封禁则将状态改为9
         whitelistInfo.setStatus("0");
         whitelistInfo.setRemoveTime(new Date());
@@ -322,26 +322,26 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             // 全局广播，使用英文
             rconService.sendCommand("all", "broadcast &c" + whitelistInfo.getUserName() + " &7has been banned by &c" + name + "&7, reason: &c" + whitelistInfo.getBannedReason(), false);
 
-            try {
-                pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
-                        EmailTemplates.BAN_TITLE,
-                        EmailTemplates.getWhitelistNotificationBan(
-                                whitelistInfo.getQqNum(),
-                                whitelistInfo.getUserName(),
-                                dateFormat.format(whitelistInfo.getAddTime()),
-                                DateUtils.getTime(),
-                                EmailTemplates.BAN_TIME_TITTLE,
-                                whitelistInfo.getBannedReason(),
-                                EmailTemplates.BAN_TITLE)
-                );
-            } catch (Exception e) {
-                log.error("发送邮件失败,请联系管理员!");
-                return 0;
-            }
+            asyncManager.execute(new TimerTask() {
+                @SneakyThrows
+                @Override
+                public void run() {
+                    pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                            EmailTemplates.BAN_TITLE,
+                            EmailTemplates.getWhitelistNotificationBan(
+                                    whitelistInfo.getQqNum(),
+                                    whitelistInfo.getUserName(),
+                                    dateFormat.format(whitelistInfo.getAddTime()),
+                                    DateUtils.getTime(),
+                                    EmailTemplates.BAN_TIME_TITTLE,
+                                    whitelistInfo.getBannedReason(),
+                                    EmailTemplates.BAN_TITLE)
+                    );
+                }
+            });
 
         } catch (Exception e) {
-            log.error("全局封禁失败,请联系管理员!");
-            return 0;
+            throw new RuntimeException("全局封禁失败,请联系管理员!");
         }
 
         // 查询是否有封禁记录
@@ -365,78 +365,60 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             banlistInfo.setCreateTime(new Date());
             banlistInfoService.insertBanlistInfo(banlistInfo);
         }
-        return null;
     }
 
     /**
      * 移除白名单
      *
-     * @param whitelistInfo
-     * @param name
-     * @return
+     * @param whitelistInfo 白名单信息
+     * @param name          审核人
      */
-    private @Nullable Integer handleWhitelistOperation(WhitelistInfo whitelistInfo, String name) {
+    private void handleWhitelistOperation(WhitelistInfo whitelistInfo, String name) {
         whitelistInfo.setAddState("2");
         whitelistInfo.setStatus("0");
         whitelistInfo.setRemoveTime(new Date());
         whitelistInfo.setReviewUsers(name);
         try {
-            // 根据在线添加标识判断是发送在线移除命令还是离线移除命令
             sendCommand(whitelistInfo, String.format(Command.WHITELIST_REMOVE, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
-
-            try {
-                pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
-                        EmailTemplates.REMOVE_TITLE,
-                        EmailTemplates.getWhitelistNotificationBan(
-                                whitelistInfo.getQqNum(),
-                                whitelistInfo.getUserName(),
-                                dateFormat.format(whitelistInfo.getAddTime()),
-                                DateUtils.getTime(),
-                                EmailTemplates.REMOVE_TIME_TITTLE,
-                                whitelistInfo.getRemoveReason(),
-                                EmailTemplates.REMOVE_TITLE)
-                );
-            } catch (Exception e) {
-                log.error("发送邮件失败,原因：" + e.getMessage());
-                return 0;
-            }
+            // 异步发送邮件
+            asyncManager.execute(new TimerTask() {
+                @SneakyThrows
+                @Override
+                public void run() {
+                    pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                            EmailTemplates.REMOVE_TITLE,
+                            EmailTemplates.getWhitelistNotificationBan(
+                                    whitelistInfo.getQqNum(),
+                                    whitelistInfo.getUserName(),
+                                    dateFormat.format(whitelistInfo.getAddTime()),
+                                    DateUtils.getTime(),
+                                    EmailTemplates.REMOVE_TIME_TITTLE,
+                                    whitelistInfo.getRemoveReason(),
+                                    EmailTemplates.REMOVE_TITLE)
+                    );
+                }
+            });
 
         } catch (Exception e) {
-            whitelistInfo.setAddState("0"); // 如果移除失败则将状态改为1
-            log.error("移除白名单失败,原因：" + e.getMessage());
-            return 0;
+            throw new RuntimeException("移除白名单失败,请联系管理员!");
         }
-        return null;
     }
 
     /**
      * 添加白名单
      *
-     * @param whitelistInfo
-     * @param flag
-     * @param name
-     * @return
+     * @param whitelistInfo 白名单信息
+     * @param flag          是否发送邮件
+     * @param name          审核人
      */
-    private @Nullable Integer handleWhitelistAddition(WhitelistInfo whitelistInfo, boolean flag, String name) {
-        // 如果在线添加标识不为1，则发送离线添加命令
-        if (whitelistInfo.getOnlineFlag() != 1) {
-            try {
+    private void handleWhitelistAddition(WhitelistInfo whitelistInfo, boolean flag, String name) {
+        try {
+            sendCommand(whitelistInfo, String.format(Command.WHITELIST_ADD, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
+            if (whitelistInfo.getOnlineFlag() != 1) {
                 sendCommand(whitelistInfo, "auth addToForcedOffline " + whitelistInfo.getUserName().toLowerCase(), false);
-                sendCommand(whitelistInfo, String.format(Command.WHITELIST_ADD, whitelistInfo.getUserName()), false);
-            } catch (Exception e) {
-                whitelistInfo.setAddState("0");
-                log.error("添加离线失败,请联系管理员!");
-                return 0;
             }
-        } else {
-            // 如果在线添加标识为1，则发送在线添加命令
-            try {
-                sendCommand(whitelistInfo, String.format(Command.WHITELIST_ADD, whitelistInfo.getUserName()), true);
-            } catch (Exception e) {
-                whitelistInfo.setAddState("0");
-                log.error("添加白名单失败,请联系管理员!");
-                return 0;
-            }
+        } catch (Exception e) {
+            throw new RuntimeException("添加白名单失败,请联系管理员!");
         }
         // 详情关联ID
         PlayerDetails details = new PlayerDetails();
@@ -449,59 +431,55 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             playerDetailsService.updatePlayerDetails(details, false);
         }
 
-        try {
-            if (flag) {
-                List<Map<String, Object>> data = null;
-                final String servers = whitelistInfo.getServers();
+        if (flag) {
+            List<Map<String, Object>> data = null;
+            final String servers = whitelistInfo.getServers();
 
-                if (!servers.contains("all")) {
-                    List<Long> ids = new ArrayList<>();
-                    for (String s : servers.split(",")) {
-                        ids.add(Long.parseLong(s));
-                    }
-                    if (ids.size() <= 3) {
-                        final List<ServerInfo> serverInfos = serverInfoService.selectServerInfoByIds(ids);
+            if (!servers.contains("all")) {
+                List<Long> ids = new ArrayList<>();
+                for (String s : servers.split(",")) {
+                    ids.add(Long.parseLong(s));
+                }
+                if (ids.size() <= 3) {
+                    final List<ServerInfo> serverInfos = serverInfoService.selectServerInfoByIds(ids);
 
-                        data = new ArrayList<>();
-                        Map<String, Object> map = null;
-                        if (!serverInfos.isEmpty()) {
-                            for (ServerInfo serverInfo : serverInfos) {
-                                map = new HashMap<>();
-                                map.put("name", serverInfo.getNameTag());
-                                map.put("serverAddress", serverInfo.getPlayAddress());
-                                map.put("port", serverInfo.getPlayAddressPort());
-                                map.put("core", serverInfo.getServerCore());
-                                map.put("version", serverInfo.getServerVersion());
-                                data.add(map);
-                            }
+                    data = new ArrayList<>();
+                    Map<String, Object> map = null;
+                    if (!serverInfos.isEmpty()) {
+                        for (ServerInfo serverInfo : serverInfos) {
+                            map = new HashMap<>();
+                            map.put("name", serverInfo.getNameTag());
+                            map.put("serverAddress", serverInfo.getPlayAddress());
+                            map.put("port", serverInfo.getPlayAddressPort());
+                            map.put("core", serverInfo.getServerCore());
+                            map.put("version", serverInfo.getServerVersion());
+                            data.add(map);
                         }
                     }
                 }
-
-                pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
-                        EmailTemplates.SUCCESS_TITLE,
-                        EmailTemplates.getWhitelistNotification
-                                (
-                                        whitelistInfo.getQqNum(),
-                                        whitelistInfo.getUserName(),
-                                        dateFormat.format(whitelistInfo.getTime()),
-                                        DateUtils.getTime(),
-                                        EmailTemplates.SUCCESS_TITLE,
-                                        appUrl,
-                                        data
-                                )
-                );
             }
-        } catch (Exception e) {
-            e.printStackTrace();
-            log.error("发送邮件失败,请联系管理员!");
-            return 0;
+            List<Map<String, Object>> finalData = data;
+            asyncManager.execute(new TimerTask() {
+                @SneakyThrows
+                @Override
+                public void run() {
+                    pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                            EmailTemplates.SUCCESS_TITLE,
+                            EmailTemplates.getWhitelistNotification
+                                    (whitelistInfo.getQqNum(),
+                                            whitelistInfo.getUserName(),
+                                            dateFormat.format(whitelistInfo.getTime()),
+                                            DateUtils.getTime(), EmailTemplates.SUCCESS_TITLE,
+                                            appUrl, finalData
+                                    )
+                    );
+                }
+            });
         }
 
         whitelistInfo.setReviewUsers(name); // 设置审核人
         whitelistInfo.setAddState("1");
         whitelistInfo.setAddTime(new Date());
-        return null;
     }
 
     /**
