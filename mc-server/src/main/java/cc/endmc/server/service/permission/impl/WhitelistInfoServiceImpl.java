@@ -263,7 +263,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
      *
      * @param whitelistInfo 白名单信息
      * @param name          审核人
-     * @param old          原白名单信息
+     * @param old           原白名单信息
      */
     private void handleUnban(WhitelistInfo whitelistInfo, String name, WhitelistInfo old) {
         try {
@@ -291,6 +291,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
 
         // 更新封禁状态
         BanlistInfo banlistInfo = new BanlistInfo();
+        banlistInfo.setId(old.getBanId());
         banlistInfo.setWhiteId(whitelistInfo.getId());
         banlistInfo.setState(0L);
         banlistInfo.setUpdateBy(name);

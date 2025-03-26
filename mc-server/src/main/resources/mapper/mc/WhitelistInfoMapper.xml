@@ -25,6 +25,7 @@
         <result property="updateTime" column="update_time"/>
         <result property="banState" column="ban_state"/>
         <result property="banReason" column="ban_reason"/>
+        <result property="banId" column="ban_id"/>
     </resultMap>
 
     <sql id="selectWhitelistInfoVo">
@@ -70,7 +71,7 @@
     </select>
 
     <select id="selectWhitelistInfoListWithBan" parameterType="WhitelistInfo" resultMap="WhitelistInfoResult">
-        select w.*, b.state as ban_state, b.reason as ban_reason
+        select w.*, b.state as ban_state, b.reason as ban_reason , b.id as ban_id
         from whitelist_info w
         left join banlist_info b on w.id = b.white_id
         <where>

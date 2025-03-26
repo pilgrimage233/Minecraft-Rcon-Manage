@@ -27,6 +27,11 @@ public class WhitelistInfo extends BaseEntity {
     private Long id;
 
     /**
+     * 封禁ID
+     */
+    private Long banId;
+
+    /**
      * 申请时间
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
