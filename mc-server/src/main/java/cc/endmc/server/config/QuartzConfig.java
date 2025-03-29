@@ -36,7 +36,7 @@ public class QuartzConfig {
         SchedulerFactoryBean factory = new SchedulerFactoryBean();
         factory.setQuartzProperties(quartzProperties);
         factory.setAutoStartup(true);
-        factory.setStartupDelay(5);  // 增加启动延迟到 5 秒
+        // factory.setStartupDelay(5);  // 增加启动延迟到 5 秒
         factory.setApplicationContextSchedulerContextKey("applicationContext");
         factory.setOverwriteExistingJobs(true);
         factory.setWaitForJobsToCompleteOnShutdown(true);

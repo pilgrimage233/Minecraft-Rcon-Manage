@@ -51,7 +51,7 @@ public class RconService {
      * @param onlineFlag
      */
     public String sendCommand(String key, String command, boolean onlineFlag) {
-        int maxRetries = 5;
+        int maxRetries = 3;
         int retryCount = 0;
         StringBuilder result = new StringBuilder();
 
@@ -108,6 +108,7 @@ public class RconService {
                     } else {
                         log.error("重连失败，无法发送命令: {}", command);
                         handleCommandError(key, command);
+                        throw new RuntimeException("无法发送命令: " + command);
                     }
                 }
 

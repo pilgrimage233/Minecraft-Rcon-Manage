@@ -15,12 +15,18 @@ import cc.endmc.server.async.AsyncManager;
 import cc.endmc.server.common.EmailTemplates;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.service.EmailService;
+import cc.endmc.server.config.QuestionConfig;
 import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.domain.player.PlayerDetails;
+import cc.endmc.server.domain.quiz.WhitelistQuizConfig;
+import cc.endmc.server.domain.quiz.WhitelistQuizSubmission;
 import cc.endmc.server.enums.Identity;
 import cc.endmc.server.service.other.IIpLimitInfoService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
 import cc.endmc.server.service.player.IPlayerDetailsService;
+import cc.endmc.server.service.quiz.IWhitelistQuizConfigService;
+import cc.endmc.server.service.quiz.IWhitelistQuizSubmissionService;
+import cc.endmc.server.utils.MinecraftUUIDUtil;
 import cc.endmc.server.utils.WhitelistUtils;
 import com.alibaba.fastjson2.JSONObject;
 import com.fasterxml.jackson.annotation.JsonInclude;
@@ -61,6 +67,12 @@ public class WhitelistInfoController extends BaseController {
 
     @Autowired
     private IIpLimitInfoService iIpLimitInfoService;
+
+    @Autowired
+    private IWhitelistQuizConfigService quizConfigService;
+
+    @Autowired
+    private IWhitelistQuizSubmissionService quizSubmissionService;
 
     @Value("${whitelist.iplimit}")
     private String iplimit;
@@ -317,57 +329,10 @@ public class WhitelistInfoController extends BaseController {
             playerDetailsService.insertPlayerDetails(details);
         }
 
-        // 补全基础申请信息
-        if (whitelistInfo.getOnlineFlag() == 1) {
-            // 获取正版UUID
-            String userName = whitelistInfo.getUserName();
-            try {
-                String result = HttpUtils.sendGet("https://api.mojang.com/users/profiles/minecraft/" + userName);
-                if (result.isEmpty()) {
-                    return error("信息不正确或非正版用户!");
-                }
-                JSONObject json = JSONObject.parseObject(result);
-                if (json.containsKey("demo")) {
-                    return error("该账号未购买游戏!");
-                }
-                if (!json.getString("id").isEmpty()) {
-                    String uuid = json.getString("id");
-                    // 格式化成带横杠的UUID
-                    uuid = uuid.substring(0, 8) + "-" + uuid.substring(8, 12) + "-" + uuid.substring(12, 16) + "-" + uuid.substring(16, 20) + "-" + uuid.substring(20);
-                    whitelistInfo.setUserUuid(uuid);
-                }
-            } catch (Exception e) {
-                logger.error("获取正版UUID失败", e);
-            }
-        } else {
-            // 使用Minecraft离线UUID生成算法
-            try {
-                String name = whitelistInfo.getUserName();
-                // 计算MD5哈希
-                MessageDigest md = MessageDigest.getInstance("MD5");
-                byte[] hash = md.digest(("OfflinePlayer:" + name).getBytes(StandardCharsets.UTF_8));
-
-                // 将MD5哈希转换为UUID v3格式
-                hash[6] &= 0x0f; // 清除版本位
-                hash[6] |= 0x30; // 设置为版本3
-                hash[8] &= 0x3f; // 清除变体位
-                hash[8] |= 0x80; // 设置为变体1
-
-                // 构建UUID字符串
-                StringBuilder uuid = new StringBuilder();
-                for (int i = 0; i < 16; i++) {
-                    if (i == 4 || i == 6 || i == 8 || i == 10) {
-                        uuid.append("-");
-                    }
-                    uuid.append(String.format("%02x", hash[i]));
-                }
-                whitelistInfo.setUserUuid(uuid.toString());
-            } catch (Exception e) {
-                logger.error("生成离线UUID失败", e);
-                // 如果生成失败，回退到随机UUID
-                whitelistInfo.setUserUuid(UUID.randomUUID().toString());
-            }
-        }
+        // 补全基础申请信息 - 使用MinecraftUUIDUtil生成UUID
+        boolean isOnline = whitelistInfo.getOnlineFlag() == 1;
+        String uuid = MinecraftUUIDUtil.getPlayerUUID(whitelistInfo.getUserName(), isOnline);
+        whitelistInfo.setUserUuid(uuid);
 
         // 设置创建信息
         whitelistInfo.setCreateBy((isFromBot ? "BOT::apply::" : "WEB::apply::") + whitelistInfo.getUserName());
@@ -376,6 +341,56 @@ public class WhitelistInfoController extends BaseController {
         whitelistInfo.setTime(new Date());
         whitelistInfo.setAddState("0"); // 添加状态：0-未添加，1-已添加
         whitelistInfo.setStatus("0"); // 审核状态 0-未审核，1-审核通过，2-审核不通过
+
+        // 检查是否启用了自动通过功能，并检查答题情况
+        boolean autoApproved = false;
+        
+        // 首先检查答题功能是否开启
+        WhitelistQuizConfig quizStatusConfig = new WhitelistQuizConfig();
+        quizStatusConfig.setConfigKey(QuestionConfig.STATUS);
+        List<WhitelistQuizConfig> statusConfigs = quizConfigService.selectWhitelistQuizConfigList(quizStatusConfig);
+        
+        // 只有在答题功能开启的情况下才检查自动通过和答题记录
+        if (!statusConfigs.isEmpty() && "true".equalsIgnoreCase(statusConfigs.get(0).getConfigValue())) {
+            WhitelistQuizConfig autoPassedConfig = new WhitelistQuizConfig();
+            autoPassedConfig.setConfigKey(QuestionConfig.AUTO_PASSED);
+            List<WhitelistQuizConfig> autoPassedConfigs = quizConfigService.selectWhitelistQuizConfigList(autoPassedConfig);
+            
+            if (!autoPassedConfigs.isEmpty() && "true".equalsIgnoreCase(autoPassedConfigs.get(0).getConfigValue())) {
+                // 自动通过功能已启用，检查此玩家的答题记录
+                WhitelistQuizSubmission submission = new WhitelistQuizSubmission();
+                submission.setPlayerName(whitelistInfo.getUserName());
+                List<WhitelistQuizSubmission> submissions = quizSubmissionService.selectWhitelistQuizSubmissionList(submission);
+                
+                if (submissions != null && !submissions.isEmpty()) {
+                    // 找到最新的一次提交
+                    WhitelistQuizSubmission latestSubmission = submissions.get(0);
+                    for (WhitelistQuizSubmission sub : submissions) {
+                        if (sub.getSubmitTime() != null && 
+                            (latestSubmission.getSubmitTime() == null || 
+                             sub.getSubmitTime().after(latestSubmission.getSubmitTime()))) {
+                            latestSubmission = sub;
+                        }
+                    }
+                    
+                    // 检查是否通过分数线
+                    if (latestSubmission.getPassStatus() != null && latestSubmission.getPassStatus() == 1) {
+                        // 已通过分数线，自动审核通过
+                        whitelistInfo.setStatus("1"); // 审核状态改为通过
+                        whitelistInfo.setReviewUsers("System(Auto)");
+                        whitelistInfo.setUpdateTime(new Date());
+                        autoApproved = true;
+                        logger.info("用户[{}]的白名单申请已自动通过审核，答题分数：{}", 
+                                   whitelistInfo.getUserName(), latestSubmission.getTotalScore());
+                    }
+                }
+            }
+        } else {
+            logger.info("答题功能未开启，跳过自动审批检查");
+        }
+
+        // 保存最终的自动审核状态
+        final boolean finalAutoApproved = autoApproved;
 
         if (whitelistInfoService.insertWhitelistInfo(whitelistInfo) != 0) {
             // 删除验证码
@@ -386,13 +401,26 @@ public class WhitelistInfoController extends BaseController {
                 @Override
                 public void run() {
                     try {
-                        pushEmail.push(whitelistInfo.getQqNum() + EmailTemplates.QQ_EMAIL,
-                                EmailTemplates.TITLE,
-                                EmailTemplates.getWhitelistNotificationPending(
-                                        whitelistInfo.getQqNum(),
-                                        whitelistInfo.getUserName(),
-                                        DateUtils.getTime()
-                                ));
+                        if (finalAutoApproved) {
+                            // 使用已有的模板，替换内容表明自动通过
+                            String emailContent = EmailTemplates.getWhitelistNotificationPending(
+                                    whitelistInfo.getQqNum(),
+                                    whitelistInfo.getUserName(),
+                                    DateUtils.getTime()
+                            ).replace("正在审核中", "已自动审核通过");
+                            
+                            pushEmail.push(whitelistInfo.getQqNum() + EmailTemplates.QQ_EMAIL,
+                                    EmailTemplates.TITLE,
+                                    emailContent);
+                        } else {
+                            pushEmail.push(whitelistInfo.getQqNum() + EmailTemplates.QQ_EMAIL,
+                                    EmailTemplates.TITLE,
+                                    EmailTemplates.getWhitelistNotificationPending(
+                                            whitelistInfo.getQqNum(),
+                                            whitelistInfo.getUserName(),
+                                            DateUtils.getTime()
+                                    ));
+                        }
                     } catch (ExecutionException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
@@ -405,10 +433,17 @@ public class WhitelistInfoController extends BaseController {
                 @Override
                 public void run() {
                     try {
-                        pushEmail.push(ADMIN_EMAIL, EmailTemplates.TITLE,
-                                "用户[" + whitelistInfo.getUserName() + "]通过" +
-                                        (isFromBot ? "QQ机器人" : "网页") +
-                                        "提交了白名单申请,请尽快审核!");
+                        if (finalAutoApproved) {
+                            pushEmail.push(ADMIN_EMAIL, EmailTemplates.TITLE,
+                                    "用户[" + whitelistInfo.getUserName() + "]通过" +
+                                            (isFromBot ? "QQ机器人" : "网页") +
+                                            "提交了白名单申请,并已被系统自动审核通过!");
+                        } else {
+                            pushEmail.push(ADMIN_EMAIL, EmailTemplates.TITLE,
+                                    "用户[" + whitelistInfo.getUserName() + "]通过" +
+                                            (isFromBot ? "QQ机器人" : "网页") +
+                                            "提交了白名单申请,请尽快审核!");
+                        }
                     } catch (ExecutionException | InterruptedException e) {
                         throw new RuntimeException(e);
                     }
@@ -416,7 +451,7 @@ public class WhitelistInfoController extends BaseController {
             };
             asyncManager.execute(timerTask2);
 
-            return success(EmailTemplates.APPLY_SUCCESS);
+            return success(finalAutoApproved ? "恭喜您！您的白名单申请已自动审核通过！" : EmailTemplates.APPLY_SUCCESS);
         } else {
             return error(EmailTemplates.APPLY_ERROR);
         }
@@ -435,57 +470,10 @@ public class WhitelistInfoController extends BaseController {
             return error("申请信息不能为空!");
         }
 
-        String userName = whitelistInfo.getUserName();
-
-        // 补全基础申请信息
-        if (whitelistInfo.getOnlineFlag() == 1) {
-            try {
-                String result = HttpUtils.sendGet("https://api.mojang.com/users/profiles/minecraft/" + userName);
-                if (result.isEmpty()) {
-                    return error("信息不正确或非正版用户!");
-                }
-                JSONObject json = JSONObject.parseObject(result);
-                if (json.containsKey("demo")) {
-                    return error("该账号未购买游戏!");
-                }
-                if (!json.getString("id").isEmpty()) {
-                    String uuid = json.getString("id");
-                    // 格式化成带横杠的UUID
-                    uuid = uuid.substring(0, 8) + "-" + uuid.substring(8, 12) + "-" + uuid.substring(12, 16) + "-" + uuid.substring(16, 20) + "-" + uuid.substring(20);
-                    whitelistInfo.setUserUuid(uuid);
-                }
-            } catch (Exception e) {
-                logger.error("获取正版UUID失败", e);
-                return error("获取正版UUID失败!");
-            }
-        } else {
-            // 使用Minecraft离线UUID生成算法
-            try {
-                // 计算MD5哈希
-                MessageDigest md = MessageDigest.getInstance("MD5");
-                byte[] hash = md.digest(("OfflinePlayer:" + userName).getBytes(StandardCharsets.UTF_8));
-
-                // 将MD5哈希转换为UUID v3格式
-                hash[6] &= 0x0f; // 清除版本位
-                hash[6] |= 0x30; // 设置为版本3
-                hash[8] &= 0x3f; // 清除变体位
-                hash[8] |= 0x80; // 设置为变体1
-
-                // 构建UUID字符串
-                StringBuilder uuid = new StringBuilder();
-                for (int i = 0; i < 16; i++) {
-                    if (i == 4 || i == 6 || i == 8 || i == 10) {
-                        uuid.append("-");
-                    }
-                    uuid.append(String.format("%02x", hash[i]));
-                }
-                whitelistInfo.setUserUuid(uuid.toString());
-            } catch (Exception e) {
-                logger.error("生成离线UUID失败", e);
-                // 如果生成失败，回退到随机UUID
-                whitelistInfo.setUserUuid(UUID.randomUUID().toString());
-            }
-        }
+        // 补全基础申请信息 - 使用MinecraftUUIDUtil生成UUID
+        boolean isOnline = whitelistInfo.getOnlineFlag() == 1;
+        String uuid = MinecraftUUIDUtil.getPlayerUUID(whitelistInfo.getUserName(), isOnline);
+        whitelistInfo.setUserUuid(uuid);
 
         // 设置创建信息
         whitelistInfo.setCreateBy(("ADMIN::apply::") + whitelistInfo.getUserName());

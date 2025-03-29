@@ -8,6 +8,7 @@ import cc.endmc.server.common.EmailTemplates;
 import cc.endmc.server.common.MapCache;
 import cc.endmc.server.common.constant.BotApi;
 import cc.endmc.server.common.constant.CacheKey;
+import cc.endmc.server.common.rconclient.RconClient;
 import cc.endmc.server.common.service.EmailService;
 import cc.endmc.server.common.service.RconService;
 import cc.endmc.server.domain.bot.QqBotConfig;
@@ -368,6 +369,10 @@ public class BotClient {
                 handleRconCommand(message);
             } else if (command.startsWith("运行状态")) {
                 handleHostStatus(message);
+            } else if (command.startsWith("刷新连接")) {
+                handleRefreshConnection(message);
+            } else if (command.startsWith("测试连接")) {
+                handleTestConnection(message);
             }
 
             // 超管命令
@@ -491,6 +496,8 @@ public class BotClient {
             help.append(prefix).append("解封 <玩家ID> - 解除玩家封禁\n");
             help.append(prefix).append("发送指令 <服务器ID/all> <指令内容> - 向服务器发送RCON指令\n");
             help.append(prefix).append("运行状态 - 查看服务器主机运行状态\n");
+            help.append(prefix).append("刷新连接 [服务器ID] - 刷新服务器的RCON连接，不填服务器ID默认刷新所有服务器\n");
+            help.append(prefix).append("测试连接 [服务器ID] - 测试服务器的RCON连接，不填服务器ID默认测试所有服务器\n");
 
             // 超级管理员命令
             if (!managers.isEmpty() && managers.get(0).getPermissionType() == 0) {
@@ -993,12 +1000,30 @@ public class BotClient {
                     // 更新确认次数
                     redisCache.setCacheObject(confirmKey, confirmCount, 5, TimeUnit.MINUTES);
                     
+                    // 获取服务器信息
+                    Map<String, Object> serverInfoMap = redisCache.getCacheObject(CacheKey.SERVER_INFO_MAP_KEY);
+                    String serverDisplay = serverId;
+                    if (!"all".equals(serverId)) {
+                        Object serverObj = serverInfoMap.get(serverId);
+                        if (serverObj != null) {
+                            try {
+                                // 使用JSON转换
+                                ServerInfo serverInfo = JSON.parseObject(JSON.toJSONString(serverObj), ServerInfo.class);
+                                serverDisplay = serverInfo.getNameTag() + " (" + serverId + ")";
+                            } catch (Exception e) {
+                                log.warn("服务器信息转换失败: {}", e.getMessage());
+                            }
+                        }
+                    } else {
+                        serverDisplay = "所有在线服务器";
+                    }
+                    
                     // 发送确认消息
                     StringBuilder warningMsg = new StringBuilder();
                     warningMsg.append("[CQ:at,qq=").append(message.getSender().getUserId()).append("] ");
                     warningMsg.append("⚠️ 高危命令警告 ⚠️\n\n");
                     warningMsg.append("您正在尝试执行高危命令：").append(command).append("\n");
-                    warningMsg.append("该命令可能对服务器 ").append(serverId).append(" 造成严重影响！\n\n");
+                    warningMsg.append("该命令可能对服务器 ").append(serverDisplay).append(" 造成严重影响！\n\n");
                     warningMsg.append("确认状态：").append(confirmCount).append("/3\n");
                     warningMsg.append("请再次发送相同指令以确认执行（5分钟内有效）");
                     
@@ -1011,11 +1036,45 @@ public class BotClient {
             }
 
             try {
+                // 获取服务器信息
+                Map<String, Object> serverInfoMap = redisCache.getCacheObject(CacheKey.SERVER_INFO_MAP_KEY);
+                
                 // 发送RCON指令并获取结果
                 String result = rconService.sendCommand(serverId, command, true);
                 StringBuilder response = new StringBuilder();
                 response.append("[CQ:at,qq=").append(message.getSender().getUserId()).append("] ");
-                response.append("指令已发送至服务器 ").append(serverId).append("\n");
+                
+                if ("all".equals(serverId)) {
+                    response.append("指令已发送至所有在线服务器\n");
+                } else {
+                    Object serverObj = serverInfoMap.get(serverId);
+                    if (serverObj != null) {
+                        // 将JSON对象转换为ServerInfo对象
+                        ServerInfo serverInfo = null;
+                        if (serverObj instanceof ServerInfo) {
+                            serverInfo = (ServerInfo) serverObj;
+                        } else {
+                            try {
+                                // 使用JSON转换
+                                serverInfo = JSON.parseObject(JSON.toJSONString(serverObj), ServerInfo.class);
+                            } catch (Exception e) {
+                                log.warn("服务器信息转换失败: {}", e.getMessage());
+                            }
+                        }
+                        
+                        if (serverInfo != null) {
+                            response.append("指令已发送至服务器: ").append(serverInfo.getNameTag())
+                                    .append(" (").append(serverId).append(")")
+                                    .append(" [").append(serverInfo.getServerVersion()).append("]")
+                                    .append("\n");
+                        } else {
+                            response.append("指令已发送至服务器: ").append(serverId).append("\n");
+                        }
+                    } else {
+                        response.append("指令已发送至服务器: ").append(serverId).append("\n");
+                    }
+                }
+                
                 if (!result.trim().isEmpty()) {
                     response.append("执行结果：\n").append(result);
                 } else {
@@ -1998,6 +2057,242 @@ public class BotClient {
         
         // 使用正则表达式验证
         return input.matches(ipv4Pattern) || input.matches(ipv6Pattern) || input.matches(domainPattern);
+    }
+
+    /**
+     * 处理刷新连接命令
+     * 管理员可以刷新指定服务器或所有服务器的RCON连接
+     *
+     * @param message QQ消息对象
+     */
+    private void handleRefreshConnection(QQMessage message) {
+        try {
+            // 检查是否是管理员
+            if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
+                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 您没有权限执行此操作。");
+                return;
+            }
+            final List<QqBotManager> qqBotManagers = config.selectManagerForThisGroup(message.getGroupId(), message.getUserId());
+            final QqBotManager qqBotManager = qqBotManagers.get(0);
+            if (qqBotManager.getPermissionType() != 0) {
+                // 权限不足
+                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 权限不足！");
+                return;
+            }
+
+            String[] parts = message.getMessage().trim().split("\\s+");
+            String serverId = "all";
+
+            // 如果指定了服务器ID
+            if (parts.length > 1) {
+                serverId = parts[1];
+                if (!serverId.equals("all") && !MapCache.containsKey(serverId)) {
+                    sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 未找到服务器 " + serverId);
+                    return;
+                }
+            }
+
+            if (serverId.equals("all")) {
+                // 关闭所有Rcon连接并清除Map缓存
+                for (RconClient rconClient : MapCache.getMap().values()) {
+                    rconClient.close();
+                }
+                MapCache.clear();
+                
+                // 初始化Rcon连接
+                ServerInfo info = new ServerInfo();
+                info.setStatus(1L);
+
+                for (ServerInfo serverInfo : serverInfoService.selectServerInfoList(info)) {
+                    rconService.init(serverInfo);
+                }
+
+                // 发送消息
+                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 已成功刷新所有服务器的RCON连接。");
+            } else {
+                // 获取服务器信息
+                Map<String, Object> serverInfoMap = redisCache.getCacheObject(CacheKey.SERVER_INFO_MAP_KEY);
+                String serverDisplay = serverId;
+                ServerInfo serverInfo = null;
+                
+                Object serverObj = serverInfoMap.get(serverId);
+                if (serverObj != null) {
+                    try {
+                        // 使用JSON转换
+                        serverInfo = JSON.parseObject(JSON.toJSONString(serverObj), ServerInfo.class);
+                        serverDisplay = serverInfo.getNameTag() + " (" + serverId + ")";
+                    } catch (Exception e) {
+                        log.warn("服务器信息转换失败: {}", e.getMessage());
+                    }
+                }
+
+                // 关闭指定的Rcon连接
+                if (MapCache.containsKey(serverId)) {
+                    RconClient rconClient = MapCache.get(serverId);
+                    if (rconClient != null) {
+                        rconClient.close();
+                        MapCache.remove(serverId);
+                    }
+                }
+
+                // 重新初始化指定的Rcon连接
+                if (serverInfo != null) {
+                    boolean success = rconService.init(serverInfo);
+                    if (success) {
+                        sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 已成功刷新服务器 " + serverDisplay + " 的RCON连接。");
+                    } else {
+                        sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 刷新服务器 " + serverDisplay + " 的RCON连接失败，请检查服务器状态。");
+                    }
+                } else {
+                    // 如果从Redis缓存获取失败，尝试从数据库获取
+                    ServerInfo dbServerInfo = serverInfoService.selectServerInfoById(Long.parseLong(serverId));
+                    if (dbServerInfo != null) {
+                        boolean success = rconService.init(dbServerInfo);
+                        if (success) {
+                            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 已成功刷新服务器 " + serverId + " 的RCON连接。");
+                        } else {
+                            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 刷新服务器 " + serverId + " 的RCON连接失败，请检查服务器状态。");
+                        }
+                    } else {
+                        sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 未找到服务器 " + serverId);
+                    }
+                }
+            }
+
+            // 更新管理员最后活跃时间
+            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
+        } catch (Exception e) {
+            log.error("刷新RCON连接失败: {}", e.getMessage());
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 刷新RCON连接失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 处理测试连接命令
+     * 管理员可以测试指定服务器或所有服务器的RCON连接
+     *
+     * @param message QQ消息对象
+     */
+    private void handleTestConnection(QQMessage message) {
+        try {
+            // 检查是否是管理员
+            if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
+                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 您没有权限执行此操作。");
+                return;
+            }
+            final List<QqBotManager> qqBotManagers = config.selectManagerForThisGroup(message.getGroupId(), message.getUserId());
+            final QqBotManager qqBotManager = qqBotManagers.get(0);
+            if (qqBotManager.getPermissionType() != 0) {
+                // 权限不足
+                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 权限不足！");
+                return;
+            }
+
+            String[] parts = message.getMessage().trim().split("\\s+");
+            String serverId = "all";
+
+            // 如果指定了服务器ID
+            if (parts.length > 1) {
+                serverId = parts[1];
+                if (!serverId.equals("all") && !MapCache.containsKey(serverId)) {
+                    sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 未找到服务器 " + serverId);
+                    return;
+                }
+            }
+
+            StringBuilder response = new StringBuilder();
+            response.append("[CQ:at,qq=").append(message.getSender().getUserId()).append("] 测试连接结果：\n\n");
+
+            if (serverId.equals("all")) {
+                // 测试所有服务器
+                if (MapCache.isEmpty()) {
+                    sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 当前没有RCON连接。");
+                    return;
+                }
+
+                Map<String, Object> serverInfoMap = redisCache.getCacheObject(CacheKey.SERVER_INFO_MAP_KEY);
+                for (Map.Entry<String, RconClient> entry : MapCache.getMap().entrySet()) {
+                    String id = entry.getKey();
+                    RconClient client = entry.getValue();
+                    ServerInfo serverInfo = null;
+                    
+                    // 获取服务器信息并处理类型转换
+                    Object serverObj = serverInfoMap.get(id);
+                    if (serverObj != null) {
+                        try {
+                            // 使用JSON转换
+                            serverInfo = JSON.parseObject(JSON.toJSONString(serverObj), ServerInfo.class);
+                        } catch (Exception e) {
+                            log.warn("服务器信息转换失败: {}", e.getMessage());
+                        }
+                    }
+                    
+                    if (serverInfo != null) {
+                        response.append("服务器: ").append(serverInfo.getNameTag())
+                                .append(" (ID: ").append(id).append(")")
+                                .append(" [").append(serverInfo.getServerVersion()).append("]")
+                                .append("\n");
+                    } else {
+                        response.append("服务器: ").append(id).append("\n");
+                    }
+                    
+                    try {
+                        String result = client.sendCommand("seed");
+                        if (result != null && !result.trim().isEmpty()) {
+                            response.append("✅ 连接正常: ").append(result.trim()).append("\n\n");
+                        } else {
+                            response.append("⚠️ 连接异常: 命令返回为空\n\n");
+                        }
+                    } catch (Exception e) {
+                        response.append("❌ 连接错误: ").append(e.getMessage()).append("\n\n");
+                    }
+                }
+            } else {
+                // 测试指定服务器
+                RconClient client = MapCache.get(serverId);
+                Map<String, Object> serverInfoMap = redisCache.getCacheObject(CacheKey.SERVER_INFO_MAP_KEY);
+                ServerInfo serverInfo = null;
+                
+                // 获取服务器信息并处理类型转换
+                Object serverObj = serverInfoMap.get(serverId);
+                if (serverObj != null) {
+                    try {
+                        // 使用JSON转换
+                        serverInfo = JSON.parseObject(JSON.toJSONString(serverObj), ServerInfo.class);
+                    } catch (Exception e) {
+                        log.warn("服务器信息转换失败: {}", e.getMessage());
+                    }
+                }
+                
+                if (serverInfo != null) {
+                    response.append("服务器: ").append(serverInfo.getNameTag())
+                            .append(" (ID: ").append(serverId).append(")")
+                            .append(" [").append(serverInfo.getServerVersion()).append("]")
+                            .append("\n");
+                } else {
+                    response.append("服务器: ").append(serverId).append("\n");
+                }
+                
+                try {
+                    String result = client.sendCommand("seed");
+                    if (result != null && !result.trim().isEmpty()) {
+                        response.append("✅ 连接正常: ").append(result.trim()).append("\n");
+                    } else {
+                        response.append("⚠️ 连接异常: 命令返回为空\n");
+                    }
+                } catch (Exception e) {
+                    response.append("❌ 连接错误: ").append(e.getMessage()).append("\n");
+                }
+            }
+
+            sendMessage(message, response.toString());
+
+            // 更新管理员最后活跃时间
+            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
+        } catch (Exception e) {
+            log.error("测试RCON连接失败: {}", e.getMessage());
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 测试RCON连接失败：" + e.getMessage());
+        }
     }
 
 }

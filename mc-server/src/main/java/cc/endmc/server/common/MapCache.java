@@ -12,8 +12,8 @@ import java.util.concurrent.ConcurrentHashMap;
  * 作者：Memory
  */
 public class MapCache {
-    private static final Map<String, RconClient> map = new HashMap<>();
-    // private static final ConcurrentHashMap<String, RconClient> map = new ConcurrentHashMap<>();
+    // private static final Map<String, RconClient> map = new HashMap<>();
+    private static final ConcurrentHashMap<String, RconClient> map = new ConcurrentHashMap<>();
 
     public static void put(String key, RconClient value) {
         map.put(key, value);

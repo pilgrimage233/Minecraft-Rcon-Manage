@@ -1,0 +1,462 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.quiz.WhitelistQuizQuestionMapper">
+
+    <resultMap type="WhitelistQuizQuestion" id="WhitelistQuizQuestionResult">
+        <result property="id" column="id"/>
+        <result property="questionText" column="question_text"/>
+        <result property="questionType" column="question_type"/>
+        <result property="isRequired" column="is_required"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="status" column="status"/>
+        <result property="remark" column="remark"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="delFlag" column="del_flag"/>
+    </resultMap>
+
+    <resultMap id="WhitelistQuizQuestionWhitelistQuizAnswerResult" type="WhitelistQuizQuestion"
+               extends="WhitelistQuizQuestionResult">
+        <collection property="whitelistQuizAnswerList" notNullColumn="sub_id"
+                    javaType="java.util.List" resultMap="WhitelistQuizAnswerResult"/>
+    </resultMap>
+
+    <resultMap type="WhitelistQuizAnswer" id="WhitelistQuizAnswerResult">
+        <result property="id" column="sub_id"/>
+        <result property="questionId" column="sub_question_id"/>
+        <result property="answerText" column="sub_answer_text"/>
+        <result property="isCorrect" column="sub_is_correct"/>
+        <result property="sortOrder" column="sub_sort_order"/>
+        <result property="score" column="sub_score"/>
+        <result property="remark" column="sub_remark"/>
+        <result property="createBy" column="sub_create_by"/>
+        <result property="createTime" column="sub_create_time"/>
+        <result property="updateBy" column="sub_update_by"/>
+        <result property="updateTime" column="sub_update_time"/>
+        <result property="delFlag" column="sub_del_flag"/>
+    </resultMap>
+
+    <resultMap type="cc.endmc.server.domain.quiz.vo.WhitelistQuizQuestionVo" id="WhitelistQuizQuestionVoResult">
+        <result property="id" column="id"/>
+        <result property="questionText" column="question_text"/>
+        <result property="questionType" column="question_type"/>
+        <result property="isRequired" column="is_required"/>
+        <result property="sortOrder" column="sort_order"/>
+    </resultMap>
+
+    <resultMap id="WhitelistQuizQuestionVoWhitelistQuizAnswerVoResult" type="cc.endmc.server.domain.quiz.vo.WhitelistQuizQuestionVo"
+               extends="WhitelistQuizQuestionVoResult">
+        <collection property="whitelistQuizAnswerVoList" notNullColumn="sub_id"
+                    javaType="java.util.List" resultMap="WhitelistQuizAnswerVoResult"/>
+    </resultMap>
+
+    <resultMap type="cc.endmc.server.domain.quiz.vo.WhitelistQuizAnswerVo" id="WhitelistQuizAnswerVoResult">
+        <result property="id" column="sub_id"/>
+        <result property="questionId" column="sub_question_id"/>
+        <result property="answerText" column="sub_answer_text"/>
+        <result property="sortOrder" column="sub_sort_order"/>
+    </resultMap>
+
+    <sql id="selectWhitelistQuizQuestionVo">
+        select id,
+               question_text,
+               question_type,
+               is_required,
+               sort_order,
+               status,
+               remark,
+               create_by,
+               create_time,
+               update_by,
+               update_time,
+               del_flag
+        from whitelist_quiz_question
+    </sql>
+
+    <sql id="selectWhitelistQuizAnswerVo">
+        select id,
+               question_id,
+               answer_text,
+               is_correct,
+               sort_order,
+               score,
+               remark,
+               create_by,
+               create_time,
+               update_by,
+               update_time,
+               del_flag
+        from whitelist_quiz_answer
+    </sql>
+
+    <select id="selectWhitelistQuizQuestionList" parameterType="WhitelistQuizQuestion"
+            resultMap="WhitelistQuizQuestionResult">
+        <include refid="selectWhitelistQuizQuestionVo"/>
+        <where>
+            <if test="questionText != null and questionText != ''">
+                and question_text like concat('%', #{questionText}, '%')
+            </if>
+            <if test="questionType != null">
+                and question_type = #{questionType}
+            </if>
+            <if test="isRequired != null">
+                and is_required = #{isRequired}
+            </if>
+            <if test="status != null">
+                and status = #{status}
+            </if>
+            <if test="sortOrder != null">
+                and sort_order = #{sortOrder}
+            </if>
+            and del_flag = 0
+        </where>
+        order by sort_order asc, create_time desc
+    </select>
+
+    <select id="selectWhitelistQuizQuestionById" parameterType="Long"
+            resultMap="WhitelistQuizQuestionWhitelistQuizAnswerResult">
+        select a.id,
+               a.question_text,
+               a.question_type,
+               a.is_required,
+               a.sort_order,
+               a.status,
+               a.remark,
+               a.create_by,
+               a.create_time,
+               a.update_by,
+               a.update_time,
+               a.del_flag,
+               b.id          as sub_id,
+               b.question_id as sub_question_id,
+               b.answer_text as sub_answer_text,
+               b.is_correct  as sub_is_correct,
+               b.sort_order  as sub_sort_order,
+               b.score       as sub_score,
+               b.remark      as sub_remark,
+               b.create_by   as sub_create_by,
+               b.create_time as sub_create_time,
+               b.update_by   as sub_update_by,
+               b.update_time as sub_update_time,
+               b.del_flag    as sub_del_flag
+        from whitelist_quiz_question a
+                 left join whitelist_quiz_answer b on b.question_id = a.id
+        where a.id = #{id}
+    </select>
+
+    <select id="selectWhitelistQuizAnswerList" parameterType="WhitelistQuizAnswer"
+            resultMap="WhitelistQuizAnswerResult">
+        <include refid="selectWhitelistQuizAnswerVo"/>
+        <where>
+            <if test="questionId != null">
+                and question_id = #{questionId}
+            </if>
+            <if test="answerText != null and answerText != ''">
+                and answer_text like concat('%', #{answerText}, '%')
+            </if>
+            <if test="isCorrect != null">
+                and is_correct = #{isCorrect}
+            </if>
+            <if test="sortOrder != null">
+                and sort_order = #{sortOrder}
+            </if>
+            and del_flag = 0
+        </where>
+        order by sort_order asc
+    </select>
+
+    <select id="selectWhitelistQuizAnswerById" parameterType="Long" resultMap="WhitelistQuizAnswerResult">
+        <include refid="selectWhitelistQuizAnswerVo"/>
+        where id = #{id} and del_flag = 0
+    </select>
+
+    <insert id="insertWhitelistQuizQuestion" parameterType="WhitelistQuizQuestion" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into whitelist_quiz_question
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="questionText != null and questionText != ''">question_text,
+            </if>
+            <if test="questionType != null">question_type,
+            </if>
+            <if test="isRequired != null">is_required,
+            </if>
+            <if test="sortOrder != null">sort_order,
+            </if>
+            <if test="status != null">status,
+            </if>
+            <if test="remark != null">remark,
+            </if>
+            <if test="createBy != null">create_by,
+            </if>
+            <if test="createTime != null">create_time,
+            </if>
+            <if test="updateBy != null">update_by,
+            </if>
+            <if test="updateTime != null">update_time,
+            </if>
+            <if test="delFlag != null">del_flag,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="questionText != null and questionText != ''">#{questionText},
+            </if>
+            <if test="questionType != null">#{questionType},
+            </if>
+            <if test="isRequired != null">#{isRequired},
+            </if>
+            <if test="sortOrder != null">#{sortOrder},
+            </if>
+            <if test="status != null">#{status},
+            </if>
+            <if test="remark != null">#{remark},
+            </if>
+            <if test="createBy != null">#{createBy},
+            </if>
+            <if test="createTime != null">#{createTime},
+            </if>
+            <if test="updateBy != null">#{updateBy},
+            </if>
+            <if test="updateTime != null">#{updateTime},
+            </if>
+            <if test="delFlag != null">#{delFlag},
+            </if>
+        </trim>
+    </insert>
+
+    <insert id="insertWhitelistQuizAnswer" parameterType="WhitelistQuizAnswer" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into whitelist_quiz_answer
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="questionId != null">question_id,</if>
+            <if test="answerText != null and answerText != ''">answer_text,</if>
+            <if test="isCorrect != null">is_correct,</if>
+            <if test="sortOrder != null">sort_order,</if>
+            <if test="score != null">score,</if>
+            <if test="remark != null">remark,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="delFlag != null">del_flag,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="questionId != null">#{questionId},</if>
+            <if test="answerText != null and answerText != ''">#{answerText},</if>
+            <if test="isCorrect != null">#{isCorrect},</if>
+            <if test="sortOrder != null">#{sortOrder},</if>
+            <if test="score != null">#{score},</if>
+            <if test="remark != null">#{remark},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="delFlag != null">#{delFlag},</if>
+        </trim>
+    </insert>
+
+    <update id="updateWhitelistQuizQuestion" parameterType="WhitelistQuizQuestion">
+        update whitelist_quiz_question
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="questionText != null and questionText != ''">question_text =
+                #{questionText},
+            </if>
+            <if test="questionType != null">question_type =
+                #{questionType},
+            </if>
+            <if test="isRequired != null">is_required =
+                #{isRequired},
+            </if>
+            <if test="sortOrder != null">sort_order =
+                #{sortOrder},
+            </if>
+            <if test="status != null">status =
+                #{status},
+            </if>
+            <if test="remark != null">remark =
+                #{remark},
+            </if>
+            <if test="createBy != null">create_by =
+                #{createBy},
+            </if>
+            <if test="createTime != null">create_time =
+                #{createTime},
+            </if>
+            <if test="updateBy != null">update_by =
+                #{updateBy},
+            </if>
+            <if test="updateTime != null">update_time =
+                #{updateTime},
+            </if>
+            <if test="delFlag != null">del_flag =
+                #{delFlag},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <update id="updateWhitelistQuizAnswer" parameterType="WhitelistQuizAnswer">
+        update whitelist_quiz_answer
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="questionId != null">question_id = #{questionId},</if>
+            <if test="answerText != null and answerText != ''">answer_text = #{answerText},</if>
+            <if test="isCorrect != null">is_correct = #{isCorrect},</if>
+            <if test="sortOrder != null">sort_order = #{sortOrder},</if>
+            <if test="score != null">score = #{score},</if>
+            <if test="remark != null">remark = #{remark},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where id = #{id} and del_flag = 0
+    </update>
+
+    <delete id="deleteWhitelistQuizQuestionById" parameterType="Long">
+        delete
+        from whitelist_quiz_question
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteWhitelistQuizQuestionByIds" parameterType="String">
+        delete from whitelist_quiz_question where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteWhitelistQuizAnswerByQuestionIds" parameterType="String">
+        delete from whitelist_quiz_answer where question_id in
+        <foreach item="questionId" collection="array" open="(" separator="," close=")">
+            #{questionId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteWhitelistQuizAnswerByQuestionId" parameterType="Long">
+        delete
+        from whitelist_quiz_answer
+        where question_id = #{questionId}
+    </delete>
+
+    <insert id="batchWhitelistQuizAnswer">
+        insert into whitelist_quiz_answer
+        (id, question_id, answer_text, is_correct, sort_order, score, remark, create_by, create_time, update_by,
+        update_time, del_flag) values
+        <foreach item="item" index="index" collection="list" separator=",">
+            (#{item.id}, #{item.questionId}, #{item.answerText}, #{item.isCorrect}, #{item.sortOrder}, #{item.score},
+            #{item.remark}, #{item.createBy}, #{item.createTime}, #{item.updateBy}, #{item.updateTime}, #{item.delFlag})
+        </foreach>
+    </insert>
+
+    <select id="selectWhitelistQuizQuestionCount" parameterType="WhitelistQuizQuestion" resultType="Integer">
+        select count(1) from whitelist_quiz_question
+        <where>
+            <if test="questionText != null and questionText != ''">
+                and question_text like concat('%', #{questionText}, '%')
+            </if>
+            <if test="questionType != null">
+                and question_type = #{questionType}
+            </if>
+            <if test="isRequired != null">
+                and is_required = #{isRequired}
+            </if>
+            <if test="status != null">
+                and status = #{status}
+            </if>
+            <if test="sortOrder != null">
+                and sort_order = #{sortOrder}
+            </if>
+            and del_flag = 0
+        </where>
+    </select>
+
+    <select id="selectWhitelistQuizAnswerCount" parameterType="WhitelistQuizAnswer" resultType="Integer">
+        select count(1) from whitelist_quiz_answer
+        <where>
+            <if test="questionId != null">
+                and question_id = #{questionId}
+            </if>
+            <if test="answerText != null and answerText != ''">
+                and answer_text like concat('%', #{answerText}, '%')
+            </if>
+            <if test="isCorrect != null">
+                and is_correct = #{isCorrect}
+            </if>
+            <if test="sortOrder != null">
+                and sort_order = #{sortOrder}
+            </if>
+            and del_flag = 0
+        </where>
+    </select>
+
+    <select id="selectWhitelistQuizQuestionVoList" parameterType="WhitelistQuizQuestion"
+            resultMap="WhitelistQuizQuestionVoWhitelistQuizAnswerVoResult">
+        select a.id,
+               a.question_text,
+               a.question_type,
+               a.is_required,
+               a.sort_order,
+               b.id          as sub_id,
+               b.question_id as sub_question_id,
+               b.answer_text as sub_answer_text,
+               b.sort_order  as sub_sort_order
+        from whitelist_quiz_question a
+                 left join whitelist_quiz_answer b on b.question_id = a.id
+        <where>
+            <if test="questionText != null and questionText != ''">
+                and a.question_text like concat('%', #{questionText}, '%')
+            </if>
+            <if test="questionType != null">
+                and a.question_type = #{questionType}
+            </if>
+            <if test="isRequired != null">
+                and a.is_required = #{isRequired}
+            </if>
+            <if test="status != null">
+                and a.status = #{status}
+            </if>
+            <if test="sortOrder != null">
+                and a.sort_order = #{sortOrder}
+            </if>
+            and a.del_flag = 0
+        </where>
+        order by a.sort_order , a.create_time desc, b.sort_order
+    </select>
+
+    <select id="selectWhitelistQuizQuestionByIds" parameterType="java.util.List"
+            resultMap="WhitelistQuizQuestionWhitelistQuizAnswerResult">
+        select a.id,
+               a.question_text,
+               a.question_type,
+               a.is_required,
+               a.sort_order,
+               a.status,
+               a.remark,
+               a.create_by,
+               a.create_time,
+               a.update_by,
+               a.update_time,
+               a.del_flag,
+               b.id          as sub_id,
+               b.question_id as sub_question_id,
+               b.answer_text as sub_answer_text,
+               b.is_correct  as sub_is_correct,
+               b.sort_order  as sub_sort_order,
+               b.score       as sub_score,
+               b.remark      as sub_remark,
+               b.create_by   as sub_create_by,
+               b.create_time as sub_create_time,
+               b.update_by   as sub_update_by,
+               b.update_time as sub_update_time,
+               b.del_flag    as sub_del_flag
+        from whitelist_quiz_question a
+                 left join whitelist_quiz_answer b on b.question_id = a.id
+        where a.id in
+        <foreach item="id" collection="list" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+        and a.del_flag = 0
+        order by a.sort_order asc, a.create_time desc, b.sort_order asc
+    </select>
+</mapper>

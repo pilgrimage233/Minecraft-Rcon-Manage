@@ -1,0 +1,300 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.quiz.WhitelistQuizSubmissionMapper">
+
+    <resultMap type="WhitelistQuizSubmission" id="WhitelistQuizSubmissionResult">
+        <result property="id" column="id"/>
+        <result property="playerUuid" column="player_uuid"/>
+        <result property="playerName" column="player_name"/>
+        <result property="totalScore" column="total_score"/>
+        <result property="passStatus" column="pass_status"/>
+        <result property="submitTime" column="submit_time"/>
+        <result property="reviewTime" column="review_time"/>
+        <result property="reviewer" column="reviewer"/>
+        <result property="reviewComment" column="review_comment"/>
+        <result property="remark" column="remark"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="delFlag" column="del_flag"/>
+    </resultMap>
+
+    <resultMap id="WhitelistQuizSubmissionWhitelistQuizSubmissionDetailResult" type="WhitelistQuizSubmission"
+               extends="WhitelistQuizSubmissionResult">
+        <collection property="whitelistQuizSubmissionDetailList" notNullColumn="sub_id"
+                    javaType="java.util.List" resultMap="WhitelistQuizSubmissionDetailResult"/>
+    </resultMap>
+
+    <resultMap type="WhitelistQuizSubmissionDetail" id="WhitelistQuizSubmissionDetailResult">
+        <result property="id" column="sub_id"/>
+        <result property="submissionId" column="sub_submission_id"/>
+        <result property="questionId" column="sub_question_id"/>
+        <result property="questionType" column="sub_question_type"/>
+        <result property="playerAnswer" column="sub_player_answer"/>
+        <result property="isCorrect" column="sub_is_correct"/>
+        <result property="score" column="sub_score"/>
+        <result property="remark" column="sub_remark"/>
+        <result property="createBy" column="sub_create_by"/>
+        <result property="createTime" column="sub_create_time"/>
+        <result property="updateBy" column="sub_update_by"/>
+        <result property="updateTime" column="sub_update_time"/>
+        <result property="delFlag" column="sub_del_flag"/>
+    </resultMap>
+
+    <sql id="selectWhitelistQuizSubmissionVo">
+        select id,
+               player_uuid,
+               player_name,
+               total_score,
+               pass_status,
+               submit_time,
+               review_time,
+               reviewer,
+               review_comment,
+               remark,
+               create_by,
+               create_time,
+               update_by,
+               update_time,
+               del_flag
+        from whitelist_quiz_submission
+    </sql>
+
+    <select id="selectWhitelistQuizSubmissionList" parameterType="WhitelistQuizSubmission"
+            resultMap="WhitelistQuizSubmissionResult">
+        <include refid="selectWhitelistQuizSubmissionVo"/>
+        <where>
+            <if test="playerUuid != null  and playerUuid != ''">
+                and player_uuid = #{playerUuid}
+            </if>
+            <if test="playerName != null  and playerName != ''">
+                and player_name like concat('%', #{playerName}, '%')
+            </if>
+            <if test="totalScore != null ">
+                and total_score = #{totalScore}
+            </if>
+            <if test="passStatus != null ">
+                and pass_status = #{passStatus}
+            </if>
+            <if test="submitTime != null ">
+                and submit_time = #{submitTime}
+            </if>
+            <if test="reviewTime != null ">
+                and review_time = #{reviewTime}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectWhitelistQuizSubmissionById" parameterType="Long"
+            resultMap="WhitelistQuizSubmissionWhitelistQuizSubmissionDetailResult">
+        select a.id,
+               a.player_uuid,
+               a.player_name,
+               a.total_score,
+               a.pass_status,
+               a.submit_time,
+               a.review_time,
+               a.reviewer,
+               a.review_comment,
+               a.remark,
+               a.create_by,
+               a.create_time,
+               a.update_by,
+               a.update_time,
+               a.del_flag,
+               b.id            as
+                   sub_id,
+               b.submission_id as
+                   sub_submission_id,
+               b.question_id   as
+                   sub_question_id,
+               b.question_type as
+                   sub_question_type,
+               b.player_answer as
+                   sub_player_answer,
+               b.is_correct    as
+                   sub_is_correct,
+               b.score         as
+                   sub_score,
+               b.remark        as
+                   sub_remark,
+               b.create_by     as
+                   sub_create_by,
+               b.create_time   as
+                   sub_create_time,
+               b.update_by     as
+                   sub_update_by,
+               b.update_time   as
+                   sub_update_time,
+               b.del_flag      as
+                   sub_del_flag
+        from whitelist_quiz_submission a
+                 left join whitelist_quiz_submission_detail b on b.submission_id = a.id
+        where a.id = #{id}
+    </select>
+
+    <insert id="insertWhitelistQuizSubmission" parameterType="WhitelistQuizSubmission" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into whitelist_quiz_submission
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="playerUuid != null and playerUuid != ''">player_uuid,
+            </if>
+            <if test="playerName != null and playerName != ''">player_name,
+            </if>
+            <if test="totalScore != null">total_score,
+            </if>
+            <if test="passStatus != null">pass_status,
+            </if>
+            <if test="submitTime != null">submit_time,
+            </if>
+            <if test="reviewTime != null">review_time,
+            </if>
+            <if test="reviewer != null">reviewer,
+            </if>
+            <if test="reviewComment != null">review_comment,
+            </if>
+            <if test="remark != null">remark,
+            </if>
+            <if test="createBy != null">create_by,
+            </if>
+            <if test="createTime != null">create_time,
+            </if>
+            <if test="updateBy != null">update_by,
+            </if>
+            <if test="updateTime != null">update_time,
+            </if>
+            <if test="delFlag != null">del_flag,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="playerUuid != null and playerUuid != ''">#{playerUuid},
+            </if>
+            <if test="playerName != null and playerName != ''">#{playerName},
+            </if>
+            <if test="totalScore != null">#{totalScore},
+            </if>
+            <if test="passStatus != null">#{passStatus},
+            </if>
+            <if test="submitTime != null">#{submitTime},
+            </if>
+            <if test="reviewTime != null">#{reviewTime},
+            </if>
+            <if test="reviewer != null">#{reviewer},
+            </if>
+            <if test="reviewComment != null">#{reviewComment},
+            </if>
+            <if test="remark != null">#{remark},
+            </if>
+            <if test="createBy != null">#{createBy},
+            </if>
+            <if test="createTime != null">#{createTime},
+            </if>
+            <if test="updateBy != null">#{updateBy},
+            </if>
+            <if test="updateTime != null">#{updateTime},
+            </if>
+            <if test="delFlag != null">#{delFlag},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateWhitelistQuizSubmission" parameterType="WhitelistQuizSubmission">
+        update whitelist_quiz_submission
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="playerUuid != null and playerUuid != ''">player_uuid =
+                #{playerUuid},
+            </if>
+            <if test="playerName != null and playerName != ''">player_name =
+                #{playerName},
+            </if>
+            <if test="totalScore != null">total_score =
+                #{totalScore},
+            </if>
+            <if test="passStatus != null">pass_status =
+                #{passStatus},
+            </if>
+            <if test="submitTime != null">submit_time =
+                #{submitTime},
+            </if>
+            <if test="reviewTime != null">review_time =
+                #{reviewTime},
+            </if>
+            <if test="reviewer != null">reviewer =
+                #{reviewer},
+            </if>
+            <if test="reviewComment != null">review_comment =
+                #{reviewComment},
+            </if>
+            <if test="remark != null">remark =
+                #{remark},
+            </if>
+            <if test="createBy != null">create_by =
+                #{createBy},
+            </if>
+            <if test="createTime != null">create_time =
+                #{createTime},
+            </if>
+            <if test="updateBy != null">update_by =
+                #{updateBy},
+            </if>
+            <if test="updateTime != null">update_time =
+                #{updateTime},
+            </if>
+            <if test="delFlag != null">del_flag =
+                #{delFlag},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteWhitelistQuizSubmissionById" parameterType="Long">
+        delete
+        from whitelist_quiz_submission
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteWhitelistQuizSubmissionByIds" parameterType="String">
+        delete from whitelist_quiz_submission where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <delete id="deleteWhitelistQuizSubmissionDetailBySubmissionIds" parameterType="String">
+        delete from whitelist_quiz_submission_detail where submission_id in
+        <foreach item="submissionId" collection="array" open="(" separator="," close=")">
+            #{submissionId}
+        </foreach>
+    </delete>
+
+    <delete id="deleteWhitelistQuizSubmissionDetailBySubmissionId" parameterType="Long">
+        delete
+        from whitelist_quiz_submission_detail
+        where submission_id = #{submissionId}
+    </delete>
+
+    <insert id="batchWhitelistQuizSubmissionDetail">
+        insert into whitelist_quiz_submission_detail
+        ( id , submission_id , question_id , question_type , player_answer , is_correct , score , remark , create_by ,
+        create_time , update_by , update_time , del_flag) values
+        <foreach item="item" index="index" collection="list" separator=",">
+            ( #{item.id
+                }, #{item.submissionId
+                }, #{item.questionId
+                }, #{item.questionType
+                }, #{item.playerAnswer
+                }, #{item.isCorrect
+                }, #{item.score
+                }, #{item.remark
+                }, #{item.createBy
+                }, #{item.createTime
+                }, #{item.updateBy
+                }, #{item.updateTime
+                }, #{item.delFlag
+                })
+        </foreach>
+    </insert>
+</mapper>

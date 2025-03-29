@@ -257,7 +257,7 @@ public class ServerInfoServiceImpl implements IServerInfoService {
                     if (list != null) {
                         String[] split = new String[0];
                         // 判断是否插件服装有ESS
-                        if (!list.contains("There are")) {
+                        if (!list.startsWith("There are")) {
                             list = MapCache.get(info.getId().toString()).sendCommand("minecraft:list");
                         }
                         split = list.split(":");

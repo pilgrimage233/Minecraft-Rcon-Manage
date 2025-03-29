@@ -144,8 +144,36 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int insertWhitelistInfo(WhitelistInfo whitelistInfo) {
-        return whitelistInfoMapper.insertWhitelistInfo(whitelistInfo);
+        // 先插入数据获取ID
+        int result = whitelistInfoMapper.insertWhitelistInfo(whitelistInfo);
+        
+        // 如果状态为1（已审核通过），调用添加白名单的逻辑
+        if (result > 0 && "1".equals(whitelistInfo.getStatus())) {
+            try {
+                // 设置通过全部服务器
+                if (StringUtils.isEmpty(whitelistInfo.getServers())) {
+                    whitelistInfo.setServers("all");
+                }
+                
+                // 调用添加白名单方法
+                handleWhitelistAddition(whitelistInfo, true, whitelistInfo.getReviewUsers());
+
+                whitelistInfoMapper.updateWhitelistInfo(whitelistInfo);
+                
+                log.info("自动添加白名单成功：用户名[{}]，审核人[{}]", 
+                         whitelistInfo.getUserName(), whitelistInfo.getReviewUsers());
+            } catch (Exception e) {
+                log.error("自动添加白名单失败：用户名[{}]，错误信息[{}]", 
+                          whitelistInfo.getUserName(), e.getMessage(), e);
+
+                // 抛出异常并回滚事务
+                throw (RuntimeException) e;
+            }
+        }
+        
+        return result;
     }
 
     /**
@@ -407,12 +435,13 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
 
     /**
      * 添加白名单
+     * 供插入和更新白名单操作调用的公共方法
      *
      * @param whitelistInfo 白名单信息
-     * @param flag          是否发送邮件
-     * @param name          审核人
+     * @param sendEmail     是否发送邮件通知
+     * @param reviewerName  审核人姓名
      */
-    private void handleWhitelistAddition(WhitelistInfo whitelistInfo, boolean flag, String name) {
+    private void handleWhitelistAddition(WhitelistInfo whitelistInfo, boolean sendEmail, String reviewerName) {
         try {
             sendCommand(whitelistInfo, String.format(Command.WHITELIST_ADD, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
             if (whitelistInfo.getOnlineFlag() != 1) {
@@ -432,11 +461,11 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             playerDetailsService.updatePlayerDetails(details, false);
         }
 
-        if (flag) {
+        if (sendEmail) {
             List<Map<String, Object>> data = null;
             final String servers = whitelistInfo.getServers();
 
-            if (!servers.contains("all")) {
+            if (servers != null && !servers.contains("all")) {
                 List<Long> ids = new ArrayList<>();
                 for (String s : servers.split(",")) {
                     ids.add(Long.parseLong(s));
@@ -478,7 +507,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             });
         }
 
-        whitelistInfo.setReviewUsers(name); // 设置审核人
+        whitelistInfo.setReviewUsers(reviewerName); // 设置审核人
         whitelistInfo.setAddState("1");
         whitelistInfo.setAddTime(new Date());
     }
