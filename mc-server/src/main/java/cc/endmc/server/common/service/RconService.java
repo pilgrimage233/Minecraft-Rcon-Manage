@@ -108,7 +108,6 @@ public class RconService {
                     } else {
                         log.error("重连失败，无法发送命令: {}", command);
                         handleCommandError(key, command);
-                        throw new RuntimeException("无法发送命令: " + command);
                     }
                 }
 
