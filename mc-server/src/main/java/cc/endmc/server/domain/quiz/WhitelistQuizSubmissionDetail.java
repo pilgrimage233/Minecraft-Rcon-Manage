@@ -36,6 +36,11 @@ public class WhitelistQuizSubmissionDetail extends BaseEntity {
     private Long questionId;
 
     /**
+     * 问题内容
+     */
+    private String questionText;
+
+    /**
      * 问题类型：1-单选题，2-多选题，3-填空题
      */
     @Excel(name = "问题类型：1-单选题，2-多选题，3-填空题")

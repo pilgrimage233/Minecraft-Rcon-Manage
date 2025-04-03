@@ -326,6 +326,17 @@ public class RconService {
             return key;
         }
 
+        // 未匹配直接返回
+        boolean isMatch = false;
+        String[] matchCommand = Command.MATCH_COMMAND;
+        for (String s : matchCommand) {
+            if (command.startsWith(s)) {
+                isMatch = true;
+                break;
+            }
+        }
+        if (!isMatch) return command;
+
         ServerCommandInfo info = COMMAND_INFO.get(key);
         if (info == null) {
             log.error("替换命令失败：指令信息为空");
@@ -343,7 +354,7 @@ public class RconService {
         commandMap.put(Command.BAN_REMOVE_COMMAND,
                 (cmd) -> onlineFlag ? info.getOnlineRmBanCommand() : info.getOfflineRmBanCommand());
 
-        boolean isMatch = false;
+        isMatch = false;
         for (Map.Entry<String, CommandReplacer> entry : commandMap.entrySet()) {
             if (command.startsWith(entry.getKey())) {
                 isMatch = true;

@@ -42,6 +42,8 @@
         <result property="updateBy" column="sub_update_by"/>
         <result property="updateTime" column="sub_update_time"/>
         <result property="delFlag" column="sub_del_flag"/>
+        <result property="questionText" column="sub_question_text"/>
+        <result property="answerText" column="sub_answer_text"/>
     </resultMap>
 
     <sql id="selectWhitelistQuizSubmissionVo">
@@ -105,35 +107,53 @@
                a.update_by,
                a.update_time,
                a.del_flag,
-               b.id            as
-                   sub_id,
-               b.submission_id as
-                   sub_submission_id,
-               b.question_id   as
-                   sub_question_id,
-               b.question_type as
-                   sub_question_type,
-               b.player_answer as
-                   sub_player_answer,
-               b.is_correct    as
-                   sub_is_correct,
-               b.score         as
-                   sub_score,
-               b.remark        as
-                   sub_remark,
-               b.create_by     as
-                   sub_create_by,
-               b.create_time   as
-                   sub_create_time,
-               b.update_by     as
-                   sub_update_by,
-               b.update_time   as
-                   sub_update_time,
-               b.del_flag      as
-                   sub_del_flag
+               b.id            as sub_id,
+               b.submission_id as sub_submission_id,
+               b.question_id   as sub_question_id,
+               b.question_type as sub_question_type,
+               GROUP_CONCAT(d.answer_text ORDER BY d.sort_order SEPARATOR ',') as sub_player_answer,
+               b.is_correct    as sub_is_correct,
+               b.score         as sub_score,
+               b.remark        as sub_remark,
+               b.create_by     as sub_create_by,
+               b.create_time   as sub_create_time,
+               b.update_by     as sub_update_by,
+               b.update_time   as sub_update_time,
+               b.del_flag      as sub_del_flag,
+               c.question_text as sub_question_text
         from whitelist_quiz_submission a
                  left join whitelist_quiz_submission_detail b on b.submission_id = a.id
+                 left join whitelist_quiz_question c on c.id = b.question_id
+                 left join whitelist_quiz_answer d on FIND_IN_SET(d.id, b.player_answer) > 0
         where a.id = #{id}
+        group by a.id,
+                 a.player_uuid,
+                 a.player_name,
+                 a.total_score,
+                 a.pass_status,
+                 a.submit_time,
+                 a.review_time,
+                 a.reviewer,
+                 a.review_comment,
+                 a.remark,
+                 a.create_by,
+                 a.create_time,
+                 a.update_by,
+                 a.update_time,
+                 a.del_flag,
+                 b.id,
+                 b.submission_id,
+                 b.question_id,
+                 b.question_type,
+                 b.is_correct,
+                 b.score,
+                 b.remark,
+                 b.create_by,
+                 b.create_time,
+                 b.update_by,
+                 b.update_time,
+                 b.del_flag,
+                 c.question_text
     </select>
 
     <insert id="insertWhitelistQuizSubmission" parameterType="WhitelistQuizSubmission" useGeneratedKeys="true"

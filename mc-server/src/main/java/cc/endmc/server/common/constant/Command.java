@@ -38,6 +38,17 @@ public class Command {
 
     public static final String BAN_REMOVE_COMMAND = "pardon";
 
+    public static final String[] MATCH_COMMAND = {
+            "whitelist add",
+            "whitelist remove",
+            "whitelist list",
+            "whitelist reload",
+            "whitelist on",
+            "whitelist off",
+            "ban",
+            "pardon"
+    };
+
     // op
     public static final String OP_ADD = "op %s";
 
