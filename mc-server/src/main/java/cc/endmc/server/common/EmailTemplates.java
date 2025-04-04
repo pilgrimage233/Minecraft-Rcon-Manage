@@ -140,7 +140,7 @@ public class EmailTemplates {
             "        \n" +
             "        <div class=\"footer\">\n" +
             "            <p>此邮件由系统自动发送，请勿回复</p>\n" +
-            "            <p>© 2024 Minecraft. All rights reserved.</p>\n" +
+            "            <p>© 2025 Minecraft. All rights reserved.</p>\n" +
             "        </div>\n" +
             "    </div>\n" +
             "</body>\n" +
@@ -288,7 +288,7 @@ public class EmailTemplates {
             "        \n" +
             "        <div class=\"footer\">\n" +
             "            <p>此邮件由系统自动发送，请勿回复</p>\n" +
-            "            <p>© 2024 Minecraft. All rights reserved.</p>\n" +
+            "            <p>© 2025 Minecraft. All rights reserved.</p>\n" +
             "        </div>\n" +
             "    </div>\n" +
             "</body>\n" +
@@ -437,7 +437,7 @@ public class EmailTemplates {
             "        \n" +
             "        <div class=\"footer\">\n" +
             "            <p>此邮件由系统自动发送，请勿回复</p>\n" +
-            "            <p>© 2024 Minecraft. All rights reserved.</p>\n" +
+            "            <p>© 2025 Minecraft. All rights reserved.</p>\n" +
             "        </div>\n" +
             "    </div>\n" +
             "</body>\n" +
@@ -579,7 +579,7 @@ public class EmailTemplates {
             "        \n" +
             "        <div class=\"footer\">\n" +
             "            <p>此邮件由系统自动发送，请勿回复</p>\n" +
-            "            <p>© 2024 Minecraft. All rights reserved.</p>\n" +
+            "            <p>© 2025 Minecraft. All rights reserved.</p>\n" +
             "        </div>\n" +
             "    </div>\n" +
             "</body>\n" +
@@ -717,7 +717,7 @@ public class EmailTemplates {
             "        \n" +
             "        <div class=\"footer\">\n" +
             "            <p>此邮件由系统自动发送，请勿回复</p>\n" +
-            "            <p>© 2024 Minecraft. All rights reserved.</p>\n" +
+            "            <p>© 2025 Minecraft. All rights reserved.</p>\n" +
             "        </div>\n" +
             "    </div>\n" +
             "</body>\n" +
@@ -840,7 +840,7 @@ public class EmailTemplates {
             "        \n" +
             "        <div class=\"footer\">\n" +
             "            <p>此邮件由系统自动发送，请勿回复</p>\n" +
-            "            <p>© 2024 Minecraft. All rights reserved.</p>\n" +
+            "            <p>© 2025 Minecraft. All rights reserved.</p>\n" +
             "        </div>\n" +
             "    </div>\n" +
             "</body>\n" +

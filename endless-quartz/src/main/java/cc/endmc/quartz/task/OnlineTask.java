@@ -11,6 +11,7 @@ import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.domain.player.PlayerDetails;
 import cc.endmc.server.enums.Identity;
 import cc.endmc.server.mapper.permission.WhitelistInfoMapper;
+import cc.endmc.server.mapper.player.PlayerDetailsMapper;
 import cc.endmc.server.service.player.IPlayerDetailsService;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
@@ -34,6 +35,8 @@ public class OnlineTask {
     @Autowired
     private WhitelistInfoMapper whitelistInfoMapper;
     @Autowired
+    private PlayerDetailsMapper playerDetailsMapper;
+    @Autowired
     private IPlayerDetailsService playerDetailsService;
     @Autowired
     private RedisCache cache;
@@ -55,6 +58,7 @@ public class OnlineTask {
             try {
                 String json = HttpUtils.sendGet("https://sessionserver.mojang.com/session/minecraft/profile/" + whitelist.getUserUuid().replace("-", ""));
                 if (StringUtils.isNotEmpty(json)) {
+                    final String oldName = whitelist.getUserName();
                     // json实例化
                     JSONObject jsonObject = JSONObject.parseObject(json);
                     String newName = jsonObject.getString("name");
@@ -77,15 +81,16 @@ public class OnlineTask {
                         player.setUpdateTime(new Date());
 
                         JSONObject data = new JSONObject();
-                        if (player.getParameters().isEmpty()) {
+                        if (player.getParameters() != null) {
                             data = JSONObject.parseObject(player.getParameters());
-                            data.getJSONArray("name_history").add(newName);
+                            data.getJSONArray("name_history").add(oldName);
                         } else {
                             data.put("name_history", new ArrayList<String>() {{
-                                add(newName);
+                                add(oldName);
                             }});
                             player.setParameters(data.toJSONString());
                         }
+                        playerDetailsMapper.updatePlayerDetails(player);
                     } else {
                         PlayerDetails player = new PlayerDetails();
                         player.setWhitelistId(whitelist.getId());
@@ -94,7 +99,7 @@ public class OnlineTask {
                         player.setIdentity(Identity.PLAYER.getValue());
                         player.setUserName(newName);
                         player.setParameters("{}");
-                        playerDetailsService.insertPlayerDetails(player);
+                        playerDetailsMapper.insertPlayerDetails(player);
                     }
 
                 }

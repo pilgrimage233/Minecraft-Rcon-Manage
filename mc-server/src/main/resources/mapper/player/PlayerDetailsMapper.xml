@@ -58,6 +58,9 @@
             <if test="city != null  and city != ''">
                 and city = #{city}
             </if>
+            <if test="whitelistId != null ">
+                and whitelist_id = #{whitelistId}
+            </if>
         </where>
         order by last_online_time desc
     </select>
