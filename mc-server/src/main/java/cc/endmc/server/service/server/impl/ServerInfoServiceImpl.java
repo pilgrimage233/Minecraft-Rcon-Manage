@@ -240,38 +240,55 @@ public class ServerInfoServiceImpl implements IServerInfoService {
         if (redisCache.hasKey(CacheKey.SERVER_INFO_KEY)) {
             serverInfo = redisCache.getCacheObject(CacheKey.SERVER_INFO_KEY);
         } else {
-            serverInfo = serverInfoMapper.selectServerInfoList(new ServerInfo());
-            redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, serverInfo, 3, TimeUnit.DAYS);
+            rconService.reBuildCache();
+            serverInfo = redisCache.getCacheObject(CacheKey.SERVER_INFO_KEY);
         }
         if (serverInfo != null) {
             for (ServerInfo info : serverInfo) {
                 if (info.getStatus() == 0) {
                     continue;
                 }
+                final String id = info.getId().toString();
                 // 获取在线玩家
                 Map<String, Object> onlinePlayer = new HashMap<>();
                 List<String> playerList = new ArrayList<>();
-
+                String[] split;
                 try {
-                    String list = MapCache.get(info.getId().toString()).sendCommand("list");
-                    if (list != null) {
-                        String[] split = new String[0];
-                        // 判断是否插件服装有ESS
-                        if (!list.startsWith("There are")) {
-                            list = MapCache.get(info.getId().toString()).sendCommand("minecraft:list");
+                    if (info.getServerCore().equalsIgnoreCase("Velocity")) {
+                        final String response = rconService.sendCommand(id, "glist all", false);
+                        if (response == null) continue;
+                        String[] lines = response.split("\n");
+                        // 处理Velocity格式
+                        for (String line : lines) {
+                            split = line.split(":");
+                            if (split.length > 1) {
+                                String[] players = split[1].trim().split(", ");
+                                playerList = Arrays.stream(players)
+                                        .filter(StringUtils::isNotEmpty)
+                                        .collect(Collectors.toList());
+                            }
                         }
-                        split = list.split(":");
-                        if (split.length > 1) {
-                            String[] players = split[1].trim().split(", ");
-                            playerList = Arrays.stream(players)
-                                    .filter(StringUtils::isNotEmpty)
-                                    .collect(Collectors.toList());
+                    } else {
+                        // 处理其他服务器核心的响应格式
+                        String list = rconService.sendCommand(id, "list", false);
+                        if (list != null) {
+                            // 判断是否插件服装有ESS
+                            if (!list.startsWith("There are")) {
+                                list = rconService.sendCommand(id, "minecraft:list", false);
+                            }
+                            split = list.split(":");
+                            if (split.length > 1) {
+                                String[] players = split[1].trim().split(", ");
+                                playerList = Arrays.stream(players)
+                                        .filter(StringUtils::isNotEmpty)
+                                        .collect(Collectors.toList());
+                            }
                         }
-                        onlinePlayer.put("在线人数", playerList.size());
-                        onlinePlayer.put("在线玩家", playerList.toString());
-                        result.put(info.getNameTag(), onlinePlayer);
-
                     }
+
+                    onlinePlayer.put("在线人数", playerList.size());
+                    onlinePlayer.put("在线玩家", playerList.toString());
+                    result.put(info.getNameTag(), onlinePlayer);
                 } catch (Exception e) {
                     result.put(info.getNameTag(), "服务器连接失败，请检查服务器状态");
                     // 随机重连

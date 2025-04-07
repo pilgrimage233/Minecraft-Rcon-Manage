@@ -13,13 +13,17 @@ import eu.bitwalker.useragentutils.UserAgent;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
+import io.jsonwebtoken.security.Keys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import javax.crypto.SecretKey;
 import javax.servlet.http.HttpServletRequest;
+import java.nio.charset.StandardCharsets;
+import java.security.Key;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -46,6 +50,31 @@ public class TokenService {
     private int expireTime;
     @Autowired
     private RedisCache redisCache;
+
+    private Key key = null;
+
+    /**
+     * 获取加密密钥
+     */
+    private Key getSigningKey() {
+        if (key == null) {
+            // 使用SHA512需要的密钥长度至少为512位
+            byte[] keyBytes = new byte[64]; // 64 bytes * 8 = 512 bits
+            byte[] secretBytes = secret.getBytes(StandardCharsets.UTF_8);
+            
+            // 将密钥填充到目标长度
+            for (int i = 0; i < keyBytes.length; i++) {
+                if (i < secretBytes.length) {
+                    keyBytes[i] = secretBytes[i];
+                } else {
+                    keyBytes[i] = 0; // 填充剩余空间
+                }
+            }
+            
+            key = Keys.hmacShaKeyFor(keyBytes);
+        }
+        return key;
+    }
 
     /**
      * 获取用户身份信息
@@ -154,10 +183,10 @@ public class TokenService {
      * @return 令牌
      */
     private String createToken(Map<String, Object> claims) {
-        String token = Jwts.builder()
+        return Jwts.builder()
                 .setClaims(claims)
-                .signWith(SignatureAlgorithm.HS512, secret).compact();
-        return token;
+                .signWith(getSigningKey(), SignatureAlgorithm.HS512)
+                .compact();
     }
 
     /**
@@ -168,7 +197,8 @@ public class TokenService {
      */
     private Claims parseToken(String token) {
         return Jwts.parser()
-                .setSigningKey(secret)
+                .setSigningKey(getSigningKey())
+                .build()
                 .parseClaimsJws(token)
                 .getBody();
     }

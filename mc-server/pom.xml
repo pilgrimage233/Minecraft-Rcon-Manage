@@ -16,10 +16,6 @@
     <artifactId>mc-server</artifactId>
     <dependencies>
         <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-web</artifactId>
-        </dependency>
-        <dependency>
             <groupId>cc.endmc</groupId>
             <artifactId>endless-common</artifactId>
         </dependency>
@@ -53,7 +49,7 @@
         <dependency>
             <groupId>com.aliyun</groupId>
             <artifactId>alibabacloud-dm20151123</artifactId>
-            <version>1.0.9</version>
+            <version>1.0.17</version>
         </dependency>
 
         <dependency>
@@ -70,7 +66,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>31.1-jre</version>
+            <version>32.0.1-android</version>
         </dependency>
 
         <!-- 定时任务 -->
@@ -83,6 +79,21 @@
                     <artifactId>c3p0</artifactId>
                 </exclusion>
             </exclusions>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- SLF4J API -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
         </dependency>
 
     </dependencies>

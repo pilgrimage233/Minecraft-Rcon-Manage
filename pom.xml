@@ -20,24 +20,30 @@
     </distributionManagement>
 
     <properties>
-        <endless.version>2.5.2</endless.version>
+        <endless.version>2.5.3</endless.version>
         <ruoyi.version>3.8.7</ruoyi.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <java.version>1.8</java.version>
         <maven-jar-plugin.version>3.1.1</maven-jar-plugin.version>
-        <druid.version>1.2.20</druid.version>
+        <druid.version>1.2.21</druid.version>
         <bitwalker.version>1.21</bitwalker.version>
-        <swagger.version>3.0.0</swagger.version>
         <kaptcha.version>2.3.3</kaptcha.version>
         <pagehelper.boot.version>1.4.7</pagehelper.boot.version>
-        <fastjson.version>2.0.43</fastjson.version>
+        <fastjson.version>2.0.47</fastjson.version>
         <oshi.version>6.4.8</oshi.version>
-        <commons.io.version>2.13.0</commons.io.version>
-        <commons.collections.version>3.2.2</commons.collections.version>
-        <poi.version>4.1.2</poi.version>
+        <commons.io.version>2.14.0</commons.io.version>
+        <commons.collections4.version>4.4</commons.collections4.version>
+        <poi.version>5.2.5</poi.version>
         <velocity.version>2.3</velocity.version>
-        <jwt.version>0.9.1</jwt.version>
+        <jwt.version>0.12.5</jwt.version>
+        <swagger.version>3.0.0</swagger.version>
+        <mysql.version>8.0.33</mysql.version>
+        <dynamic.datasource.version>3.6.1</dynamic.datasource.version>
+        <snakeyaml.version>2.0</snakeyaml.version>
+        <hutool.version>5.8.37</hutool.version>
+        <lombok.version>1.18.30</lombok.version>
+        <slf4j.version>1.7.36</slf4j.version>
     </properties>
 
     <!-- 依赖声明 -->
@@ -48,7 +54,7 @@
             <dependency>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
-                <version>2.5.15</version>
+                <version>2.7.18</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
@@ -93,6 +99,7 @@
                     </exclusion>
                 </exclusions>
             </dependency>
+
             <!-- io常用工具类 -->
             <dependency>
                 <groupId>commons-io</groupId>
@@ -116,9 +123,9 @@
 
             <!-- collections工具类 -->
             <dependency>
-                <groupId>commons-collections</groupId>
-                <artifactId>commons-collections</artifactId>
-                <version>${commons.collections.version}</version>
+                <groupId>org.apache.commons</groupId>
+                <artifactId>commons-collections4</artifactId>
+                <version>${commons.collections4.version}</version>
             </dependency>
 
             <!-- 阿里JSON解析器 -->
@@ -131,8 +138,20 @@
             <!-- Token生成与解析-->
             <dependency>
                 <groupId>io.jsonwebtoken</groupId>
-                <artifactId>jjwt</artifactId>
+                <artifactId>jjwt-api</artifactId>
                 <version>${jwt.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-impl</artifactId>
+                <version>${jwt.version}</version>
+                <scope>runtime</scope>
+            </dependency>
+            <dependency>
+                <groupId>io.jsonwebtoken</groupId>
+                <artifactId>jjwt-jackson</artifactId>
+                <version>${jwt.version}</version>
+                <scope>runtime</scope>
             </dependency>
 
             <!-- 验证码 -->
@@ -140,6 +159,42 @@
                 <groupId>pro.fessional</groupId>
                 <artifactId>kaptcha</artifactId>
                 <version>${kaptcha.version}</version>
+            </dependency>
+
+            <!-- MySQL驱动 -->
+            <dependency>
+                <groupId>mysql</groupId>
+                <artifactId>mysql-connector-java</artifactId>
+                <version>${mysql.version}</version>
+            </dependency>
+
+            <!-- snakeyaml 安全版本 -->
+            <dependency>
+                <groupId>org.yaml</groupId>
+                <artifactId>snakeyaml</artifactId>
+                <version>${snakeyaml.version}</version>
+            </dependency>
+
+            <!-- snakeyaml-engine 安全版本 -->
+            <dependency>
+                <groupId>org.snakeyaml</groupId>
+                <artifactId>snakeyaml-engine</artifactId>
+                <version>2.9</version>
+            </dependency>
+
+            <!-- Lombok 安全版本 -->
+            <dependency>
+                <groupId>org.projectlombok</groupId>
+                <artifactId>lombok</artifactId>
+                <version>${lombok.version}</version>
+                <scope>provided</scope>
+            </dependency>
+
+            <!-- SLF4J API -->
+            <dependency>
+                <groupId>org.slf4j</groupId>
+                <artifactId>slf4j-api</artifactId>
+                <version>${slf4j.version}</version>
             </dependency>
 
             <!-- 定时任务-->
@@ -177,6 +232,15 @@
                 <version>${ruoyi.version}</version>
             </dependency>
 
+            <!-- API文档 SpringDoc OpenAPI (替代旧的Swagger) -->
+            <!--
+            <dependency>
+                <groupId>org.springdoc</groupId>
+                <artifactId>springdoc-openapi-ui</artifactId>
+                <version>${springdoc.version}</version>
+            </dependency>
+            -->
+
         </dependencies>
     </dependencyManagement>
 
@@ -196,7 +260,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.1</version>
+                <version>3.11.0</version>
                 <configuration>
                     <source>${java.version}</source>
                     <target>${java.version}</target>

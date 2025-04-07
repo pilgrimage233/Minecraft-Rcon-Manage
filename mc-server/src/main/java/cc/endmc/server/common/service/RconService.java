@@ -13,6 +13,7 @@ import cc.endmc.server.common.constant.RconMsg;
 import cc.endmc.server.common.rconclient.RconClient;
 import cc.endmc.server.domain.server.ServerCommandInfo;
 import cc.endmc.server.domain.server.ServerInfo;
+import cc.endmc.server.mapper.server.ServerInfoMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -42,6 +43,8 @@ public class RconService {
     private RedisCache redisCache;
     @Autowired
     private PasswordManager PasswordManager;
+    @Autowired
+    private ServerInfoMapper serverInfoMapper;
 
     /**
      * 发送Rcon命令
@@ -391,6 +394,31 @@ public class RconService {
         }
         // 使用正则表达式去除所有Minecraft颜色代码 (§ 后跟一个字符)
         return text.replaceAll("§[0-9a-fk-or]", "");
+    }
+
+    /**
+     * 重建缓存
+     * 服务器信息缓存
+     */
+    public void reBuildCache() {
+        // 服务器信息缓存
+        final List<ServerInfo> serverInfos = serverInfoMapper.selectServerInfoList(new ServerInfo());
+        if (serverInfos == null || serverInfos.isEmpty()) {
+            log.error(RconMsg.SERVER_EMPTY);
+        }
+        Map<String, ServerInfo> map = new HashMap<>();
+        if (serverInfos != null) {
+            for (ServerInfo serverInfo : serverInfos) {
+                map.put(serverInfo.getId().toString(), serverInfo);
+            }
+        }
+
+        redisCache.setCacheObject(CacheKey.SERVER_INFO_MAP_KEY, map);
+
+        redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, serverInfos, 3, TimeUnit.DAYS);
+
+        // 服务器信息缓存更新时间
+        redisCache.setCacheObject(CacheKey.SERVER_INFO_UPDATE_TIME_KEY, DateUtils.getNowDate());
     }
 }
 
