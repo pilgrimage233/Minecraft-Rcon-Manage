@@ -114,7 +114,7 @@
             </if>
             and del_flag = 0
         </where>
-        order by sort_order asc, create_time desc
+        order by status desc, sort_order asc , create_time desc
     </select>
 
     <select id="selectWhitelistQuizQuestionById" parameterType="Long"

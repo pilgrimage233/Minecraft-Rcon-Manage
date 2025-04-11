@@ -500,6 +500,7 @@ public class PublicInterfaceController extends BaseController {
             long passScore = Long.parseLong(passConfigs.get(0).getConfigValue());
             if (totalScore >= passScore) {
                 submission.setPassStatus(1); // 已通过
+                submission.setReviewer("System(Auto)"); // 自动审核
             }
         }
 

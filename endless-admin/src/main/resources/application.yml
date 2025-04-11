@@ -3,7 +3,7 @@ ruoyi:
   # 名称
   name: EndlessManager
   # 版本
-  version: 2.5.3
+  version: 2.5.4
   # 版权年份
   copyrightYear: 2025
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
@@ -173,3 +173,14 @@ encrypt:
   # 加密密钥 使用 openssl rand -base64 16 命令生成
   # 严格保管，不可泄露！
   key: o85Ultxa3spqSVd3RcUP1w==
+
+# RCON配置 如果你不清楚这些是干什么的请勿修改！
+rcon:
+  # 超时时间
+  timeout: 5000
+  # 重连延迟时间
+  reconnect-delay-ms: 1000
+  # 最大响应大小 请勿盲目修改！
+  max-response-size: 4096
+  # 最大缓冲区大小 请勿盲目修改！
+  max-buffer-size: 8196

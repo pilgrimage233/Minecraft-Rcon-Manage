@@ -5,6 +5,7 @@ import cc.endmc.common.utils.DateUtils;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.constant.RconMsg;
 import cc.endmc.server.common.service.RconService;
+import cc.endmc.server.config.RconConfig;
 import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.service.server.IServerCommandInfoService;
 import cc.endmc.server.service.server.IServerInfoService;
@@ -34,6 +35,9 @@ public class InitializingBeanExamplebBean implements InitializingBean {
     @Autowired
     private RconService rconService;
 
+    @Autowired
+    private RconConfig rconConfig;
+
     /**
      * InitializingBean afterPropertiesSet
      * 在bean初始化后执行一些操作
@@ -51,6 +55,7 @@ public class InitializingBeanExamplebBean implements InitializingBean {
         //         return;
         //     }
         // }
+        rconConfig.init();
 
         // 服务器信息缓存
         final List<ServerInfo> serverInfos = serverInfoService.selectServerInfoList(new ServerInfo());

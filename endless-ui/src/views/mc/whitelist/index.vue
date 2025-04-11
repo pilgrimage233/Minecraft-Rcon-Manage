@@ -17,8 +17,8 @@
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
-      <el-form-item label="正版标识" prop="onlineFlag">
-        <el-select v-model="queryParams.onlineFlag" clearable placeholder="正版标识">
+      <el-form-item label="账号类型" prop="onlineFlag">
+        <el-select v-model="queryParams.onlineFlag" clearable placeholder="账号类型">
           <el-option
             v-for="dict in dict.type.online_status"
             :key="dict.value"
@@ -143,7 +143,7 @@
           <el-tag v-else type="info">其他</el-tag>
         </template>
       </el-table-column>
-      <el-table-column align="center" label="正版标识" prop="onlineFlag">
+      <el-table-column align="center" label="账号类型" prop="onlineFlag">
         <template slot-scope="scope">
           <dict-tag :options="dict.type.online_status" :value="scope.row.onlineFlag"/>
         </template>

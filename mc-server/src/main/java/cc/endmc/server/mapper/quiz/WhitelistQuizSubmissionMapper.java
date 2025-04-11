@@ -55,6 +55,14 @@ public interface WhitelistQuizSubmissionMapper {
     public int deleteWhitelistQuizSubmissionById(Long id);
 
     /**
+     * 根据问题ID删除答题记录
+     *
+     * @param id 问题ID
+     * @return 结果
+     */
+    public int deleteWhitelistQuizSubmissionDetailByQuestionId(Long id);
+
+    /**
      * 批量删除答题记录
      *
      * @param ids 需要删除的数据主键集合

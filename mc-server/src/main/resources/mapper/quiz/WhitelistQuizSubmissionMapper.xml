@@ -43,7 +43,6 @@
         <result property="updateTime" column="sub_update_time"/>
         <result property="delFlag" column="sub_del_flag"/>
         <result property="questionText" column="sub_question_text"/>
-        <result property="answerText" column="sub_answer_text"/>
     </resultMap>
 
     <sql id="selectWhitelistQuizSubmissionVo">
@@ -294,6 +293,13 @@
         delete
         from whitelist_quiz_submission_detail
         where submission_id = #{submissionId}
+    </delete>
+
+    <!--根据问题ID删除-->
+    <delete id="deleteWhitelistQuizSubmissionDetailByQuestionId" parameterType="Long">
+        delete
+        from whitelist_quiz_submission_detail
+        where question_id = #{questionId}
     </delete>
 
     <insert id="batchWhitelistQuizSubmissionDetail">

@@ -21,15 +21,17 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class RconClient implements Closeable {
+
     private static final Logger LOGGER = Logger.getLogger(RconClient.class.getName());
     private static final int AUTHENTICATION_FAILURE_ID = -1;
     private static final Charset PAYLOAD_CHARSET = StandardCharsets.UTF_8;
-    private static final int DEFAULT_TIMEOUT_MS = 5000;  // 超时时间
     private static final int MAX_RECONNECT_ATTEMPTS = 3;
-    private static final long RECONNECT_DELAY_MS = 1000; // 重连延迟时间
     private static final int BUFFER_POOL_SIZE = 10;
-    private static final int DEFAULT_BUFFER_SIZE = 8192; // 缓冲区大小
-    private static final int MAX_RESPONSE_SIZE = 4096;  // 最大响应大小
+
+    public static long RECONNECT_DELAY_MS; // 重连延迟时间
+    public static int DEFAULT_TIMEOUT_MS;  // 超时时间
+    public static int DEFAULT_BUFFER_SIZE; // 缓冲区大小
+    public static int MAX_RESPONSE_SIZE;  // 最大响应大小
 
     private static final int TYPE_COMMAND = 2;
     private static final int TYPE_AUTH = 3;

@@ -1,18 +1,19 @@
 package cc.endmc.server.service.quiz.impl;
 
-import java.util.List;
-        import cc.endmc.common.utils.DateUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
-    import java.util.ArrayList;
-
-    import cc.endmc.common.utils.StringUtils;
-    import org.springframework.transaction.annotation.Transactional;
-    import cc.endmc.server.domain.quiz.WhitelistQuizAnswer;
+import cc.endmc.common.utils.DateUtils;
+import cc.endmc.common.utils.StringUtils;
+import cc.endmc.server.domain.quiz.WhitelistQuizAnswer;
+import cc.endmc.server.domain.quiz.WhitelistQuizQuestion;
 import cc.endmc.server.domain.quiz.vo.WhitelistQuizQuestionVo;
 import cc.endmc.server.mapper.quiz.WhitelistQuizQuestionMapper;
-import cc.endmc.server.domain.quiz.WhitelistQuizQuestion;
+import cc.endmc.server.mapper.quiz.WhitelistQuizSubmissionMapper;
 import cc.endmc.server.service.quiz.IWhitelistQuizQuestionService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 白名单申请题库问题Service业务层处理
@@ -24,6 +25,8 @@ import cc.endmc.server.service.quiz.IWhitelistQuizQuestionService;
 public class WhitelistQuizQuestionServiceImpl implements IWhitelistQuizQuestionService {
     @Autowired
     private WhitelistQuizQuestionMapper whitelistQuizQuestionMapper;
+    @Autowired
+    private WhitelistQuizSubmissionMapper whitelistQuizSubmissionMapper;
 
     /**
      * 查询白名单申请题库问题
@@ -64,13 +67,13 @@ public class WhitelistQuizQuestionServiceImpl implements IWhitelistQuizQuestionS
      * @param whitelistQuizQuestion 白名单申请题库问题
      * @return 结果
      */
-        @Transactional
+    @Transactional
     @Override
     public int insertWhitelistQuizQuestion(WhitelistQuizQuestion whitelistQuizQuestion) {
-                whitelistQuizQuestion.setCreateTime(DateUtils.getNowDate());
-            int rows = whitelistQuizQuestionMapper.insertWhitelistQuizQuestion(whitelistQuizQuestion);
-            insertWhitelistQuizAnswer(whitelistQuizQuestion);
-            return rows;
+        whitelistQuizQuestion.setCreateTime(DateUtils.getNowDate());
+        int rows = whitelistQuizQuestionMapper.insertWhitelistQuizQuestion(whitelistQuizQuestion);
+        insertWhitelistQuizAnswer(whitelistQuizQuestion);
+        return rows;
     }
 
     /**
@@ -79,13 +82,13 @@ public class WhitelistQuizQuestionServiceImpl implements IWhitelistQuizQuestionS
      * @param whitelistQuizQuestion 白名单申请题库问题
      * @return 结果
      */
-        @Transactional
+    @Transactional
     @Override
     public int updateWhitelistQuizQuestion(WhitelistQuizQuestion whitelistQuizQuestion) {
-                whitelistQuizQuestion.setUpdateTime(DateUtils.getNowDate());
-                whitelistQuizQuestionMapper.deleteWhitelistQuizAnswerByQuestionId(whitelistQuizQuestion.getId())
-            ;
-            insertWhitelistQuizAnswer(whitelistQuizQuestion);
+        whitelistQuizQuestion.setUpdateTime(DateUtils.getNowDate());
+        whitelistQuizQuestionMapper.deleteWhitelistQuizAnswerByQuestionId(whitelistQuizQuestion.getId())
+        ;
+        insertWhitelistQuizAnswer(whitelistQuizQuestion);
         return whitelistQuizQuestionMapper.updateWhitelistQuizQuestion(whitelistQuizQuestion);
     }
 
@@ -95,10 +98,11 @@ public class WhitelistQuizQuestionServiceImpl implements IWhitelistQuizQuestionS
      * @param ids 需要删除的白名单申请题库问题主键
      * @return 结果
      */
-        @Transactional
+    @Transactional
     @Override
     public int deleteWhitelistQuizQuestionByIds(Long[] ids) {
-                whitelistQuizQuestionMapper.deleteWhitelistQuizAnswerByQuestionIds(ids);
+
+        whitelistQuizQuestionMapper.deleteWhitelistQuizAnswerByQuestionIds(ids);
         return whitelistQuizQuestionMapper.deleteWhitelistQuizQuestionByIds(ids);
     }
 
@@ -108,33 +112,33 @@ public class WhitelistQuizQuestionServiceImpl implements IWhitelistQuizQuestionS
      * @param id 白名单申请题库问题主键
      * @return 结果
      */
-        @Transactional
+    @Transactional
     @Override
     public int deleteWhitelistQuizQuestionById(Long id) {
-                whitelistQuizQuestionMapper.deleteWhitelistQuizAnswerByQuestionId(id);
+        whitelistQuizSubmissionMapper.deleteWhitelistQuizSubmissionDetailByQuestionId(id);
+        whitelistQuizQuestionMapper.deleteWhitelistQuizAnswerByQuestionId(id);
         return whitelistQuizQuestionMapper.deleteWhitelistQuizQuestionById(id);
     }
 
-        /**
-         * 新增白名单申请题目答案信息
-         *
-         * @param whitelistQuizQuestion 白名单申请题库问题对象
-         */
-        public void insertWhitelistQuizAnswer(WhitelistQuizQuestion whitelistQuizQuestion) {
-            List<WhitelistQuizAnswer> whitelistQuizAnswerList = whitelistQuizQuestion.getWhitelistQuizAnswerList();
-            Long id = whitelistQuizQuestion.getId();
-            if (StringUtils.isNotNull(whitelistQuizAnswerList)) {
-                List<WhitelistQuizAnswer> list = new ArrayList<WhitelistQuizAnswer>();
-                for (WhitelistQuizAnswer whitelistQuizAnswer :whitelistQuizAnswerList)
-                {
-                    whitelistQuizAnswer.setQuestionId(id);
-                    list.add(whitelistQuizAnswer);
-                }
-                if (list.size() > 0) {
-                        whitelistQuizQuestionMapper.batchWhitelistQuizAnswer(list);
-                }
+    /**
+     * 新增白名单申请题目答案信息
+     *
+     * @param whitelistQuizQuestion 白名单申请题库问题对象
+     */
+    public void insertWhitelistQuizAnswer(WhitelistQuizQuestion whitelistQuizQuestion) {
+        List<WhitelistQuizAnswer> whitelistQuizAnswerList = whitelistQuizQuestion.getWhitelistQuizAnswerList();
+        Long id = whitelistQuizQuestion.getId();
+        if (StringUtils.isNotNull(whitelistQuizAnswerList)) {
+            List<WhitelistQuizAnswer> list = new ArrayList<WhitelistQuizAnswer>();
+            for (WhitelistQuizAnswer whitelistQuizAnswer : whitelistQuizAnswerList) {
+                whitelistQuizAnswer.setQuestionId(id);
+                list.add(whitelistQuizAnswer);
+            }
+            if (list.size() > 0) {
+                whitelistQuizQuestionMapper.batchWhitelistQuizAnswer(list);
             }
         }
+    }
 
     /**
      * 根据ID列表查询白名单申请题库问题

@@ -103,17 +103,17 @@
           <el-button
             size="mini"
             type="text"
-            icon="el-icon-edit"
-            @click="handleUpdate(scope.row)"
-            v-hasPermi="['quiz:submission:edit']"
-          >审核
+            icon="el-icon-view"
+            @click="handleView(scope.row)"
+          >查看
           </el-button>
           <el-button
             size="mini"
             type="text"
-            icon="el-icon-view"
-            @click="handleView(scope.row)"
-          >查看
+            v-hasPermi="['quiz:submission:remove']"
+            icon="el-icon-delete"
+            @click="handleDelete(scope.row)"
+          >删除
           </el-button>
         </template>
       </el-table-column>
@@ -221,7 +221,7 @@
 </template>
 
 <script>
-import {getSubmission, listSubmission, updateSubmission} from "@/api/quiz/submission";
+import {delSubmission, getSubmission, listSubmission, updateSubmission} from "@/api/quiz/submission";
 
 export default {
   name: "Submission",
@@ -349,6 +349,17 @@ export default {
         this.whitelistQuizSubmissionDetailList = response.data.whitelistQuizSubmissionDetailList;
         this.open = true;
         this.title = "审核答题记录";
+      });
+    },
+    /** 删除按钮操作 */
+    handleDelete(row) {
+      this.$confirm("是否删除该答题记录?", "提示", {
+        type: "warning"
+      }).then(() => {
+        delSubmission(row.id).then(response => {
+          this.$modal.msgSuccess("删除成功");
+          this.getList();
+        });
       });
     },
     /** 提交按钮 */
