@@ -59,3 +59,24 @@ export function addWhiteListForAdmin(data) {
     data: data
   })
 }
+
+// 下载白名单模板
+export function downloadTemplate() {
+  return request({
+    url: '/mc/whitelist/downloadTemplate',
+    method: 'get',
+    responseType: 'blob'
+  })
+}
+
+// 导入白名单模板
+export function importTemplate(data) {
+  return request({
+    url: '/mc/whitelist/importTemplate',
+    method: 'post',
+    data: data,
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    }
+  })
+}

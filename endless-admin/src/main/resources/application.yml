@@ -3,7 +3,7 @@ ruoyi:
   # 名称
   name: EndlessManager
   # 版本
-  version: 2.5.4
+  version: 2.5.5
   # 版权年份
   copyrightYear: 2025
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
@@ -41,7 +41,7 @@ server:
 # 日志配置
 logging:
   level:
-    com.ruoyi: debug
+    cc.endmc: debug
     org.springframework: warn
 
 # 用户配置

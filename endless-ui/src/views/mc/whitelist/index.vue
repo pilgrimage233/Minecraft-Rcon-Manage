@@ -122,6 +122,17 @@
         >导出
         </el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-button
+          v-hasPermi="['mc:whitelist:import']"
+          icon="el-icon-upload2"
+          plain
+          size="mini"
+          type="info"
+          @click="handleBatchApply"
+        >批量申请
+        </el-button>
+      </el-col>
       <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
@@ -285,6 +296,37 @@
         <el-button @click="cancel">取 消</el-button>
       </div>
     </el-dialog>
+
+    <!-- 批量申请对话框 -->
+    <el-dialog :visible.sync="batchApplyOpen" append-to-body title="批量申请白名单" width="500px">
+      <el-form ref="batchForm" :model="batchForm" label-width="100px">
+        <el-form-item label="上传模板">
+          <el-upload
+            ref="upload"
+            :action="upload.url"
+            :auto-upload="false"
+            :disabled="upload.isUploading"
+            :headers="upload.headers"
+            :limit="1"
+            :on-progress="handleFileUploadProgress"
+            :on-success="handleFileSuccess"
+            accept=".xlsx"
+            drag
+          >
+            <i class="el-icon-upload"></i>
+            <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
+            <div slot="tip" class="el-upload__tip">只能上传xlsx文件</div>
+          </el-upload>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="downloadTemplate">下载模板</el-button>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="submitBatchForm">确 定</el-button>
+        <el-button @click="cancelBatch">取 消</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -292,12 +334,14 @@
 import {
   addWhiteListForAdmin,
   delWhitelist,
+  downloadTemplate,
   getServerList,
   getWhitelist,
   listWhitelist,
   updateWhitelist
 } from "@/api/mc/whitelist";
 import serverlist from "@/views/server/serverlist/index.vue";
+import {getToken} from "@/utils/auth";
 
 export default {
   name: "Whitelist",
@@ -372,11 +416,21 @@ export default {
       serverOptions: [], // 服务器列表
       serverList: [],
       selectedUserName: "",
-      dialogVisible: false
+      dialogVisible: false,
+      batchApplyOpen: false,
+      batchForm: {},
+      upload: {
+        headers: {
+          Authorization: 'Bearer ' + getToken()
+        },
+        url: '',
+        isUploading: false
+      }
     };
   },
   created() {
     this.getList();
+    this.upload.url = process.env.VUE_APP_BASE_API + '/mc/whitelist/importTemplate';
   },
   methods: {
     /** 查询白名单列表 */
@@ -560,6 +614,51 @@ export default {
     openDialog(userName) {
       this.selectedUserName = userName;
       this.dialogVisible = true;
+    },
+    handleBatchApply() {
+      this.batchApplyOpen = true;
+    },
+    handleFileUploadProgress(event, file) {
+      this.upload.isUploading = true;
+    },
+    handleFileSuccess(response, file) {
+      this.upload.isUploading = false;
+      this.$refs.upload.clearFiles();
+      if (response.code === 200) {
+        this.$modal.msgSuccess(response.msg);
+      } else {
+        this.$modal.msgError(response.msg || "上传失败");
+      }
+      this.batchApplyOpen = false;
+      this.getList();
+    },
+    downloadTemplate() {
+      downloadTemplate().then(response => {
+        const blob = new Blob([response], {type: 'application/vnd.ms-excel'});
+        const link = document.createElement('a');
+        const fileName = '白名单批量申请模板.xlsx';
+        if (window.navigator.msSaveOrOpenBlob) {
+          window.navigator.msSaveOrOpenBlob(blob, fileName);
+        } else {
+          link.style.display = 'none';
+          link.href = window.URL.createObjectURL(blob);
+          link.setAttribute('download', fileName);
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      });
+    },
+    submitBatchForm() {
+      this.$refs.upload.submit();
+    },
+    cancelBatch() {
+      this.batchApplyOpen = false;
+      this.resetBatchForm();
+    },
+    resetBatchForm() {
+      this.batchForm = {};
+      this.$refs.upload.clearFiles();
     }
   },
   watch: {
@@ -571,6 +670,11 @@ export default {
     },
     dialogVisible(newVal) {
       console.log('dialogVisible changed to:', newVal);
+    },
+    batchApplyOpen(newVal) {
+      if (!newVal) {
+        this.resetBatchForm();
+      }
     }
   }
 };

@@ -39,8 +39,8 @@ public class TaskExecution {
 
         try {
             final String result = rconService.sendCommand(executeServer, regular.getCmd(), false);
-            log.info("服务器 [{}] 执行结果：{}", executeServer, result);
             if (StringUtils.isNotEmpty(result)) {
+                log.info("服务器 [{}] 执行结果：{}", executeServer, result);
                 regular.setResult(result);
 
                 // 历史结果
@@ -55,6 +55,8 @@ public class TaskExecution {
                     json.put(DateUtils.getTime(), result);
                 }
                 regular.setHistoryResult(json.toJSONString());
+            } else {
+                log.info("服务器 [{}] 执行成功，但无返回结果", executeServer);
             }
 
             regular.setExecuteCount(regular.getExecuteCount() + 1);

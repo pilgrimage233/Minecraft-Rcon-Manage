@@ -1,6 +1,7 @@
 package cc.endmc.server.controller.permission;
 
 import cc.endmc.common.annotation.AddOrUpdateFilter;
+import cc.endmc.common.annotation.Excel;
 import cc.endmc.common.annotation.Log;
 import cc.endmc.common.core.controller.BaseController;
 import cc.endmc.common.core.domain.AjaxResult;
@@ -9,7 +10,6 @@ import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.enums.BusinessType;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
-import cc.endmc.common.utils.http.HttpUtils;
 import cc.endmc.common.utils.poi.ExcelUtil;
 import cc.endmc.server.async.AsyncManager;
 import cc.endmc.server.common.EmailTemplates;
@@ -26,22 +26,27 @@ import cc.endmc.server.service.permission.IWhitelistInfoService;
 import cc.endmc.server.service.player.IPlayerDetailsService;
 import cc.endmc.server.service.quiz.IWhitelistQuizConfigService;
 import cc.endmc.server.service.quiz.IWhitelistQuizSubmissionService;
+import cc.endmc.server.utils.CodeUtil;
 import cc.endmc.server.utils.MinecraftUUIDUtil;
 import cc.endmc.server.utils.WhitelistUtils;
 import com.alibaba.fastjson2.JSONObject;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.Data;
 import lombok.SneakyThrows;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.io.ClassPathResource;
+import org.springframework.core.io.Resource;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import javax.servlet.http.HttpServletResponse;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.ExecutionException;
@@ -101,7 +106,7 @@ public class WhitelistInfoController extends BaseController {
 
     @SneakyThrows
     @PostMapping("/apply")
-    public AjaxResult apply(@RequestBody WhitelistInfo whitelistInfo, @RequestHeader Map<String, String> header)  {
+    public AjaxResult apply(@RequestBody WhitelistInfo whitelistInfo, @RequestHeader Map<String, String> header) {
         if (whitelistInfo == null || whitelistInfo.getUserName() == null || whitelistInfo.getQqNum() == null) {
             return error("申请信息不能为空!");
         }
@@ -163,28 +168,12 @@ public class WhitelistInfoController extends BaseController {
             return limitResult;
         }
 
-        // 使用QQ号生成验证码
-        String code;
-        try {
-            // 基于QQ号生成固定验证码
-            // 改为1800秒(30分钟)来匹配缓存过期时间
-            String rawKey = whitelistInfo.getQqNum() + "_" + System.currentTimeMillis() / 1000 / 1800;
-            // 使用MD5加密并取前8位作为验证码
-            MessageDigest md = MessageDigest.getInstance("MD5");
-            byte[] bytes = md.digest(rawKey.getBytes(StandardCharsets.UTF_8));
-            StringBuilder sb = new StringBuilder();
-            for (byte b : bytes) {
-                sb.append(String.format("%02x", b));
-            }
-            code = sb.substring(0, 8);
+        final String code = CodeUtil.generateCode(whitelistInfo.getQqNum(), CacheKey.VERIFY_KEY);
 
-            // 检查是否已存在该验证码
-            if (redisCache.hasKey(CacheKey.VERIFY_KEY + code)) {
-                return error("请勿重复提交申请!");
-            }
-        } catch (Exception e) {
-            logger.error("生成验证码失败", e);
-            return error("系统错误,请稍后重试!");
+        if (StringUtils.isEmpty(code)) {
+            return error("验证码生成失败,请稍后再试!");
+        } else if (code != null && code.equals("isExist")) {
+            return error("请勿重复申请！");
         }
 
         // 新增玩家详情
@@ -250,15 +239,23 @@ public class WhitelistInfoController extends BaseController {
         // 检查验证码是否存在（区分来源）
         String webKey = CacheKey.VERIFY_KEY + code;
         String botKey = CacheKey.VERIFY_FOR_BOT_KEY + code;
+        String batchKey = CacheKey.VERIFY_FOR_BATCH_KEY + code;
         String cacheKey = null;
         final boolean isFromBot;
+        final boolean isFromBatch;
 
         if (redisCache.hasKey(webKey)) {
             cacheKey = webKey;
             isFromBot = false;
+            isFromBatch = false;
         } else if (redisCache.hasKey(botKey)) {
             cacheKey = botKey;
             isFromBot = true;
+            isFromBatch = false;
+        } else if (redisCache.hasKey(batchKey)) {
+            cacheKey = batchKey;
+            isFromBot = false;
+            isFromBatch = true;
         } else {
             return error("验证失败,验证码无效!");
         }
@@ -274,7 +271,7 @@ public class WhitelistInfoController extends BaseController {
 
         try {
             // 根据来源处理不同的数据结构
-            if (!isFromBot) {
+            if (!isFromBot && !isFromBatch) {
                 // Web端申请的数据处理
                 Map<String, Object> data = (Map<String, Object>) cacheData;
                 JSONObject whitelistInfoJson = (JSONObject) data.get("whitelistInfo");
@@ -283,17 +280,20 @@ public class WhitelistInfoController extends BaseController {
                 JSONObject detailsJson = (JSONObject) data.get("details");
                 details = detailsJson.toJavaObject(PlayerDetails.class);
             } else {
-                // QQ机器人申请的数据处理
+                // QQ机器人+批量 申请的数据处理
                 whitelistInfo = (WhitelistInfo) cacheData;
 
                 // 为QQ机器人申请创建PlayerDetails
                 details = new PlayerDetails();
                 details.setUserName(whitelistInfo.getUserName());
                 details.setQq(whitelistInfo.getQqNum());
-                details.setCreateBy("BOT::apply::" + whitelistInfo.getUserName());
                 details.setCreateTime(new Date());
                 details.setIdentity(Identity.PLAYER.getValue());
                 details.setGameTime(0L);
+                details.setCreateBy(isFromBatch ?
+                        "BATCH::apply::" + whitelistInfo.getUserName() :
+                        "BOT::apply::" + whitelistInfo.getUserName()
+                );
             }
 
             // 获取IP地址
@@ -334,8 +334,19 @@ public class WhitelistInfoController extends BaseController {
         String uuid = MinecraftUUIDUtil.getPlayerUUID(whitelistInfo.getUserName(), isOnline);
         whitelistInfo.setUserUuid(uuid);
 
+        String source;
         // 设置创建信息
-        whitelistInfo.setCreateBy((isFromBot ? "BOT::apply::" : "WEB::apply::") + whitelistInfo.getUserName());
+        if (isFromBot) {
+            source = "机器人";
+            whitelistInfo.setCreateBy("BOT::apply::" + whitelistInfo.getUserName());
+        } else if (isFromBatch) {
+            source = "批量";
+            whitelistInfo.setCreateBy("BATCH::apply::" + whitelistInfo.getUserName());
+        } else {
+            source = "网页";
+            whitelistInfo.setCreateBy("WEB::apply::" + whitelistInfo.getUserName());
+        }
+
         whitelistInfo.setCreateTime(new Date());
         whitelistInfo.setAddTime(new Date());
         whitelistInfo.setTime(new Date());
@@ -344,35 +355,35 @@ public class WhitelistInfoController extends BaseController {
 
         // 检查是否启用了自动通过功能，并检查答题情况
         boolean autoApproved = false;
-        
+
         // 首先检查答题功能是否开启
         WhitelistQuizConfig quizStatusConfig = new WhitelistQuizConfig();
         quizStatusConfig.setConfigKey(QuestionConfig.STATUS);
         List<WhitelistQuizConfig> statusConfigs = quizConfigService.selectWhitelistQuizConfigList(quizStatusConfig);
-        
+
         // 只有在答题功能开启的情况下才检查自动通过和答题记录
         if (!statusConfigs.isEmpty() && "true".equalsIgnoreCase(statusConfigs.get(0).getConfigValue())) {
             WhitelistQuizConfig autoPassedConfig = new WhitelistQuizConfig();
             autoPassedConfig.setConfigKey(QuestionConfig.AUTO_PASSED);
             List<WhitelistQuizConfig> autoPassedConfigs = quizConfigService.selectWhitelistQuizConfigList(autoPassedConfig);
-            
+
             if (!autoPassedConfigs.isEmpty() && "true".equalsIgnoreCase(autoPassedConfigs.get(0).getConfigValue())) {
                 // 自动通过功能已启用，检查此玩家的答题记录
                 WhitelistQuizSubmission submission = new WhitelistQuizSubmission();
                 submission.setPlayerName(whitelistInfo.getUserName());
                 List<WhitelistQuizSubmission> submissions = quizSubmissionService.selectWhitelistQuizSubmissionList(submission);
-                
+
                 if (submissions != null && !submissions.isEmpty()) {
                     // 找到最新的一次提交
                     WhitelistQuizSubmission latestSubmission = submissions.get(0);
                     for (WhitelistQuizSubmission sub : submissions) {
-                        if (sub.getSubmitTime() != null && 
-                            (latestSubmission.getSubmitTime() == null || 
-                             sub.getSubmitTime().after(latestSubmission.getSubmitTime()))) {
+                        if (sub.getSubmitTime() != null &&
+                                (latestSubmission.getSubmitTime() == null ||
+                                        sub.getSubmitTime().after(latestSubmission.getSubmitTime()))) {
                             latestSubmission = sub;
                         }
                     }
-                    
+
                     // 检查是否通过分数线
                     if (latestSubmission.getPassStatus() != null && latestSubmission.getPassStatus() == 1) {
                         // 已通过分数线，自动审核通过
@@ -380,8 +391,8 @@ public class WhitelistInfoController extends BaseController {
                         whitelistInfo.setReviewUsers("System(Auto)");
                         whitelistInfo.setUpdateTime(new Date());
                         autoApproved = true;
-                        logger.info("用户[{}]的白名单申请已自动通过审核，答题分数：{}", 
-                                   whitelistInfo.getUserName(), latestSubmission.getTotalScore());
+                        logger.info("用户[{}]的白名单申请已自动通过审核，答题分数：{}",
+                                whitelistInfo.getUserName(), latestSubmission.getTotalScore());
                     }
                 }
             }
@@ -408,7 +419,7 @@ public class WhitelistInfoController extends BaseController {
                                     whitelistInfo.getUserName(),
                                     DateUtils.getTime()
                             ).replace("正在审核中", "已自动审核通过");
-                            
+
                             pushEmail.push(whitelistInfo.getQqNum() + EmailTemplates.QQ_EMAIL,
                                     EmailTemplates.TITLE,
                                     emailContent);
@@ -435,13 +446,11 @@ public class WhitelistInfoController extends BaseController {
                     try {
                         if (finalAutoApproved) {
                             pushEmail.push(ADMIN_EMAIL, EmailTemplates.TITLE,
-                                    "用户[" + whitelistInfo.getUserName() + "]通过" +
-                                            (isFromBot ? "QQ机器人" : "网页") +
+                                    "用户[" + whitelistInfo.getUserName() + "]通过" + source +
                                             "提交了白名单申请,并已被系统自动审核通过!");
                         } else {
                             pushEmail.push(ADMIN_EMAIL, EmailTemplates.TITLE,
-                                    "用户[" + whitelistInfo.getUserName() + "]通过" +
-                                            (isFromBot ? "QQ机器人" : "网页") +
+                                    "用户[" + whitelistInfo.getUserName() + "]通过" + source +
                                             "提交了白名单申请,请尽快审核!");
                         }
                     } catch (ExecutionException | InterruptedException e) {
@@ -455,6 +464,30 @@ public class WhitelistInfoController extends BaseController {
         } else {
             return error(EmailTemplates.APPLY_ERROR);
         }
+    }
+
+    /**
+     * 批量申请白名单
+     *
+     * @param whitelistInfo 白名单信息
+     * @return 结果
+     */
+    @SneakyThrows
+    private boolean batchApply(WhitelistInfo whitelistInfo) {
+        final String code = CodeUtil.generateCode(whitelistInfo.getQqNum(), CacheKey.VERIFY_FOR_BATCH_KEY);
+        if (StringUtils.isEmpty(code)) {
+            return false;
+        } else if (code != null && code.equals("isExist")) {
+            return false;
+        }
+        redisCache.setCacheObject(CacheKey.VERIFY_FOR_BATCH_KEY + code, whitelistInfo, 30, TimeUnit.MINUTES);
+
+        String url = appUrl + "/#/verify?code=" + code;
+
+        // 发送邮件通知
+        emailService.push(whitelistInfo.getQqNum() + EmailTemplates.QQ_EMAIL,
+                EmailTemplates.EMAIL_VERIFY_TITLE, EmailTemplates.getEmailVerifyTemplate(url));
+        return true;
     }
 
     /**
@@ -576,4 +609,149 @@ public class WhitelistInfoController extends BaseController {
         return success(whitelistInfoService.check(params));
     }
 
+    /**
+     * 批量导入白名单数据
+     */
+    @PostMapping("/importTemplate")
+    public AjaxResult importTemplate(MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return error("导入文件不能为空!");
+        }
+
+        if (!Objects.requireNonNull(file.getOriginalFilename()).endsWith(".xlsx")) {
+            return error("导入文件格式不正确,请使用xlsx格式的文件!");
+        }
+
+        // 读取Excel文件
+        List<WhitelistInfo> whitelistInfos = new ArrayList<>();
+        try {
+            final InputStream inputStream = file.getInputStream();
+            ExcelUtil<WhitelistImportTemplate> util = new ExcelUtil<>(WhitelistImportTemplate.class);
+            final List<WhitelistImportTemplate> importList = util.importExcel(inputStream);
+
+            if (importList == null || importList.isEmpty()) {
+                return error("导入文件数据为空!");
+            }
+
+            for (WhitelistImportTemplate template : importList) {
+                boolean flag = false;
+                final String qq = template.getQqNum();
+                final String userName = template.getUserName();
+                final String isOnline = template.getIsOnline();
+                final String remark = template.getRemark();
+
+                // 正则校验数据合法性
+                // 游戏ID正则匹配
+                Pattern p = Pattern.compile("[a-zA-Z0-9_]{1,35}");
+                if (!p.matcher(userName).matches()) {
+                    flag = true;
+                    logger.info("游戏ID不合法:{}", userName);
+                }
+
+                // QQ号正则匹配
+                Pattern p2 = Pattern.compile("[0-9]{5,11}");
+                if (!p2.matcher(qq).matches()) {
+                    flag = true;
+                    logger.info("QQ号不合法:{}", qq);
+                }
+
+                if (!flag) {
+                    final WhitelistInfo whitelistInfo = new WhitelistInfo();
+                    whitelistInfo.setQqNum(qq);
+                    whitelistInfo.setUserName(userName);
+                    whitelistInfo.setRemark(remark);
+                    if (StringUtils.isNotBlank(isOnline)) {
+                        if (isOnline.equals("是")) {
+                            whitelistInfo.setOnlineFlag(1L);
+                        } else if (isOnline.equals("否")) {
+                            whitelistInfo.setOnlineFlag(0L);
+                        }
+                    }
+                    whitelistInfos.add(whitelistInfo);
+                }
+            }
+
+            // 异步申请
+            TimerTask timerTask = new TimerTask() {
+                @Override
+                public void run() {
+                    try {
+                        for (WhitelistInfo whitelistInfo : whitelistInfos) {
+                            if (whitelistInfos.size() > 5) {
+                                Thread.sleep(500); // 每次申请间隔500ms
+                            }
+                            // apply(whitelistInfo);
+                            if (!batchApply(whitelistInfo)) {
+                                logger.error("批量申请白名单失败,userName:{}", whitelistInfo.getUserName());
+                            }
+                        }
+                    } catch (Exception e) {
+                        logger.error("批量导入白名单失败", e);
+                    }
+                }
+            };
+            asyncManager.execute(timerTask);
+        } catch (IOException e) {
+            logger.error("导入文件读取失败", e);
+            return error("导入文件读取失败!");
+        }
+        return success("操作成功,共导入:" + whitelistInfos.size() + "条数据!");
+    }
+
+    /**
+     * 下载白名单Excel模板
+     */
+    @GetMapping("/downloadTemplate")
+    public void downloadTemplate(HttpServletResponse response) {
+        try {
+            // 获取模板文件路径
+            String templatePath = "template/template.xlsx";
+            // 获取模板文件
+            Resource resource = new ClassPathResource(templatePath);
+            // 获取文件名
+            String fileName = "白名单模板.xlsx";
+
+            // 设置响应头
+            response.setContentType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            response.setHeader("Content-Disposition", "attachment;filename=" +
+                    java.net.URLEncoder.encode(fileName, "UTF-8"));
+
+            // 将文件写入响应流
+            try (InputStream inputStream = resource.getInputStream();
+                 OutputStream outputStream = response.getOutputStream()) {
+                byte[] buffer = new byte[1024];
+                int bytesRead;
+                while ((bytesRead = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, bytesRead);
+                }
+                outputStream.flush();
+            }
+        } catch (Exception e) {
+            logger.error("下载模板失败", e);
+            try {
+                response.setContentType("application/json;charset=UTF-8");
+                response.getWriter().write("{\"code\":500,\"msg\":\"下载模板失败\"}");
+            } catch (IOException ex) {
+                logger.error("写入错误响应失败", ex);
+            }
+        }
+    }
+
+    /**
+     * Excel导入模板对象
+     */
+    @Data
+    public static class WhitelistImportTemplate {
+        @Excel(name = "QQ号")
+        private String qqNum;
+
+        @Excel(name = "游戏昵称")
+        private String userName;
+
+        @Excel(name = "是否正版")
+        private String isOnline;
+
+        @Excel(name = "备注")
+        private String remark;
+    }
 }
