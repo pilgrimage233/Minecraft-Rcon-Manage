@@ -369,7 +369,7 @@ rcon.port=25575
 ├── endless-quartz       // 定时任务
 ├── endless-system       // 系统管理
 ├── endless-ui           // 前端UI
-└── mc-server            // Minecraft服务器管理模块
+└── endless-server       // Minecraft服务器管理模块
 ```
 
 ## 贡献指南

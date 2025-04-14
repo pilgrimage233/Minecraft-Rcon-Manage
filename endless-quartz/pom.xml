@@ -52,7 +52,7 @@
 
         <dependency>
             <groupId>cc.endmc</groupId>
-            <artifactId>mc-server</artifactId>
+            <artifactId>endless-server</artifactId>
             <version>3.8.7</version>
         </dependency>
 

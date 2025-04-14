@@ -17,7 +17,7 @@ echo  [4] Check status of %AppName%
 echo  [5] Exit
 echo.
 
-set /p ID=Please select an option: 
+set /p ID=Please select an option:
 if "%ID%"=="1" goto start
 if "%ID%"=="2" goto stop
 if "%ID%"=="3" goto restart

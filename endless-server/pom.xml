@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <artifactId>endless</artifactId>
+        <groupId>cc.endmc</groupId>
+        <version>3.8.7</version>
+    </parent>
+
+    <description>
+        MC服务器管理模块
+    </description>
+    <packaging>jar</packaging>
+    <artifactId>endless-server</artifactId>
+    <dependencies>
+        <dependency>
+            <groupId>cc.endmc</groupId>
+            <artifactId>endless-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cc.endmc</groupId>
+            <artifactId>endless-system</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cc.endmc</groupId>
+            <artifactId>endless-framework</artifactId>
+        </dependency>
+        <!-- Java WebSocket -->
+        <dependency>
+            <groupId>org.java-websocket</groupId>
+            <artifactId>Java-WebSocket</artifactId>
+            <version>1.5.3</version>
+        </dependency>
+
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <!--  <dependency>
+              <groupId>cn.hutool</groupId>
+              <artifactId>hutool-all</artifactId>
+              <version>5.8.18</version>
+          </dependency>-->
+
+        <!--阿里云异步邮件推送服务-->
+        <dependency>
+            <groupId>com.aliyun</groupId>
+            <artifactId>alibabacloud-dm20151123</artifactId>
+            <version>1.0.17</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.sun.mail</groupId>
+            <artifactId>javax.mail</artifactId>
+            <version>1.6.2</version>
+        </dependency>
+        <!--  <dependency>
+              <groupId>com.github.t9t.minecraft-rcon-client</groupId>
+              <artifactId>minecraft-rcon-client</artifactId>
+              <version>1.0.0</version>
+          </dependency>
+  -->
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>32.0.1-android</version>
+        </dependency>
+
+        <!-- 定时任务 -->
+        <dependency>
+            <groupId>org.quartz-scheduler</groupId>
+            <artifactId>quartz</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.mchange</groupId>
+                    <artifactId>c3p0</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- SLF4J API -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+
+    </dependencies>
+
+
+</project>

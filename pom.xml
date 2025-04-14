@@ -251,7 +251,7 @@
         <module>endless-quartz</module>
         <module>endless-generator</module>
         <module>endless-common</module>
-        <module>mc-server</module>
+        <module>endless-server</module>
     </modules>
     <packaging>pom</packaging>
 
