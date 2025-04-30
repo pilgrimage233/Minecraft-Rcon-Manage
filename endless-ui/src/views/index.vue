@@ -1,5 +1,49 @@
 <template>
   <div v-loading.fullscreen.lock="loading" class="dashboard-container" element-loading-text="数据加载中...">
+    <!-- 版本更新提示 -->
+    <el-alert
+      v-if="hasUpdate"
+      :closable="true"
+      :title="null"
+      class="version-alert"
+      show-icon
+      type="info"
+    >
+      <div class="update-content">
+        <div class="version-header">
+          <i class="el-icon-refresh"></i>
+          <span class="update-title">发现新版本可用！</span>
+        </div>
+        <div class="version-info">
+          <div class="version-row">
+            <span class="version-label">当前版本:</span>
+            <span class="version-value">{{ currentVersion }}</span>
+          </div>
+          <div class="version-row">
+            <span class="version-label">最新版本:</span>
+            <span class="version-value latest">{{ latestVersion }}</span>
+          </div>
+        </div>
+        <div v-if="releaseNotes" class="update-notes">
+          <div class="notes-title">
+            <i class="el-icon-document"></i>
+            <span>更新内容:</span>
+          </div>
+          <div class="notes-content">{{ releaseNotes }}</div>
+        </div>
+        <div class="update-actions">
+          <el-button
+            icon="el-icon-download"
+            size="small"
+            type="primary"
+            @click="goToDownload"
+          >
+            立即更新
+          </el-button>
+        </div>
+      </div>
+    </el-alert>
+
     <el-row :gutter="15">
       <!-- 统计数据卡片 -->
       <el-col v-for="(item, index) in statsCards" :key="index" :lg="4" :md="8" :sm="12" :xs="12">
@@ -83,6 +127,7 @@
 
 <script>
 import {getAggregateData} from '@/api/dashboard'
+import {mapActions, mapState} from 'vuex'
 
 export default {
   name: 'Index',
@@ -99,6 +144,13 @@ export default {
     }
   },
   computed: {
+    ...mapState('version', [
+      'currentVersion',
+      'latestVersion',
+      'hasUpdate',
+      'releaseNotes',
+      'downloadUrl'
+    ]),
     statsCards() {
       return [
         {
@@ -142,8 +194,10 @@ export default {
   },
   created() {
     this.getStats()
+    this.checkUpdate()
   },
   methods: {
+    ...mapActions('version', ['checkUpdate']),
     // 获取统计数据
     async getStats() {
       this.loading = true
@@ -169,6 +223,12 @@ export default {
       const hours = Math.floor(minutes / 60)
       const remainingMinutes = minutes % 60
       return `${hours}小时${remainingMinutes}分钟`
+    },
+    // 跳转到下载页面
+    goToDownload() {
+      if (this.downloadUrl) {
+        window.open(this.downloadUrl, '_blank')
+      }
     }
   }
 }
@@ -383,6 +443,115 @@ export default {
 
     .path {
       stroke: #409EFF;
+    }
+  }
+
+  .version-alert {
+    margin-bottom: 20px;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #e6e6e6;
+    box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+
+    ::v-deep .el-alert {
+      padding: 0;
+    }
+
+    ::v-deep .el-alert__content {
+      padding: 0;
+    }
+
+    .update-content {
+      padding: 16px 20px;
+    }
+
+    .version-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 16px;
+
+      i {
+        font-size: 20px;
+        color: #409EFF;
+        margin-right: 8px;
+      }
+
+      .update-title {
+        font-size: 16px;
+        font-weight: 600;
+        color: #303133;
+      }
+    }
+
+    .version-info {
+      background: #f8f9fa;
+      border-radius: 6px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+
+      .version-row {
+        display: flex;
+        align-items: center;
+        margin: 4px 0;
+
+        .version-label {
+          width: 80px;
+          color: #606266;
+          font-size: 14px;
+        }
+
+        .version-value {
+          font-size: 14px;
+          color: #303133;
+          font-weight: 500;
+
+          &.latest {
+            color: #67c23a;
+          }
+        }
+      }
+    }
+
+    .update-notes {
+      margin: 16px 0;
+
+      .notes-title {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+
+        i {
+          font-size: 16px;
+          color: #909399;
+          margin-right: 6px;
+        }
+
+        span {
+          font-size: 14px;
+          font-weight: 600;
+          color: #303133;
+        }
+      }
+
+      .notes-content {
+        background: #f8f9fa;
+        border-radius: 6px;
+        padding: 12px 16px;
+        font-size: 14px;
+        color: #606266;
+        line-height: 1.6;
+        white-space: pre-line;
+      }
+    }
+
+    .update-actions {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+
+      .el-button {
+        padding: 8px 20px;
+      }
     }
   }
 }
