@@ -1,9 +1,11 @@
 package cc.endmc.server.ws;
 
+import cc.endmc.common.constant.Constants;
 import cc.endmc.common.core.redis.RedisCache;
+import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.framework.web.domain.Server;
-import cc.endmc.framework.web.domain.server.SysFile;
+import cc.endmc.server.annotation.BotCommand;
 import cc.endmc.server.common.EmailTemplates;
 import cc.endmc.server.common.MapCache;
 import cc.endmc.server.common.constant.BotApi;
@@ -12,15 +14,21 @@ import cc.endmc.server.common.rconclient.RconClient;
 import cc.endmc.server.common.service.EmailService;
 import cc.endmc.server.common.service.RconService;
 import cc.endmc.server.domain.bot.QqBotConfig;
+import cc.endmc.server.domain.bot.QqBotLog;
 import cc.endmc.server.domain.bot.QqBotManager;
 import cc.endmc.server.domain.bot.QqBotManagerGroup;
 import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.service.bot.IQqBotConfigService;
+import cc.endmc.server.service.bot.IQqBotLogService;
 import cc.endmc.server.service.bot.IQqBotManagerService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
 import cc.endmc.server.service.server.IServerInfoService;
 import cc.endmc.server.utils.CodeUtil;
+import cc.endmc.server.utils.CommandUtil;
+import cc.endmc.server.utils.HtmlUtils;
+import cc.endmc.server.utils.IPUtils;
+import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpUtil;
 import com.alibaba.fastjson2.JSON;
@@ -31,7 +39,11 @@ import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.context.annotation.Scope;
+import org.springframework.core.env.Environment;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PreDestroy;
@@ -39,9 +51,14 @@ import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
 import javax.naming.directory.DirContext;
 import javax.naming.directory.InitialDirContext;
+import javax.net.ssl.SSLSession;
+import javax.net.ssl.SSLSocket;
+import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
 import java.net.*;
 import java.nio.charset.StandardCharsets;
+import java.security.cert.Certificate;
+import java.security.cert.X509Certificate;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -49,21 +66,25 @@ import java.util.concurrent.*;
  * QQ机器人WebSocket客户端
  * 用于与QQ机器人服务器建立长连接，实时接收消息
  */
+@Lazy
 @Slf4j
 @Component
-@Scope("prototype")
+@Scope(value = ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class BotClient {
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private final RedisCache redisCache;
-    private final EmailService emailService;
     private final IWhitelistInfoService whitelistInfoService;
     private final IServerInfoService serverInfoService;
-    private final RconService rconService;
     private final IQqBotConfigService qqBotConfigService;
     private final IQqBotManagerService qqBotManagerService;
-    private final String appUrl;
+    private final IQqBotLogService qqBotLogService;
     private ScheduledFuture<?> reconnectTask;
+    private final Environment env;
+    private final RedisCache redisCache;
+    private final EmailService emailService;
+    private final RconService rconService;
+    private final String appUrl;
+    private final BotManager botManager;
     private volatile boolean isShuttingDown = false;
     /**
      * -- GETTER --
@@ -80,14 +101,17 @@ public class BotClient {
      * 初始化依赖
      */
     @Autowired
-    public BotClient(RedisCache redisCache,
-                     EmailService emailService,
-                     IWhitelistInfoService whitelistInfoService,
-                     IServerInfoService serverInfoService,
-                     RconService rconService,
-                     IQqBotConfigService qqBotConfigService,
-                     IQqBotManagerService qqBotManagerService,
-                     @Value("${app-url}") String appUrl) {
+    public BotClient(
+            IWhitelistInfoService whitelistInfoService,
+            IServerInfoService serverInfoService,
+            IQqBotConfigService qqBotConfigService,
+            IQqBotManagerService qqBotManagerService,
+            IQqBotLogService qqBotLogService,
+            Environment env,
+            RedisCache redisCache,
+            EmailService emailService,
+            RconService rconService,
+            @Value("${app-url}") String appUrl, BotManager botManager) {
         this.redisCache = redisCache;
         this.emailService = emailService;
         this.whitelistInfoService = whitelistInfoService;
@@ -95,9 +119,12 @@ public class BotClient {
         this.rconService = rconService;
         this.qqBotConfigService = qqBotConfigService;
         this.qqBotManagerService = qqBotManagerService;
+        this.qqBotLogService = qqBotLogService;
         this.appUrl = appUrl;
+        this.env = env;
 
         log.info("BotClient 实例已创建，依赖注入完成");
+        this.botManager = botManager;
     }
 
     /**
@@ -107,27 +134,30 @@ public class BotClient {
      * @param config 机器人配置
      */
     public void init(QqBotConfig config) {
+        this.config = config;
+        final String httpUrl = config.getHttpUrl();
+        final String wsUrl = config.getWsUrl();
+        log.info("初始化机器人客户端，配置ID: {}", config.getId());
+        // logSystemEvent("init", String.format("初始化机器人客户端，配置ID: %d", config.getId()));
+
+        // 关闭现有的WebSocket连接
+        if (wsClient != null) {
+            wsClient.close();
+        }
+
+        // 检查URL格式
+        if (!wsUrl.startsWith("ws://")) {
+            config.setWsUrl(Constants.WS + config.getWsUrl());
+        }
+        if (!HttpUtil.isHttp(httpUrl) || !HttpUtil.isHttps(httpUrl)) {
+            config.setHttpUrl(Constants.HTTP + config.getHttpUrl());
+        }
+
+        // 创建新的WebSocket连接
         try {
-            this.config = config;
-            if (config == null) {
-                log.error("机器人配置为空");
-                return;
-            }
-
-            // 如果已存在连接，先关闭
-            if (wsClient != null) {
-                try {
-                    wsClient.close();
-                } catch (Exception e) {
-                    log.error("关闭旧WebSocket连接时发生错误: {}", e.getMessage());
-                }
-            }
-
-            // 创建新的WebSocket连接
             Map<String, String> headers = new HashMap<>();
             headers.put("Authorization", "Bearer " + config.getToken());
-
-            wsClient = new WebSocketClient(URI.create(config.getWsUrl()), headers) {
+            wsClient = new WebSocketClient(new URI(config.getWsUrl()), headers) {
                 @Override
                 public void onOpen(ServerHandshake handshakedata) {
                     BotClient.this.onOpen(handshakedata);
@@ -149,11 +179,15 @@ public class BotClient {
                 }
             };
 
+            // 设置连接超时
+            wsClient.setConnectionLostTimeout(30);
+
+            // 连接WebSocket服务器
             wsClient.connect();
-            log.info("QQ机器人WebSocket客户端已初始化，连接地址: {}", config.getWsUrl());
+            log.info("WebSocket连接已启动，URL: {}", config.getWsUrl());
         } catch (Exception e) {
-            log.error("QQ机器人WebSocket客户端初始化失败: {}", e.getMessage());
-            scheduleReconnect();
+            log.error("初始化WebSocket连接失败: {}", e.getMessage());
+            // logError("init", e.getMessage(), e.getStackTrace().toString());
         }
     }
 
@@ -163,40 +197,42 @@ public class BotClient {
      */
     @PreDestroy
     public void destroy() {
-        try {
-            isShuttingDown = true;
-            log.info("正在关闭QQ机器人WebSocket客户端...");
+        log.info("正在关闭机器人客户端...");
+        // logSystemEvent("destroy", "正在关闭机器人客户端");
 
-            // 取消重连任务
-            if (reconnectTask != null) {
-                reconnectTask.cancel(true);
-                reconnectTask = null;
-            }
+        isShuttingDown = true;
 
-            // 关闭调度器
-            try {
-                scheduler.shutdown();
-                if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
-                    scheduler.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                scheduler.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
-
-            // 关闭WebSocket连接
-            if (wsClient != null) {
-                try {
-                    wsClient.close();
-                } catch (Exception e) {
-                    log.error("关闭WebSocket连接时发生错误: {}", e.getMessage());
-                }
-            }
-
-            log.info("QQ机器人WebSocket客户端已关闭");
-        } catch (Exception e) {
-            log.error("关闭QQ机器人WebSocket客户端时发生错误: {}", e.getMessage());
+        // 取消重连任务
+        if (reconnectTask != null) {
+            reconnectTask.cancel(true);
+            reconnectTask = null;
         }
+
+        // 关闭WebSocket连接
+        if (wsClient != null) {
+            try {
+                wsClient.close();
+                log.info("WebSocket连接已关闭");
+            } catch (Exception e) {
+                log.error("关闭WebSocket连接时发生错误: {}", e.getMessage());
+                logError("destroy", e.getMessage(), e.getStackTrace().toString());
+            }
+        }
+
+        // 关闭调度器
+        try {
+            scheduler.shutdown();
+            if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                scheduler.shutdownNow();
+            }
+            log.info("调度器已关闭");
+        } catch (InterruptedException e) {
+            scheduler.shutdownNow();
+            log.error("关闭调度器时发生错误: {}", e.getMessage());
+            logError("destroy", e.getMessage(), e.getStackTrace().toString());
+        }
+
+        log.info("机器人客户端已关闭");
     }
 
     /**
@@ -204,6 +240,7 @@ public class BotClient {
      */
     public void onOpen(ServerHandshake handshakedata) {
         log.info("WebSocket连接已建立");
+        logSystemEvent("onOpen", "WebSocket连接已建立");
     }
 
     /**
@@ -213,9 +250,30 @@ public class BotClient {
         try {
             log.debug("收到消息: {}", message);
             QQMessage qqMessage = JSON.parseObject(message, QQMessage.class);
+
+            // 记录接收到的消息
+            if (qqMessage != null && qqMessage.getMessageType() != null) {
+                String senderId = qqMessage.getUserId() != null ? qqMessage.getUserId().toString() : null;
+                String senderType = "user";
+                String receiverId = qqMessage.getGroupId() != null ? qqMessage.getGroupId().toString() : null;
+                String receiverType = "group";
+                String messageId = qqMessage.getMessageId() != null ? qqMessage.getMessageId().toString() : null;
+
+                logReceivedMessage(
+                        messageId,
+                        senderId,
+                        senderType,
+                        receiverId,
+                        receiverType,
+                        qqMessage.getMessage(),
+                        qqMessage.getMessageType()
+                );
+            }
+
             handleMessage(qqMessage);
         } catch (Exception e) {
             log.error("处理WebSocket消息时发生错误: {}", e.getMessage());
+            logError("onMessage", e.getMessage(), e.getStackTrace().toString());
         }
     }
 
@@ -223,20 +281,20 @@ public class BotClient {
      * WebSocket连接关闭时的回调
      */
     public void onClose(int code, String reason, boolean remote) {
-        log.info("WebSocket连接已关闭: code={}, reason={}, remote={}", code, reason, remote);
+        log.info("WebSocket连接已关闭，代码: {}，原因: {}，远程关闭: {}", code, reason, remote);
+        logSystemEvent("onClose", String.format("WebSocket连接已关闭，代码: %d，原因: %s，远程关闭: %b", code, reason, remote));
+
         if (!isShuttingDown) {
             scheduleReconnect();
         }
     }
 
     /**
-     * WebSocket发生错误时的回调
+     * WebSocket连接发生错误时的回调
      */
     public void onError(Exception ex) {
-        log.error("WebSocket发生错误: {}", ex.getMessage());
-        if (!isShuttingDown) {
-            scheduleReconnect();
-        }
+        log.error("WebSocket连接发生错误: {}", ex.getMessage());
+        logError("onError", ex.getMessage(), ex.getStackTrace().toString());
     }
 
     /**
@@ -312,74 +370,70 @@ public class BotClient {
      *
      * @param message QQ消息对象
      */
-    private void handleMessage(QQMessage message) {
-        // 处理消息的具体逻辑
-        if ("group".equals(message.getMessageType()) &&
-                config.getGroupIdList().contains(message.getGroupId())) {
-            log.info("收到QQ群[{}]消息 - 发送者: {}, 内容: {}",
-                    message.getGroupId(),
-                    message.getSender().getUserId(),
-                    message.getMessage());
+    public void handleMessage(QQMessage message) {
+        final BotClient bot = botManager.getBot(config.getId());
+        try {
+            // 处理消息的具体逻辑
+            if ("group".equals(message.getMessageType()) &&
+                    message.getGroupId() != null &&
+                    config.getGroupIds() != null &&
+                    config.getGroupIds().contains(message.getGroupId().toString())) {
 
-            String msg = message.getMessage().trim();
-            String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
-
-            // 优先处理退群消息
-            if (message.getNoticeType() != null && message.getNoticeType().startsWith("group")) {
-                if (message.getNoticeType().equals("group_decrease")) {
-                    handleGroupDecrease(message);
+                // 检查是否是命令
+                String command = parseCommand(message.getMessage());
+                if (command != null) {
+                    // 根据命令前缀路由到对应的处理方法
+                    if (command.startsWith("help")) {
+                        bot.handleHelpCommand(message);
+                    } else if (command.startsWith("白名单申请")) {
+                        bot.handleWhitelistApplication(message);
+                    } else if (command.startsWith("查询白名单")) {
+                        bot.handleWhitelistQuery(message);
+                    } else if (command.startsWith("查询玩家")) {
+                        bot.handlePlayerQuery(message);
+                    } else if (command.startsWith("查询在线")) {
+                        bot.handleOnlineQuery(message);
+                    } else if (command.startsWith("查询服务器")) {
+                        bot.handleServerList(message);
+                    } else if (command.startsWith("test")) {
+                        String[] parts = command.split("\\s+");
+                        if (parts.length > 1 && (parts[1].startsWith("http") || parts[1].startsWith("https"))) {
+                            bot.testHttp(message);
+                        } else {
+                            bot.testServer(message);
+                        }
+                    } else if (command.startsWith("过审") || command.startsWith("拒审")) {
+                        bot.handleWhitelistReview(message);
+                    } else if (command.startsWith("封禁") || command.startsWith("解封")) {
+                        bot.handleBanOperation(message);
+                    } else if (command.startsWith("发送指令")) {
+                        bot.handleRconCommand(message);
+                    } else if (command.startsWith("运行状态")) {
+                        bot.handleHostStatus(message);
+                    } else if (command.startsWith("刷新连接")) {
+                        bot.handleRefreshConnection(message);
+                    } else if (command.startsWith("测试连接")) {
+                        bot.handleTestConnection(message);
+                    } else if (command.startsWith("添加管理")) {
+                        bot.handleAddManager(message);
+                    } else if (command.startsWith("添加超管")) {
+                        bot.handleAddSuperManager(message);
+                    } else {
+                        // 未知命令
+                        sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 未知命令，请使用 " + getCommandPrefix() + "help 查看可用命令。");
+                    }
                 }
-                return;
             }
+        } catch (Exception e) {
+            // 记录错误信息
+            log.error("处理消息时发生错误: {}", e.getMessage(), e);
+            logError("handleMessage", e.getMessage(), getStackTraceAsString(e));
 
-            // 解析命令
-            String command = parseCommand(msg);
-            message.setMessage(command);
-            if (StringUtils.isEmpty(command)) {
-                return;
-            }
-
-            // 处理help命令
-            if (command.startsWith("help")) {
-                handleHelpCommand(message);
-                return;
-            }
-
-            // 普通用户命令
-            if (command.startsWith("白名单申请")) {
-                handleWhitelistApplication(message);
-            } else if (command.startsWith("查询白名单")) {
-                handleWhitelistQuery(message);
-            } else if (command.startsWith("查询玩家")) {
-                handlePlayerQuery(message);
-            } else if (command.startsWith("查询在线")) {
-                handleOnlineQuery(message);
-            } else if (command.startsWith("查询服务器")) {
-                handleServerList(message);
-            } else if (command.startsWith("test")) {
-                testServer(message);
-            }
-
-            // 管理员命令
-            if (command.startsWith("过审") || command.startsWith("拒审")) {
-                handleWhitelistReview(message);
-            } else if (command.startsWith("封禁") || command.startsWith("解封")) {
-                handleBanOperation(message);
-            } else if (command.startsWith("发送指令")) {
-                handleRconCommand(message);
-            } else if (command.startsWith("运行状态")) {
-                handleHostStatus(message);
-            } else if (command.startsWith("刷新连接")) {
-                handleRefreshConnection(message);
-            } else if (command.startsWith("测试连接")) {
-                handleTestConnection(message);
-            }
-
-            // 超管命令
-            if (command.startsWith("添加管理")) {
-                handleAddManager(message);
-            } else if (command.startsWith("添加超管")) {
-                handleAddSuperManager(message);
+            // 发送错误消息给用户
+            try {
+                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 处理命令时发生错误，请稍后重试。");
+            } catch (Exception ex) {
+                log.error("发送错误消息失败: {}", ex.getMessage(), ex);
             }
         }
     }
@@ -389,7 +443,8 @@ public class BotClient {
      *
      * @param message QQ消息对象
      */
-    private void handleServerList(QQMessage message) {
+    @BotCommand(description = "查询服务器列表", permissionLevel = 0)
+    public void handleServerList(QQMessage message) {
         try {
             String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
 
@@ -471,7 +526,8 @@ public class BotClient {
      *
      * @param message QQ消息对象
      */
-    private void handleHelpCommand(QQMessage message) {
+    @BotCommand(description = "显示帮助信息", permissionLevel = 0)
+    public void handleHelpCommand(QQMessage message) {
         String prefix = getCommandPrefix();
         StringBuilder help = new StringBuilder();
         help.append("[CQ:at,qq=").append(message.getSender().getUserId()).append("] 可用命令列表：\n\n");
@@ -484,7 +540,9 @@ public class BotClient {
         help.append(prefix).append("查询玩家 <玩家ID> - 查询指定玩家信息\n");
         help.append(prefix).append("查询在线 - 查询所有服务器在线玩家\n");
         help.append(prefix).append("查询服务器 [全部]/[%模糊匹配] - 查询服务器列表，默认只显示在线服务器\n");
-        help.append(prefix).append("test <IP[:端口]> - 测试指定Minecraft服务器的通断，默认端口25565\n\n");
+        help.append(prefix).append("test <IP[:端口]> - 测试指定Minecraft服务器的通断，默认端口25565\n");
+        help.append(prefix).append("test <http://example.com[:port]> - 测试HTTP服务器的通断，默认端口80\n");
+        help.append(prefix).append("test <https://example.com[:port]> - 测试HTTPS服务器的通断，默认端口443\n\n");
 
         // 管理员命令
         List<QqBotManager> managers = config.selectManagerForThisGroup(message.getGroupId(), message.getUserId());
@@ -500,7 +558,7 @@ public class BotClient {
             help.append(prefix).append("测试连接 [服务器ID] - 测试服务器的RCON连接，不填服务器ID默认测试所有服务器\n");
 
             // 超级管理员命令
-            if (!managers.isEmpty() && managers.get(0).getPermissionType() == 0) {
+            if (managers.get(0).getPermissionType() == 0) {
                 help.append("\n超级管理员命令：\n");
                 help.append(prefix).append("添加管理 <QQ号> [群号] - 添加普通管理员，不填群号默认为当前群\n");
                 help.append(prefix).append("添加超管 <QQ号> [群号] - 添加超级管理员，不填群号默认为当前群\n");
@@ -511,11 +569,13 @@ public class BotClient {
     }
 
     /**
-     * 退群相关处理
+     * 处理群成员减少通知
+     * 当用户退群时，自动移除用户白名单，并发送通知
      *
-     * @param message
+     * @param message QQ消息对象
      */
-    private void handleGroupDecrease(QQMessage message) {
+    @BotCommand(description = "处理群退事件", permissionLevel = 0)
+    public void handleGroupDecrease(QQMessage message) {
         if (config.getGroupIdList().contains(message.getGroupId())) {
             log.info("QQ群[{}]有用户退群 - 用户: {}", message.getGroupId(), message.getUserId());
             // 退群用户的QQ号
@@ -559,7 +619,8 @@ public class BotClient {
      *
      * @param message QQ消息对象
      */
-    private void handleWhitelistQuery(QQMessage message) {
+    @BotCommand(description = "查询自己的白名单状态", permissionLevel = 0)
+    public void handleWhitelistQuery(QQMessage message) {
         try {
             String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
 
@@ -627,7 +688,13 @@ public class BotClient {
         }
     }
 
-    private void handleWhitelistApplication(QQMessage message) {
+    /**
+     * 处理白名单申请请求
+     *
+     * @param message QQ消息对象
+     */
+    @BotCommand(description = "申请白名单", permissionLevel = 0)
+    public void handleWhitelistApplication(QQMessage message) {
         try {
             // 解析消息内容
             String[] parts = message.getMessage().split("\\s+");
@@ -672,7 +739,7 @@ public class BotClient {
         whitelistInfo.setQqNum(String.valueOf(userId));
         // 查询是否已存在该QQ号的申请
         final List<WhitelistInfo> whitelistInfos = whitelistInfoService.selectWhitelistInfoList(whitelistInfo);
-        if (whitelistInfos.size() > 0) {
+        if (!whitelistInfos.isEmpty()) {
             sendMessage(message, base + "您已提交过申请，请勿重复提交！");
             return;
         }
@@ -717,7 +784,7 @@ public class BotClient {
     /**
      * 私有化方法,用于程序内部机器人申请白名单
      *
-     * @param whitelistInfo
+     * @param whitelistInfo 白名单信息
      * @return Map
      */
     public Map<String, Object> applyForBot(WhitelistInfo whitelistInfo) {
@@ -767,9 +834,40 @@ public class BotClient {
                     .body(jsonObject.toJSONString())
                     .execute();
             log.info("发送消息结果: {}", response.body());
+
+            // 记录发送的消息
+            String senderId = config.getBotQq();
+            String senderType = "bot";
+            String receiverId = message.getGroupId() != null ? message.getGroupId().toString() : null;
+            String receiverType = "group";
+
+            // 从响应中获取消息ID
+            String messageId = null;
+            try {
+                JSONObject responseJson = JSON.parseObject(response.body());
+                if (responseJson != null && responseJson.containsKey("data")) {
+                    JSONObject data = responseJson.getJSONObject("data");
+                    if (data != null && data.containsKey("message_id")) {
+                        messageId = data.getString("message_id");
+                    }
+                }
+            } catch (Exception e) {
+                log.warn("解析消息ID失败: {}", e.getMessage());
+            }
+
+            logSentMessage(
+                    messageId,
+                    senderId,
+                    senderType,
+                    receiverId,
+                    receiverType,
+                    msg,
+                    "text"
+            );
         } catch (Exception e) {
-            e.printStackTrace();
+            log.debug(e.toString());
             log.error("发送消息失败: {}", e.getMessage());
+            logError("sendMessage", e.getMessage(), e.getStackTrace().toString());
         }
     }
 
@@ -779,7 +877,8 @@ public class BotClient {
      *
      * @param message QQ消息对象
      */
-    private void handleWhitelistReview(QQMessage message) {
+    @BotCommand(description = "审核白名单申请", permissionLevel = 1)
+    public void handleWhitelistReview(QQMessage message) {
         try {
             log.info("开始处理白名单审核请求");
 
@@ -852,7 +951,7 @@ public class BotClient {
             updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.debug(e.toString());
             log.error("处理白名单审核失败: {}", e.getMessage(), e);
             sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 审核失败，请稍后重试。");
         }
@@ -864,7 +963,8 @@ public class BotClient {
      *
      * @param message QQ消息对象
      */
-    private void handleBanOperation(QQMessage message) {
+    @BotCommand(description = "封禁/解封玩家", permissionLevel = 1)
+    public void handleBanOperation(QQMessage message) {
         try {
             // 检查是否是管理员
             if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
@@ -924,7 +1024,7 @@ public class BotClient {
             updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.debug(e.toString());
             log.error("处理封禁/解封操作失败: {}", e.getMessage());
             sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 操作失败，请稍后重试。");
         }
@@ -936,7 +1036,8 @@ public class BotClient {
      *
      * @param message QQ消息对象
      */
-    private void handleRconCommand(QQMessage message) {
+    @BotCommand(description = "发送RCON指令", permissionLevel = 1)
+    public void handleRconCommand(QQMessage message) {
         try {
             // 检查是否是管理员
             if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
@@ -968,7 +1069,7 @@ public class BotClient {
             }
 
             // 判断是否为高危命令
-            if (isHighRiskCommand(command)) {
+            if (CommandUtil.isHighRiskCommand(command)) {
                 // 获取确认状态
                 String confirmKey = CacheKey.COMMAND_USE_KEY + "confirm:" + message.getSender().getUserId() + ":" + serverId + ":" + command;
                 Integer confirmCount = redisCache.getCacheObject(confirmKey);
@@ -1074,145 +1175,10 @@ public class BotClient {
             updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.debug(e.toString());
             log.error("处理RCON指令失败: {}", e.getMessage());
             sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 操作失败，请稍后重试。");
         }
-    }
-
-    /**
-     * 判断是否为高危命令
-     *
-     * @param command 要执行的命令
-     * @return 是否为高危命令
-     */
-    private boolean isHighRiskCommand(String command) {
-        if (command == null || command.isEmpty()) {
-            return false;
-        }
-
-        // 将命令转为小写并去除前导空格，以便更准确地匹配
-        String cmdLower = command.trim().toLowerCase();
-
-        // 高危命令列表
-        String[] highRiskCommands = {
-                // 服务器核心命令
-                "stop",                // 关闭服务器
-                "reload",              // 重载服务器
-                "restart",             // 重启服务器
-                "shutdown",            // 关闭服务器
-                "whitelist off",       // 关闭白名单
-                "op ",                 // 给予OP权限
-                "deop ",               // 移除OP权限
-                "ban-ip ",             // IP封禁
-                "pardon-ip ",          // 解除IP封禁
-                "ban ",                // 封禁玩家
-                "pardon ",             // 解除玩家封禁
-                "save-off",            // 关闭自动保存
-                "kill @e",             // 杀死所有实体
-                "difficulty ",         // 修改游戏难度
-                "gamerule ",           // 修改游戏规则
-                "defaultgamemode ",    // 修改默认游戏模式
-
-                // 世界编辑命令
-                "fill",                // 填充大量方块
-                "setblock",            // 设置方块
-                "worldedit",           // WorldEdit命令
-                "we",                  // WorldEdit简写
-                "/expand",             // WorldEdit扩展选区
-                "/set",                // WorldEdit设置方块
-                "/replace",            // WorldEdit替换方块
-
-                // 多世界管理插件
-                "mv delete",           // Multiverse删除世界
-                "mv remove",           // Multiverse移除世界
-                "mv unload",           // Multiverse卸载世界
-                "mv modify",           // Multiverse修改世界设置
-                "mvtp",                // Multiverse传送
-
-                // 权限插件
-                "pex group default set",  // PermissionsEx更改默认组权限
-                "pex user * set",         // PermissionsEx设置所有用户权限
-                "lp group default set",   // LuckPerms更改默认组权限
-                "lp user * set",          // LuckPerms设置所有用户权限
-                "lp group",               // LuckPerms组操作
-                "permissions",            // 权限操作
-
-                // Essentials插件危险命令
-                "essentials.eco",         // 经济系统修改
-                "eco give",               // 给予金钱
-                "eco reset",              // 重置经济
-                "eco set",                // 设置金钱
-                "eco take",               // 移除金钱
-                "ess reload",             // 重载Essentials
-                "essentials reload",      // 重载Essentials
-                "god",                    // 上帝模式
-                "ext",                    // 灭火
-                "ext all",                // 灭所有火
-                "ext -a",                 // 灭所有火
-                "kickall",                // 踢出所有玩家
-                "killall",                // 杀死所有实体
-                "spawnmob",               // 生成怪物
-                "sudo",                   // 以他人身份执行命令
-                "unlimited",              // 无限物品
-                "nuke",                   // 核爆
-                "essentials.gamemode",    // 修改游戏模式
-                "tpall",                  // 传送所有人
-                "antioch",                // 圣手雷
-                "essentials.give",        // 给予物品
-                "give",                   // 给予物品
-                "item",                   // 给予物品
-                "i",                      // 给予物品简写
-                "more",                   // 更多物品
-                "backup",                 // 备份服务器
-                "fireball",               // 火球
-                "lightning",              // 闪电
-                "thunder",                // 雷暴
-                "tempban",                // 临时封禁
-                "banip",                  // IP封禁
-                "unbanip",                // 解除IP封禁
-                "mute",                   // 禁言
-                "broadcast",              // 广播
-                "essentials.clearinventory", // 清空背包
-                "clear",                  // 清空背包
-                "ci",                     // 清空背包
-                "clearinventory",         // 清空背包
-                "socialspy",              // 窥探私聊
-                "tp",                     // 传送
-                "tphere",                 // 传送到这里
-                "tppos",                  // 传送到坐标
-                "top",                    // 传送到顶部
-                "tptoggle",               // 切换传送
-                "vanish",                 // 隐身
-                "v",                      // 隐身简写
-
-                // 其他常见插件的危险命令
-                "upc ",                   // UltraPermissions
-                "lpc ",                   // LuckPerms
-                "pex ",                   // PermissionsEx
-                "nuker ",                 // 核爆插件
-                "essentialsreload",       // Essentials重载
-                "plugman",                // 插件管理
-                "pl ",                    // 插件操作
-                "plugin ",                // 插件操作
-                "worldborder set",        // 设置世界边界
-                "timings",                // 服务器性能分析
-                "lag",                    // 卡顿分析
-                "pstop",                  // 停止服务器
-                "coreprotect ",           // CoreProtect核心保护
-                "co rollback",            // CoreProtect回滚
-                "co restore",             // CoreProtect恢复
-                "co purge"                // CoreProtect清除数据
-        };
-
-        // 检查命令是否匹配任何高危命令
-        for (String highRiskCmd : highRiskCommands) {
-            if (cmdLower.startsWith(highRiskCmd.trim().toLowerCase())) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
@@ -1221,7 +1187,8 @@ public class BotClient {
      *
      * @param message QQ消息对象
      */
-    private void handlePlayerQuery(QQMessage message) {
+    @BotCommand(description = "查询指定玩家的详细信息")
+    public void handlePlayerQuery(QQMessage message) {
         try {
             String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
             String[] parts = message.getMessage().trim().split("\\s+");
@@ -1297,7 +1264,8 @@ public class BotClient {
      *
      * @param message QQ消息对象
      */
-    private void handleOnlineQuery(QQMessage message) {
+    @BotCommand(description = "查询所有服务器的在线玩家信息")
+    public void handleOnlineQuery(QQMessage message) {
         try {
             String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
 
@@ -1349,7 +1317,8 @@ public class BotClient {
      *
      * @param message QQ消息对象
      */
-    private void handleHostStatus(QQMessage message) {
+    @BotCommand(description = "查询主机状态", permissionLevel = 1)
+    public void handleHostStatus(QQMessage message) {
         // 检查是否是管理员
         if (!config.getManagerIdList().contains(message.getSender().getUserId())) {
             sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 您没有权限执行此操作。");
@@ -1393,17 +1362,20 @@ public class BotClient {
             response.append("系统信息：\n");
             response.append("服务器名称：").append(server.getSys().getComputerName()).append("\n");
             response.append("操作系统：").append(server.getSys().getOsName()).append("\n");
-            response.append("系统架构：").append(server.getSys().getOsArch()).append("\n");
+            response.append("系统架构：").append(server.getSys().getOsArch()).append("\n\n");
+
+            response.append("Endless-Manager：\n");
+            response.append("版本：").append(env.getProperty("ruoyi.version")).append("\n");
 
             // 磁盘信息
-            response.append("\n磁盘状态：\n");
-            for (SysFile sysFile : server.getSysFiles()) {
-                response.append(sysFile.getDirName()).append("（").append(sysFile.getTypeName()).append("）：\n");
-                response.append("总大小：").append(sysFile.getTotal()).append("GB\n");
-                response.append("已用大小：").append(sysFile.getUsed()).append("GB\n");
-                response.append("剩余大小：").append(sysFile.getFree()).append("GB\n");
-                response.append("使用率：").append(sysFile.getUsage()).append("%\n");
-            }
+            // response.append("\n磁盘状态：\n");
+            // for (SysFile sysFile : server.getSysFiles()) {
+            //     response.append(sysFile.getDirName()).append("（").append(sysFile.getTypeName()).append("）：\n");
+            //     response.append("总大小：").append(sysFile.getTotal()).append("GB\n");
+            //     response.append("已用大小：").append(sysFile.getUsed()).append("GB\n");
+            //     response.append("剩余大小：").append(sysFile.getFree()).append("GB\n");
+            //     response.append("使用率：").append(sysFile.getUsage()).append("%\n");
+            // }
 
             // 发送消息
             sendMessage(message, response.toString());
@@ -1412,7 +1384,7 @@ public class BotClient {
             updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
 
         } catch (Exception e) {
-            log.error("处理主机状态查询失败: " + e.getMessage(), e);
+            log.error("处理主机状态查询失败:{} ", e.getMessage(), e);
             sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 查询失败，请稍后重试。");
         }
     }
@@ -1450,7 +1422,8 @@ public class BotClient {
      *
      * @param message QQ消息对象
      */
-    private void handleAddManager(QQMessage message) {
+    @BotCommand(description = "添加管理员", permissionLevel = 2)
+    public void handleAddManager(QQMessage message) {
         try {
             String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
 
@@ -1537,7 +1510,7 @@ public class BotClient {
             updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
 
         } catch (Exception e) {
-            e.printStackTrace();
+            log.debug(e.toString());
             log.error("处理添加管理员失败: {}", e.getMessage());
             sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 添加管理员失败，请稍后重试。");
         }
@@ -1550,7 +1523,8 @@ public class BotClient {
      *
      * @param message QQ消息对象
      */
-    private void handleAddSuperManager(QQMessage message) {
+    @BotCommand(description = "添加超级管理员", permissionLevel = 2)
+    public void handleAddSuperManager(QQMessage message) {
         try {
             String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
 
@@ -1669,13 +1643,14 @@ public class BotClient {
      *
      * @param message QQ消息对象
      */
-    private void testServer(QQMessage message) {
+    @BotCommand(description = "测试Minecraft服务器连通性")
+    public void testServer(QQMessage message) {
         try {
             String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
             String[] parts = message.getMessage().trim().split("\\s+");
 
             if (parts.length < 2) {
-                sendMessage(message, base + " 格式错误，正确格式：test <IP[:端口]>，默认端口25565");
+                sendMessage(message, base + " 格式错误，正确格式：test <服务器地址>[:端口]，默认端口25565");
                 return;
             }
 
@@ -1703,6 +1678,9 @@ public class BotClient {
 
                 // 增加使用次数并更新缓存，设置过期时间为当天结束
                 redisCache.setCacheObject(usageKey, usageCount + 1, getSecondsUntilEndOfDay(), TimeUnit.SECONDS);
+
+                // 显示剩余使用次数
+                sendMessage(message, base + " 您今天还能使用 " + (10 - (usageCount + 1)) + " 次Minecraft服务器测试指令。");
             }
 
             String serverAddress = parts[1];
@@ -1724,7 +1702,7 @@ public class BotClient {
             }
 
             // 验证是否为有效的IP地址或域名
-            if (!isValidIpOrDomain(ip)) {
+            if (!IPUtils.isValidIpOrDomain(ip)) {
                 sendMessage(message, base + " 无效的IP地址或域名格式，请检查输入");
                 return;
             }
@@ -1792,8 +1770,21 @@ public class BotClient {
 
                 // 连接成功
                 StringBuilder response = new StringBuilder();
-                response.append(base).append(" 服务器连通性测试结果：\n\n");
-                response.append("✅ 服务器 ").append(ip).append(":").append(port).append(" 可以连接\n");
+                response.append(base).append(" Minecraft服务器连通性测试结果：\n\n");
+                response.append("✅ 服务器 ").append(serverAddress).append(" 可以连接\n");
+
+                // 获取服务器IP地址
+                String ipAddress = null;
+                try {
+                    InetAddress inetAddress = InetAddress.getByName(ip);
+                    ipAddress = inetAddress.getHostAddress();
+                } catch (Exception e) {
+                    log.warn("获取IP地址失败: {}", e.getMessage());
+                }
+                if (ipAddress != null) {
+                    response.append("IP地址: ").append(ipAddress).append("\n");
+                }
+
                 response.append("连接耗时: ").append(connectTime).append("ms\n\n");
 
                 // 尝试获取服务器信息 (Minecraft Server List Ping)
@@ -1828,7 +1819,7 @@ public class BotClient {
                     writeVarInt(dataOut, 0); // 包ID (0x00)
 
                     // 读取响应
-                    int length = readVarInt(dataIn);
+                    readVarInt(dataIn);
                     int packetId = readVarInt(dataIn);
 
                     if (packetId == 0x00) {
@@ -2020,36 +2011,13 @@ public class BotClient {
     }
 
     /**
-     * 验证字符串是否是有效的IP地址或域名
-     *
-     * @param input 需要验证的字符串
-     * @return 是否有效
-     */
-    private boolean isValidIpOrDomain(String input) {
-        if (input == null || input.isEmpty()) {
-            return false;
-        }
-
-        // IPv4地址正则表达式
-        String ipv4Pattern = "^((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$";
-
-        // IPv6地址正则表达式 (简化版)
-        String ipv6Pattern = "^(([0-9a-fA-F]{1,4}:){7}([0-9a-fA-F]{1,4}|:))|(([0-9a-fA-F]{1,4}:){6}(:[0-9a-fA-F]{1,4}|((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9a-fA-F]{1,4}:){5}(((:[0-9a-fA-F]{1,4}){1,2})|:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3})|:))|(([0-9a-fA-F]{1,4}:){4}(((:[0-9a-fA-F]{1,4}){1,3})|((:[0-9a-fA-F]{1,4})?:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9a-fA-F]{1,4}:){3}(((:[0-9a-fA-F]{1,4}){1,4})|((:[0-9a-fA-F]{1,4}){0,2}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9a-fA-F]{1,4}:){2}(((:[0-9a-fA-F]{1,4}){1,5})|((:[0-9a-fA-F]{1,4}){0,3}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(([0-9a-fA-F]{1,4}:){1}(((:[0-9a-fA-F]{1,4}){1,6})|((:[0-9a-fA-F]{1,4}){0,4}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))|(:(((:[0-9a-fA-F]{1,4}){1,7})|((:[0-9a-fA-F]{1,4}){0,5}:((25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)(\\.(25[0-5]|2[0-4]\\d|1\\d\\d|[1-9]?\\d)){3}))|:))$";
-
-        // 域名正则表达式
-        String domainPattern = "^((?!-)[A-Za-z0-9-]{1,63}(?<!-)\\.)+[A-Za-z]{2,63}$";
-
-        // 使用正则表达式验证
-        return input.matches(ipv4Pattern) || input.matches(ipv6Pattern) || input.matches(domainPattern);
-    }
-
-    /**
      * 处理刷新连接命令
      * 管理员可以刷新指定服务器或所有服务器的RCON连接
      *
      * @param message QQ消息对象
      */
-    private void handleRefreshConnection(QQMessage message) {
+    @BotCommand(description = "刷新RCON连接", permissionLevel = 1)
+    public void handleRefreshConnection(QQMessage message) {
         try {
             // 检查是否是管理员
             if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
@@ -2157,7 +2125,8 @@ public class BotClient {
      *
      * @param message QQ消息对象
      */
-    private void handleTestConnection(QQMessage message) {
+    @BotCommand(description = "测试RCON连接", permissionLevel = 1)
+    public void handleTestConnection(QQMessage message) {
         try {
             // 检查是否是管理员
             if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
@@ -2276,6 +2245,373 @@ public class BotClient {
         } catch (Exception e) {
             log.error("测试RCON连接失败: {}", e.getMessage());
             sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 测试RCON连接失败：" + e.getMessage());
+        }
+    }
+
+    /**
+     * 测试HTTP/HTTPS服务器通断
+     * 用户可以通过发送"test http://example.com[:port]"来测试HTTP/HTTPS服务器连通性
+     *
+     * @param message QQ消息对象
+     */
+    @BotCommand(description = "测试HTTP/HTTPS服务器的连通性")
+    public void testHttp(QQMessage message) {
+        try {
+            String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
+            String[] parts = message.getMessage().trim().split("\\s+");
+
+            if (parts.length < 2) {
+                sendMessage(message, base + " 格式错误，正确格式：test http://example.com[:port] 或 test https://example.com[:port]");
+                return;
+            }
+
+            // 检查是否是管理员，非管理员有使用次数限制
+            boolean isAdmin = !config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty();
+
+            // 如果不是管理员，检查使用次数限制
+            if (!isAdmin) {
+                String userId = message.getSender().getUserId().toString();
+                String usageKey = CacheKey.COMMAND_USE_KEY + "testhttp:" + userId;
+
+                // 获取今日使用次数
+                Integer usageCount = redisCache.getCacheObject(usageKey);
+
+                // 如果缓存中没有，初始化为0
+                if (usageCount == null) {
+                    usageCount = 0;
+                }
+
+                // 检查是否超过每日限制(10次)
+                if (usageCount >= 10) {
+                    sendMessage(message, base + " 您今日的测试次数已用完，每位用户每天限制使用10次。");
+                    return;
+                }
+
+                // 增加使用次数并更新缓存，设置过期时间为当天结束
+                redisCache.setCacheObject(usageKey, usageCount + 1, getSecondsUntilEndOfDay(), TimeUnit.SECONDS);
+
+                // 显示剩余使用次数
+                sendMessage(message, base + " 您今天还能使用 " + (10 - (usageCount + 1)) + " 次Web服务器测试指令。");
+            }
+
+            String urlString = parts[1];
+
+            // 验证URL格式
+            if (!urlString.startsWith("http://") && !urlString.startsWith("https://")) {
+                sendMessage(message, base + " 无效的URL格式，请使用 http:// 或 https:// 开头");
+                return;
+            }
+
+            // 发送检测中的提示消息
+            sendMessage(message, base + " 正在检测网站 " + urlString + " 的连通性，请稍候...");
+
+            // 开始时间
+            long startTime = System.currentTimeMillis();
+
+            try {
+                // 使用Hutool的HttpUtil发送请求
+                HttpRequest request = HttpUtil.createGet(urlString)
+                        .timeout(5000) // 设置超时时间为5秒
+                        .setFollowRedirects(true); // 允许重定向
+
+                // 设置用户代理
+                request.header(HttpHeaders.USER_AGENT, "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
+
+                // 执行请求
+                HttpResponse httpResponse = request.execute();
+
+                // 计算连接耗时
+                long connectTime = System.currentTimeMillis() - startTime;
+
+                // 获取响应码
+                int responseCode = httpResponse.getStatus();
+
+                // 获取网站IP地址
+                String ipAddress = null;
+                try {
+                    InetAddress inetAddress = InetAddress.getByName(new URL(urlString).getHost());
+                    ipAddress = inetAddress.getHostAddress();
+                } catch (Exception e) {
+                    log.warn("获取IP地址失败: {}", e.getMessage());
+                }
+
+                // 构建响应消息
+                StringBuilder response = new StringBuilder();
+                response.append(base).append(" HTTP/HTTPS服务器连通性测试结果：\n\n");
+                response.append("✅ 服务器 ").append(urlString).append(" 可以连接\n");
+                if (ipAddress != null) {
+                    response.append("IP地址: ").append(ipAddress).append("\n");
+                }
+                response.append("连接耗时: ").append(connectTime).append("ms\n");
+                response.append("响应码: ").append(responseCode).append("\n");
+
+                // 获取服务器信息
+                String server = httpResponse.header("Server");
+                if (server != null) {
+                    response.append("服务器类型: ").append(server).append("\n");
+                }
+
+                // 获取内容类型
+                String contentType = httpResponse.header(HttpHeaders.CONTENT_TYPE);
+                if (contentType != null) {
+                    response.append("内容类型: ").append(contentType).append("\n");
+                }
+
+                // 获取SSL/TLS信息（如果是HTTPS）
+                if (urlString.startsWith("https://")) {
+                    try {
+                        // 使用SSLSocket直接连接
+                        SSLSocketFactory sslSocketFactory = (SSLSocketFactory) SSLSocketFactory.getDefault();
+                        URL url = new URL(urlString);
+                        SSLSocket sslSocket = (SSLSocket) sslSocketFactory.createSocket(url.getHost(), url.getPort() > 0 ? url.getPort() : 443);
+                        sslSocket.startHandshake();
+
+                        SSLSession sslSession = sslSocket.getSession();
+                        response.append("\nSSL/TLS信息:\n");
+                        response.append("协议: ").append(sslSession.getProtocol()).append("\n");
+                        response.append("加密套件: ").append(sslSession.getCipherSuite()).append("\n");
+
+                        // 获取证书信息
+                        Certificate[] certificates = sslSession.getPeerCertificates();
+                        if (certificates.length > 0) {
+                            X509Certificate cert = (X509Certificate) certificates[0];
+                            response.append("证书颁发者: ").append(cert.getIssuerDN()).append("\n");
+                            response.append("证书有效期至: ").append(DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, cert.getNotAfter())).append("\n");
+                        }
+
+                        sslSocket.close();
+                    } catch (Exception e) {
+                        response.append("\nSSL/TLS信息获取失败: ").append(e.getMessage()).append("\n");
+                    }
+                }
+
+                // 获取网页内容并提取标题等信息
+                if (responseCode == 200) {
+                    try {
+                        // 获取响应内容
+                        String htmlContent = httpResponse.body();
+
+                        // 提取标题
+                        String title = HtmlUtils.extractTitle(htmlContent);
+                        if (title != null && !title.isEmpty()) {
+                            response.append("\n网页信息:\n");
+                            response.append("标题: ").append(title).append("\n");
+                        }
+
+                        // 提取描述
+                        String description = HtmlUtils.extractMetaDescription(htmlContent);
+                        if (description != null && !description.isEmpty()) {
+                            response.append("描述: ").append(description).append("\n");
+                        }
+
+                        // 提取关键词
+                        String keywords = HtmlUtils.extractMetaKeywords(htmlContent);
+                        if (keywords != null && !keywords.isEmpty()) {
+                            response.append("关键词: ").append(keywords).append("\n");
+                        }
+
+                        // 提取字符集
+                        String charset = HtmlUtils.extractCharset(htmlContent, httpResponse);
+                        if (charset != null && !charset.isEmpty()) {
+                            response.append("字符集: ").append(charset).append("\n");
+                        }
+
+                        // 提取网站图标
+                        String favicon = HtmlUtils.extractFavicon(htmlContent, new URL(urlString));
+                        if (favicon != null && !favicon.isEmpty()) {
+                            response.append("图标: ").append(favicon).append("\n");
+                        }
+                    } catch (Exception e) {
+                        response.append("\n获取网页内容失败: ").append(e.getMessage()).append("\n");
+                    }
+                }
+
+                // 发送消息
+                sendMessage(message, response.toString());
+
+            } catch (cn.hutool.http.HttpException e) {
+                // Hutool的HTTP异常处理
+                String errorMessage = e.getMessage();
+                if (errorMessage.contains("UnknownHostException")) {
+                    sendMessage(message, base + " ❌ 网站连接失败：无法解析域名 " + urlString);
+                } else if (errorMessage.contains("ConnectException")) {
+                    sendMessage(message, base + " ❌ 网站连接失败：连接被拒绝，服务器可能未启动或端口未开放");
+                } else if (errorMessage.contains("SocketTimeoutException")) {
+                    sendMessage(message, base + " ❌ 网站连接失败：连接超时，网站响应时间过长或不可达");
+                } else if (errorMessage.contains("SSLHandshakeException")) {
+                    sendMessage(message, base + " ❌ SSL连接失败：" + e.getMessage());
+                } else {
+                    sendMessage(message, base + " ❌ 网站连接失败：" + e.getMessage());
+                }
+            }
+        } catch (Exception e) {
+            log.error("测试HTTP/HTTPS服务器通断失败: {}", e.getMessage());
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 测试失败，请稍后重试。");
+        }
+    }
+
+
+    /**
+     * 异步记录机器人日志
+     *
+     * @param logType        日志类型：1=接收消息，2=发送消息，3=方法调用，4=系统事件
+     * @param messageId      消息ID
+     * @param senderId       发送者ID
+     * @param senderType     发送者类型：user=用户，group=群组
+     * @param receiverId     接收者ID
+     * @param receiverType   接收者类型：user=用户，group=群组
+     * @param messageContent 消息内容
+     * @param messageType    消息类型：text=文本，image=图片，voice=语音，file=文件等
+     * @param methodName     调用的方法名称
+     * @param methodParams   方法参数(JSON格式)
+     * @param methodResult   方法执行结果
+     * @param executionTime  方法执行时间(毫秒)
+     * @param errorMessage   错误信息
+     * @param stackTrace     错误堆栈信息
+     */
+    private void logAsync(Long logType, String messageId, String senderId, String senderType,
+                          String receiverId, String receiverType, String messageContent,
+                          String messageType, String methodName, String methodParams,
+                          String methodResult, Long executionTime, String errorMessage,
+                          String stackTrace) {
+        if (config == null || config.getId() == null) {
+            log.warn("无法记录日志：机器人配置未初始化");
+            return;
+        }
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                QqBotLog qqBotLog = new QqBotLog();
+                qqBotLog.setBotId(config.getId());
+                qqBotLog.setLogType(logType);
+                qqBotLog.setMessageId(messageId);
+                qqBotLog.setSenderId(senderId);
+                qqBotLog.setSenderType(senderType);
+                qqBotLog.setReceiverId(receiverId);
+                qqBotLog.setReceiverType(receiverType);
+                qqBotLog.setMessageContent(messageContent);
+                qqBotLog.setMessageType(messageType);
+                qqBotLog.setMethodName(methodName);
+                qqBotLog.setMethodParams(methodParams);
+                qqBotLog.setMethodResult(methodResult);
+                qqBotLog.setExecutionTime(executionTime);
+                qqBotLog.setErrorMessage(errorMessage);
+                qqBotLog.setStackTrace(stackTrace);
+
+                qqBotLogService.insertQqBotLog(qqBotLog);
+            } catch (Exception e) {
+                log.error("记录机器人日志失败: {}", e.getMessage(), e);
+            }
+        });
+    }
+
+    /**
+     * 记录接收到的消息
+     *
+     * @param messageId      消息ID
+     * @param senderId       发送者ID
+     * @param senderType     发送者类型
+     * @param receiverId     接收者ID
+     * @param receiverType   接收者类型
+     * @param messageContent 消息内容
+     * @param messageType    消息类型
+     */
+    private void logReceivedMessage(String messageId, String senderId, String senderType,
+                                    String receiverId, String receiverType, String messageContent,
+                                    String messageType) {
+        logAsync(1L, messageId, senderId, senderType, receiverId, receiverType,
+                messageContent, messageType, null, null, null, null, null, null);
+    }
+
+    /**
+     * 记录发送的消息
+     *
+     * @param messageId      消息ID
+     * @param senderId       发送者ID
+     * @param senderType     发送者类型
+     * @param receiverId     接收者ID
+     * @param receiverType   接收者类型
+     * @param messageContent 消息内容
+     * @param messageType    消息类型
+     */
+    private void logSentMessage(String messageId, String senderId, String senderType,
+                                String receiverId, String receiverType, String messageContent,
+                                String messageType) {
+        logAsync(2L, messageId, senderId, senderType, receiverId, receiverType,
+                messageContent, messageType, null, null, null, null, null, null);
+    }
+
+    /**
+     * 记录方法调用
+     *
+     * @param methodName    方法名称
+     * @param methodParams  方法参数
+     * @param methodResult  方法结果
+     * @param executionTime 执行时间
+     */
+    private void logMethodCall(String methodName, String methodParams, String methodResult, Long executionTime, String msg) {
+        logAsync(3L, null, null, null, null, null, msg, null,
+                methodName, methodParams, methodResult, executionTime, null, null);
+    }
+
+    /**
+     * 记录系统事件
+     *
+     * @param eventName    事件名称
+     * @param eventDetails 事件详情
+     */
+    private void logSystemEvent(String eventName, String eventDetails) {
+        logAsync(4L, null, null, null, null, null, eventDetails, null,
+                eventName, null, null, null, null, null);
+    }
+
+    /**
+     * 记录错误
+     *
+     * @param methodName   方法名称
+     * @param errorMessage 错误信息
+     * @param stackTrace   堆栈信息
+     */
+    private void logError(String methodName, String errorMessage, String stackTrace) {
+        logAsync(3L, null, null, null, null, null, null, null,
+                methodName, null, null, null, errorMessage, stackTrace);
+    }
+
+    /**
+     * 将异常堆栈转换为字符串
+     *
+     * @param e 异常对象
+     * @return 堆栈跟踪字符串
+     */
+    private String getStackTraceAsString(Exception e) {
+        StringBuilder sb = new StringBuilder();
+        for (StackTraceElement element : e.getStackTrace()) {
+            sb.append(element.toString()).append("\n");
+        }
+        return sb.toString();
+    }
+
+    /**
+     * 记录命令执行日志
+     * 由BotCommandAspect调用，统一处理命令执行日志
+     *
+     * @param methodName    方法名称
+     * @param methodParams  方法参数
+     * @param methodResult  方法结果
+     * @param executionTime 执行时间
+     * @param errorMessage  错误信息
+     * @param stackTrace    堆栈跟踪
+     * @param message       QQ消息对象
+     */
+    public void logCommandExecution(String methodName, String methodParams, String methodResult,
+                                    long executionTime, String errorMessage, String stackTrace,
+                                    QQMessage message) {
+        // 记录方法调用
+        logMethodCall(methodName, methodParams, methodResult, executionTime, message.getMessage());
+
+        // 如果有错误信息，也记录错误
+        if (errorMessage != null && !errorMessage.isEmpty()) {
+            logError(methodName, errorMessage, stackTrace);
         }
     }
 

@@ -20,7 +20,7 @@
     </distributionManagement>
 
     <properties>
-        <endless.version>2.5.6</endless.version>
+        <endless.version>2.6.0</endless.version>
         <ruoyi.version>3.8.7</ruoyi.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -252,6 +252,7 @@
         <module>endless-generator</module>
         <module>endless-common</module>
         <module>endless-server</module>
+        <!--<module>endless-node</module>-->
     </modules>
     <packaging>pom</packaging>
 
@@ -271,30 +272,29 @@
         <finalName>endless-manager-${endless.version}</finalName>
     </build>
 
+    <!--    <repositories>
+            <repository>
+                <id>public</id>
+                <name>aliyun nexus</name>
+                <url>https://maven.aliyun.com/repository/public</url>
+                <releases>
+                    <enabled>true</enabled>
+                </releases>
+            </repository>
+        </repositories>
 
-    <repositories>
-        <repository>
-            <id>public</id>
-            <name>aliyun nexus</name>
-            <url>https://maven.aliyun.com/repository/public</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-        </repository>
-    </repositories>
-
-    <pluginRepositories>
-        <pluginRepository>
-            <id>public</id>
-            <name>aliyun nexus</name>
-            <url>https://maven.aliyun.com/repository/public</url>
-            <releases>
-                <enabled>true</enabled>
-            </releases>
-            <snapshots>
-                <enabled>false</enabled>
-            </snapshots>
-        </pluginRepository>
-    </pluginRepositories>
+        <pluginRepositories>
+            <pluginRepository>
+                <id>public</id>
+                <name>aliyun nexus</name>
+                <url>https://maven.aliyun.com/repository/public</url>
+                <releases>
+                    <enabled>true</enabled>
+                </releases>
+                <snapshots>
+                    <enabled>false</enabled>
+                </snapshots>
+            </pluginRepository>
+        </pluginRepositories>-->
 
 </project>

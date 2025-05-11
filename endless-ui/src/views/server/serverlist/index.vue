@@ -134,7 +134,7 @@
         </template>
       </el-table-column>
       <el-table-column align="center" label="描述" prop="remark"/>
-      <el-table-column align="center" class-name="small-padding fixed-width" label="操作">
+      <el-table-column align="center" class-name="small-padding fixed-width" label="操作" width="200">
         <template slot-scope="scope">
           <el-button
             v-hasPermi="['server:serverlist:edit']"
@@ -293,6 +293,16 @@
           <div id="terminal" ref="terminal"></div>
         </div>
         <div class="console-input">
+          <div class="recent-commands">
+            <el-button
+              v-for="cmd in recentCommands"
+              :key="cmd"
+              class="command-btn"
+              @click="command = cmd"
+            >
+              {{ cmd }}
+            </el-button>
+          </div>
           <el-autocomplete
             ref="commandInput"
             v-model="command"
@@ -524,7 +534,8 @@ export default {
         pageNum: 1,
         pageSize: 10,
         serverId: undefined
-      }
+      },
+      recentCommands: [], // 添加存储最近命令的数组
     };
   },
   created() {
@@ -706,6 +717,23 @@ export default {
           this.terminal.writeln(`\x1b[34m│\x1b[0m 地址: ${this.currentServer.ip}:${this.currentServer.rconPort}`);
           this.terminal.writeln('\x1b[34m└──────────────────────────────────────┘\x1b[0m');
           this.terminal.writeln('');
+
+          // 获取最近的命令历史
+          try {
+            const historyResponse = await getCommandHistory({
+              pageNum: 1,
+              pageSize: 20,
+              serverId: this.currentServer.id
+            });
+
+            if (historyResponse.rows && historyResponse.rows.length > 0) {
+              // 获取所有不重复的命令
+              this.recentCommands = [...new Set(historyResponse.rows.map(item => item.command))];
+            }
+          } catch (error) {
+            console.error('获取历史命令失败:', error);
+          }
+
           this.terminal.writeln('\x1b[90m输入命令开始操作，输入 help 获取帮助\x1b[0m\n');
         } else {
           throw new Error(response.msg);
@@ -720,10 +748,11 @@ export default {
       this.isConnected = false;
       this.connectToServer();
     },
-    /** 关闭控制台时清理 */
+    /** 清理命令列表 */
     handleConsoleClose() {
       this.isConnected = false;
       this.command = '';
+      this.recentCommands = [];
       if (this.terminal) {
         this.terminal.clear();
       }
@@ -920,36 +949,100 @@ export default {
 }
 
 .console-input {
-  padding: 16px;
+  padding: 8px 16px 16px;
   background: #282a36;
   border-top: 1px solid #333;
+}
 
-  :deep(.el-input-group__append) {
-    background: #6272a4;
-    border-color: #6272a4;
-    color: white;
-    transition: all 0.3s ease;
+.recent-commands {
+  margin-bottom: 8px;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 4px; // 为滚动条留出空间
+  white-space: nowrap;
+  scrollbar-width: thin;
+  scrollbar-color: #44475a #282a36;
 
-    &:hover {
-      background: #7282b4;
-      border-color: #7282b4;
-    }
-
-    &:active {
-      background: #5262a4;
-      border-color: #5262a4;
-    }
+  &:empty {
+    display: none;
   }
 
+  // 自定义滚动条样式
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: #282a36;
+    border-radius: 2px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background-color: #44475a;
+    border-radius: 2px;
+
+    &:hover {
+      background-color: #6272a4;
+    }
+  }
+}
+
+.command-btn {
+  height: 24px;
+  padding: 0 10px;
+  background: transparent;
+  border: 1px solid #444;
+  color: #8be9fd;
+  font-size: 12px;
+  font-family: 'Consolas', 'Courier New', monospace;
+  border-radius: 3px;
+  flex-shrink: 0; // 防止按钮被压缩
+
+  &:hover {
+    background: rgba(139, 233, 253, 0.1);
+    border-color: #8be9fd;
+    color: #fff;
+  }
+
+  &:focus {
+    background: rgba(139, 233, 253, 0.15);
+    border-color: #8be9fd;
+  }
+
+  &::before {
+    content: '$ ';
+    opacity: 0.5;
+  }
+}
+
+.minecraft-command-input {
+  width: 100%;
+
   :deep(.el-input__inner) {
+    height: 32px;
+    line-height: 32px;
     background: #1a1a1a;
     border-color: #333;
     color: #fff;
-    transition: all 0.3s ease;
+    font-family: 'Consolas', 'Courier New', monospace;
 
     &:focus {
+      border-color: #8be9fd;
+      box-shadow: 0 0 0 2px rgba(139, 233, 253, 0.1);
+    }
+  }
+
+  :deep(.el-input-group__append) {
+    background: #44475a;
+    border-color: #44475a;
+    color: #f8f8f2;
+    padding: 0 12px;
+
+    &:hover {
+      background: #6272a4;
       border-color: #6272a4;
-      box-shadow: 0 0 0 2px rgba(98, 114, 164, 0.1);
     }
   }
 }
@@ -976,14 +1069,31 @@ export default {
   }
 }
 
-.minecraft-command-input {
-  width: 100%;
-}
-
 // 历史记录表格中的长文本显示省略
 :deep(.el-table) {
   .cell {
     white-space: nowrap;
   }
+}
+
+.command-list-container {
+  background-color: rgba(40, 42, 54, 0.95);
+  border-radius: 6px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.command-item {
+  font-family: 'Consolas', 'Courier New', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.command-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
 }
 </style>

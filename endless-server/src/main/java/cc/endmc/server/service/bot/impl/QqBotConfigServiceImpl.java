@@ -1,11 +1,13 @@
 package cc.endmc.server.service.bot.impl;
 
+import cc.endmc.common.constant.Constants;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.server.domain.bot.QqBotConfig;
 import cc.endmc.server.mapper.bot.QqBotConfigMapper;
 import cc.endmc.server.mapper.bot.QqBotManagerMapper;
 import cc.endmc.server.service.bot.IQqBotConfigService;
 import cc.endmc.server.ws.BotManager;
+import cn.hutool.http.HttpUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -62,6 +64,14 @@ public class QqBotConfigServiceImpl implements IQqBotConfigService {
     @Override
     public int insertQqBotConfig(QqBotConfig qqBotConfig) {
         qqBotConfig.setCreateTime(DateUtils.getNowDate());
+        final String httpUrl = qqBotConfig.getHttpUrl();
+        final String wsUrl = qqBotConfig.getWsUrl();
+        if (!wsUrl.startsWith("ws://")) {
+            qqBotConfig.setWsUrl(Constants.WS + qqBotConfig.getWsUrl());
+        }
+        if (!HttpUtil.isHttp(httpUrl) || !HttpUtil.isHttps(httpUrl)) {
+            qqBotConfig.setHttpUrl(Constants.HTTP + qqBotConfig.getHttpUrl());
+        }
         final int i = qqBotConfigMapper.insertQqBotConfig(qqBotConfig);
         if (i > 0) {
             log.info("insert QqBotConfig : {}", qqBotConfig);

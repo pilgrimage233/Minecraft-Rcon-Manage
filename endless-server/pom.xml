@@ -12,21 +12,24 @@
     <description>
         MC服务器管理模块
     </description>
-    <packaging>jar</packaging>
     <artifactId>endless-server</artifactId>
     <dependencies>
+
         <dependency>
             <groupId>cc.endmc</groupId>
             <artifactId>endless-common</artifactId>
         </dependency>
+
         <dependency>
             <groupId>cc.endmc</groupId>
             <artifactId>endless-system</artifactId>
         </dependency>
+
         <dependency>
             <groupId>cc.endmc</groupId>
             <artifactId>endless-framework</artifactId>
         </dependency>
+
         <!-- Java WebSocket -->
         <dependency>
             <groupId>org.java-websocket</groupId>
@@ -39,11 +42,12 @@
             <artifactId>junit</artifactId>
             <scope>test</scope>
         </dependency>
-        <!--  <dependency>
-              <groupId>cn.hutool</groupId>
-              <artifactId>hutool-all</artifactId>
-              <version>5.8.18</version>
-          </dependency>-->
+
+        <dependency>
+            <groupId>com.sun.mail</groupId>
+            <artifactId>javax.mail</artifactId>
+            <version>1.6.2</version>
+        </dependency>
 
         <!--阿里云异步邮件推送服务-->
         <dependency>
@@ -52,17 +56,6 @@
             <version>1.0.17</version>
         </dependency>
 
-        <dependency>
-            <groupId>com.sun.mail</groupId>
-            <artifactId>javax.mail</artifactId>
-            <version>1.6.2</version>
-        </dependency>
-        <!--  <dependency>
-              <groupId>com.github.t9t.minecraft-rcon-client</groupId>
-              <artifactId>minecraft-rcon-client</artifactId>
-              <version>1.0.0</version>
-          </dependency>
-  -->
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>

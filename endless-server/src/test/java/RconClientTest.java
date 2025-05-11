@@ -1,7 +1,7 @@
 
 import cc.endmc.common.utils.StringUtils;
-import cc.endmc.server.common.DomainToIp;
 import cc.endmc.server.common.rconclient.RconClient;
+import cc.endmc.server.utils.IPUtils;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.JUnit4;
@@ -29,7 +29,7 @@ public class RconClientTest {
     @org.junit.Test
     public void medthod() {
         try {
-            RconClient client = RconClient.open(DomainToIp.domainToIp(ip), port, password);
+            RconClient client = RconClient.open(IPUtils.domainToIp(ip), port, password);
 
             final String list = client.sendCommand("ban kissthefire");
             System.err.println(list);

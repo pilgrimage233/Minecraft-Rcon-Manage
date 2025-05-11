@@ -16,6 +16,10 @@ import org.springframework.stereotype.Component;
 import java.util.*;
 import java.util.stream.Collectors;
 
+/**
+ * 机器人定时任务
+ * 主要用于监控白名单用户是否退群
+ */
 @Slf4j
 @Component("botTask")
 public class BotTask {
@@ -55,8 +59,18 @@ public class BotTask {
 
         // 获取所有机器人配置的群ID
         for (BotClient bot : activeBots.values()) {
+            try {
+                if (bot == null || bot.getConfig() == null) {
+                    continue;
+                }
+            } catch (Exception e) {
+                // 处理异常，可能是因为机器人未正确初始化
+                log.error("获取机器人配置失败: {}", e.getMessage());
+                continue;
+            }
+
             QqBotConfig config = bot.getConfig();
-            if (config != null && config.getGroupIds() != null) {
+            if (config.getGroupIds() != null) {
                 allGroupIds.addAll(Arrays.stream(config.getGroupIds().split(","))
                         .map(Long::parseLong)
                         .collect(Collectors.toSet()));
@@ -81,11 +95,17 @@ public class BotTask {
 
             // 使用机器人的配置发送请求
             String botUrl = responsibleBot.getConfig().getHttpUrl();
-            final HttpResponse response = HttpUtil
-                    .createPost(botUrl + BotApi.GET_GROUP_MEMBER_LIST)
-                    .header("Authorization", "Bearer " + responsibleBot.getConfig().getToken())
-                    .body(request.toJSONString())
-                    .execute();
+            HttpResponse response = null;
+            try {
+                response = HttpUtil
+                        .createPost(botUrl + BotApi.GET_GROUP_MEMBER_LIST)
+                        .header("Authorization", "Bearer " + responsibleBot.getConfig().getToken())
+                        .body(request.toJSONString())
+                        .execute();
+            } catch (Exception e) {
+                log.error("群 {} 获取成员列表失败: {}", groupId, e.getMessage());
+                continue;
+            }
             if (response == null || !response.isOk()) {
                 log.warn("群 {} 获取成员列表失败", groupId);
                 return;

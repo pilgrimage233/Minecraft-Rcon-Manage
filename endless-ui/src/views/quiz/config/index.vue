@@ -131,7 +131,7 @@
 </template>
 
 <script>
-import { listConfig, getConfig, delConfig, addConfig, updateConfig } from "@/api/quiz/config";
+import {addConfig, delConfig, getConfig, listConfig, updateConfig} from "@/api/quiz/config";
 
 export default {
   name: "Config",

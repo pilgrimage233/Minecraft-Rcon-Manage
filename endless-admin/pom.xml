@@ -7,8 +7,8 @@
         <groupId>cc.endmc</groupId>
         <version>3.8.7</version>
     </parent>
+
     <modelVersion>4.0.0</modelVersion>
-    <packaging>jar</packaging>
     <artifactId>endless-manager</artifactId>
 
     <description>
@@ -73,6 +73,27 @@
             <groupId>cc.endmc</groupId>
             <artifactId>endless-server</artifactId>
             <version>3.8.7</version>
+        </dependency>
+
+        <!--  <dependency>
+              <groupId>cc.endmc</groupId>
+              <artifactId>endless-node</artifactId>
+              <version>3.8.7</version>
+          </dependency>-->
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- SLF4J API -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
         </dependency>
 
     </dependencies>

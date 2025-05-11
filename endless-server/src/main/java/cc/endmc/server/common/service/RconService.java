@@ -3,7 +3,6 @@ package cc.endmc.server.common.service;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
-import cc.endmc.server.common.DomainToIp;
 import cc.endmc.server.common.EmailTemplates;
 import cc.endmc.server.common.MapCache;
 import cc.endmc.server.common.PasswordManager;
@@ -14,6 +13,7 @@ import cc.endmc.server.common.rconclient.RconClient;
 import cc.endmc.server.domain.server.ServerCommandInfo;
 import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.mapper.server.ServerInfoMapper;
+import cc.endmc.server.utils.IPUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -208,7 +208,7 @@ public class RconService {
 
             // 使用异步线程初始化Rcon连接，超时时间为5秒
             String finalDecryptedPassword = decryptedPassword;
-            String serverIp = DomainToIp.domainToIp(info.getIp());
+            String serverIp = IPUtils.domainToIp(info.getIp());
             int port = info.getRconPort().intValue();
 
             log.info("正在连接RCON服务器: {}:{} (解析IP: {})", info.getIp(), port, serverIp);

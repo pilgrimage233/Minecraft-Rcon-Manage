@@ -21,6 +21,7 @@
         />
       </el-menu>
     </el-scrollbar>
+    <version-info/>
   </div>
 </template>
 
@@ -29,9 +30,10 @@ import {mapGetters, mapState} from "vuex";
 import Logo from "./Logo";
 import SidebarItem from "./SidebarItem";
 import variables from "@/assets/styles/variables.scss";
+import VersionInfo from '@/components/VersionInfo'
 
 export default {
-  components: {SidebarItem, Logo},
+  components: {SidebarItem, Logo, VersionInfo},
   computed: {
     ...mapState(["settings"]),
     ...mapGetters(["sidebarRouters", "sidebar"]),
@@ -56,3 +58,9 @@ export default {
   }
 };
 </script>
+
+<style lang="scss" scoped>
+.scrollbar-wrapper {
+  height: calc(100% - 120px) !important; // 为版本信息留出空间
+}
+</style>

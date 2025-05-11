@@ -34,6 +34,16 @@ public class Constants {
     public static final String HTTPS = "https://";
 
     /**
+     * ws请求
+     */
+    public static final String WS = "ws://";
+
+    /**
+     * wss请求
+     */
+    public static final String WSS = "wss://";
+
+    /**
      * 通用成功标识
      */
     public static final String SUCCESS = "0";
