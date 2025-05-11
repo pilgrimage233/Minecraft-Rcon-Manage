@@ -2,7 +2,6 @@ package cc.endmc.init;
 
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
-import cc.endmc.node.service.INodeServerService;
 import cc.endmc.server.common.MapCache;
 import cc.endmc.server.common.ObjectCache;
 import cc.endmc.server.common.constant.CacheKey;
@@ -33,7 +32,7 @@ public class InitializingBeanExamplebBean implements InitializingBean {
 
     final private IServerInfoService serverInfoService;
 
-    final private INodeServerService nodeServerService;
+    // final private INodeServerService nodeServerService;
 
     final private IServerCommandInfoService commandInfoService;
 
