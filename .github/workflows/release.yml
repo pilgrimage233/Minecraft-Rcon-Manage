@@ -11,9 +11,11 @@ jobs:
       contents: write
 
     steps:
+      # 检出代码
       - name: Checkout code
         uses: actions/checkout@v4
 
+      # 设置 JDK 8 环境（用于后端）
       - name: Set up JDK 8
         uses: actions/setup-java@v4
         with:
@@ -21,6 +23,7 @@ jobs:
           distribution: 'temurin'
           cache: 'maven'
 
+      # 配置 Maven Settings
       - name: Configure Maven Settings
         run: |
           mkdir -p ~/.m2
@@ -35,17 +38,42 @@ jobs:
             </mirrors>
           </settings>" > ~/.m2/settings.xml
 
+      # 获取自定义版本号
       - name: Get Custom Version
         id: get-version
         run: |
           VERSION=$(mvn help:evaluate -Dexpression=endless.version -q -DforceStdout)
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
+      # 构建后端项目
       - name: Build Project
         run: |
           mvn -B clean package -DskipTests
           cp endless-admin/target/endless-manager.jar endless-admin/target/endless-manager-${{ steps.get-version.outputs.version }}.jar
 
+      # 设置 Node.js 环境（用于前端）
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      # 安装前端依赖
+      - name: Install Frontend Dependencies
+        run: npm install
+        working-directory: ./endless-ui
+
+      # 构建前端项目
+      - name: Build Frontend
+        run: npm run build
+        working-directory: ./endless-ui
+
+      # 压缩前端产物
+      - name: Compress Frontend Dist
+        run: |
+          cd endless-ui
+          zip -r dist.zip dist
+
+      # 创建 Release
       - name: Create Release
         id: create-release
         uses: actions/create-release@v1
@@ -55,6 +83,7 @@ jobs:
           tag_name: v${{ steps.get-version.outputs.version }}
           release_name: Endless v${{ steps.get-version.outputs.version }}
 
+      # 上传后端 JAR 文件
       - name: Upload JAR
         uses: actions/upload-release-asset@v1
         env:
@@ -64,3 +93,14 @@ jobs:
           asset_path: ./endless-admin/target/endless-manager-${{ steps.get-version.outputs.version }}.jar
           asset_name: endless-manager-${{ steps.get-version.outputs.version }}.jar
           asset_content_type: application/java-archive
+
+      # 上传前端压缩包
+      - name: Upload Frontend Zip
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ./endless-ui/dist.zip
+          asset_name: endless-ui.zip
+          asset_content_type: application/zip
