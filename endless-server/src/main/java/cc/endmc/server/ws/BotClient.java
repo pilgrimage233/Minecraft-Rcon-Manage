@@ -381,6 +381,7 @@ public class BotClient {
 
                 // 检查是否是命令
                 String command = parseCommand(message.getMessage());
+                message.setMessage(command);
                 if (command != null) {
                     // 根据命令前缀路由到对应的处理方法
                     if (command.startsWith("help")) {
