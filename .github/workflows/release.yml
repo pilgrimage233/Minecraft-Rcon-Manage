@@ -64,7 +64,7 @@ jobs:
 
       # 构建前端项目
       - name: Build Frontend
-        run: npm run build
+        run: npm run build:prod
         working-directory: ./endless-ui
 
       # 压缩前端产物
