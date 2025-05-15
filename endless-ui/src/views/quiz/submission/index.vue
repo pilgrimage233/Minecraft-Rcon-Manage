@@ -196,8 +196,12 @@
           <el-table-column label="问题类型" prop="questionType" width="100">
             <template slot-scope="scope">
               <el-tag
-                :type="scope.row.questionType === 1 ? 'primary' : (scope.row.questionType === 2 ? 'success' : 'warning')">
-                {{ scope.row.questionType === 1 ? '单选题' : (scope.row.questionType === 2 ? '多选题' : '填空题') }}
+                :type="scope.row.questionType === 1 ? 'primary' : scope.row.questionType === 2 ? 'success' : scope.row.questionType === 3 ?  'danger' : 'warning'">
+                {{
+                  scope.row.questionType === 1 ? '单选题'
+                    : scope.row.questionType === 2 ? '多选题'
+                      : scope.row.questionType === 3 ? '填空题' : '随机验证'
+                }}
               </el-tag>
             </template>
           </el-table-column>

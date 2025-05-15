@@ -41,6 +41,11 @@ public class WhitelistQuizAnswerVo implements Serializable {
     @Excel(name = "排序顺序", readConverterExp = "选择题选项排序")
     private Long sortOrder;
 
+    /**
+     * 随机验证ID
+     */
+    private String verificationId;
+
 
     @Override
     public String toString() {

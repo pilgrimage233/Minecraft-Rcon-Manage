@@ -31,9 +31,9 @@ public class WhitelistQuizQuestionVo implements Serializable {
     private String questionText;
 
     /**
-     * 问题类型：1-单选题，2-多选题，3-填空题
+     * 问题类型：1-单选题，2-多选题，3-填空题,4-随机验证题
      */
-    @Excel(name = "问题类型：1-单选题，2-多选题，3-填空题")
+    @Excel(name = "问题类型：1-单选题，2-多选题，3-填空题,4-随机验证题")
     private Long questionType;
 
     /**
@@ -47,6 +47,11 @@ public class WhitelistQuizQuestionVo implements Serializable {
      */
     @Excel(name = "排序顺序")
     private Long sortOrder;
+
+    /**
+     * 随机验证ID
+     */
+    private String verificationId;
 
     /**
      * 白名单申请题目答案信息

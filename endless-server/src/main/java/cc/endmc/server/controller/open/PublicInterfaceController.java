@@ -247,10 +247,278 @@ public class PublicInterfaceController extends BaseController {
             if (!questions.isEmpty()) {
                 // 根据 sortOrder 排序
                 questions.sort(Comparator.comparing(WhitelistQuizQuestionVo::getSortOrder, Comparator.nullsLast(Comparator.naturalOrder())));
+
+                // 处理随机验证题型
+                questions.forEach(q -> {
+                    if (q.getQuestionType() == 4) { // 随机验证题型
+                        processRandomVerificationQuestion(q);
+                    }
+                });
             }
         }
 
         return success(questions);
+    }
+
+    /**
+     * 处理随机验证题目
+     * 根据保存的验证类型和难度级别，实时生成验证内容
+     *
+     * @param question 问题对象
+     */
+    private void processRandomVerificationQuestion(WhitelistQuizQuestionVo question) {
+        if (question == null || StringUtils.isEmpty(question.getQuestionText())) {
+            return;
+        }
+        // 生成唯一的验证ID
+        String verificationId = UUID.randomUUID().toString();
+
+        try {
+            // 解析验证类型和难度级别
+            String[] parts = question.getQuestionText().split(":");
+            String verificationType = parts[0];
+            String difficultyLevel = parts.length > 1 ? parts[1] : "easy";
+
+            // 根据验证类型生成随机验证内容
+            String verificationContent = generateVerificationContent(verificationType, difficultyLevel, verificationId);
+
+            // 设置生成的验证内容
+            question.setQuestionText(verificationContent);
+            question.setVerificationId(verificationId);
+
+            // 移除答案列表，随机验证题不需要预设答案
+            if (question.getWhitelistQuizAnswerVoList() != null) {
+                question.getWhitelistQuizAnswerVoList().clear();
+            }
+        } catch (Exception e) {
+            logger.error("处理随机验证题目出错", e);
+            question.setQuestionText("验证生成失败，请刷新重试");
+        }
+    }
+
+    /**
+     * 生成随机验证内容
+     *
+     * @param type  验证类型：1-数学验证，2-字母验证
+     * @param level 难度级别：easy-简单，medium-中等，hard-困难
+     * @return 生成的验证内容
+     */
+    private String generateVerificationContent(String type, String level, String verificationId) {
+        Random random = new Random();
+
+        // 数学验证
+        if ("1".equals(type)) {
+            return generateMathVerification(level, random, verificationId);
+        }
+        // 字母验证
+        else if ("2".equals(type)) {
+            return generateLetterVerification(level, random, verificationId);
+        }
+        return "无效的验证类型";
+    }
+
+    /**
+     * 生成数学验证内容
+     */
+    private String generateMathVerification(String level, Random random, String verificationId) {
+        int num1, num2, result;
+        String operator;
+
+        switch (level) {
+            case "easy":
+                // 简单：1-100的加减法
+                num1 = random.nextInt(100) + 1;  // 1-100
+                num2 = random.nextInt(100) + 1;  // 1-100
+                operator = random.nextBoolean() ? "+" : "-";
+                result = operator.equals("+") ? num1 + num2 : num1 - num2;
+                // 确保结果为正数
+                if (result < 0) {
+                    int temp = num1;
+                    num1 = num2;
+                    num2 = temp;
+                    result = num1 - num2;
+                }
+                break;
+            case "medium":
+                // 普通：1-1000的加减乘除
+                num1 = random.nextInt(1000) + 1; // 1-1000
+                num2 = random.nextInt(1000) + 1; // 1-1000
+                int op = random.nextInt(4);
+                switch (op) {
+                    case 0:
+                        operator = "+";
+                        result = num1 + num2;
+                        break;
+                    case 1:
+                        operator = "-";
+                        result = num1 - num2;
+                        // 确保结果为正数
+                        if (result < 0) {
+                            int temp = num1;
+                            num1 = num2;
+                            num2 = temp;
+                            result = num1 - num2;
+                        }
+                        break;
+                    case 2:
+                        operator = "×";
+                        // 限制乘法数字范围，避免结果过大
+                        num1 = random.nextInt(50) + 1;  // 1-50
+                        num2 = random.nextInt(20) + 1;  // 1-20
+                        result = num1 * num2;
+                        break;
+                    default:
+                        operator = "÷";
+                        // 确保除法能整除
+                        num2 = random.nextInt(20) + 1;  // 1-20
+                        num1 = num2 * (random.nextInt(50) + 1);  // 确保能整除
+                        result = num1 / num2;
+                }
+                break;
+            case "hard":
+                // 困难：1-10000的复杂运算
+                num1 = random.nextInt(10000) + 1; // 1-10000
+                num2 = random.nextInt(10000) + 1; // 1-10000
+                int op2 = random.nextInt(5);
+                switch (op2) {
+                    case 0:
+                        operator = "+";
+                        result = num1 + num2;
+                        break;
+                    case 1:
+                        operator = "-";
+                        result = num1 - num2;
+                        // 确保结果为正数
+                        if (result < 0) {
+                            int temp = num1;
+                            num1 = num2;
+                            num2 = temp;
+                            result = num1 - num2;
+                        }
+                        break;
+                    case 2:
+                        operator = "×";
+                        // 限制乘法数字范围，避免结果过大
+                        num1 = random.nextInt(100) + 1;  // 1-100
+                        num2 = random.nextInt(100) + 1;  // 1-100
+                        result = num1 * num2;
+                        break;
+                    case 3:
+                        operator = "÷";
+                        // 确保除法能整除
+                        num2 = random.nextInt(50) + 1;  // 1-50
+                        num1 = num2 * (random.nextInt(200) + 1);  // 确保能整除
+                        result = num1 / num2;
+                        break;
+                    default:
+                        // 混合运算：先乘后加
+                        operator = "×+";
+                        int num3 = random.nextInt(100) + 1;
+                        result = num1 * num2 + num3;
+                        return String.format("请计算: %d × %d + %d = ?\n\n验证ID: %s",
+                                num1, num2, num3, UUID.randomUUID().toString());
+                }
+                break;
+            default:
+                // 默认简单
+                num1 = random.nextInt(100) + 1;
+                num2 = random.nextInt(100) + 1;
+                operator = "+";
+                result = num1 + num2;
+        }
+
+        // 存储答案到Redis缓存中，设置30分钟过期
+        Map<String, Object> verificationData = new HashMap<>();
+        verificationData.put("result", String.valueOf(result));
+        redisCache.setCacheObject(CacheKey.VERIFICATION_KEY + verificationId, verificationData, 30, TimeUnit.MINUTES);
+
+        return String.format("请计算: %d %s %d = ?\n\n", num1, operator, num2);
+    }
+
+    /**
+     * 生成字母验证内容
+     */
+    private String generateLetterVerification(String level, Random random, String verificationId) {
+        String letters;
+        int length;
+
+        switch (level) {
+            case "easy":
+                // 简单：5个随机大写字母
+                length = 5;
+                letters = generateRandomLetters(length, true, false, random);
+                break;
+            case "medium":
+                // 中等：7个大小写混合字母
+                length = 7;
+                letters = generateRandomLetters(length, true, true, random);
+                break;
+            case "hard":
+                // 困难：10个大小写字母和数字的组合
+                length = 10;
+                letters = generateRandomLetters(length, true, true, random) +
+                        generateRandomDigits(3, random);
+                // 打乱顺序
+                char[] chars = letters.toCharArray();
+                for (int i = 0; i < chars.length; i++) {
+                    int j = random.nextInt(chars.length);
+                    char temp = chars[i];
+                    chars[i] = chars[j];
+                    chars[j] = temp;
+                }
+                letters = new String(chars).substring(0, length);
+                break;
+            default:
+                // 默认简单
+                length = 5;
+                letters = generateRandomLetters(length, true, false, random);
+        }
+
+        // 存储答案到Redis缓存中，设置30分钟过期
+        Map<String, Object> verificationData = new HashMap<>();
+        verificationData.put("result", letters);
+        redisCache.setCacheObject(CacheKey.VERIFICATION_KEY + verificationId, verificationData, 30, TimeUnit.MINUTES);
+
+        return String.format("请输入以下字符: %s\n\n", letters);
+    }
+
+    /**
+     * 生成随机字母
+     */
+    private String generateRandomLetters(int length, boolean includeUppercase, boolean includeLowercase, Random random) {
+        StringBuilder sb = new StringBuilder();
+        String uppercaseLetters = "ABCDEFGHJKLMNPQRSTUVWXYZ"; // 排除容易混淆的字母
+        String lowercaseLetters = "abcdefghijkmnpqrstuvwxyz"; // 排除容易混淆的字母
+
+        String availableChars = "";
+        if (includeUppercase) {
+            availableChars += uppercaseLetters;
+        }
+        if (includeLowercase) {
+            availableChars += lowercaseLetters;
+        }
+
+        if (availableChars.isEmpty()) {
+            availableChars = uppercaseLetters; // 默认使用大写字母
+        }
+
+        for (int i = 0; i < length; i++) {
+            int index = random.nextInt(availableChars.length());
+            sb.append(availableChars.charAt(index));
+        }
+
+        return sb.toString();
+    }
+
+    /**
+     * 生成随机数字
+     */
+    private String generateRandomDigits(int length, Random random) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < length; i++) {
+            sb.append(random.nextInt(10)); // 0-9
+        }
+        return sb.toString();
     }
 
     /**
@@ -392,11 +660,16 @@ public class PublicInterfaceController extends BaseController {
         List<WhitelistQuizSubmissionDetail> detailList = new ArrayList<>();
         long totalScore = 0;
 
+        // 随机验证题型通过标志
+        boolean random = false;
+        boolean randomSuccess = false;
+
         // 遍历所有答案
         for (int i = 0; i < answers.size(); i++) {
             JSONObject answerObj = answers.getJSONObject(i);
             Long questionId = answerObj.getLong("questionId");
             String playerAnswer = answerObj.getString("answer");
+            String verificationId = answerObj.getString("verificationId"); // 获取验证ID
 
             // 查找对应的问题
             WhitelistQuizQuestion question = questions.stream()
@@ -417,7 +690,21 @@ public class PublicInterfaceController extends BaseController {
             detail.setScore(0L);    // 默认为0分
 
             // 根据问题类型判断答案是否正确并计算得分
-            if (question.getWhitelistQuizAnswerList() != null && !question.getWhitelistQuizAnswerList().isEmpty()) {
+            if (question.getQuestionType() == 4) {
+                random = true;
+                // 随机验证题型处理
+                if (StringUtils.isNotEmpty(verificationId) && StringUtils.isNotEmpty(playerAnswer)) {
+                    Map<String, Object> verificationData = redisCache.getCacheObject(CacheKey.VERIFICATION_KEY + verificationId);
+                    if (verificationData != null && verificationData.containsKey("result")) {
+                        String correctAnswer = (String) verificationData.get("result");
+                        boolean isCorrect = correctAnswer.equalsIgnoreCase(playerAnswer.trim());
+                        detail.setIsCorrect(isCorrect ? 1 : 0);
+                        randomSuccess = isCorrect;
+                        // 验证完成后删除缓存
+                        redisCache.deleteObject(CacheKey.VERIFICATION_KEY + verificationId);
+                    }
+                }
+            } else if (question.getWhitelistQuizAnswerList() != null && !question.getWhitelistQuizAnswerList().isEmpty()) {
                 // 处理单选题和多选题
                 if (question.getQuestionType() == 1 || question.getQuestionType() == 2) {
                     String[] selectedAnswers = playerAnswer.split(",");
@@ -502,6 +789,12 @@ public class PublicInterfaceController extends BaseController {
                 submission.setPassStatus(1); // 已通过
                 submission.setReviewer("System(Auto)"); // 自动审核
             }
+        }
+
+        if (random && !randomSuccess) {
+            submission.setPassStatus(0);
+            submission.setReviewComment("用户未通过随机验证");
+            submission.setReviewer(null);
         }
 
         // 设置详情列表
