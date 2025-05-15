@@ -69,7 +69,7 @@ public class QqBotConfigServiceImpl implements IQqBotConfigService {
         if (!wsUrl.startsWith("ws://")) {
             qqBotConfig.setWsUrl(Constants.WS + qqBotConfig.getWsUrl());
         }
-        if (!HttpUtil.isHttp(httpUrl) || !HttpUtil.isHttps(httpUrl)) {
+        if (!HttpUtil.isHttp(httpUrl) && !HttpUtil.isHttps(httpUrl)) {
             qqBotConfig.setHttpUrl(Constants.HTTP + qqBotConfig.getHttpUrl());
         }
         final int i = qqBotConfigMapper.insertQqBotConfig(qqBotConfig);

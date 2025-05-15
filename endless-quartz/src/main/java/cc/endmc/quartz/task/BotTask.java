@@ -77,6 +77,7 @@ public class BotTask {
             }
         }
 
+        boolean isFail = false;
         // 获取启用机器人的群员列表
         JSONObject request = new JSONObject();
         request.put("no_cache", false);
@@ -90,6 +91,7 @@ public class BotTask {
             BotClient responsibleBot = findResponsibleBot(activeBots, groupId);
             if (responsibleBot == null) {
                 log.warn("群 {} 没有对应的机器人客户端", groupId);
+                isFail = true;
                 continue;
             }
 
@@ -101,24 +103,30 @@ public class BotTask {
                         .createPost(botUrl + BotApi.GET_GROUP_MEMBER_LIST)
                         .header("Authorization", "Bearer " + responsibleBot.getConfig().getToken())
                         .body(request.toJSONString())
+                        .timeout(5000)
                         .execute();
             } catch (Exception e) {
                 log.error("群 {} 获取成员列表失败: {}", groupId, e.getMessage());
+                isFail = true;
                 continue;
             }
             if (response == null || !response.isOk()) {
                 log.warn("群 {} 获取成员列表失败", groupId);
-                return;
+                isFail = true;
+                continue;
             }
 
             final JSONObject jsonObject = JSONObject.parseObject(response.body());
             if ((jsonObject.containsKey("retcode") && jsonObject.getInteger("retcode") != 0) || jsonObject.getJSONArray("data") == null) {
                 log.warn("群 {} 获取成员列表失败: {}", groupId, jsonObject);
-                return;
+                isFail = true;
+                continue;
+            } else {
+                log.debug("群 {} 成员列表获取成功: {}", groupId, jsonObject);
             }
 
             final List<JSONObject> members = jsonObject.getJSONArray("data").toJavaList(JSONObject.class);
-
+            isFail = members.isEmpty();
             // 检查每个白名单用户在当前群中的状态
             whitelistInfos.forEach(whitelist -> {
                 Long userId = Long.parseLong(whitelist.getQqNum());
@@ -138,6 +146,9 @@ public class BotTask {
                 }
             });
         }
+
+        // 避免出现空数据移除全部数据
+        if (isFail) return;
 
         // 处理所有不在任何群中的用户
         whitelistInfos.forEach(whitelist -> {

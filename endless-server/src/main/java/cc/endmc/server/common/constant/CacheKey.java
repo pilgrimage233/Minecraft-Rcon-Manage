@@ -18,7 +18,11 @@ public class CacheKey {
 
     public static final String ONLINE_PLAYER_KEY = "server_manager:online_player";
 
+    public static final String SERVER_PLAYER_KEY = "server_manager:server_player:";
+
     public static final String WHITE_LIST_KEY = "server_manager:white_list";
+
+    public static final String VERIFICATION_KEY = "verification:";
 
     public static final String VERIFY_KEY = "server_manager:verify:";
 
@@ -27,5 +31,7 @@ public class CacheKey {
     public static final String VERIFY_FOR_BATCH_KEY = "server_manager:verify:batch:";
 
     public static final String COMMAND_USE_KEY = "server_manager:command:use:";
+
+    public static final String NODE_SERVER_MAP_KEY = "server_manager:node:server_map:";
 
 }

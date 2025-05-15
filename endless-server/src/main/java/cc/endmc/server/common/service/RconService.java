@@ -70,9 +70,19 @@ public class RconService {
     /**
      * 发送Rcon命令
      *
-     * @param key
-     * @param command
-     * @param onlineFlag
+     * @param key 服务器ID
+     * @param command 命令
+     */
+    public String sendCommand(String key, String command) {
+        return this.sendCommand(key, command, false);
+    }
+
+    /**
+     * 发送Rcon命令
+     *
+     * @param key 服务器ID
+     * @param command 命令
+     * @param onlineFlag 是否在线
      */
     public String sendCommand(String key, String command, boolean onlineFlag) {
         int maxRetries = 3;

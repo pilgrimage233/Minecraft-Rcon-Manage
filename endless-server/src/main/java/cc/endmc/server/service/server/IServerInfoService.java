@@ -73,7 +73,7 @@ public interface IServerInfoService {
      *
      * @return 在线玩家
      */
-    Map<String, Object> getOnlinePlayer();
+    Map<String, Object> getOnlinePlayer(boolean cache);
 
     /**
      * 聚合查询

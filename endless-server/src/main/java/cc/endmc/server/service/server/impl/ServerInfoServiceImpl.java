@@ -233,7 +233,7 @@ public class ServerInfoServiceImpl implements IServerInfoService {
      * @return 在线玩家
      */
     @Override
-    public Map<String, Object> getOnlinePlayer() {
+    public Map<String, Object> getOnlinePlayer(boolean cache) {
         Map<String, Object> result = new HashMap<>();
         List<ServerInfo> serverInfo;
         // 从Redis缓存中获取serverInfo
@@ -254,38 +254,46 @@ public class ServerInfoServiceImpl implements IServerInfoService {
                 List<String> playerList = new ArrayList<>();
                 String[] split;
                 try {
-                    if (info.getServerCore().equalsIgnoreCase("Velocity")) {
-                        final String response = rconService.sendCommand(id, "glist all", false);
-                        if (response == null) continue;
-                        String[] lines = response.split("\n");
-                        // 处理Velocity格式
-                        for (String line : lines) {
-                            split = line.split(":");
-                            if (split.length > 1) {
-                                String[] players = split[1].trim().split(", ");
-                                playerList = Arrays.stream(players)
-                                        .filter(StringUtils::isNotEmpty)
-                                        .collect(Collectors.toList());
+                    String cacheKey = CacheKey.SERVER_PLAYER_KEY + id;
+                    if (cache && (redisCache.hasKey(cacheKey) || redisCache.getCacheObject(cacheKey) != null)) {
+                        playerList = redisCache.getCacheList(cacheKey);
+                    } else {
+                        if (info.getServerCore().equalsIgnoreCase("Velocity")) {
+                            final String response = rconService.sendCommand(id, "glist all", false);
+                            if (response == null) continue;
+                            String[] lines = response.split("\n");
+                            // 处理Velocity格式
+                            for (String line : lines) {
+                                split = line.split(":");
+                                if (split.length > 1) {
+                                    String[] players = split[1].trim().split(", ");
+                                    playerList = Arrays.stream(players)
+                                            .filter(StringUtils::isNotEmpty)
+                                            .collect(Collectors.toList());
+                                }
+                            }
+                        } else {
+                            // 处理其他服务器核心的响应格式
+                            String list = rconService.sendCommand(id, "list", false);
+                            if (list != null) {
+                                // 判断是否插件服装有ESS
+                                if (!list.startsWith("There are")) {
+                                    list = rconService.sendCommand(id, "minecraft:list", false);
+                                }
+                                split = list.split(":");
+                                if (split.length > 1) {
+                                    String[] players = split[1].trim().split(", ");
+                                    playerList = Arrays.stream(players)
+                                            .filter(StringUtils::isNotEmpty)
+                                            .collect(Collectors.toList());
+                                }
                             }
                         }
-                    } else {
-                        // 处理其他服务器核心的响应格式
-                        String list = rconService.sendCommand(id, "list", false);
-                        if (list != null) {
-                            // 判断是否插件服装有ESS
-                            if (!list.startsWith("There are")) {
-                                list = rconService.sendCommand(id, "minecraft:list", false);
-                            }
-                            split = list.split(":");
-                            if (split.length > 1) {
-                                String[] players = split[1].trim().split(", ");
-                                playerList = Arrays.stream(players)
-                                        .filter(StringUtils::isNotEmpty)
-                                        .collect(Collectors.toList());
-                            }
+                        if (!playerList.isEmpty()) {
+                            redisCache.setCacheList(cacheKey, playerList);
+                            redisCache.expire(cacheKey, 30, TimeUnit.SECONDS);
                         }
                     }
-
                     onlinePlayer.put("在线人数", playerList.size());
                     onlinePlayer.put("在线玩家", playerList.toString());
                     result.put(info.getNameTag(), onlinePlayer);
@@ -310,7 +318,7 @@ public class ServerInfoServiceImpl implements IServerInfoService {
         Map<String, Object> result = new HashMap<>();
 
         // 在线玩家
-        Map<String, Object> onlinePlayer = getOnlinePlayer();
+        Map<String, Object> onlinePlayer = getOnlinePlayer(false);
         result.put("onlinePlayer", onlinePlayer);
 
         // 申请数量

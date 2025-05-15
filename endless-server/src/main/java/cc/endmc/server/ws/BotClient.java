@@ -149,7 +149,7 @@ public class BotClient {
         if (!wsUrl.startsWith("ws://")) {
             config.setWsUrl(Constants.WS + config.getWsUrl());
         }
-        if (!HttpUtil.isHttp(httpUrl) || !HttpUtil.isHttps(httpUrl)) {
+        if (!HttpUtil.isHttp(httpUrl) && !HttpUtil.isHttps(httpUrl)) {
             config.setHttpUrl(Constants.HTTP + config.getHttpUrl());
         }
 
@@ -1271,7 +1271,7 @@ public class BotClient {
             String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
 
             // 获取在线玩家信息
-            Map<String, Object> result = serverInfoService.getOnlinePlayer();
+            Map<String, Object> result = serverInfoService.getOnlinePlayer(false);
 
             if (result.isEmpty()) {
                 sendMessage(message, base + " 当前没有服务器在线。");
