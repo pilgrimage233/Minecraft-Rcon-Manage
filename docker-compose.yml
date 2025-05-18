@@ -20,6 +20,8 @@ services:
       - SPRING_DATASOURCE_DRUID_MAXACTIVE=20
       - SPRING_REDIS_HOST=endless-redis
     restart: always
+    volumes:
+      - ./app/config:/app/config # 映射文件以用于修改配置
     networks:
       - endless-net
 
