@@ -12,7 +12,7 @@ services:
       - endless-mysql
       - endless-redis
     environment:
-      - SPRING_DATASOURCE_DRUID_MASTER_URL=jdbc:mysql://endless-mysql:3306/minecraft_manager?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2B8
+      - SPRING_DATASOURCE_DRUID_MASTER_URL=jdbc:mysql://endless-mysql:3306/minecraft_manager?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_DRUID_MASTER_USERNAME=root
       - SPRING_DATASOURCE_DRUID_MASTER_PASSWORD=password
       - SPRING_DATASOURCE_DRUID_INITIALSIZE=5
