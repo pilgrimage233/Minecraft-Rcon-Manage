@@ -41,8 +41,6 @@ services:
   endless-mysql:
     image: mysql:8.0.41
     container_name: endless-mysql
-    ports:
-      - "13306:3306"  # 将主机端口从3306改为13306
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: minecraft_manager
@@ -57,8 +55,6 @@ services:
   endless-redis:
     image: redis:6.0
     container_name: endless-redis
-    ports:
-      - "16379:6379"
     volumes:
       - redis-data:/data
     restart: always
