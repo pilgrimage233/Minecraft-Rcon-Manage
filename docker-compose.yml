@@ -12,7 +12,7 @@ services:
       - endless-mysql
       - endless-redis
     environment:
-      - SPRING_DATASOURCE_DRUID_MASTER_URL=jdbc:mysql://endless-mysql:3306/minecraft_manager?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2B8
+      - SPRING_DATASOURCE_DRUID_MASTER_URL=jdbc:mysql://endless-mysql:3306/minecraft_manager?useUnicode=true&characterEncoding=utf8&zeroDateTimeBehavior=convertToNull&useSSL=false&serverTimezone=GMT%2B8&allowPublicKeyRetrieval=true
       - SPRING_DATASOURCE_DRUID_MASTER_USERNAME=root
       - SPRING_DATASOURCE_DRUID_MASTER_PASSWORD=password
       - SPRING_DATASOURCE_DRUID_INITIALSIZE=5
@@ -20,6 +20,8 @@ services:
       - SPRING_DATASOURCE_DRUID_MAXACTIVE=20
       - SPRING_REDIS_HOST=endless-redis
     restart: always
+    volumes:
+      - ./app/config:/app/config # 映射文件以用于修改配置
     networks:
       - endless-net
 
@@ -41,8 +43,6 @@ services:
   endless-mysql:
     image: mysql:8.0.41
     container_name: endless-mysql
-    ports:
-      - "13306:3306"  # 将主机端口从3306改为13306
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: minecraft_manager
@@ -57,8 +57,6 @@ services:
   endless-redis:
     image: redis:6.0
     container_name: endless-redis
-    ports:
-      - "16379:6379"
     volumes:
       - redis-data:/data
     restart: always
