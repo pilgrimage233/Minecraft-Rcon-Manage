@@ -1,5 +1,5 @@
 # 使用支持 Java 8 的 Maven 镜像
-FROM maven:3.9.9-eclipse-temurin-8
+FROM maven:3.9.9-eclipse-temurin-8 AS build
 
 # 设置工作目录
 WORKDIR /app
@@ -21,7 +21,7 @@ RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 WORKDIR /app
 
 # 复制jar包
-COPY --from=builder /app/endless-admin/target/endless-manager.jar ./app.jar
+COPY --from=build /app/endless-admin/target/endless-manager.jar ./app.jar
 
 # 暴露端口
 EXPOSE 8080
