@@ -75,11 +75,11 @@
             <version>3.8.7</version>
         </dependency>
 
-        <!--  <dependency>
+        <dependency>
               <groupId>cc.endmc</groupId>
               <artifactId>endless-node</artifactId>
               <version>3.8.7</version>
-          </dependency>-->
+        </dependency>
 
         <!-- Lombok -->
         <dependency>

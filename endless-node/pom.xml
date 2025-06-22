@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>cc.endmc</groupId>
+        <artifactId>endless</artifactId>
+        <version>3.8.7</version>
+    </parent>
+
+    <description>
+        远程节点管理模块
+    </description>
+    <artifactId>endless-node</artifactId>
+
+    <dependencies>
+
+        <dependency>
+            <groupId>cc.endmc</groupId>
+            <artifactId>endless-common</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cc.endmc</groupId>
+            <artifactId>endless-system</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>cc.endmc</groupId>
+            <artifactId>endless-framework</artifactId>
+        </dependency>
+        <!-- Java WebSocket -->
+        <dependency>
+            <groupId>org.java-websocket</groupId>
+            <artifactId>Java-WebSocket</artifactId>
+            <version>1.5.3</version>
+        </dependency>
+
+        <!-- SLF4J API -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>${slf4j.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+    </dependencies>
+</project>

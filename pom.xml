@@ -20,7 +20,7 @@
     </distributionManagement>
 
     <properties>
-        <endless.version>2.7.0</endless.version>
+        <endless.version>3.0_Preview</endless.version>
         <ruoyi.version>3.8.7</ruoyi.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -252,7 +252,7 @@
         <module>endless-generator</module>
         <module>endless-common</module>
         <module>endless-server</module>
-        <!--<module>endless-node</module>-->
+        <module>endless-node</module>
     </modules>
     <packaging>pom</packaging>
 

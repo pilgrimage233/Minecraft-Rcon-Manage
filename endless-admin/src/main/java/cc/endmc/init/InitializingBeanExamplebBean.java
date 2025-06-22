@@ -2,6 +2,9 @@ package cc.endmc.init;
 
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
+import cc.endmc.node.common.NodeCache;
+import cc.endmc.node.domain.NodeServer;
+import cc.endmc.node.service.INodeServerService;
 import cc.endmc.server.common.MapCache;
 import cc.endmc.server.common.ObjectCache;
 import cc.endmc.server.common.constant.CacheKey;
@@ -32,7 +35,7 @@ public class InitializingBeanExamplebBean implements InitializingBean {
 
     final private IServerInfoService serverInfoService;
 
-    // final private INodeServerService nodeServerService;
+    final private INodeServerService nodeServerService;
 
     final private IServerCommandInfoService commandInfoService;
 
@@ -116,15 +119,15 @@ public class InitializingBeanExamplebBean implements InitializingBean {
         log.info("🔌 ENDLESS INIT: 初始化Rcon连接完成... 共有 {} 个服务器", MapCache.size());
 
         // 初始化Node节点服务器
-        // NodeServer nodeServer = new NodeServer();
-        // nodeServer.setStatus("0");
-        // final List<NodeServer> list = nodeServerService.selectNodeServerList(nodeServer);
-        // if (list != null) {
-        //     for (NodeServer server : list) {
-        //         NodeCache.put(server.getId(), server);
-        //     }
-        // }
-        // log.info("🖥️ ENDLESS INIT: 缓存节点服务器数量: {}", NodeCache.size());
+        NodeServer nodeServer = new NodeServer();
+        nodeServer.setStatus("0");
+        final List<NodeServer> list = nodeServerService.selectNodeServerList(nodeServer);
+        if (list != null) {
+            for (NodeServer server : list) {
+                NodeCache.put(server.getId(), server);
+            }
+        }
+        log.info("🖥️ ENDLESS INIT: 缓存节点服务器数量: {}", NodeCache.size());
 
         // Thread.sleep(5000);
 
