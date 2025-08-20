@@ -61,6 +61,22 @@
                         value-format="yyyy-MM-dd">
         </el-date-picker>
       </el-form-item>
+      <el-form-item label="开始时间" prop="startTime">
+        <el-date-picker v-model="queryParams.startTime"
+                        clearable
+                        placeholder="请选择开始时间"
+                        type="date"
+                        value-format="yyyy-MM-dd">
+        </el-date-picker>
+      </el-form-item>
+      <el-form-item label="结束时间" prop="endTime">
+        <el-date-picker v-model="queryParams.endTime"
+                        clearable
+                        placeholder="请选择结束时间"
+                        type="date"
+                        value-format="yyyy-MM-dd">
+        </el-date-picker>
+      </el-form-item>
       <el-form-item label="移除时间" prop="removeTime">
         <el-date-picker v-model="queryParams.removeTime"
                         clearable
@@ -276,6 +292,25 @@
             </el-option>
           </el-select>
         </el-form-item>
+        <el-form-item label="开始时间" prop="startTime">
+          <el-date-picker
+            v-model="form.startTime"
+            :disabled="form.id != null"
+            :style="{width: '100%'}"
+            placeholder="选择开始时间"
+            type="datetime"
+            value-format="yyyy-MM-dd HH:mm"
+          ></el-date-picker>
+        </el-form-item>
+        <el-form-item label="结束时间" prop="endTime">
+          <el-date-picker
+            v-model="form.endTime"
+            :style="{width: '100%'}"
+            placeholder="选择结束时间"
+            type="datetime"
+            value-format="yyyy-MM-dd HH:mm"
+          ></el-date-picker>
+        </el-form-item>
         <el-form-item v-if="form.id != null" label="移除白名单" prop="addState">
           <el-switch v-model="addState"></el-switch>
         </el-form-item>
@@ -385,11 +420,13 @@ export default {
         status: null,
         addState: null,
         addTime: null,
+        startTime: null,
+        endTime: null,
         removeReason: null,
         removeTime: null
       },
       // 表单参数
-      form: {addState: false, banFlag: false, onlineFlag: 0},
+      form: {addState: false, banFlag: false, onlineFlag: 0, startTime: null, endTime: null},
       // 表单校验
       rules: {
         userName: [{
@@ -401,6 +438,11 @@ export default {
           required: true,
           message: '请输入QQ号',
           trigger: 'blur'
+        }],
+        startTime: [{
+          required: true,
+          message: '请选择开始时间',
+          trigger: 'change'
         }],
         removeReason: [],
         status: [],
@@ -465,7 +507,9 @@ export default {
         removeTime: null,
         servers: null,
         banFlag: false,
-        bannedReason: null
+        bannedReason: null,
+        startTime: null,
+        endTime: null
       };
       this.resetForm("form");
     },
@@ -494,6 +538,9 @@ export default {
       this.handleServerList();
       // 设置默认值
       this.form.status = 1; // 默认通过
+      // 设置默认开始时间为当前时间
+      const now = new Date();
+      this.form.startTime = this.parseTime(now, '{y}-{m}-{d} {h}:{i}');
       this.open = true;
       this.title = "添加白名单";
     },
@@ -531,6 +578,11 @@ export default {
         this.form.banFlag = this.form.addState === '9';
         this.open = true;
         this.title = "修改白名单";
+        // 开始时间在修改时如无数据则默认当前时间，且该字段在修改时锁定
+        if (!this.form.startTime) {
+          const now = new Date();
+          this.form.startTime = this.parseTime(now, '{y}-{m}-{d} {h}:{i}');
+        }
         if (this.form.addState === '2') {
           this.addState = true;
         }

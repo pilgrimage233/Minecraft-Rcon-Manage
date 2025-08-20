@@ -8,12 +8,14 @@ import cc.endmc.server.common.constant.Command;
 import cc.endmc.server.common.service.EmailService;
 import cc.endmc.server.common.service.RconService;
 import cc.endmc.server.domain.permission.BanlistInfo;
+import cc.endmc.server.domain.permission.WhitelistDeadlineInfo;
 import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.domain.player.PlayerDetails;
 import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.enums.Identity;
 import cc.endmc.server.mapper.permission.WhitelistInfoMapper;
 import cc.endmc.server.service.permission.IBanlistInfoService;
+import cc.endmc.server.service.permission.IWhitelistDeadlineInfoService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
 import cc.endmc.server.service.player.IPlayerDetailsService;
 import cc.endmc.server.service.server.IServerInfoService;
@@ -47,6 +49,9 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
 
     @Autowired
     private WhitelistInfoMapper whitelistInfoMapper;
+
+    @Autowired
+    private IWhitelistDeadlineInfoService deadlineInfoService;
 
     @Autowired
     private IBanlistInfoService banlistInfoService;
@@ -86,7 +91,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         //     // name用，分割用于前端展示
         //     whitelistInfo.setServers(String.join(",", name));
         // }
-
+        final WhitelistInfo whitelistInfo = whitelistInfoMapper.selectWhitelistInfoById(id);
         // 查询有无封禁记录
         BanlistInfo banlistInfo = new BanlistInfo();
         banlistInfo.setWhiteId(id);
@@ -94,14 +99,23 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         if (!banlistInfos.isEmpty()) {
             banlistInfo = banlistInfos.get(0);
             if (banlistInfo.getState() == 1) {
-                WhitelistInfo whitelistInfo = whitelistInfoMapper.selectWhitelistInfoById(id);
                 whitelistInfo.setBanFlag("true");
                 whitelistInfo.setBannedReason(banlistInfo.getReason());
-                return whitelistInfo;
             }
         }
 
-        return whitelistInfoMapper.selectWhitelistInfoById(id);
+        // 查询白名单时限记录
+        WhitelistDeadlineInfo deadlineInfo = new WhitelistDeadlineInfo();
+        deadlineInfo.setWhitelistId(id);
+        deadlineInfo.setDelFlag(0L); // 时限内记录
+        final List<WhitelistDeadlineInfo> noExpired = deadlineInfoService.selectWhitelistDeadlineInfoList(deadlineInfo);
+
+        if (!noExpired.isEmpty()) {
+            whitelistInfo.setStartTime(noExpired.get(0).getStartTime());
+            whitelistInfo.setEndTime(noExpired.get(0).getEndTime());
+        }
+
+        return whitelistInfo;
     }
 
     /**
@@ -459,6 +473,35 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             details = playerDetails.get(0);
             details.setWhitelistId(whitelistInfo.getId());
             playerDetailsService.updatePlayerDetails(details, false);
+        }
+
+        // 白名单时限
+        if (whitelistInfo.getEndTime() != null) {
+
+            // 查询是否有时限内白名单记录
+            WhitelistDeadlineInfo deadlineInfo = new WhitelistDeadlineInfo();
+            deadlineInfo.setWhitelistId(whitelistInfo.getId());
+            deadlineInfo.setDelFlag(0L); // 时限内记录
+            final List<WhitelistDeadlineInfo> deadlineInfos = deadlineInfoService.selectWhitelistDeadlineInfoList(deadlineInfo);
+            deadlineInfo.setStartTime(whitelistInfo.getStartTime());
+            deadlineInfo.setEndTime(whitelistInfo.getEndTime());
+            deadlineInfo.setUserName(whitelistInfo.getUserName());
+
+            // 判断过期时间是否大于当前时间
+            if (deadlineInfo.getEndTime().getTime() > System.currentTimeMillis()) {
+                deadlineInfo.setDelFlag(0L);
+            } else {
+                deadlineInfo.setDelFlag(1L); // 已过期
+            }
+
+            if (deadlineInfos.isEmpty()) {
+                // 新增记录
+                deadlineInfoService.insertWhitelistDeadlineInfo(deadlineInfo);
+            } else {
+                // 更新记录
+                deadlineInfo.setId(deadlineInfos.get(0).getId());
+                deadlineInfoService.updateWhitelistDeadlineInfo(deadlineInfo);
+            }
         }
 
         if (sendEmail) {

@@ -16,19 +16,23 @@ import cc.endmc.server.common.EmailTemplates;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.service.EmailService;
 import cc.endmc.server.config.QuestionConfig;
+import cc.endmc.server.domain.bot.QqBotConfig;
 import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.domain.player.PlayerDetails;
 import cc.endmc.server.domain.quiz.WhitelistQuizConfig;
 import cc.endmc.server.domain.quiz.WhitelistQuizSubmission;
 import cc.endmc.server.enums.Identity;
+import cc.endmc.server.service.bot.IQqBotConfigService;
 import cc.endmc.server.service.other.IIpLimitInfoService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
 import cc.endmc.server.service.player.IPlayerDetailsService;
 import cc.endmc.server.service.quiz.IWhitelistQuizConfigService;
 import cc.endmc.server.service.quiz.IWhitelistQuizSubmissionService;
+import cc.endmc.server.utils.BotUtil;
 import cc.endmc.server.utils.CodeUtil;
 import cc.endmc.server.utils.MinecraftUUIDUtil;
 import cc.endmc.server.utils.WhitelistUtils;
+import cn.hutool.core.util.RandomUtil;
 import com.alibaba.fastjson2.JSONObject;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -98,6 +102,8 @@ public class WhitelistInfoController extends BaseController {
     private String appUrl;
     @Autowired
     private EmailService emailService;
+    @Autowired
+    private IQqBotConfigService qqBotConfigService;
 
     public WhitelistInfoController() {
         this.dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
@@ -459,6 +465,49 @@ public class WhitelistInfoController extends BaseController {
                 }
             };
             asyncManager.execute(timerTask2);
+
+            // QQ群通知
+            final QqBotConfig qqBotConfig = new QqBotConfig();
+            qqBotConfig.setStatus(1L);
+            List<QqBotConfig> qqBotConfigs = qqBotConfigService.selectQqBotConfigList(qqBotConfig);
+            if (qqBotConfigs != null && !qqBotConfigs.isEmpty()) {
+                for (QqBotConfig botConfig : qqBotConfigs) {
+                    if (botConfig.getStatus() == 1L) {
+                        String connect = "【白名单申请】🎉 用户【" + whitelistInfo.getUserName() + "】通过 " + source + " 提交了白名单申请，快来审核吧！📝\n" +
+                                "申请人QQ: " + whitelistInfo.getQqNum() + "\n";
+
+                        if (details != null && StringUtils.isNotEmpty(details.getProvince())) {
+                            connect += "📍省份: " + details.getProvince() + "\n";
+                        }
+
+                        if (details != null && StringUtils.isNotEmpty(details.getCity())) {
+                            connect += "🏙️城市: " + details.getCity() + "\n";
+                        }
+
+                        if (!finalAutoApproved) {
+                            String key;
+                            while (true) {
+                                key = RandomUtil.randomNumbers(4);
+                                if (redisCache.hasKey(CacheKey.PASS_KEY + key)) {
+                                    // 确保key唯一
+                                    logger.warn("生成的唯一key已存在，重新生成: {}", key);
+                                } else {
+                                    redisCache.setCacheObject(CacheKey.PASS_KEY + key, whitelistInfo, 30, TimeUnit.MINUTES);
+                                    break;
+                                }
+                            }
+                            connect += "管理员回复 【通过 " + key + "】 可通过白名单审核 ✅\n";
+                            connect += "请在 30 分钟内回复此消息以完成审核。⏳\n";
+                        } else {
+                            connect += "🌟 已自动审核通过！🎉\n";
+                        }
+
+                        // 发送消息
+                        BotUtil.sendMessage(connect, botConfig.getGroupIds(), botConfig);
+                    }
+
+                }
+            }
 
             return success(finalAutoApproved ? "恭喜您！您的白名单申请已自动审核通过！" : EmailTemplates.APPLY_SUCCESS);
         } else {

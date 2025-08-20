@@ -35,7 +35,6 @@ CREATE TABLE `banlist_info`
     `update_by`   varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '更新者',
     PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 4
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '封禁管理表'
   ROW_FORMAT = DYNAMIC;
@@ -73,7 +72,6 @@ CREATE TABLE `gen_table`
     `remark`            varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci  NULL DEFAULT NULL COMMENT '备注',
     PRIMARY KEY (`table_id`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 11
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '代码生成业务表'
   ROW_FORMAT = DYNAMIC;
@@ -108,7 +106,6 @@ CREATE TABLE `gen_table_column`
     `update_time`    datetime                                                      NULL DEFAULT NULL COMMENT '更新时间',
     PRIMARY KEY (`column_id`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 129
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '代码生成业务表字段'
   ROW_FORMAT = DYNAMIC;
@@ -477,7 +474,6 @@ CREATE TABLE `history_command`
     PRIMARY KEY (`id`) USING BTREE,
     INDEX `history_command_server_id_index` (`server_id` ASC) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 49
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '历史命令'
   ROW_FORMAT = DYNAMIC;
@@ -495,7 +491,7 @@ CREATE TABLE `ip_limit_info`
     `id`          bigint                                                        NOT NULL AUTO_INCREMENT COMMENT '主键ID',
     `uuid`        varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '随机UUID',
     `ip`          varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT 'IP地址',
-    `user_agent`  varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT 'UA标识',
+    `user_agent` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT 'UA标识',
     `count`       bigint                                                        NULL DEFAULT NULL COMMENT '请求次数',
     `province`    varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '省',
     `city`        varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '地市',
@@ -510,7 +506,6 @@ CREATE TABLE `ip_limit_info`
     `update_by`   varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '更新者',
     PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 13
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = 'IP限流表'
   ROW_FORMAT = DYNAMIC;
@@ -538,7 +533,6 @@ CREATE TABLE `operator_list`
     INDEX `operator_list_id_index` (`id` ASC) USING BTREE,
     INDEX `operator_list_user_name_index` (`user_name` ASC) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 5
   CHARACTER SET = utf8mb3
   COLLATE = utf8mb3_german2_ci COMMENT = '管理员列表'
   ROW_FORMAT = DYNAMIC;
@@ -573,7 +567,6 @@ CREATE TABLE `player_details`
     PRIMARY KEY (`id`) USING BTREE,
     INDEX `player_details_id_whitelist_id_index` (`id` ASC, `whitelist_id` ASC) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 38
   CHARACTER SET = utf8mb3
   COLLATE = utf8mb3_general_ci COMMENT = '玩家信息'
   ROW_FORMAT = DYNAMIC;
@@ -600,7 +593,6 @@ CREATE TABLE `public_server_command`
     `update_by`      varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '更新者',
     PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 1
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '公开命令表'
   ROW_FORMAT = DYNAMIC;
@@ -737,7 +729,6 @@ CREATE TABLE `regular_cmd`
     `remark`         varchar(256) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
     PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 4
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '定时命令'
   ROW_FORMAT = DYNAMIC;
@@ -770,7 +761,6 @@ CREATE TABLE `server_command_info`
     `update_by`                     varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '更新者',
     PRIMARY KEY (`id`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 3
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '指令管理表'
   ROW_FORMAT = DYNAMIC;
@@ -835,7 +825,6 @@ CREATE TABLE `sys_config`
     `remark`       varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
     PRIMARY KEY (`config_id`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 7
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '参数配置表'
   ROW_FORMAT = DYNAMIC;
@@ -884,7 +873,6 @@ CREATE TABLE `sys_dept`
     `update_time` datetime                                                     NULL DEFAULT NULL COMMENT '更新时间',
     PRIMARY KEY (`dept_id`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 110
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '部门表'
   ROW_FORMAT = DYNAMIC;
@@ -945,7 +933,6 @@ CREATE TABLE `sys_dict_data`
     `remark`      varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
     PRIMARY KEY (`dict_code`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 118
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '字典数据表'
   ROW_FORMAT = DYNAMIC;
@@ -1103,7 +1090,6 @@ CREATE TABLE `sys_dict_type`
     PRIMARY KEY (`dict_id`) USING BTREE,
     UNIQUE INDEX `dict_type` (`dict_type` ASC) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 107
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '字典类型表'
   ROW_FORMAT = DYNAMIC;
@@ -1167,7 +1153,6 @@ CREATE TABLE `sys_job`
     `remark`          varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL     DEFAULT '' COMMENT '备注信息',
     PRIMARY KEY (`job_id`, `job_name`, `job_group`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 10
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '定时任务调度表'
   ROW_FORMAT = DYNAMIC;
@@ -1207,6 +1192,11 @@ INSERT INTO sys_job (job_id, job_name, job_group, invoke_target, cron_expression
                      status, create_by, create_time, update_by, update_time, remark)
 VALUES (11, '退群监控', 'DEFAULT', 'botTask.monitorWhiteList', '0 0/5 * * * ?', '1', '1', '1', 'admin',
         '2025-03-09 19:05:55', '', '2025-03-26 22:00:30', '');
+INSERT INTO sys_job (job_id, job_name, job_group, invoke_target, cron_expression, misfire_policy, concurrent,
+                     status, create_by, create_time, update_by, update_time, remark)
+VALUES (12, '白名单时限监控', 'DEFAULT', 'whiteListTask.checkWhitelistExpiry', '10 0/1 * * * ?', '1', '1', '0', 'admin',
+        '2025-08-18 22:06:06', 'admin', '2025-08-18 22:58:22', '');
+
 
 
 -- ----------------------------
@@ -1225,7 +1215,6 @@ CREATE TABLE `sys_job_log`
     `create_time`    datetime                                                       NULL DEFAULT NULL COMMENT '创建时间',
     PRIMARY KEY (`job_log_id`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 74107
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '定时任务调度日志表'
   ROW_FORMAT = DYNAMIC;
@@ -1265,7 +1254,6 @@ CREATE TABLE `sys_logininfor`
     INDEX `idx_sys_logininfor_lt` (`login_time` ASC) USING BTREE,
     INDEX `idx_sys_logininfor_s` (`status` ASC) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 547
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '系统访问记录'
   ROW_FORMAT = DYNAMIC;
@@ -1301,7 +1289,6 @@ CREATE TABLE `sys_menu`
     `remark`      varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT '' COMMENT '备注',
     PRIMARY KEY (`menu_id`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 2075
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '菜单权限表'
   ROW_FORMAT = DYNAMIC;
@@ -2127,6 +2114,36 @@ INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component,
                       visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
 VALUES (2113, '题库配置导出', 2108, 5, '#', '', null, 1, 0, 'F', '0', '0', 'quiz:config:export', '#', 'admin',
         '2025-03-21 00:54:00', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                      menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                      remark)
+VALUES (2137, '时限管理', 2000, 1, 'deadline', 'mc/deadline/index', null, 1, 0, 'C', '0', '0', 'mc:deadline:list',
+        'time-range', 'admin', '2025-08-15 02:40:30', 'admin', '2025-08-15 02:41:47', '时限管理菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                      menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                      remark)
+VALUES (2138, '时限管理查询', 2137, 1, '#', '', null, 1, 0, 'F', '0', '0', 'mc:deadline:query', '#', 'admin',
+        '2025-08-15 02:40:30', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                      menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                      remark)
+VALUES (2139, '时限管理新增', 2137, 2, '#', '', null, 1, 0, 'F', '0', '0', 'mc:deadline:add', '#', 'admin',
+        '2025-08-15 02:40:30', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                      menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                      remark)
+VALUES (2140, '时限管理修改', 2137, 3, '#', '', null, 1, 0, 'F', '0', '0', 'mc:deadline:edit', '#', 'admin',
+        '2025-08-15 02:40:30', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                      menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                      remark)
+VALUES (2141, '时限管理删除', 2137, 4, '#', '', null, 1, 0, 'F', '0', '0', 'mc:deadline:remove', '#', 'admin',
+        '2025-08-15 02:40:30', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache,
+                      menu_type, visible, status, perms, icon, create_by, create_time, update_by, update_time,
+                      remark)
+VALUES (2142, '时限管理导出', 2137, 5, '#', '', null, 1, 0, 'F', '0', '0', 'mc:deadline:export', '#', 'admin',
+        '2025-08-15 02:40:30', '', null, '');
 
 
 
@@ -2148,7 +2165,6 @@ CREATE TABLE `sys_notice`
     `remark`         varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
     PRIMARY KEY (`notice_id`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 3
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '通知公告表'
   ROW_FORMAT = DYNAMIC;
@@ -2191,7 +2207,6 @@ CREATE TABLE `sys_oper_log`
     INDEX `idx_sys_oper_log_ot` (`oper_time` ASC) USING BTREE,
     INDEX `idx_sys_oper_log_s` (`status` ASC) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 821
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '操作日志记录'
   ROW_FORMAT = DYNAMIC;
@@ -2218,7 +2233,6 @@ CREATE TABLE `sys_post`
     `remark`      varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
     PRIMARY KEY (`post_id`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 5
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '岗位信息表'
   ROW_FORMAT = DYNAMIC;
@@ -2257,7 +2271,6 @@ CREATE TABLE `sys_role`
     `remark`              varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
     PRIMARY KEY (`role_id`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 3
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '角色信息表'
   ROW_FORMAT = DYNAMIC;
@@ -2386,7 +2399,6 @@ CREATE TABLE `sys_user`
     `remark`      varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT '备注',
     PRIMARY KEY (`user_id`) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 2
   CHARACTER SET = utf8mb4
   COLLATE = utf8mb4_general_ci COMMENT = '用户信息表'
   ROW_FORMAT = DYNAMIC;
@@ -2479,7 +2491,6 @@ CREATE TABLE `whitelist_info`
     INDEX `whitelist_info_qq_num_index` (`qq_num` ASC) USING BTREE,
     INDEX `whitelist_info_user_name_index` (`user_name` ASC) USING BTREE
 ) ENGINE = InnoDB
-  AUTO_INCREMENT = 69
   CHARACTER SET = utf8mb3
   COLLATE = utf8mb3_bin
   ROW_FORMAT = DYNAMIC;
@@ -2489,3 +2500,27 @@ CREATE TABLE `whitelist_info`
 -- ----------------------------
 
 SET FOREIGN_KEY_CHECKS = 1;
+
+create table whitelist_deadline_info
+(
+    id           int auto_increment
+        primary key,
+    whitelist_id int         not null comment '白名单ID',
+    user_name    varchar(64) null comment '用户昵称',
+    start_time   datetime    null comment '开始时间',
+    end_time     datetime    null comment '截止时间',
+    del_flag     int         null comment '清除标识',
+    create_by    varchar(64) null comment '创建者',
+    update_bv    varchar(64) null comment '更新者',
+    create_time  datetime    null comment '创建时间',
+    update_time  datetime    null comment '更新时间',
+    remark       varchar(64) null comment '备注'
+)
+    comment '白名单时限信息';
+
+create index whitelist_deadline_info_id_index
+    on whitelist_deadline_info (id desc);
+
+create index whitelist_deadline_info_whitelist_id_index
+    on whitelist_deadline_info (whitelist_id desc);
+

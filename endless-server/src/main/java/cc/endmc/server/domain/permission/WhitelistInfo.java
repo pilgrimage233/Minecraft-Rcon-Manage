@@ -9,6 +9,7 @@ import org.apache.commons.lang3.builder.ToStringBuilder;
 import org.apache.commons.lang3.builder.ToStringStyle;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * 白名单对象 whitelist_info
@@ -125,6 +126,23 @@ public class WhitelistInfo extends BaseEntity {
 
     @Excel(name = "封禁原因")
     private String banReason;
+
+    /**
+     * 白名单时限信息
+     */
+    List<WhitelistDeadlineInfo> whitelistDeadlineInfos;
+
+    /**
+     * 开始时间
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
+    private Date startTime;
+
+    /**
+     * 截止时间
+     */
+    @JsonFormat(pattern = "yyyy-MM-dd HH:mm")
+    private Date endTime;
 
     @Override
     public String toString() {

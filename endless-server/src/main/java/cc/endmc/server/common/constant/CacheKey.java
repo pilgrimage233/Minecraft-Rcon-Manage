@@ -34,4 +34,6 @@ public class CacheKey {
 
     public static final String NODE_SERVER_MAP_KEY = "server_manager:node:server_map:";
 
+    public static final String PASS_KEY = "server_manager:pass:";
+
 }

@@ -2,13 +2,20 @@ package cc.endmc.quartz.task;
 
 import cc.endmc.common.core.domain.entity.SysUser;
 import cc.endmc.common.core.redis.RedisCache;
+import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.server.common.MapCache;
 import cc.endmc.server.common.constant.Command;
 import cc.endmc.server.common.service.EmailService;
 import cc.endmc.server.common.service.RconService;
+import cc.endmc.server.domain.bot.QqBotConfig;
+import cc.endmc.server.domain.permission.WhitelistDeadlineInfo;
 import cc.endmc.server.domain.permission.WhitelistInfo;
+import cc.endmc.server.mapper.permission.WhitelistInfoMapper;
+import cc.endmc.server.service.bot.IQqBotConfigService;
+import cc.endmc.server.service.permission.IWhitelistDeadlineInfoService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
+import cc.endmc.server.utils.BotUtil;
 import cc.endmc.system.service.ISysUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,6 +35,15 @@ public class WhiteListTask {
 
     @Autowired
     private IWhitelistInfoService whitelistInfoService;
+
+    @Autowired
+    private WhitelistInfoMapper whitelistInfoMapper;
+
+    @Autowired
+    private IWhitelistDeadlineInfoService whitelistDeadlineInfoService;
+
+    @Autowired
+    private IQqBotConfigService qqBotConfigService;
 
     @Autowired
     private ISysUserService userService;
@@ -148,6 +164,12 @@ public class WhiteListTask {
             // 离线转小写
             offline = new HashSet<>(Arrays.asList(list.split("whitelisted player\\(s\\):")[1].trim().toLowerCase().split(", ")));
 
+        } else {
+            log.warn("服务器 {} 的白名单列表为空或格式不正确，无法进行同步，尝试初始化白名单。", serverId);
+            rconService.sendCommand(serverId, "whitelist add test", false);
+            // 尝试任务回调
+            this.syncWhitelistByServerId(serverId);
+            return;
         }
 
         // 待同步用户
@@ -205,4 +227,79 @@ public class WhiteListTask {
         }
         log.debug("同步白名单成功：{}，新增白名单：{}，移除白名单：{}", serverId, user, remove);
     }
+
+    /**
+     * 白名单时限检查
+     * 如果白名单过期，则移除白名单
+     */
+    public void checkWhitelistExpiry() {
+        log.debug("开始检查过期白名单...");
+
+        // 查询过期未清除的白名单信息
+        List<WhitelistDeadlineInfo> expireds = whitelistDeadlineInfoService.selectExpiredWhitelistDeadlineInfoList();
+
+        if (expireds.isEmpty()) {
+            // log.debug("没有找到任何白名单信息");
+            return;
+        }
+
+        for (WhitelistDeadlineInfo info : expireds) {
+            final WhitelistInfo whitelistInfo = whitelistInfoService.selectWhitelistInfoById(info.getWhitelistId());
+
+            if (whitelistInfo == null) {
+                log.warn("白名单信息 {} 已被删除或不存在，跳过处理", info.getId() + "---" + info.getUserName());
+                continue;
+            }
+
+            // 获取白名单用户
+            String userName = info.getUserName();
+            if (userName == null || userName.isEmpty()) {
+                log.warn("白名单信息 {} 的用户名为空，跳过处理", info.getId());
+                continue;
+            }
+
+            // 移除白名单
+            // rconService.sendCommand("all", String.format(Command.WHITELIST_REMOVE, userName), whitelistInfo.getOnlineFlag() == 1L);
+
+            // 标记为已删除
+            info.setDelFlag(1L);
+            whitelistDeadlineInfoService.updateWhitelistDeadlineInfo(info);
+
+            whitelistInfo.setAddState("true"); // 移除白名单
+            whitelistInfo.setStatus("0"); // 设置白名单状态为未审核
+            whitelistInfo.setRemoveReason("白名单于 [" + DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, info.getEndTime()) + "] 过期，已自动移除");
+            whitelistInfo.setUpdateBy("System(Auto_Expiry_Task)");
+            final int i = whitelistInfoService.updateWhitelistInfo(whitelistInfo, "System(Auto_Expiry_Task)");
+            if (i == 1) {
+                log.info("已移除白名单用户 {}", userName);
+                log.info("白名单信息 {} 已成功更新为未添加状态", info.getId());
+
+                // 群消息通知
+                final QqBotConfig qqBotConfig = new QqBotConfig();
+                qqBotConfig.setStatus(1L);
+                List<QqBotConfig> qqBotConfigs = qqBotConfigService.selectQqBotConfigList(qqBotConfig);
+                if (qqBotConfigs != null && !qqBotConfigs.isEmpty()) {
+                    for (QqBotConfig config : qqBotConfigs) {
+                        String message = "⚠️ 白名单用户 👤【" + userName + "】 已于 ⏰ "
+                                + DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, info.getEndTime()) + " 过期，已从白名单中移除 🗑。";
+                        if (config.getGroupIds() != null && !config.getGroupIds().isEmpty()) {
+                            // 发送群消息
+                            BotUtil.sendMessage(message, config.getGroupIds(), config);
+                            log.info("已向群 {} 发送消息：{}", config.getGroupIds(), message);
+                        } else {
+                            log.warn("QQ机器人配置 {} 没有设置群ID，无法发送群消息", config.getId());
+                        }
+                    }
+                } else {
+                    log.warn("没有找到可用的QQ机器人配置，无法发送群消息");
+                }
+            } else {
+                log.error("白名单信息 {} 更新失败，可能是数据库操作异常", info.getId());
+            }
+        }
+
+        log.debug("过期白名单检查完成，共处理 {} 条记录", expireds.size());
+
+    }
+
 }

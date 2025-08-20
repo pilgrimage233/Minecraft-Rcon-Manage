@@ -403,7 +403,7 @@ public class BotClient {
                         } else {
                             bot.testServer(message);
                         }
-                    } else if (command.startsWith("过审") || command.startsWith("拒审")) {
+                    } else if (command.startsWith("过审") || command.startsWith("通过") || command.startsWith("拒审")) {
                         bot.handleWhitelistReview(message);
                     } else if (command.startsWith("封禁") || command.startsWith("解封")) {
                         bot.handleBanOperation(message);
@@ -816,7 +816,7 @@ public class BotClient {
         return result;
     }
 
-    private void sendMessage(QQMessage message, String msg) {
+    public void sendMessage(QQMessage message, String msg) {
         log.info("message: {}", message);
         // 发送消息
         try {
@@ -905,51 +905,85 @@ public class BotClient {
 
             log.info("处理白名单审核 - 命令: {}, 玩家ID: {}", command, playerId);
 
-            // 查询白名单信息
-            WhitelistInfo whitelistInfo = new WhitelistInfo();
-            whitelistInfo.setUserName(playerId);
-            log.info("开始查询玩家 {} 的白名单信息", playerId);
-            List<WhitelistInfo> whitelistInfos = whitelistInfoService.selectWhitelistInfoList(whitelistInfo);
-            log.info("查询结果: 找到 {} 条记录", whitelistInfos.size());
+            if (command.equals("通过")) {
+                final WhitelistInfo whitelistInfo = redisCache.getCacheObject(CacheKey.PASS_KEY + playerId);
+                if (whitelistInfo == null) {
+                    log.info("未找到玩家 {} 的白名单申请信息", playerId);
+                    sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 未找到玩家 " + playerId + " 的白名单申请。");
+                } else {
+                    log.info("获取到玩家 {} 的白名单信息: {}", playerId, whitelistInfo);
+                    // 设置审核状态
+                    whitelistInfo.setStatus("1"); // 通过
+                    whitelistInfo.setAddState("1");
+                    whitelistInfo.setServers("all"); // 默认添加到所有服务器
+                    whitelistInfo.setAddTime(new Date());
 
-            if (whitelistInfos.isEmpty()) {
-                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 未找到玩家 " + playerId + " 的白名单申请。");
-                return;
-            }
+                    // 更新白名单信息
+                    log.info("开始更新白名单信息");
+                    int result = whitelistInfoService.updateWhitelistInfo(whitelistInfo, message.getSender().getUserId().toString());
+                    log.info("更新结果: {}", result);
 
-            whitelistInfo = whitelistInfos.get(0);
-            log.info("获取到玩家 {} 的白名单信息: {}", playerId, whitelistInfo);
+                    if (result > 0) {
+                        log.info("白名单审核成功: 通过");
+                        sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 已通过玩家 " + whitelistInfo.getUserName() + " 的白名单申请。");
+                    } else {
+                        log.warn("白名单审核失败: 更新数据库返回 {}", result);
+                        sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 审核操作失败，请稍后重试。");
+                    }
 
-            // 设置审核状态
-            if (command.equals("过审")) {
-                log.info("执行过审操作");
-                whitelistInfo.setStatus("1"); // 通过
-                whitelistInfo.setAddState("1");
-                whitelistInfo.setServers("all"); // 默认添加到所有服务器
+                    // 更新管理员最后活跃时间
+                    updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
+                    // 删除缓存中的白名单申请信息
+                    redisCache.deleteObject(CacheKey.PASS_KEY + playerId);
+                    log.info("已删除缓存中的白名单申请信息: {}", CacheKey.PASS_KEY + playerId);
+                }
             } else {
-                log.info("执行拒审操作");
-                whitelistInfo.setStatus("2"); // 拒绝
-                whitelistInfo.setAddState("2");
-                whitelistInfo.setRemoveReason("管理员拒绝");
+                // 查询白名单信息
+                WhitelistInfo whitelistInfo = new WhitelistInfo();
+                whitelistInfo.setUserName(playerId);
+                log.info("开始查询玩家 {} 的白名单信息", playerId);
+                List<WhitelistInfo> whitelistInfos = whitelistInfoService.selectWhitelistInfoList(whitelistInfo);
+                log.info("查询结果: 找到 {} 条记录", whitelistInfos.size());
+
+                if (whitelistInfos.isEmpty()) {
+                    sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 未找到玩家 " + playerId + " 的白名单申请。");
+                    return;
+                }
+
+                whitelistInfo = whitelistInfos.get(0);
+                log.info("获取到玩家 {} 的白名单信息: {}", playerId, whitelistInfo);
+
+                // 设置审核状态
+                if (command.equals("过审")) {
+                    log.info("执行过审操作");
+                    whitelistInfo.setStatus("1"); // 通过
+                    whitelistInfo.setAddState("1");
+                    whitelistInfo.setServers("all"); // 默认添加到所有服务器
+                } else {
+                    log.info("执行拒审操作");
+                    whitelistInfo.setStatus("2"); // 拒绝
+                    whitelistInfo.setAddState("2");
+                    whitelistInfo.setRemoveReason("管理员拒绝");
+                }
+                whitelistInfo.setAddTime(new Date());
+
+                // 更新白名单信息
+                log.info("开始更新白名单信息");
+                int result = whitelistInfoService.updateWhitelistInfo(whitelistInfo, message.getSender().getUserId().toString());
+                log.info("更新结果: {}", result);
+
+                if (result > 0) {
+                    String status = command.equals("过审") ? "通过" : "拒绝";
+                    log.info("白名单审核成功: {}", status);
+                    sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 已" + status + "玩家 " + playerId + " 的白名单申请。");
+                } else {
+                    log.warn("白名单审核失败: 更新数据库返回 {}", result);
+                    sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 审核操作失败，请稍后重试。");
+                }
+
+                // 更新管理员最后活跃时间
+                updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
             }
-            whitelistInfo.setAddTime(new Date());
-
-            // 更新白名单信息
-            log.info("开始更新白名单信息");
-            int result = whitelistInfoService.updateWhitelistInfo(whitelistInfo, message.getSender().getUserId().toString());
-            log.info("更新结果: {}", result);
-
-            if (result > 0) {
-                String status = command.equals("过审") ? "通过" : "拒绝";
-                log.info("白名单审核成功: {}", status);
-                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 已" + status + "玩家 " + playerId + " 的白名单申请。");
-            } else {
-                log.warn("白名单审核失败: 更新数据库返回 {}", result);
-                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 审核操作失败，请稍后重试。");
-            }
-
-            // 更新管理员最后活跃时间
-            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
 
         } catch (Exception e) {
             log.debug(e.toString());
