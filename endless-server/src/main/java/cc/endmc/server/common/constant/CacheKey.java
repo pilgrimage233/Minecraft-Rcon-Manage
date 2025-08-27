@@ -36,4 +36,5 @@ public class CacheKey {
 
     public static final String PASS_KEY = "server_manager:pass:";
 
+    public static final String UPDATE_CHECK_KEY = "update_check:";
 }

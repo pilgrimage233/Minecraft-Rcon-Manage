@@ -1,19 +1,27 @@
 package cc.endmc.quartz.task;
 
+import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.server.common.constant.BotApi;
+import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.domain.bot.QqBotConfig;
 import cc.endmc.server.domain.permission.WhitelistInfo;
+import cc.endmc.server.service.bot.IQqBotConfigService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
+import cc.endmc.server.utils.BotUtil;
 import cc.endmc.server.ws.BotClient;
 import cc.endmc.server.ws.BotManager;
 import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpUtil;
+import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -28,6 +36,15 @@ public class BotTask {
 
     @Autowired
     private BotManager botManager;
+
+    @Autowired
+    private IQqBotConfigService qqBotConfigService;
+
+    @Autowired
+    private RedisCache redisCache;
+
+    @Autowired
+    private Environment env;
 
     /**
      * 监控白名单用户是否退群
@@ -103,7 +120,7 @@ public class BotTask {
                         .createPost(botUrl + BotApi.GET_GROUP_MEMBER_LIST)
                         .header("Authorization", "Bearer " + responsibleBot.getConfig().getToken())
                         .body(request.toJSONString())
-                        .timeout(5000)
+                        .timeout(8000)
                         .execute();
             } catch (Exception e) {
                 log.error("群 {} 获取成员列表失败: {}", groupId, e.getMessage());
@@ -148,7 +165,10 @@ public class BotTask {
         }
 
         // 避免出现空数据移除全部数据
-        if (isFail) return;
+        if (isFail) {
+            log.error("获取群成员列表过程中出现错误，跳过本次白名单检查");
+            return;
+        }
 
         // 处理所有不在任何群中的用户
         whitelistInfos.forEach(whitelist -> {
@@ -230,5 +250,308 @@ public class BotTask {
             }
         }
         return null;
+    }
+
+    /**
+     * 定时检查GitHub项目更新
+     * 每天执行一次
+     */
+    @Scheduled(cron = "0 0 14 * * ?")
+    public void checkUpdate() {
+        QqBotConfig botConfig = new QqBotConfig();
+        botConfig.setStatus(1L);
+        try {
+            final List<QqBotConfig> qqBotConfigs = qqBotConfigService.selectQqBotConfigList(botConfig);
+            for (QqBotConfig config : qqBotConfigs) {
+                if (config == null || config.getId() == null) {
+                    return;
+                }
+
+                // 检查是否需要执行更新检测（避免频繁执行）
+                String lastCheckKey = CacheKey.UPDATE_CHECK_KEY + "last_check";
+                Long lastCheckTime = redisCache.getCacheObject(lastCheckKey);
+                long currentTime = System.currentTimeMillis();
+
+                // 如果距离上次检查不足1天，跳过本次检查
+                if (lastCheckTime != null && (currentTime - lastCheckTime) < TimeUnit.DAYS.toMillis(1)) {
+                    log.info("距离上次检查不足1天，跳过本次更新检查");
+                    return;
+                }
+
+                // 更新最后检查时间
+                redisCache.setCacheObject(lastCheckKey, currentTime, 1, TimeUnit.HOURS);
+
+                log.info("开始检查GitHub项目更新...");
+
+                // 获取最新发行版信息
+                Map<String, Object> latestRelease = getLatestRelease();
+
+                // 获取最新工作流构建状态
+                Map<String, Object> latestWorkflow = getLatestWorkflow();
+
+                // 检查是否有新版本
+                if (latestRelease != null && !latestRelease.isEmpty()) {
+                    String currentVersion = env.getProperty("ruoyi.version", "unknown");
+                    String latestVersion = latestRelease.get("tag_name")
+                            .toString()
+                            .replace("v", "")
+                            .trim();
+
+                    if (!currentVersion.equals(latestVersion)) {
+                        // 有新版本，发送通知
+                        sendUpdateNotification(latestRelease, latestWorkflow, config);
+
+                        // 缓存最新版本信息，避免重复通知
+                        String versionCacheKey = CacheKey.UPDATE_CHECK_KEY + "latest_version";
+                        redisCache.setCacheObject(versionCacheKey, latestVersion, 24, TimeUnit.HOURS);
+                    }
+                }
+                log.info("GitHub项目更新检查完成");
+            }
+        } catch (Exception e) {
+            log.error("检查更新失败: {}", e.getMessage());
+        }
+
+    }
+
+    /**
+     * 获取GitHub最新发行版信息
+     */
+    private Map<String, Object> getLatestRelease() {
+        try {
+            String apiUrl = "https://api.github.com/repos/pilgrimage233/Minecraft-Rcon-Manage/releases/latest";
+
+            HttpResponse response = HttpUtil.createGet(apiUrl)
+                    .header("User-Agent", "Endless-Manager-Update-Checker")
+                    .timeout(10000)
+                    .execute();
+
+            if (response.isOk()) {
+                JSONObject releaseData = JSON.parseObject(response.body());
+                Map<String, Object> releaseInfo = new HashMap<>();
+
+                releaseInfo.put("tag_name", releaseData.getString("tag_name"));
+                releaseInfo.put("name", releaseData.getString("name"));
+                releaseInfo.put("body", releaseData.getString("body"));
+                releaseInfo.put("html_url", releaseData.getString("html_url"));
+                releaseInfo.put("published_at", releaseData.getString("published_at"));
+                releaseInfo.put("author", releaseData.getJSONObject("author").getString("login"));
+
+                // 获取下载信息
+                if (releaseData.containsKey("assets") && releaseData.get("assets") instanceof List) {
+                    List<Object> assets = (List<Object>) releaseData.get("assets");
+                    if (!assets.isEmpty()) {
+                        JSONObject asset = (JSONObject) assets.get(0);
+                        releaseInfo.put("download_count", asset.getInteger("download_count"));
+                        releaseInfo.put("size", asset.getInteger("size"));
+                        releaseInfo.put("download_url", asset.getString("browser_download_url"));
+                    }
+                }
+
+                return releaseInfo;
+            }
+        } catch (Exception e) {
+            log.error("获取GitHub最新发行版失败: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 获取GitHub最新工作流构建状态
+     */
+    private Map<String, Object> getLatestWorkflow() {
+        try {
+            String apiUrl = "https://api.github.com/repos/pilgrimage233/Minecraft-Rcon-Manage/actions/runs";
+
+            HttpResponse response = HttpUtil.createGet(apiUrl)
+                    .header("User-Agent", "Endless-Manager-Update-Checker")
+                    .timeout(10000)
+                    .execute();
+
+            if (response.isOk()) {
+                JSONObject workflowData = JSON.parseObject(response.body());
+                if (workflowData.containsKey("workflow_runs") && workflowData.get("workflow_runs") instanceof List) {
+                    List<Object> runs = (List<Object>) workflowData.get("workflow_runs");
+                    if (!runs.isEmpty()) {
+                        JSONObject latestRun = (JSONObject) runs.get(0);
+                        Map<String, Object> workflowInfo = new HashMap<>();
+
+                        workflowInfo.put("id", latestRun.getLong("id"));
+                        workflowInfo.put("name", latestRun.getString("name"));
+                        workflowInfo.put("status", latestRun.getString("status"));
+                        workflowInfo.put("conclusion", latestRun.getString("conclusion"));
+                        workflowInfo.put("created_at", latestRun.getString("created_at"));
+                        workflowInfo.put("updated_at", latestRun.getString("updated_at"));
+                        workflowInfo.put("html_url", latestRun.getString("html_url"));
+                        workflowInfo.put("branch", latestRun.getString("head_branch"));
+                        workflowInfo.put("commit_sha", latestRun.getString("head_sha"));
+                        workflowInfo.put("commit_message", latestRun.getString("head_commit").contains("message") ?
+                                ((JSONObject) latestRun.get("head_commit")).getString("message") : "N/A");
+
+                        return workflowInfo;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("获取GitHub工作流状态失败: {}", e.getMessage());
+        }
+        return null;
+    }
+
+    /**
+     * 发送更新通知到所有配置的QQ群
+     */
+    private void sendUpdateNotification(Map<String, Object> latestRelease, Map<String, Object> latestWorkflow, QqBotConfig config) {
+        try {
+            if (config == null || config.getGroupIds() == null || config.getGroupIds().trim().isEmpty()) {
+                log.warn("没有配置任何QQ群，跳过发送更新通知");
+                return;
+            }
+
+            // 构建通知消息
+            StringBuilder notification = new StringBuilder();
+            notification.append("🚀 新版本发布通知 🚀\n");
+            notification.append("━━━━━━━━━━━━━━━━━━━━\n\n");
+
+            // 发行版信息
+            if (latestRelease != null && !latestRelease.isEmpty()) {
+                notification.append("📦 最新版本信息：\n");
+                notification.append("版本号：").append(latestRelease.get("tag_name")).append("\n");
+                notification.append("版本名称：").append(latestRelease.get("name")).append("\n");
+                notification.append("发布时间：").append(formatGitHubDate((String) latestRelease.get("published_at"))).append("\n");
+                notification.append("发布者：").append(latestRelease.get("author")).append("\n");
+
+                if (latestRelease.containsKey("download_count")) {
+                    notification.append("下载次数：").append(latestRelease.get("download_count")).append("\n");
+                }
+
+                notification.append("下载地址：").append(latestRelease.get("html_url")).append("\n\n");
+
+                // 版本说明（限制长度）
+                String body = (String) latestRelease.get("body");
+                if (body != null && !body.trim().isEmpty()) {
+                    String truncatedBody = body.length() > 200 ? body.substring(0, 200) + "..." : body;
+                    notification.append("📝 版本说明：\n").append(truncatedBody).append("\n\n");
+                }
+            }
+
+            // 工作流构建状态
+            if (latestWorkflow != null && !latestWorkflow.isEmpty()) {
+                notification.append("🔧 最新构建状态：\n");
+                notification.append("工作流：").append(latestWorkflow.get("name")).append("\n");
+                notification.append("状态：").append(getStatusEmoji((String) latestWorkflow.get("status"))).append(" ")
+                        .append(latestWorkflow.get("status")).append("\n");
+
+                if (latestWorkflow.get("conclusion") != null) {
+                    notification.append("结果：").append(getConclusionEmoji((String) latestWorkflow.get("conclusion"))).append(" ")
+                            .append(latestWorkflow.get("conclusion")).append("\n");
+                }
+
+                notification.append("分支：").append(latestWorkflow.get("branch")).append("\n");
+                notification.append("提交：").append(((String) latestWorkflow.get("commit_sha")).substring(0, 7)).append("\n");
+                notification.append("提交信息：").append(truncateString((String) latestWorkflow.get("commit_message"), 50)).append("\n");
+                notification.append("构建时间：").append(formatGitHubDate((String) latestWorkflow.get("created_at"))).append("\n");
+                notification.append("构建详情：").append(latestWorkflow.get("html_url")).append("\n\n");
+            }
+
+            notification.append("━━━━━━━━━━━━━━━━━━━━\n");
+            notification.append("💡 提示：请及时更新到最新版本以获得最佳体验！");
+
+            // 发送到所有配置的群组
+            if (config.getGroupIds() != null && !config.getGroupIds().trim().isEmpty()) {
+                String[] groupIdArray = config.getGroupIds().split(",");
+                for (String groupId : groupIdArray) {
+                    try {
+                        String trimmedGroupId = groupId.trim();
+                        if (trimmedGroupId.isEmpty()) {
+                            continue;
+                        }
+
+                        // 发送通知消息
+                        BotUtil.sendMessage(notification.toString(), groupId, config);
+
+                        log.info("已发送更新通知到群组: {}", trimmedGroupId);
+
+                        // 避免发送过快，添加延迟
+                        Thread.sleep(1000);
+
+                    } catch (Exception e) {
+                        log.error("发送更新通知到群组 {} 失败: {}", groupId, e.getMessage());
+                    }
+                }
+            }
+
+        } catch (Exception e) {
+            log.error("发送更新通知失败: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 格式化GitHub日期
+     */
+    private String formatGitHubDate(String githubDate) {
+        try {
+            if (githubDate == null || githubDate.isEmpty()) {
+                return "未知";
+            }
+
+            // GitHub日期格式：2024-01-01T12:00:00Z
+            return githubDate.replace("T", " ").replace("Z", "");
+        } catch (Exception e) {
+            return githubDate;
+        }
+    }
+
+    /**
+     * 获取状态对应的表情符号
+     */
+    private String getStatusEmoji(String status) {
+        if (status == null) return "❓";
+
+        switch (status.toLowerCase()) {
+            case "completed":
+                return "✅";
+            case "in_progress":
+                return "🔄";
+            case "queued":
+                return "⏳";
+            case "waiting":
+                return "⏸️";
+            case "pending":
+                return "⏳";
+            default:
+                return "❓";
+        }
+    }
+
+    /**
+     * 获取构建结果对应的表情符号
+     */
+    private String getConclusionEmoji(String conclusion) {
+        if (conclusion == null) return "❓";
+
+        switch (conclusion.toLowerCase()) {
+            case "success":
+                return "✅";
+            case "failure":
+                return "❌";
+            case "cancelled":
+                return "🚫";
+            case "skipped":
+                return "⏭️";
+            case "timed_out":
+                return "⏰";
+            default:
+                return "❓";
+        }
+    }
+
+    /**
+     * 截断字符串到指定长度
+     */
+    private String truncateString(String str, int maxLength) {
+        if (str == null) return "N/A";
+        if (str.length() <= maxLength) return str;
+        return str.substring(0, maxLength) + "...";
     }
 }
