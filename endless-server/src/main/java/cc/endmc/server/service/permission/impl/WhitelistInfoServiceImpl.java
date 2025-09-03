@@ -1,9 +1,11 @@
 package cc.endmc.server.service.permission.impl;
 
+import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.server.async.AsyncManager;
 import cc.endmc.server.common.EmailTemplates;
+import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.constant.Command;
 import cc.endmc.server.common.service.EmailService;
 import cc.endmc.server.common.service.RconService;
@@ -11,6 +13,7 @@ import cc.endmc.server.domain.permission.BanlistInfo;
 import cc.endmc.server.domain.permission.WhitelistDeadlineInfo;
 import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.domain.player.PlayerDetails;
+import cc.endmc.server.domain.quiz.WhitelistQuizSubmission;
 import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.enums.Identity;
 import cc.endmc.server.mapper.permission.WhitelistInfoMapper;
@@ -18,6 +21,7 @@ import cc.endmc.server.service.permission.IBanlistInfoService;
 import cc.endmc.server.service.permission.IWhitelistDeadlineInfoService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
 import cc.endmc.server.service.player.IPlayerDetailsService;
+import cc.endmc.server.service.quiz.IWhitelistQuizSubmissionService;
 import cc.endmc.server.service.server.IServerInfoService;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.SneakyThrows;
@@ -30,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 白名单Service业务层处理
@@ -67,6 +72,12 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
 
     @Autowired
     private IPlayerDetailsService playerDetailsService;
+
+    @Autowired
+    private IWhitelistQuizSubmissionService quizSubmissionService;
+
+    @Autowired
+    private RedisCache redisCache;
 
     @Value("${app-url}")
     private String appUrl;
@@ -595,8 +606,8 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
     /**
      * 查重
      *
-     * @param whitelistInfo
-     * @return
+     * @param whitelistInfo 白名单信息
+     * @return 结果
      */
     @Override
     public List<WhitelistInfo> checkRepeat(WhitelistInfo whitelistInfo) {
@@ -607,11 +618,20 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
     public Map<String, Object> check(Map<String, String> params) {
         Map<String, Object> map = new LinkedHashMap<>();
         WhitelistInfo whitelistInfo = new WhitelistInfo();
+        String key = "";
         if (params.containsKey("id") && !params.get("id").isEmpty()) {
             whitelistInfo.setUserName(params.get("id").toLowerCase());
+            key = params.get("id").toLowerCase();
         }
         if (params.containsKey("qq") && !params.get("qq").isEmpty()) {
             whitelistInfo.setQqNum(params.get("qq"));
+            key = params.get("qq");
+        }
+
+        // 先从缓存获取
+        if (redisCache.hasKey(CacheKey.PLAYER_INFO_KEY + key) && redisCache.getCacheMap(CacheKey.PLAYER_INFO_KEY + key) != null) {
+            log.debug("从缓存获取玩家信息: {}", key);
+            return redisCache.getCacheMap(CacheKey.PLAYER_INFO_KEY + key);
         }
 
         if (!checkRepeat(whitelistInfo).isEmpty()) {
@@ -695,6 +715,16 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 }
             }
 
+            // 查询白名单答题记录
+            WhitelistQuizSubmission whitelistQuizSubmission = new WhitelistQuizSubmission();
+            whitelistQuizSubmission.setPlayerUuid(obj.getUserUuid());
+            final List<WhitelistQuizSubmission> submissions = quizSubmissionService.selectWhitelistQuizSubmissionList(whitelistQuizSubmission);
+            if (!submissions.isEmpty()) {
+                whitelistQuizSubmission = submissions.get(0); // 取最新的一次
+                map.put("答题ID", whitelistQuizSubmission.getId());
+                map.put("答题分数", whitelistQuizSubmission.getTotalScore() + "分");
+            }
+
             map.put("审核人", obj.getReviewUsers());
             // map.put("UUID", obj.getUserUuid());
             switch (obj.getAddState()) {
@@ -717,6 +747,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                     map.put("UUID", obj.getUserUuid());
                     break;
             }
+            redisCache.setCacheMap(CacheKey.PLAYER_INFO_KEY + key, map, 3, TimeUnit.HOURS);
         }
         return map;
     }

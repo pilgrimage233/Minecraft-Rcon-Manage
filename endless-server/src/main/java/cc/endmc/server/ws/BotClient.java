@@ -335,7 +335,8 @@ public class BotClient {
         reconnectTask = scheduler.schedule(() -> {
             try {
                 log.info("尝试重新连接WebSocket...");
-                reconnect();
+                // reconnect();
+                botManager.reconnectBot(config.getId());
             } catch (Exception e) {
                 log.error("重新连接失败: {}", e.getMessage());
             }

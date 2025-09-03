@@ -5,6 +5,7 @@ import cc.endmc.server.mapper.bot.QqBotConfigMapper;
 import cc.endmc.server.service.bot.IQqBotConfigService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -39,6 +40,29 @@ public class BotManager {
      * Value: 最后心跳时间
      */
     private final Map<Long, Date> lastHeartbeatTimes = new ConcurrentHashMap<>();
+
+    /**
+     * 存储机器人最后重连时间
+     * Key: 机器人ID
+     * Value: 最后重连时间
+     */
+    private final Map<Long, Date> reconnectTimes = new ConcurrentHashMap<>();
+
+    /**
+     * 存储机器人重连次数
+     * Key: 机器人ID
+     * Value: 重连次数
+     */
+    private final Map<Long, Integer> reconnectCounts = new ConcurrentHashMap<>();
+
+    @Value("${qq.bot.reconnect-interval:30}")
+    private Long RECONNECT_INTERVAL; // 重连间隔时间
+
+    @Value("${qq.bot.max-reconnect-attempts:10}")
+    private Integer MAX_RECONNECT_ATTEMPTS; //最大重连次数
+
+    @Value("${qq.bot.reset-time:1800}")
+    private Long RECONNECT_RESET_INTERVAL; // 重置时间
 
     @Autowired
     private IQqBotConfigService qqBotConfigService;
@@ -238,7 +262,7 @@ public class BotManager {
 
                     // 尝试重新连接
                     log.info("尝试重新连接机器人 {}", botId);
-                    client.reconnect();
+                    reconnectBot(botId);
                 }
             } catch (Exception e) {
                 log.error("检查机器人 {} 心跳时发生错误: {}", botId, e.getMessage());
@@ -273,6 +297,56 @@ public class BotManager {
     public void restartBot(QqBotConfig config) {
         stopBot(config.getId());
         startBot(config);
+    }
+
+    /**
+     * 重连机器人客户端
+     */
+    public void reconnectBot(Long botId) {
+        BotClient client = botClients.get(botId);
+        if (client == null) {
+            log.warn("机器人 {} 不存在，无法重连", botId);
+            return;
+        }
+
+        Date now = new Date();
+        Date lastReconnectTime = reconnectTimes.get(botId);
+        Integer reconnectCount = reconnectCounts.getOrDefault(botId, 0);
+
+        // 如果上次重连时间为空或超过重置时间，则重置重连计数
+        if (lastReconnectTime == null || (now.getTime() - lastReconnectTime.getTime()) / 1000 > RECONNECT_RESET_INTERVAL) {
+            reconnectCount = 0;
+        }
+
+        // 检查是否超过最大重连次数
+        if (reconnectCount >= MAX_RECONNECT_ATTEMPTS) {
+            if (lastReconnectTime != null) {
+                Long nextReconnectTime = Math.max(0,
+                        RECONNECT_RESET_INTERVAL - (now.getTime() - lastReconnectTime.getTime()) / 1000);
+                log.error("机器人 {} 重连次数已达上限 ({} 次)，下一次重连时间将在 {} 秒后重置", botId, MAX_RECONNECT_ATTEMPTS, nextReconnectTime);
+            } else {
+                log.error("机器人 {} 重连次数已达上限 ({} 次)，停止重连", botId, MAX_RECONNECT_ATTEMPTS);
+            }
+            return;
+        }
+
+        // 检查是否达到重连间隔时间
+        if (lastReconnectTime != null && (now.getTime() - lastReconnectTime.getTime()) / 1000 < RECONNECT_INTERVAL) {
+            log.info("机器人 {} 重连间隔未到达 ({} 秒)，跳过本次重连", botId, RECONNECT_INTERVAL);
+            return;
+        }
+
+        try {
+            log.info("正在重连机器人 {}，当前重连次数: {}", botId, reconnectCount + 1);
+            client.reconnect();
+
+            // 更新重连时间和计数
+            reconnectTimes.put(botId, now);
+            reconnectCounts.put(botId, reconnectCount + 1);
+        } catch (Exception e) {
+            log.error("机器人 {} 重连失败: {}", botId, e.getMessage());
+        }
+
     }
 
     /**

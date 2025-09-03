@@ -129,6 +129,23 @@ public class RedisCache {
     }
 
     /**
+     * 缓存List数据
+     *
+     * @param key      缓存的键值
+     * @param dataList 待缓存的List数据
+     * @param timeout  过期时间
+     * @param timeUnit 时间颗粒度
+     * @return 缓存的对象
+     */
+    public <T> long setCacheList(final String key, final List<T> dataList, final Integer timeout, final TimeUnit timeUnit) {
+        Long count = redisTemplate.opsForList().rightPushAll(key, dataList);
+        if (timeout != null) {
+            redisTemplate.expire(key, timeout, timeUnit);
+        }
+        return count == null ? 0 : count;
+    }
+
+    /**
      * 获得缓存的list对象
      *
      * @param key 缓存的键值
@@ -162,6 +179,24 @@ public class RedisCache {
      */
     public <T> Set<T> getCacheSet(final String key) {
         return redisTemplate.opsForSet().members(key);
+    }
+
+    /**
+     * 缓存Map
+     *
+     * @param key      缓存键值
+     * @param dataMap  待缓存的Map数据
+     * @param timeout  过期时间
+     * @param timeUnit 时间颗粒度
+     */
+    public <T> void setCacheMap(final String key, final Map<String, T> dataMap, final Integer timeout, final TimeUnit timeUnit) {
+        if (dataMap != null) {
+            redisTemplate.opsForHash().putAll(key, dataMap);
+        }
+
+        if (timeout != null) {
+            redisTemplate.expire(key, timeout, timeUnit);
+        }
     }
 
     /**

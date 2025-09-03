@@ -87,6 +87,7 @@
                 and review_time = #{reviewTime}
             </if>
         </where>
+        order by create_time desc
     </select>
 
     <select id="selectWhitelistQuizSubmissionById" parameterType="Long"

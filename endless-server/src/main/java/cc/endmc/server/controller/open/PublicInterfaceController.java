@@ -787,7 +787,7 @@ public class PublicInterfaceController extends BaseController {
             long passScore = Long.parseLong(passConfigs.get(0).getConfigValue());
             if (totalScore >= passScore) {
                 submission.setPassStatus(1); // 已通过
-                submission.setReviewer("System(Auto)"); // 自动审核
+                submission.setReviewer("System(Auto_Quiz_Pass)"); // 自动审核
             }
         }
 
@@ -808,5 +808,71 @@ public class PublicInterfaceController extends BaseController {
         } else {
             return error("提交失败");
         }
+    }
+
+    /**
+     * 获取答题详情
+     *
+     * @param id 答题记录ID
+     * @return AjaxResult
+     */
+    @GetMapping("/getQuizDetail/{id}")
+    public AjaxResult getQuizDetail(@PathVariable Long id) {
+
+        if (id == null || id <= 0) {
+            return error("参数错误");
+        }
+
+        // 缓存查询
+        Map<String, Object> cacheObject = new LinkedHashMap<>();
+        if (redisCache.hasKey(CacheKey.QUIZ_SUBMISSION_KEY + id) && redisCache.getCacheMap(CacheKey.QUIZ_SUBMISSION_KEY + id) != null) {
+            cacheObject = redisCache.getCacheMap(CacheKey.QUIZ_SUBMISSION_KEY + id);
+        }
+
+        if (redisCache.hasKey(CacheKey.QUIZ_SUBMISSION_DETAIL_KEY + id) && redisCache.getCacheList(CacheKey.QUIZ_SUBMISSION_DETAIL_KEY + id) != null) {
+            List<Object> cacheList = redisCache.getCacheList(CacheKey.QUIZ_SUBMISSION_DETAIL_KEY + id);
+            cacheObject.put("答题详情", cacheList);
+        }
+
+        if (!cacheObject.isEmpty()) {
+            return success(cacheObject);
+        }
+
+        final WhitelistQuizSubmission submission = quizSubmissionService.selectWhitelistQuizSubmissionById(id);
+
+        if (submission == null) {
+            return error("未找到答题记录");
+        }
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("ID", submission.getId());
+        data.put("玩家名称", submission.getPlayerName());
+        data.put("玩家UUID", submission.getPlayerUuid());
+        data.put("提交时间", submission.getSubmitTime());
+        data.put("总得分", submission.getTotalScore());
+        data.put("是否通过", submission.getPassStatus() == 1 ? "是" : "否");
+        data.put("审核人", submission.getReviewer() != null ? submission.getReviewer() : "无");
+        data.put("审核意见", submission.getReviewComment() != null ? submission.getReviewComment() : "无");
+
+        redisCache.setCacheMap(CacheKey.QUIZ_SUBMISSION_KEY + id, data, 1, TimeUnit.DAYS);
+
+        if (submission.getWhitelistQuizSubmissionDetailList() != null) {
+            List<Map<String, Object>> details = new ArrayList<>();
+            for (WhitelistQuizSubmissionDetail detail : submission.getWhitelistQuizSubmissionDetailList()) {
+                Map<String, Object> detailMap = new HashMap<>();
+                detailMap.put("问题ID", detail.getQuestionId());
+                final WhitelistQuizQuestion question = quizQuestionService.selectWhitelistQuizQuestionById(detail.getQuestionId());
+                detailMap.put("问题内容", question != null ? question.getQuestionText() : "问题已删除");
+                detailMap.put("问题类型", question != null ? question.getQuestionType() : "未知");
+                detailMap.put("玩家答案", detail.getPlayerAnswer());
+                detailMap.put("是否正确", detail.getIsCorrect() == 1 ? "是" : "否");
+                detailMap.put("得分", detail.getScore());
+                details.add(detailMap);
+            }
+            redisCache.setCacheList(CacheKey.QUIZ_SUBMISSION_DETAIL_KEY + id, details, 1, TimeUnit.DAYS);
+            data.put("答题详情", details);
+        }
+
+        return success(data);
     }
 }
