@@ -1,7 +1,7 @@
 package cc.endmc.server.common;
 
 import cc.endmc.common.core.redis.RedisCache;
-import cc.endmc.server.async.AsyncManager;
+import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.CacheKey;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,7 +19,7 @@ public class RunScript {
     @PreDestroy
     public void end() {
         // 程序关闭时断开所有Rcon连接
-        MapCache.getMap().forEach((k, v) -> {
+        RconCache.getMap().forEach((k, v) -> {
             try {
                 v.close();
             } catch (Exception e) {
@@ -27,7 +27,7 @@ public class RunScript {
             }
         });
         // 关闭线程池
-        AsyncManager.getInstance().shutdown();
+        // AsyncManager.getInstance().shutdown();
 
         // 清除缓存
         if (redisCache.deleteObject(CacheKey.SERVER_INFO_KEY)) {
@@ -41,11 +41,5 @@ public class RunScript {
         } else {
             log.error("清除服务器信息缓存更新时间失败");
         }
-
-      /*  if (redisCache.deleteObject("onlinePlayer")) {
-            log.info("清除在线玩家缓存成功");
-        } else {
-            log.error("清除在线玩家缓存失败");
-        }*/
     }
 }

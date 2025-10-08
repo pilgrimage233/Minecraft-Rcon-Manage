@@ -6,8 +6,8 @@ import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.framework.web.domain.Server;
 import cc.endmc.server.annotation.BotCommand;
+import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.EmailTemplates;
-import cc.endmc.server.common.MapCache;
 import cc.endmc.server.common.constant.BotApi;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.rconclient.RconClient;
@@ -461,7 +461,7 @@ public class BotClient {
                 // 只获取在线的服务器
                 servers = new ArrayList<>();
                 serverInfos.forEach(serverInfo -> {
-                    if (MapCache.containsKey(String.valueOf(serverInfo.getId()))) {
+                    if (RconCache.containsKey(String.valueOf(serverInfo.getId()))) {
                         servers.add(serverInfo);
                     }
                 });
@@ -502,7 +502,7 @@ public class BotClient {
 
             // 遍历服务器信息
             for (ServerInfo server : servers) {
-                boolean isOnline = MapCache.containsKey(String.valueOf(server.getId()));
+                boolean isOnline = RconCache.containsKey(String.valueOf(server.getId()));
 
                 response.append("ID: ").append(server.getId()).append("\n");
                 response.append("名称: ").append(server.getNameTag()).append("\n");
@@ -1098,7 +1098,7 @@ public class BotClient {
             String command = parts[2];
 
             if (!serverId.contains("all")) {
-                if (!MapCache.containsKey(serverId)) {
+                if (!RconCache.containsKey(serverId)) {
                     sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 未找到服务器 " + serverId);
                     return;
                 }
@@ -2074,7 +2074,7 @@ public class BotClient {
             // 如果指定了服务器ID
             if (parts.length > 1) {
                 serverId = parts[1];
-                if (!serverId.equals("all") && !MapCache.containsKey(serverId)) {
+                if (!serverId.equals("all") && !RconCache.containsKey(serverId)) {
                     sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 未找到服务器 " + serverId);
                     return;
                 }
@@ -2082,10 +2082,10 @@ public class BotClient {
 
             if (serverId.equals("all")) {
                 // 关闭所有Rcon连接并清除Map缓存
-                for (RconClient rconClient : MapCache.getMap().values()) {
+                for (RconClient rconClient : RconCache.getMap().values()) {
                     rconClient.close();
                 }
-                MapCache.clear();
+                RconCache.clear();
 
                 // 初始化Rcon连接
                 ServerInfo info = new ServerInfo();
@@ -2115,11 +2115,11 @@ public class BotClient {
                 }
 
                 // 关闭指定的Rcon连接
-                if (MapCache.containsKey(serverId)) {
-                    RconClient rconClient = MapCache.get(serverId);
+                if (RconCache.containsKey(serverId)) {
+                    RconClient rconClient = RconCache.get(serverId);
                     if (rconClient != null) {
                         rconClient.close();
-                        MapCache.remove(serverId);
+                        RconCache.remove(serverId);
                     }
                 }
 
@@ -2183,7 +2183,7 @@ public class BotClient {
             // 如果指定了服务器ID
             if (parts.length > 1) {
                 serverId = parts[1];
-                if (!serverId.equals("all") && !MapCache.containsKey(serverId)) {
+                if (!serverId.equals("all") && !RconCache.containsKey(serverId)) {
                     sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 未找到服务器 " + serverId);
                     return;
                 }
@@ -2194,13 +2194,13 @@ public class BotClient {
 
             if (serverId.equals("all")) {
                 // 测试所有服务器
-                if (MapCache.isEmpty()) {
+                if (RconCache.isEmpty()) {
                     sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 当前没有RCON连接。");
                     return;
                 }
 
                 Map<String, Object> serverInfoMap = redisCache.getCacheObject(CacheKey.SERVER_INFO_MAP_KEY);
-                for (Map.Entry<String, RconClient> entry : MapCache.getMap().entrySet()) {
+                for (Map.Entry<String, RconClient> entry : RconCache.getMap().entrySet()) {
                     String id = entry.getKey();
                     RconClient client = entry.getValue();
                     ServerInfo serverInfo = null;
@@ -2238,7 +2238,7 @@ public class BotClient {
                 }
             } else {
                 // 测试指定服务器
-                RconClient client = MapCache.get(serverId);
+                RconClient client = RconCache.get(serverId);
                 Map<String, Object> serverInfoMap = redisCache.getCacheObject(CacheKey.SERVER_INFO_MAP_KEY);
                 ServerInfo serverInfo = null;
 

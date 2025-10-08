@@ -5,14 +5,17 @@ import cc.endmc.common.utils.DateUtils;
 import cc.endmc.node.common.NodeCache;
 import cc.endmc.node.domain.NodeServer;
 import cc.endmc.node.service.INodeServerService;
-import cc.endmc.server.common.MapCache;
-import cc.endmc.server.common.ObjectCache;
+import cc.endmc.server.cache.EmailTempCache;
+import cc.endmc.server.cache.ObjectCache;
+import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.constant.RconMsg;
 import cc.endmc.server.common.service.RconService;
 import cc.endmc.server.config.RconConfig;
+import cc.endmc.server.domain.email.CustomEmailTemplates;
 import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.sdk.SearchHttpAK;
+import cc.endmc.server.service.email.ICustomEmailTemplatesService;
 import cc.endmc.server.service.server.IServerCommandInfoService;
 import cc.endmc.server.service.server.IServerInfoService;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +41,8 @@ public class InitializingBeanExamplebBean implements InitializingBean {
     final private INodeServerService nodeServerService;
 
     final private IServerCommandInfoService commandInfoService;
+
+    final private ICustomEmailTemplatesService customEmailTemplatesService;
 
     final private RconService rconService;
 
@@ -116,7 +121,7 @@ public class InitializingBeanExamplebBean implements InitializingBean {
         for (ServerInfo serverInfo : serverInfoService.selectServerInfoList(info)) {
             rconService.init(serverInfo);
         }
-        log.info("🔌 ENDLESS INIT: 初始化Rcon连接完成... 共有 {} 个服务器", MapCache.size());
+        log.info("🔌 ENDLESS INIT: 初始化Rcon连接完成... 共有 {} 个服务器", RconCache.size());
 
         // 初始化Node节点服务器
         NodeServer nodeServer = new NodeServer();
@@ -128,6 +133,21 @@ public class InitializingBeanExamplebBean implements InitializingBean {
             }
         }
         log.info("🖥️ ENDLESS INIT: 缓存节点服务器数量: {}", NodeCache.size());
+
+        // 初始化自定义邮件模板
+        CustomEmailTemplates emailTemplates = new CustomEmailTemplates();
+        emailTemplates.setStatus(1L); // 只加载启用的模板
+        List<CustomEmailTemplates> templates = customEmailTemplatesService.selectCustomEmailTemplatesList(emailTemplates);
+        if (templates != null) {
+            for (CustomEmailTemplates template : templates) {
+                if (emailTemplates.getServerId() != null) {
+                    EmailTempCache.put(template.getId().toString(), template);
+                } else {
+                    EmailTempCache.put("default", template); // 设置默认模板，保留最新一条
+                }
+            }
+        }
+        log.info("📧 ENDLESS INIT: 缓存邮件模板数量: {}", EmailTempCache.size());
 
         // Thread.sleep(5000);
 

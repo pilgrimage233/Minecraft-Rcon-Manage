@@ -93,15 +93,14 @@ public class WhitelistInfoController extends BaseController {
     private IPlayerDetailsService playerDetailsService;
 
     @Autowired
-    private EmailService pushEmail;
+    private EmailService emailService;
 
     @Autowired
     private RedisCache redisCache;
 
     @Value("${app-url}")
     private String appUrl;
-    @Autowired
-    private EmailService emailService;
+
     @Autowired
     private IQqBotConfigService qqBotConfigService;
 
@@ -423,19 +422,23 @@ public class WhitelistInfoController extends BaseController {
                             String emailContent = EmailTemplates.getWhitelistNotificationPending(
                                     whitelistInfo.getQqNum(),
                                     whitelistInfo.getUserName(),
-                                    DateUtils.getTime()
+                                    DateUtils.getTime(),
+                                    true, // 表示已通过
+                                    "default" // 使用默认模板
                             ).replace("正在审核中", "已自动审核通过");
 
-                            pushEmail.push(whitelistInfo.getQqNum() + EmailTemplates.QQ_EMAIL,
+                            emailService.push(whitelistInfo.getQqNum() + EmailTemplates.QQ_EMAIL,
                                     EmailTemplates.TITLE,
                                     emailContent);
                         } else {
-                            pushEmail.push(whitelistInfo.getQqNum() + EmailTemplates.QQ_EMAIL,
+                            emailService.push(whitelistInfo.getQqNum() + EmailTemplates.QQ_EMAIL,
                                     EmailTemplates.TITLE,
                                     EmailTemplates.getWhitelistNotificationPending(
                                             whitelistInfo.getQqNum(),
                                             whitelistInfo.getUserName(),
-                                            DateUtils.getTime()
+                                            DateUtils.getTime(),
+                                            false,
+                                            "default"
                                     ));
                         }
                     } catch (ExecutionException | InterruptedException e) {
@@ -445,19 +448,26 @@ public class WhitelistInfoController extends BaseController {
             };
             asyncManager.execute(timerTask);
 
+            String passConnect = "用户 [" + whitelistInfo.getUserName() + "] 通过" + source +
+                    "提交了白名单申请,并已被系统自动审核通过!";
+
+            String reviewConnect = "用户 [" + whitelistInfo.getUserName() + "] 通过" + source +
+                    "提交了白名单申请,请尽快审核!";
+
+
             // 通知管理员
             TimerTask timerTask2 = new TimerTask() {
                 @Override
                 public void run() {
                     try {
                         if (finalAutoApproved) {
-                            pushEmail.push(ADMIN_EMAIL, EmailTemplates.TITLE,
-                                    "用户[" + whitelistInfo.getUserName() + "]通过" + source +
-                                            "提交了白名单申请,并已被系统自动审核通过!");
+                            final String reviewTemplate = EmailTemplates.getReviewTemplate(whitelistInfo.getQqNum(), whitelistInfo.getUserName(), DateUtils.getTime(), true);
+                            emailService.push(ADMIN_EMAIL, EmailTemplates.TITLE,
+                                    reviewTemplate != null ? reviewTemplate : passConnect);
                         } else {
-                            pushEmail.push(ADMIN_EMAIL, EmailTemplates.TITLE,
-                                    "用户[" + whitelistInfo.getUserName() + "]通过" + source +
-                                            "提交了白名单申请,请尽快审核!");
+                            final String reviewTemplate = EmailTemplates.getReviewTemplate(whitelistInfo.getQqNum(), whitelistInfo.getUserName(), DateUtils.getTime(), false);
+                            emailService.push(ADMIN_EMAIL, EmailTemplates.TITLE,
+                                    reviewTemplate != null ? reviewTemplate : reviewConnect);
                         }
                     } catch (ExecutionException | InterruptedException e) {
                         throw new RuntimeException(e);

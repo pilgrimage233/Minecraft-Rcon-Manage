@@ -3,7 +3,7 @@ package cc.endmc;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.config.InitConfigService;
 import cc.endmc.node.common.NodeCache;
-import cc.endmc.server.common.MapCache;
+import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.service.RconService;
 import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.service.server.IServerInfoService;
@@ -57,7 +57,7 @@ public class EndlessApplication {
                 "╠════════════════════════════════════════════════════════════════════════════╣\n" +
                 "║ 📊 服务器信息缓存数量: " + context.getBean(IServerInfoService.class).selectServerInfoList(new ServerInfo()).size() + "\n" +
                 "║ 📝 缓存指令数量: " + (RconService.COMMAND_INFO != null ? RconService.COMMAND_INFO.size() : 0) + "\n" +
-                "║ 🔌 Rcon连接服务器数量: " + MapCache.size() + "\n" +
+                "║ 🔌 Rcon连接服务器数量: " + RconCache.size() + "\n" +
                 "║ 🖥️ 节点服务器数量: " + NodeCache.size() + "\n" +
                 "║ 🤖 QQ机器人数量: " + context.getBean(BotManager.class).getAllBots().size() + "\n" +
                 "║ ⏱️ 服务器信息更新时间: " + DateUtils.getNowDate() + "\n" +

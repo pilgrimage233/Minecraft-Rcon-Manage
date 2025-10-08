@@ -4,7 +4,7 @@ import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.server.async.AsyncManager;
-import cc.endmc.server.common.MapCache;
+import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.PasswordManager;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.constant.Command;
@@ -124,7 +124,7 @@ public class ServerInfoServiceImpl implements IServerInfoService {
         if (result > 0) {
             this.rebuildCache();
             // 初始化Rcon连接
-            if (MapCache.containsKey(serverInfo.getId().toString())) {
+            if (RconCache.containsKey(serverInfo.getId().toString())) {
                 rconService.init(serverInfo);
             }
         }
@@ -187,7 +187,7 @@ public class ServerInfoServiceImpl implements IServerInfoService {
         if (result > 0) {
             this.rebuildCache();
             // 初始化Rcon连接
-            if (MapCache.containsKey(serverInfo.getId().toString())) {
+            if (RconCache.containsKey(serverInfo.getId().toString())) {
                 rconService.init(serverInfo);
             }
         }
@@ -216,9 +216,9 @@ public class ServerInfoServiceImpl implements IServerInfoService {
         int result = serverInfoMapper.deleteServerInfoById(id);
 
         // 关闭Rcon连接
-        if (MapCache.containsKey(id.toString())) {
+        if (RconCache.containsKey(id.toString())) {
             RconService.close(id.toString());
-            MapCache.remove(id.toString());
+            RconCache.remove(id.toString());
         }
         if (result > 0) {
             this.rebuildCache();
@@ -410,9 +410,9 @@ public class ServerInfoServiceImpl implements IServerInfoService {
                     final WhitelistInfo whitelistInfo = map.get(info.getWhiteId());
                     if (whitelistInfo != null) {
                         try {
-                            if (MapCache.containsKey(serverInfo.getId().toString())) {
+                            if (RconCache.containsKey(serverInfo.getId().toString())) {
                                 try {
-                                    MapCache.get(serverInfo.getId().toString()).
+                                    RconCache.get(serverInfo.getId().toString()).
                                             sendCommand(String.format(Command.BAN_ADD, whitelistInfo.getUserName()));
                                 } catch (Exception e) {
                                     // 尝试重连

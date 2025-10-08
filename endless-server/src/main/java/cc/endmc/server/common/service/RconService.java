@@ -3,8 +3,8 @@ package cc.endmc.server.common.service;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
+import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.EmailTemplates;
-import cc.endmc.server.common.MapCache;
 import cc.endmc.server.common.PasswordManager;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.constant.Command;
@@ -57,9 +57,9 @@ public class RconService {
             return;
         }
 
-        try (RconClient client = MapCache.get(key)) {
+        try (RconClient client = RconCache.get(key)) {
             if (client != null) {
-                MapCache.remove(key);
+                RconCache.remove(key);
                 log.debug(RconMsg.TURN_OFF_RCON + "{}", key);
             }
         } catch (Exception e) {
@@ -95,7 +95,7 @@ public class RconService {
                     // 使用 CompletableFuture.allOf 等待所有命令执行完成
                     List<CompletableFuture<String>> futures = new ArrayList<>();
 
-                    MapCache.getMap().forEach((k, client) -> {
+                    RconCache.getMap().forEach((k, client) -> {
                         final String replaced = replaceCommand(k, command, onlineFlag);
                         CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
                             try {
@@ -116,12 +116,12 @@ public class RconService {
                         result.append(future.get()).append("\n");
                     }
                 } else {
-                    if (MapCache.get(key) == null) {
+                    if (RconCache.get(key) == null) {
                         throw new RuntimeException("RconClient not found for key: " + key);
                     }
 
                     final String replaced = replaceCommand(key, command, onlineFlag);
-                    final RconClient client = MapCache.get(key);
+                    final RconClient client = RconCache.get(key);
 
                     // 同步执行命令
                     result.append(stripMinecraftColorCodes(client.sendCommand(replaced)));
@@ -191,8 +191,8 @@ public class RconService {
             return false;
         }
 
-        if ((!MapCache.isEmpty()) && MapCache.containsKey(info.getId().toString())) {
-            MapCache.get(info.getId().toString()).close();
+        if ((!RconCache.isEmpty()) && RconCache.containsKey(info.getId().toString())) {
+            RconCache.get(info.getId().toString()).close();
         }
 
         final String ERROR_COUNT_KEY = CacheKey.ERROR_COUNT_KEY;
@@ -238,7 +238,7 @@ public class RconService {
                 log.error("RCON连接失败: {} ({}:{})", info.getNameTag(), serverIp, port);
             }
 
-            MapCache.put(info.getId().toString(), client.get());
+            RconCache.put(info.getId().toString(), client.get());
             log.debug(RconMsg.CONNECT_SUCCESS + "{}", info.getNameTag());
 
             // 清除错误次数

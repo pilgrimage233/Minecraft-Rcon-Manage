@@ -4,6 +4,7 @@ import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.server.async.AsyncManager;
+import cc.endmc.server.cache.EmailTempCache;
 import cc.endmc.server.common.EmailTemplates;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.constant.Command;
@@ -65,7 +66,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
     private IServerInfoService serverInfoService;
 
     @Autowired
-    private EmailService pushEmail;
+    private EmailService emailService;
 
     @Autowired
     private RconService rconService;
@@ -296,17 +297,41 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             @SneakyThrows
             @Override
             public void run() {
-                pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
-                        finalEmailTitle,
-                        EmailTemplates.getWhitelistNotificationBan(
-                                whitelistInfo.getQqNum(),
-                                whitelistInfo.getUserName(),
-                                dateFormat.format(whitelistInfo.getAddTime() == null ? whitelistInfo.getCreateTime() : whitelistInfo.getAddTime()),
-                                DateUtils.getTime(),
-                                finalTimeTittle,
-                                whitelistInfo.getRemoveReason(),
-                                finalEmailTitle)
-                );
+                String[] servers = whitelistInfo.getServers().split(",");
+                boolean sendAll = Arrays.asList(servers).contains("all");
+
+                if (sendAll) {
+                    emailService.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                            finalEmailTitle,
+                            EmailTemplates.getWhitelistNotificationBan(
+                                    whitelistInfo.getQqNum(),
+                                    whitelistInfo.getUserName(),
+                                    dateFormat.format(whitelistInfo.getAddTime() == null ? whitelistInfo.getCreateTime() : whitelistInfo.getAddTime()),
+                                    DateUtils.getTime(),
+                                    finalTimeTittle,
+                                    whitelistInfo.getRemoveReason(),
+                                    finalEmailTitle,
+                                    "default")
+                    );
+                } else {
+                    // 针对每个服务器发对应模板
+                    for (String key : servers) {
+                        if (!EmailTempCache.containsKey(key)) continue;
+                        emailService.push(
+                                whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                                finalEmailTitle,
+                                EmailTemplates.getWhitelistNotificationBan(
+                                        whitelistInfo.getQqNum(),
+                                        whitelistInfo.getUserName(),
+                                        dateFormat.format(whitelistInfo.getAddTime() == null ? whitelistInfo.getCreateTime() : whitelistInfo.getAddTime()),
+                                        DateUtils.getTime(),
+                                        finalTimeTittle,
+                                        whitelistInfo.getRemoveReason(),
+                                        finalEmailTitle,
+                                        key)
+                        );
+                    }
+                }
             }
         });
     }
@@ -326,15 +351,35 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 @SneakyThrows
                 @Override
                 public void run() {
-                    pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
-                            EmailTemplates.UN_BAN_TITLE,
-                            EmailTemplates.getWhitelistNotificationUnBan(
-                                    whitelistInfo.getQqNum(),
-                                    whitelistInfo.getUserName(),
-                                    dateFormat.format(old.getCreateTime()),
-                                    DateUtils.getTime()
-                            )
-                    );
+                    String[] servers = whitelistInfo.getServers().split(",");
+                    boolean sendAll = Arrays.asList(servers).contains("all");
+                    if (sendAll) {
+                        emailService.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                                EmailTemplates.UN_BAN_TITLE,
+                                EmailTemplates.getWhitelistNotificationUnBan(
+                                        whitelistInfo.getQqNum(),
+                                        whitelistInfo.getUserName(),
+                                        dateFormat.format(old.getCreateTime()),
+                                        DateUtils.getTime(),
+                                        "default"
+                                )
+                        );
+                    } else {
+                        // 针对每个服务器发对应模板
+                        for (String key : servers) {
+                            if (!EmailTempCache.containsKey(key)) continue;
+                            emailService.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                                    EmailTemplates.UN_BAN_TITLE,
+                                    EmailTemplates.getWhitelistNotificationUnBan(
+                                            whitelistInfo.getQqNum(),
+                                            whitelistInfo.getUserName(),
+                                            dateFormat.format(old.getCreateTime()),
+                                            DateUtils.getTime(),
+                                            key
+                                    )
+                            );
+                        }
+                    }
                 }
             });
 
@@ -380,17 +425,40 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 @SneakyThrows
                 @Override
                 public void run() {
-                    pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
-                            EmailTemplates.BAN_TITLE,
-                            EmailTemplates.getWhitelistNotificationBan(
-                                    whitelistInfo.getQqNum(),
-                                    whitelistInfo.getUserName(),
-                                    dateFormat.format(whitelistInfo.getAddTime()),
-                                    DateUtils.getTime(),
-                                    EmailTemplates.BAN_TIME_TITTLE,
-                                    whitelistInfo.getBannedReason(),
-                                    EmailTemplates.BAN_TITLE)
-                    );
+                    String[] servers = whitelistInfo.getServers().split(",");
+                    boolean sendAll = Arrays.asList(servers).contains("all");
+                    if (sendAll) {
+                        emailService.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                                EmailTemplates.BAN_TITLE,
+                                EmailTemplates.getWhitelistNotificationBan(
+                                        whitelistInfo.getQqNum(),
+                                        whitelistInfo.getUserName(),
+                                        dateFormat.format(whitelistInfo.getAddTime()),
+                                        DateUtils.getTime(),
+                                        EmailTemplates.BAN_TIME_TITTLE,
+                                        whitelistInfo.getBannedReason(),
+                                        EmailTemplates.BAN_TITLE,
+                                        "default")
+                        );
+                    } else {
+                        // 针对每个服务器发对应模板
+                        for (String key : servers) {
+                            if (!EmailTempCache.containsKey(key)) continue;
+                            emailService.push(
+                                    whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                                    EmailTemplates.BAN_TITLE,
+                                    EmailTemplates.getWhitelistNotificationBan(
+                                            whitelistInfo.getQqNum(),
+                                            whitelistInfo.getUserName(),
+                                            dateFormat.format(whitelistInfo.getAddTime()),
+                                            DateUtils.getTime(),
+                                            EmailTemplates.BAN_TIME_TITTLE,
+                                            whitelistInfo.getBannedReason(),
+                                            EmailTemplates.BAN_TITLE,
+                                            key)
+                            );
+                        }
+                    }
                 }
             });
 
@@ -439,17 +507,40 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 @SneakyThrows
                 @Override
                 public void run() {
-                    pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
-                            EmailTemplates.REMOVE_TITLE,
-                            EmailTemplates.getWhitelistNotificationBan(
-                                    whitelistInfo.getQqNum(),
-                                    whitelistInfo.getUserName(),
-                                    dateFormat.format(whitelistInfo.getAddTime()),
-                                    DateUtils.getTime(),
-                                    EmailTemplates.REMOVE_TIME_TITTLE,
-                                    whitelistInfo.getRemoveReason(),
-                                    EmailTemplates.REMOVE_TITLE)
-                    );
+                    String[] servers = whitelistInfo.getServers().split(",");
+                    boolean sendAll = Arrays.asList(servers).contains("all");
+                    if (sendAll) {
+                        emailService.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                                EmailTemplates.REMOVE_TITLE,
+                                EmailTemplates.getWhitelistNotificationBan(
+                                        whitelistInfo.getQqNum(),
+                                        whitelistInfo.getUserName(),
+                                        dateFormat.format(whitelistInfo.getAddTime()),
+                                        DateUtils.getTime(),
+                                        EmailTemplates.REMOVE_TIME_TITTLE,
+                                        whitelistInfo.getRemoveReason(),
+                                        EmailTemplates.REMOVE_TITLE,
+                                        "default")
+                        );
+                    } else {
+                        // 针对每个服务器发对应模板
+                        for (String key : servers) {
+                            if (!EmailTempCache.containsKey(key)) continue;
+                            emailService.push(
+                                    whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                                    EmailTemplates.REMOVE_TITLE,
+                                    EmailTemplates.getWhitelistNotificationBan(
+                                            whitelistInfo.getQqNum(),
+                                            whitelistInfo.getUserName(),
+                                            dateFormat.format(whitelistInfo.getAddTime()),
+                                            DateUtils.getTime(),
+                                            EmailTemplates.REMOVE_TIME_TITTLE,
+                                            whitelistInfo.getRemoveReason(),
+                                            EmailTemplates.REMOVE_TITLE,
+                                            key)
+                            );
+                        }
+                    }
                 }
             });
 
@@ -547,16 +638,39 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 @SneakyThrows
                 @Override
                 public void run() {
-                    pushEmail.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
-                            EmailTemplates.SUCCESS_TITLE,
-                            EmailTemplates.getWhitelistNotification
-                                    (whitelistInfo.getQqNum(),
-                                            whitelistInfo.getUserName(),
-                                            dateFormat.format(whitelistInfo.getTime()),
-                                            DateUtils.getTime(), EmailTemplates.SUCCESS_TITLE,
-                                            appUrl, finalData
-                                    )
-                    );
+                    String[] servers = whitelistInfo.getServers().split(",");
+                    boolean sendAll = Arrays.asList(servers).contains("all");
+                    if (sendAll) {
+                        emailService.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                                EmailTemplates.SUCCESS_TITLE,
+                                EmailTemplates.getWhitelistNotification
+                                        (whitelistInfo.getQqNum(),
+                                                whitelistInfo.getUserName(),
+                                                dateFormat.format(whitelistInfo.getTime()),
+                                                DateUtils.getTime(),
+                                                EmailTemplates.SUCCESS_TITLE,
+                                                appUrl,
+                                                finalData,
+                                                "default")
+                        );
+                    } else {
+                        // 针对每个服务器发对应模板
+                        for (String key : servers) {
+                            if (!EmailTempCache.containsKey(key)) continue;
+                            emailService.push(whitelistInfo.getQqNum().trim() + EmailTemplates.QQ_EMAIL,
+                                    EmailTemplates.SUCCESS_TITLE,
+                                    EmailTemplates.getWhitelistNotification
+                                            (whitelistInfo.getQqNum(),
+                                                    whitelistInfo.getUserName(),
+                                                    dateFormat.format(whitelistInfo.getTime()),
+                                                    DateUtils.getTime(),
+                                                    EmailTemplates.SUCCESS_TITLE,
+                                                    appUrl,
+                                                    finalData,
+                                                    key)
+                            );
+                        }
+                    }
                 }
             });
         }

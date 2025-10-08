@@ -1,5 +1,4 @@
-package cc.endmc.server.common;
-
+package cc.endmc.server.cache;
 
 import cc.endmc.server.common.rconclient.RconClient;
 
@@ -10,7 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * Map缓存
  * 作者：Memory
  */
-public class MapCache {
+public class RconCache {
     // private static final Map<String, RconClient> map = new HashMap<>();
     private static final ConcurrentHashMap<String, RconClient> map = new ConcurrentHashMap<>();
 
@@ -23,10 +22,32 @@ public class MapCache {
     }
 
     public static void remove(String key) {
-        map.remove(key);
+        if (map.containsKey(key)) {
+            RconClient client = map.get(key);
+            if (client != null) {
+                client.close();
+            }
+            map.remove(key);
+        }
+    }
+
+    public static void close(String key) {
+        if (map.containsKey(key)) {
+            RconClient client = map.get(key);
+            if (client != null) {
+                client.close();
+            }
+        }
     }
 
     public static void clear() {
+        if (!map.isEmpty()) {
+            for (RconClient client : map.values()) {
+                if (client != null) {
+                    client.close();
+                }
+            }
+        }
         map.clear();
     }
 

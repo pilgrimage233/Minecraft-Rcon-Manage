@@ -2145,6 +2145,36 @@ INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component,
 VALUES (2142, '时限管理导出', 2137, 5, '#', '', null, 1, 0, 'F', '0', '0', 'mc:deadline:export', '#', 'admin',
         '2025-08-15 02:40:30', '', null, '');
 
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache, menu_type,
+                      visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+VALUES (2143, '邮件管理', 0, 2, 'email', null, null, 1, 0, 'M', '0', '0', '', 'email', 'admin', '2025-10-03 01:55:03',
+        'admin', '2025-10-03 01:55:17', '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache, menu_type,
+                      visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+VALUES (2144, '邮件模板', 2143, 1, 'templates', 'email/templates/index', null, 1, 0, 'C', '0', '0',
+        'email:templates:list', 'documentation', 'admin', '2025-10-03 02:16:01', 'admin', '2025-10-07 06:02:20',
+        '自定义邮件通知模板菜单');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache, menu_type,
+                      visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+VALUES (2145, '自定义邮件通知模板查询', 2144, 1, '#', '', null, 1, 0, 'F', '0', '0', 'email:templates:query', '#',
+        'admin', '2025-10-03 02:16:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache, menu_type,
+                      visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+VALUES (2146, '自定义邮件通知模板新增', 2144, 2, '#', '', null, 1, 0, 'F', '0', '0', 'email:templates:add', '#',
+        'admin', '2025-10-03 02:16:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache, menu_type,
+                      visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+VALUES (2147, '自定义邮件通知模板修改', 2144, 3, '#', '', null, 1, 0, 'F', '0', '0', 'email:templates:edit', '#',
+        'admin', '2025-10-03 02:16:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache, menu_type,
+                      visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+VALUES (2148, '自定义邮件通知模板删除', 2144, 4, '#', '', null, 1, 0, 'F', '0', '0', 'email:templates:remove', '#',
+        'admin', '2025-10-03 02:16:02', '', null, '');
+INSERT INTO sys_menu (menu_id, menu_name, parent_id, order_num, path, component, query, is_frame, is_cache, menu_type,
+                      visible, status, perms, icon, create_by, create_time, update_by, update_time, remark)
+VALUES (2149, '自定义邮件通知模板导出', 2144, 5, '#', '', null, 1, 0, 'F', '0', '0', 'email:templates:export', '#',
+        'admin', '2025-10-03 02:16:02', '', null, '');
+
 
 
 -- ----------------------------
@@ -2523,4 +2553,36 @@ create index whitelist_deadline_info_id_index
 
 create index whitelist_deadline_info_whitelist_id_index
     on whitelist_deadline_info (whitelist_id desc);
+
+-- ----------------------------
+-- Table structure for custom_email_templates
+-- ----------------------------
+
+CREATE TABLE `custom_email_templates`
+(
+    `id`           int      NOT NULL AUTO_INCREMENT COMMENT 'ID',
+    `create_time`  datetime NOT NULL COMMENT '创建时间',
+    `create_by`    varchar(64)  DEFAULT NULL COMMENT '创建者',
+    `server_id`    int          DEFAULT NULL COMMENT '服务器ID',
+    `review_temp`  text COMMENT '审核',
+    `pending_temp` text COMMENT '待审核',
+    `pass_temp`    text COMMENT '通过',
+    `refuse_temp`  text COMMENT '拒绝',
+    `remove_temp`  text COMMENT '移除',
+    `ban_temp`     text COMMENT '封禁',
+    `pardon_temp`  text COMMENT '解禁',
+    `verify_temp`  text COMMENT '邮箱验证',
+    `warning_temp` text COMMENT '系统告警',
+    `status`       int      NOT NULL COMMENT '状态',
+    `update_time`  datetime     DEFAULT NULL COMMENT '更新时间',
+    `update_by`    varchar(64)  DEFAULT NULL COMMENT '更新者',
+    `remark`       varchar(256) DEFAULT NULL COMMENT '备注',
+    PRIMARY KEY (`id`),
+    KEY `custom_email_templates_id_server_id_index` (`id` DESC, `server_id` DESC)
+) ENGINE = InnoDB
+  AUTO_INCREMENT = 3
+  DEFAULT CHARSET = utf8mb4
+  COLLATE = utf8mb4_0900_ai_ci COMMENT ='自定义邮件通知模板'
+
+
 

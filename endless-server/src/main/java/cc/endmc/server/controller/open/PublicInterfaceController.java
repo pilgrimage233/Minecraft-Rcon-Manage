@@ -4,7 +4,7 @@ import cc.endmc.common.core.controller.BaseController;
 import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.StringUtils;
-import cc.endmc.server.common.MapCache;
+import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.config.QuestionConfig;
 import cc.endmc.server.domain.permission.WhitelistInfo;
@@ -90,7 +90,7 @@ public class PublicInterfaceController extends BaseController {
             }
 
             Map<String, String> map = new HashMap<>();
-            MapCache.getMap().forEach((k, v) -> {
+            RconCache.getMap().forEach((k, v) -> {
                 final String nameTag = serverInfoService.selectServerInfoById(Long.valueOf(k)).getNameTag();
                 try {
                     final String list = v.sendCommand("whitelist list");
@@ -182,7 +182,7 @@ public class PublicInterfaceController extends BaseController {
             }
 
             cache.forEach((String k, Set<String> v) -> {
-                if (MapCache.containsKey(k)) {  // 只查询活跃服务器
+                if (RconCache.containsKey(k)) {  // 只查询活跃服务器
                     final String nameTag = serverInfoService.selectServerInfoById(Long.valueOf(k)).getNameTag();
                     result.put(nameTag, Arrays.toString(v.toArray()));
                 }
@@ -865,8 +865,8 @@ public class PublicInterfaceController extends BaseController {
                 detailMap.put("问题内容", question != null ? question.getQuestionText() : "问题已删除");
                 detailMap.put("问题类型", question != null ? question.getQuestionType() : "未知");
                 detailMap.put("玩家答案", detail.getPlayerAnswer());
-                detailMap.put("是否正确", detail.getIsCorrect() == 1 ? "是" : "否");
-                detailMap.put("得分", detail.getScore());
+                // detailMap.put("是否正确", detail.getIsCorrect() == 1 ? "是" : "否");
+                // detailMap.put("得分", detail.getScore());
                 details.add(detailMap);
             }
             redisCache.setCacheList(CacheKey.QUIZ_SUBMISSION_DETAIL_KEY + id, details, 1, TimeUnit.DAYS);

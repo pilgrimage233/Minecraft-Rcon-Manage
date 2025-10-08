@@ -11,7 +11,7 @@ import cc.endmc.common.enums.BusinessType;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.common.utils.poi.ExcelUtil;
 import cc.endmc.server.async.AsyncManager;
-import cc.endmc.server.common.MapCache;
+import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.rconclient.RconClient;
 import cc.endmc.server.common.service.RconService;
@@ -144,7 +144,7 @@ public class ServerInfoController extends BaseController {
     @GetMapping("/refreshCache")
     public AjaxResult refreshCache() {
         // 刷新缓存前释放Rcon连接
-        MapCache.getMap().forEach((k, v) -> {
+        RconCache.getMap().forEach((k, v) -> {
             try {
                 v.close();
             } catch (Exception ignored) {
@@ -157,7 +157,7 @@ public class ServerInfoController extends BaseController {
         // 初始化Rcon连接
         ServerInfo info = new ServerInfo();
         info.setStatus(1L);
-        MapCache.clear();
+        RconCache.clear();
         for (ServerInfo serverInfo : serverInfoService.selectServerInfoList(info)) {
             rconService.init(serverInfo);
         }
@@ -182,7 +182,7 @@ public class ServerInfoController extends BaseController {
         Map<String, String> data = new HashMap<>();
 
         if (!key.equals("all")) {
-            RconClient client = MapCache.get(key);
+            RconClient client = RconCache.get(key);
             if (client == null) {
                 return error("服务器未连接");
             }
@@ -197,7 +197,7 @@ public class ServerInfoController extends BaseController {
                 data.put("error", e.getMessage());
             }
         } else {
-            for (Map.Entry<String, RconClient> entry : MapCache.getMap().entrySet()) {
+            for (Map.Entry<String, RconClient> entry : RconCache.getMap().entrySet()) {
                 final String nameTag = serverInfoService.selectServerInfoById(Long.parseLong(entry.getKey())).getNameTag();
                 data.put("time", String.valueOf(System.currentTimeMillis()));
                 try {
@@ -221,8 +221,8 @@ public class ServerInfoController extends BaseController {
     @PostMapping("/rcon/connect/{id}")
     public AjaxResult connect(@PathVariable String id) {
         // 尝试在缓存中获取RconClient
-        if (MapCache.containsKey(id)) {
-            RconClient rconClient = MapCache.get(id);
+        if (RconCache.containsKey(id)) {
+            RconClient rconClient = RconCache.get(id);
             // 存活检测
             String testResponse = null;
             try {
@@ -294,7 +294,7 @@ public class ServerInfoController extends BaseController {
         historyCommand.setServerId(Long.parseLong(id));
         historyCommand.setCommand(command);
         final long l = System.currentTimeMillis();
-        RconClient rconClient = MapCache.get(id);
+        RconClient rconClient = RconCache.get(id);
         if (rconClient == null) {
             historyCommand.setStatus("NO");
             return error("服务器未连接");
@@ -340,7 +340,7 @@ public class ServerInfoController extends BaseController {
             return error("抱歉，您未分配服务器！");
         }
         // 获取已知存活服务器主键
-        final Set<String> keySet = MapCache.getMap().keySet();
+        final Set<String> keySet = RconCache.getMap().keySet();
         // 获取所有服务器
         Map<String, Object> serverInfoMap;
 

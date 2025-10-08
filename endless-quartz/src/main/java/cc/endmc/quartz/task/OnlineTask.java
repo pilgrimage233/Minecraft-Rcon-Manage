@@ -3,7 +3,7 @@ package cc.endmc.quartz.task;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.common.utils.http.HttpUtils;
-import cc.endmc.server.common.MapCache;
+import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.rconclient.RconClient;
 import cc.endmc.server.common.service.RconService;
@@ -115,7 +115,7 @@ public class OnlineTask {
      * 根据高密度定时查询在线用户更新最后一次上线时间
      */
     public void monitor() {
-        Map<String, RconClient> map = MapCache.getMap();
+        Map<String, RconClient> map = RconCache.getMap();
         if (map == null || map.isEmpty()) {
             return;
         }
@@ -295,7 +295,7 @@ public class OnlineTask {
                 for (String command : commands) {
                     try {
                         if (flag) {
-                            MapCache.getMap().forEach((k, v) -> {
+                            RconCache.getMap().forEach((k, v) -> {
                                 try {
                                     v.sendCommand(command);
                                 } catch (Exception e) {
@@ -303,8 +303,8 @@ public class OnlineTask {
                                 }
                             });
                         } else {
-                            if (MapCache.containsKey(key)) {
-                                MapCache.get(key).sendCommand(command);
+                            if (RconCache.containsKey(key)) {
+                                RconCache.get(key).sendCommand(command);
                             } else {
                                 // 移除
                                 executedCommands.add(command);

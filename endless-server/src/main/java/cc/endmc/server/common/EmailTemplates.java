@@ -1,6 +1,8 @@
 package cc.endmc.server.common;
 
 import cc.endmc.common.utils.StringUtils;
+import cc.endmc.server.cache.EmailTempCache;
+import cc.endmc.server.domain.email.CustomEmailTemplates;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -848,63 +850,24 @@ public class EmailTemplates {
 
     // 替换模板中的变量
     public static String getWhitelistNotification(String username, String gameId, String applyTime,
-                                                  String reviewTime, String titte, String appUrl, List<Map<String, Object>> infoList) {
+                                                  String reviewTime, String titte, String appUrl, List<Map<String, Object>> infoList, String server) {
         String template = WHITELIST_NOTIFICATION_TEMPLATE;
+        String key = "default";
 
-        // 定义单个服务器信息的HTML模板
-        String serverInfoTemplate =
-                "<div class=\"server-info-block\" style=\"margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;\">\n" +
-                        "    <div class=\"info-item\">\n" +
-                        "        <span class=\"info-label\">服务器名称：</span>\n" +
-                        "        <span class=\"info-value\">{name}</span>\n" +
-                        "    </div>\n" +
-                        "    <div class=\"info-item\">\n" +
-                        "        <span class=\"info-label\">服务器地址：</span>\n" +
-                        "        <span class=\"info-value\">{serverAddress}:{port}</span>\n" +
-                        "    </div>\n" +
-                        "    <div class=\"info-item\">\n" +
-                        "        <span class=\"info-label\">游戏版本：</span>\n" +
-                        "        <span class=\"info-value\">{core}-{version}</span>\n" +
-                        "    </div>\n" +
-                        "</div>";
-
-        // 替换基本变量
-        template = template.replace("{username}", username)
-                .replace("{gameId}", gameId)
-                .replace("{applyTime}", applyTime)
-                .replace("{reviewTime}", reviewTime);
-
-        // 处理服务器信息
-        if (infoList == null || infoList.isEmpty()) {
-            // 如果没有服务器信息，提供链接查看
-            String URL = appUrl + "/#/player-servers/" + gameId;
-            String linkHtml = "<div style='text-align: center;'>" +
-                    "<a href=\"" + URL + "\" class=\"button\" " +
-                    "style=\"display: inline-block; padding: 12px 24px; background: #409EFF; " +
-                    "color: white; text-decoration: none; border-radius: 24px; margin: 20px 0; " +
-                    "font-weight: 500; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);\" " +
-                    "onmouseover=\"this.style.background='#66b1ff'; this.style.transform='translateY(-2px)';\" " +
-                    "onmouseout=\"this.style.background='#409EFF'; this.style.transform='translateY(0)';\">" +
-                    "查看服务器信息</a></div>";
-            template = template.replace("{info}", linkHtml);
-        } else {
-            // 有服务器信息，生成服务器信息HTML
-            StringBuilder serverInfoHtml = new StringBuilder();
-            for (Map<String, Object> infoMap : infoList) {
-                String serverInfo = serverInfoTemplate;
-                serverInfo = serverInfo.replace("{name}", (String) infoMap.get("name"))
-                        .replace("{serverAddress}", (String) infoMap.get("serverAddress"))
-                        .replace("{port}", String.valueOf(infoMap.get("port")))
-                        .replace("{core}", (String) infoMap.get("core"))
-                        .replace("{version}", (String) infoMap.get("version"));
-                serverInfoHtml.append(serverInfo);
-            }
-            template = template.replace("{info}", serverInfoHtml.toString());
+        if (StringUtils.isNotEmpty(server)) {
+            key = server;
         }
 
-        // 根据审核结果显示不同状态
+        boolean custom = false;
+
+        // 根据不同状态获取自定义模板
         switch (titte) {
             case FAIL_TITLE:
+                if (!EmailTempCache.isEmpty() && EmailTempCache.get(key) != null) {
+                    final CustomEmailTemplates defaultTemp = EmailTempCache.get(key);
+                    template = defaultTemp.getRefuseTemp() != null ? defaultTemp.getRefuseTemp() : WHITELIST_NOTIFICATION_TEMPLATE;
+                    // custom = defaultTemp.getRefuseTemp() != null;
+                }
                 template = template.replace(
                         "<!-- 审核拒绝模板 -->",
                         "<div class=\"status rejected\"><span>😢 很抱歉，您的白名单申请未通过</span></div>"
@@ -914,6 +877,11 @@ public class EmailTemplates {
                 );
                 break;
             case SUCCESS_TITLE:
+                if (!EmailTempCache.isEmpty() && EmailTempCache.get(key) != null) {
+                    final CustomEmailTemplates defaultTemp = EmailTempCache.get(key);
+                    template = defaultTemp.getPassTemp() != null ? defaultTemp.getPassTemp() : WHITELIST_NOTIFICATION_TEMPLATE;
+                    custom = defaultTemp.getPassTemp() != null;
+                }
                 template = template.replace(
                         "<!-- 审核通过模板 -->",
                         "<div class=\"status approved\"><span>🎉 恭喜，您的白名单申请已通过！</span></div>"
@@ -923,12 +891,121 @@ public class EmailTemplates {
                 );
                 break;
         }
+
+        // 替换基本变量
+        template = template.replace("{username}", username)
+                .replace("{gameId}", gameId)
+                .replace("{applyTime}", applyTime)
+                .replace("{reviewTime}", reviewTime);
+
+        // 服务器查询地址
+        String URL = appUrl + "/#/player-servers/" + gameId;
+        template = template.replace("{url}", URL);
+        if (custom) {
+            if (infoList.size() <= 1) {
+                final Map<String, Object> infoMap = infoList.get(0);
+                template = template.replace("{name}", (String) infoMap.get("name"))
+                        .replace("{serverAddress}", (String) infoMap.get("serverAddress"))
+                        .replace("{port}", String.valueOf(infoMap.get("port")))
+                        .replace("{core}", (String) infoMap.get("core"))
+                        .replace("{version}", (String) infoMap.get("version"));
+            }
+        } else {
+            // 定义单个服务器信息的HTML模板
+            String serverInfoTemplate =
+                    "<div class=\"server-info-block\" style=\"margin-bottom: 20px; padding: 15px; background: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;\">\n" +
+                            "    <div class=\"info-item\">\n" +
+                            "        <span class=\"info-label\">服务器名称：</span>\n" +
+                            "        <span class=\"info-value\">{name}</span>\n" +
+                            "    </div>\n" +
+                            "    <div class=\"info-item\">\n" +
+                            "        <span class=\"info-label\">服务器地址：</span>\n" +
+                            "        <span class=\"info-value\">{serverAddress}:{port}</span>\n" +
+                            "    </div>\n" +
+                            "    <div class=\"info-item\">\n" +
+                            "        <span class=\"info-label\">游戏版本：</span>\n" +
+                            "        <span class=\"info-value\">{core}-{version}</span>\n" +
+                            "    </div>\n" +
+                            "</div>";
+
+            // 处理服务器信息
+            if (infoList == null || infoList.isEmpty()) {
+                // 如果没有服务器信息，提供链接查看
+                String linkHtml = "<div style='text-align: center;'>" +
+                        "<a href=\"" + URL + "\" class=\"button\" " +
+                        "style=\"display: inline-block; padding: 12px 24px; background: #409EFF; " +
+                        "color: white; text-decoration: none; border-radius: 24px; margin: 20px 0; " +
+                        "font-weight: 500; transition: all 0.3s ease; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);\" " +
+                        "onmouseover=\"this.style.background='#66b1ff'; this.style.transform='translateY(-2px)';\" " +
+                        "onmouseout=\"this.style.background='#409EFF'; this.style.transform='translateY(0)';\">" +
+                        "查看服务器信息</a></div>";
+                template = template.replace("{info}", linkHtml);
+            } else {
+                // 有服务器信息，生成服务器信息HTML
+                StringBuilder serverInfoHtml = new StringBuilder();
+                for (Map<String, Object> infoMap : infoList) {
+                    String serverInfo = serverInfoTemplate;
+                    serverInfo = serverInfo.replace("{name}", (String) infoMap.get("name"))
+                            .replace("{serverAddress}", (String) infoMap.get("serverAddress"))
+                            .replace("{port}", String.valueOf(infoMap.get("port")))
+                            .replace("{core}", (String) infoMap.get("core"))
+                            .replace("{version}", (String) infoMap.get("version"));
+                    serverInfoHtml.append(serverInfo);
+                }
+                template = template.replace("{info}", serverInfoHtml.toString());
+            }
+        }
+
         return template;
     }
 
+    // 获取白名单移除/封禁通知模板
     public static String getWhitelistNotificationBan(String username, String gameId, String applyTime,
-                                                     String time, String timeTittle, String removeReason, String titte) {
-        String template = WHITELIST_NOTIFICATION_TEMPLATE_BAN;
+                                                     String time, String timeTittle, String removeReason, String titte, String server) {
+        String template = WHITELIST_NOTIFICATION_TEMPLATE;
+        String key = "default";
+
+        if (StringUtils.isNotEmpty(server)) {
+            key = server;
+        }
+        // 根据不同状态获取自定义模板
+        if (!EmailTempCache.isEmpty() && EmailTempCache.get(key) != null) {
+            final CustomEmailTemplates defaultTemp = EmailTempCache.get(key);
+            switch (titte) {
+                case BAN_TITLE:
+                    template = defaultTemp.getBanTemp() != null ? defaultTemp.getBanTemp() : WHITELIST_NOTIFICATION_TEMPLATE;
+                    template = template.replace(
+                            "<!-- 封禁模板 -->",
+                            "<div class=\"status rejected\"><span>🚫 你已被封禁！🚫</span></div>"
+                    ).replace(
+                            "<!-- 移除模板 -->",
+                            ""
+                    );
+
+                    break;
+                case REMOVE_TITLE:
+                    template = defaultTemp.getRemoveTemp() != null ? defaultTemp.getRemoveTemp() : WHITELIST_NOTIFICATION_TEMPLATE;
+                    template = template.replace(
+                            "<!-- 移除模板 -->",
+                            "<div class=\"status rejected\"><span>😢 很抱歉，您的白名单申请未通过</span></div>"
+                    ).replace(
+                            "<!-- 封禁模板 -->",
+                            ""
+                    );
+
+                    break;
+                case FAIL_TITLE:
+                    template = defaultTemp.getRefuseTemp() != null ? defaultTemp.getRefuseTemp() : WHITELIST_NOTIFICATION_TEMPLATE;
+                    template = template.replace(
+                            "<!-- 移除模板 -->",
+                            "<div class=\"status rejected\"><span>😢 很抱歉，您的白名单申请未通过</span></div>"
+                    ).replace(
+                            "<!-- 封禁模板 -->",
+                            ""
+                    );
+                    break;
+            }
+        }
 
         if (StringUtils.isEmpty(removeReason)) {
             removeReason = REMOVE_REASON;
@@ -942,41 +1019,24 @@ public class EmailTemplates {
                 .replace("{time}", time)
                 .replace("{removeReason}", removeReason);
 
-        // 根据审核结果显示不同状态
-        switch (titte) {
-            case BAN_TITLE:
-                template = template.replace(
-                        "<!-- 封禁模板 -->",
-                        "<div class=\"status rejected\"><span>🚫 你已被封禁！🚫</span></div>"
-                ).replace(
-                        "<!-- 移除模板 -->",
-                        ""
-                );
-                break;
-            case REMOVE_TITLE:
-                template = template.replace(
-                        "<!-- 移除模板 -->",
-                        "<div class=\"status rejected\"><span>😢 很抱歉，您的白名单已被移除</span></div>"
-                ).replace(
-                        "<!-- 封禁模板 -->",
-                        ""
-                );
-                break;
-            case FAIL_TITLE:
-                template = template.replace(
-                        "<!-- 移除模板 -->",
-                        "<div class=\"status rejected\"><span>😢 很抱歉，您的白名单申请未通过</span></div>"
-                ).replace(
-                        "<!-- 封禁模板 -->",
-                        ""
-                );
-                break;
-        }
         return template;
     }
 
-    public static String getWhitelistNotificationUnBan(String username, String gameId, String banTime, String unBanTime) {
+    // 获取白名单解禁通知模板
+    public static String getWhitelistNotificationUnBan(String username, String gameId, String banTime, String unBanTime, String server) {
         String template = WHITELIST_NOTIFICATION_TEMPLATE_UNBAN;
+        String key = "default";
+
+        if (StringUtils.isNotEmpty(server)) {
+            key = server;
+        }
+
+        if (EmailTempCache.isEmpty() && EmailTempCache.get(key) != null) {
+            final CustomEmailTemplates defaultTemp = EmailTempCache.get(key);
+            if (defaultTemp.getPardonTemp() != null) {
+                template = defaultTemp.getPardonTemp();
+            }
+        }
 
         // 替换变量
         template = template.replace("{username}", username)
@@ -993,8 +1053,26 @@ public class EmailTemplates {
         return template;
     }
 
-    public static String getWhitelistNotificationPending(String username, String gameId, String applyTime) {
+    // 获取白名单待审核通知模板
+    public static String getWhitelistNotificationPending(String username, String gameId, String applyTime, boolean autoPass, String server) {
         String template = WHITELIST_NOTIFICATION_TEMPLATE_PENDING;
+
+        String key = "default";
+
+        if (StringUtils.isNotEmpty(server)) {
+            key = server;
+        }
+
+        if (!EmailTempCache.isEmpty() && EmailTempCache.get(key) != null) {
+            final CustomEmailTemplates defaultTemp = EmailTempCache.get(key);
+            if (autoPass) {
+                if (defaultTemp.getPassTemp() != null) {
+                    template = defaultTemp.getPassTemp();
+                } else if (defaultTemp.getPendingTemp() != null) {
+                    template = defaultTemp.getPendingTemp();
+                }
+            }
+        }
 
         // 替换变量
         template = template.replace("{username}", username)
@@ -1015,12 +1093,32 @@ public class EmailTemplates {
 
     // 获取邮箱验证模板
     public static String getEmailVerifyTemplate(String verifyLink) {
+        String key = "default";
+
+        if (!EmailTempCache.isEmpty() && EmailTempCache.get(key) != null) {
+            final CustomEmailTemplates defaultTemp = EmailTempCache.get(key);
+            if (defaultTemp.getVerifyTemp() != null) {
+                return defaultTemp.getVerifyTemp().replace("{verifyLink}", verifyLink);
+            }
+        }
+
         return EMAIL_VERIFY_TEMPLATE.replace("{verifyLink}", verifyLink);
     }
 
+    // 获取告警通知模板
     public static String getAlertNotification(String time, int count, String type,
                                               String serverName, String serverAddress) {
+
         String template = ALERT_TEMPLATE;
+        String key = "default";
+
+        // 如果有自定义模板则使用自定义模板
+        if (!EmailTempCache.isEmpty() && EmailTempCache.get(key) != null) {
+            final CustomEmailTemplates defaultTemp = EmailTempCache.get(key);
+            if (defaultTemp.getWarningTemp() != null) {
+                template = defaultTemp.getWarningTemp();
+            }
+        }
 
         // 替换变量
         template = template.replace("{time}", time)
@@ -1030,5 +1128,21 @@ public class EmailTemplates {
                 .replace("{serverAddress}", serverAddress);
 
         return template;
+
+    }
+
+    public static String getReviewTemplate(String qq, String gameId, String applyTime, boolean status) {
+        String ket = "default";
+        if (!EmailTempCache.isEmpty() && EmailTempCache.get(ket) != null) {
+            final CustomEmailTemplates defaultTemp = EmailTempCache.get(ket);
+            if (defaultTemp.getReviewTemp() != null) {
+                return defaultTemp.getReviewTemp()
+                        .replace("{qq}", qq)
+                        .replace("{gameId}", gameId)
+                        .replace("{applyTime}", applyTime)
+                        .replace("{status}", status ? "已自动通过" : "待审核");
+            }
+        }
+        return null;
     }
 }

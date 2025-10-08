@@ -1,7 +1,7 @@
 package cc.endmc.server.service.server.impl;
 
 import cc.endmc.common.utils.DateUtils;
-import cc.endmc.server.common.ObjectCache;
+import cc.endmc.server.cache.ObjectCache;
 import cc.endmc.server.common.service.RconService;
 import cc.endmc.server.domain.server.ServerCommandInfo;
 import cc.endmc.server.mapper.server.ServerCommandInfoMapper;

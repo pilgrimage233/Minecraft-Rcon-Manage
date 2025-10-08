@@ -3,7 +3,7 @@ package cc.endmc.quartz.task;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
-import cc.endmc.server.common.MapCache;
+import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.rconclient.RconClient;
 import cc.endmc.server.common.service.RconService;
@@ -49,10 +49,10 @@ public class RconTask {
     // 定时刷新Map缓存
     public void refreshMapCache() {
         //关闭所有Rcon连接并清除Map缓存
-        for (RconClient rconClient : MapCache.getMap().values()) {
+        for (RconClient rconClient : RconCache.getMap().values()) {
             rconClient.close();
         }
-        MapCache.clear();
+        RconCache.clear();
         // 初始化Rcon连接
         ServerInfo info = new ServerInfo();
         info.setStatus(1L);
@@ -67,14 +67,14 @@ public class RconTask {
 
     // 心跳检测
     public void heartBeat() {
-        if (MapCache.getMap().isEmpty()) {
+        if (RconCache.getMap().isEmpty()) {
             return;
         }
         if (!redisCache.hasKey(CacheKey.SERVER_INFO_KEY)) {
             refreshRedisCache();
         }
 
-        MapCache.getMap().forEach((k, v) -> {
+        RconCache.getMap().forEach((k, v) -> {
             try {
                 final String list = v.sendCommand("ping");
                 if (StringUtils.isEmpty(list)) {
@@ -83,7 +83,7 @@ public class RconTask {
             } catch (Exception e) {
                 log.error("Rcon连接异常：{}...尝试重连", e.getMessage());
                 v.close();
-                MapCache.remove(k);
+                RconCache.remove(k);
                 final ServerInfo serverInfo = serverInfoService.selectServerInfoById(Long.parseLong(k));
 
                 // 重连单个服务器

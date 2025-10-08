@@ -4,7 +4,7 @@ import cc.endmc.common.core.domain.entity.SysUser;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
-import cc.endmc.server.common.MapCache;
+import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.Command;
 import cc.endmc.server.common.service.EmailService;
 import cc.endmc.server.common.service.RconService;
@@ -108,7 +108,7 @@ public class WhiteListTask {
             return;
         }
 
-        if (!MapCache.containsKey(serverId)) {
+        if (!RconCache.containsKey(serverId)) {
             log.error("服务器未连接：{}", serverId);
             return;
         }
@@ -154,7 +154,7 @@ public class WhiteListTask {
         }
 
         // 查询对应服务器现有白名单列表
-        String list = MapCache.get(serverId).sendCommand(Command.WHITELIST_LIST);
+        String list = RconCache.get(serverId).sendCommand(Command.WHITELIST_LIST);
         log.debug("现有白名单列表：{}", list);
         Set<String> online = new HashSet<>();
         Set<String> offline = new HashSet<>();
@@ -201,7 +201,7 @@ public class WhiteListTask {
         List<String> remove = new ArrayList<>();
 
         // 重新获取现有白名单列表
-        list = MapCache.get(serverId).sendCommand(Command.WHITELIST_LIST);
+        list = RconCache.get(serverId).sendCommand(Command.WHITELIST_LIST);
         if (StringUtils.isNotEmpty(list) && list.contains("There are")) {
             // 正版玩家
             online = new HashSet<>(Arrays.asList(list.split("whitelisted player\\(s\\):")[1].trim().split(", ")));

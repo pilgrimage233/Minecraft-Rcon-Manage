@@ -1,4 +1,4 @@
-package cc.endmc.server.common;
+package cc.endmc.server.cache;
 
 import cc.endmc.server.domain.server.ServerCommandInfo;
 
