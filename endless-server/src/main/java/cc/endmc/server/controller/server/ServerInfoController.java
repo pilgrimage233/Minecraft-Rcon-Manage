@@ -10,6 +10,7 @@ import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.enums.BusinessType;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.common.utils.poi.ExcelUtil;
+import cc.endmc.server.annotation.SignVerify;
 import cc.endmc.server.async.AsyncManager;
 import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.CacheKey;
@@ -324,6 +325,7 @@ public class ServerInfoController extends BaseController {
         }
     }
 
+    @SignVerify
     @GetMapping("/getServerInfoByGameId/{gameId}")
     public AjaxResult getServerInfoByGameId(@PathVariable String gameId) {
         WhitelistInfo whitelistInfo = new WhitelistInfo();

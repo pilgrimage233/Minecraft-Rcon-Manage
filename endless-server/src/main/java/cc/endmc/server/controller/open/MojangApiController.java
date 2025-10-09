@@ -6,6 +6,7 @@ import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.common.utils.http.HttpUtils;
 import cc.endmc.common.utils.sign.Base64;
+import cc.endmc.server.annotation.SignVerify;
 import cc.endmc.server.common.constant.MojangApi;
 import com.alibaba.fastjson2.JSONObject;
 import org.springframework.core.io.Resource;
@@ -39,6 +40,7 @@ public class MojangApiController extends BaseController {
      *
      * @param id
      */
+    @SignVerify
     @GetMapping("/user/{id}")
     public AjaxResult getMojangApi(@PathVariable String id) {
 

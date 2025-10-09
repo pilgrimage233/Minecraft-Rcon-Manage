@@ -11,6 +11,7 @@ import cc.endmc.common.enums.BusinessType;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.common.utils.poi.ExcelUtil;
+import cc.endmc.server.annotation.SignVerify;
 import cc.endmc.server.async.AsyncManager;
 import cc.endmc.server.common.EmailTemplates;
 import cc.endmc.server.common.constant.CacheKey;
@@ -109,6 +110,7 @@ public class WhitelistInfoController extends BaseController {
         this.dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
     }
 
+    @SignVerify // 开启签名验证
     @SneakyThrows
     @PostMapping("/apply")
     public AjaxResult apply(@RequestBody WhitelistInfo whitelistInfo, @RequestHeader Map<String, String> header) {
@@ -235,6 +237,7 @@ public class WhitelistInfoController extends BaseController {
      * @param code
      * @return
      */
+    @SignVerify
     @GetMapping("/verify")
     public AjaxResult verify(@RequestParam String code, @RequestHeader Map<String, String> header) {
         if (StringUtils.isEmpty(code)) {

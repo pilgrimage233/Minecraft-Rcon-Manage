@@ -3,7 +3,7 @@ ruoyi:
   # 名称
   name: EndlessManager
   # 版本
-  version: 2.9.1
+  version: 2.10
   # 版权年份
   copyrightYear: 2025
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
@@ -200,3 +200,7 @@ qq:
     reset-time: 600
     # 重连最大次数
     max-reconnect-attempts: 10
+
+app:
+  # 鉴权密钥
+  secret-key: EndmcAppSecretKey

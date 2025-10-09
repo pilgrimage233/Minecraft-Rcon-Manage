@@ -4,6 +4,7 @@ import cc.endmc.common.core.controller.BaseController;
 import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.StringUtils;
+import cc.endmc.server.annotation.SignVerify;
 import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.config.QuestionConfig;
@@ -119,6 +120,7 @@ public class PublicInterfaceController extends BaseController {
     }
 
     // 查询服务器在线人数
+    @SignVerify
     @GetMapping("/getOnlinePlayer")
     public AjaxResult getOnlinePlayer() {
         return success(serverInfoService.getOnlinePlayer(true));
@@ -129,6 +131,7 @@ public class PublicInterfaceController extends BaseController {
      *
      * @return AjaxResult
      */
+    @SignVerify
     @GetMapping("/getWhiteList")
     public AjaxResult getWhiteList() {
         // 限流检查
@@ -527,6 +530,7 @@ public class PublicInterfaceController extends BaseController {
      * @param code 验证码
      * @return AjaxResult
      */
+    @SignVerify
     @GetMapping("/checkQuizStatus")
     public AjaxResult checkQuizStatus(@RequestParam String code) {
         // 从缓存中获取验证信息
@@ -568,6 +572,7 @@ public class PublicInterfaceController extends BaseController {
      * @param param 答题信息
      * @return AjaxResult
      */
+    @SignVerify
     @PostMapping("/submitQuiz")
     public AjaxResult submitQuiz(@RequestBody JSONObject param) {
 
@@ -816,6 +821,7 @@ public class PublicInterfaceController extends BaseController {
      * @param id 答题记录ID
      * @return AjaxResult
      */
+    @SignVerify
     @GetMapping("/getQuizDetail/{id}")
     public AjaxResult getQuizDetail(@PathVariable Long id) {
 
