@@ -6,6 +6,7 @@
         <el-form ref="form" :model="form" :rules="rules" label-width="100px">
           <el-form-item label="服务器ID" prop="serverId">
             <el-select v-model="form.serverId" clearable placeholder="请选择服务器">
+              <el-option :value="null" label="未指定"></el-option>
               <el-option
                 v-for="item in serverOptions"
                 :key="item.id"
@@ -30,15 +31,27 @@
           </el-form-item>
 
           <el-form-item v-if="currentTemplateType" label="模板内容">
-            <Editor
-              :key="currentTemplateType"
+            <el-input
               v-model="form[currentTemplateType]"
-              :minHeight="200"
+              :rows="15"
+              placeholder="请输入HTML模板内容"
+              style="font-family: 'Courier New', monospace;"
+              type="textarea"
             />
           </el-form-item>
 
           <el-form-item label="备注" prop="remark">
             <el-input v-model="form.remark" placeholder="请输入备注" type="textarea"/>
+          </el-form-item>
+          <el-form-item label="状态">
+            <el-radio-group v-model="form.status">
+              <el-radio
+                v-for="item in [{label: '启用', value: 1}, {label: '停用', value: 0}]"
+                :key="item.value"
+                :label="item.value"
+              >{{ item.label }}
+              </el-radio>
+            </el-radio-group>
           </el-form-item>
         </el-form>
       </el-tab-pane>
@@ -122,14 +135,10 @@
 <script>
 import {addTemplates, downloadDocument, updateTemplates} from "@/api/email/templates";
 import {getServerList} from "@/api/regular/command";
-import Editor from "@/components/Editor";
 import DOMPurify from "dompurify";
 
 export default {
   name: "TemplateEditor",
-  components: {
-    Editor
-  },
   props: {
     visible: {
       type: Boolean,

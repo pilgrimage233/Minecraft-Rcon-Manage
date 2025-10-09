@@ -60,7 +60,11 @@
     <el-table v-loading="loading" :data="templatesList" @selection-change="handleSelectionChange">
       <el-table-column align="center" type="selection" width="55"/>
       <el-table-column align="center" label="ID" prop="id"/>
-      <el-table-column align="center" label="服务器ID" prop="serverId"/>
+      <el-table-column align="center" label="服务器ID" prop="serverId">
+        <template slot-scope="scope">
+          {{ scope.row.serverId || '未指定' }}
+        </template>
+      </el-table-column>
       <el-table-column align="center" label="状态" prop="status">
         <template slot-scope="scope">
           <el-tag :type="scope.row.status === 1 ? 'success' : 'danger'">
