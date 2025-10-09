@@ -27,6 +27,7 @@ import org.springframework.stereotype.Component;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 
 @Slf4j
@@ -81,6 +82,11 @@ public class InitializingBeanExamplebBean implements InitializingBean {
 
         if (env.getProperty("whitelist.email") == null) {
             log.error("白名单管理员邮件通知地址为空，请检查配置文件！");
+            System.exit(1);
+        }
+
+        if (env.getProperty("app.secret-key") == null || Objects.requireNonNull(env.getProperty("app.secret-key")).equalsIgnoreCase("EndmcAppSecretKey")) {
+            log.error("⚠️ 警告: 为了您的程序安全，请务必修改默认的app.secret-key配置项！");
             System.exit(1);
         }
 
