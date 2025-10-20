@@ -72,9 +72,9 @@ public class RconClient implements Closeable {
     /**
      * 打开RconClient
      *
-     * @param host     // 主机
-     * @param port     // 端口
-     * @param password // 密码
+     * @param host     主机
+     * @param port     端口
+     * @param password 密码
      * @return // RconClient
      */
     public static RconClient open(String host, int port, String password) {
@@ -84,10 +84,10 @@ public class RconClient implements Closeable {
     /**
      * 打开RconClient
      *
-     * @param host      // 主机
-     * @param port      // 端口
-     * @param password  // 密码
-     * @param timeoutMs // 超时时间
+     * @param host      主机
+     * @param port      端口
+     * @param password  密码
+     * @param timeoutMs 超时时间
      * @return // RconClient
      */
     public static RconClient open(String host, int port, String password, int timeoutMs) {
@@ -97,11 +97,11 @@ public class RconClient implements Closeable {
     /**
      * 打开RconClient
      *
-     * @param host             // 主机
-     * @param port             // 端口
-     * @param password         // 密码
-     * @param timeoutMs        // 超时时间
-     * @param useDirectBuffers // 是否使用直接缓冲区
+     * @param host             主机
+     * @param port             端口
+     * @param password         密码
+     * @param timeoutMs        超时时间
+     * @param useDirectBuffers 是否使用直接缓冲区
      * @return // RconClient
      */
     public static RconClient open(String host, int port, String password, int timeoutMs, boolean useDirectBuffers) {
@@ -172,8 +172,8 @@ public class RconClient implements Closeable {
     /**
      * 创建缓冲区
      *
-     * @param capacity // 容量
-     * @return // 缓冲区
+     * @param capacity 容量
+     * @return 缓冲区
      */
     private ByteBuffer createBuffer(int capacity) {
         return useDirectBuffers ?
@@ -184,8 +184,8 @@ public class RconClient implements Closeable {
     /**
      * 获取缓冲区
      *
-     * @param minCapacity // 最小容量
-     * @return // 缓冲区
+     * @param minCapacity 最小容量
+     * @return 缓冲区
      */
     private ByteBuffer getBuffer(int minCapacity) {
         ByteBuffer buffer = bufferPool.poll();
@@ -200,7 +200,7 @@ public class RconClient implements Closeable {
     /**
      * 释放缓冲区
      *
-     * @param buffer // 缓冲区
+     * @param buffer 缓冲区
      */
     private void returnBuffer(ByteBuffer buffer) {
         if (buffer != null && buffer.capacity() <= DEFAULT_BUFFER_SIZE * 2) {
@@ -213,8 +213,8 @@ public class RconClient implements Closeable {
     /**
      * 发送命令
      *
-     * @param command // 命令
-     * @return // 响应
+     * @param command 命令
+     * @return 响应
      */
     public String sendCommand(String command) {
         checkConnection();
@@ -224,8 +224,8 @@ public class RconClient implements Closeable {
     /**
      * 异步发送命令
      *
-     * @param command // 命令
-     * @return // 响应
+     * @param command 命令
+     * @return 响应
      */
     public Future<String> sendCommandAsync(String command) {
         return executorService.submit(() -> sendCommand(command));
@@ -234,8 +234,8 @@ public class RconClient implements Closeable {
     /**
      * 发送批量命令
      *
-     * @param commands // 命令列表
-     * @return // 响应列表
+     * @param commands 命令列表
+     * @return 响应列表
      */
     public List<String> sendBatchCommands(List<String> commands) {
         List<String> responses = new ArrayList<>(commands.size());
@@ -253,8 +253,8 @@ public class RconClient implements Closeable {
     /**
      * 并行发送批量命令
      *
-     * @param commands // 命令列表
-     * @return // 响应列表
+     * @param commands 命令列表
+     * @return 响应列表
      */
     public List<CompletableFuture<String>> sendBatchCommandsParallel(List<String> commands) {
         List<CompletableFuture<String>> futures = new ArrayList<>(commands.size());
@@ -275,8 +275,8 @@ public class RconClient implements Closeable {
     /**
      * 异步发送批量命令
      *
-     * @param commands // 命令列表
-     * @return // 响应列表
+     * @param commands 命令列表
+     * @return 响应列表
      */
     public Future<List<String>> sendBatchCommandsAsync(List<String> commands) {
         return executorService.submit(() -> sendBatchCommands(commands));
@@ -308,7 +308,7 @@ public class RconClient implements Closeable {
     /**
      * 认证
      *
-     * @param password // 密码
+     * @param password 密码
      */
     private void authenticate(String password) {
         LOGGER.info("开始RCON认证流程");
@@ -324,8 +324,8 @@ public class RconClient implements Closeable {
     /**
      * 发送
      *
-     * @param type    // 类型
-     * @param payload // 负载
+     * @param type    类型
+     * @param payload 负载
      * @return // 响应
      */
     private synchronized String send(int type, String payload) {
@@ -361,9 +361,9 @@ public class RconClient implements Closeable {
     /**
      * 发送内部
      *
-     * @param type    // 类型
-     * @param payload // 负载
-     * @return // 响应
+     * @param type    类型
+     * @param payload 负载
+     * @return 响应
      */
     private String sendInternal(int type, String payload) throws IOException {
         int requestId = currentRequestId.getAndIncrement();
@@ -510,8 +510,8 @@ public class RconClient implements Closeable {
     /**
      * 读取完整
      *
-     * @param buffer // 缓冲区
-     * @throws IOException // IO异常
+     * @param buffer 缓冲区
+     * @throws IOException IO异常
      */
     private void readFully(ByteBuffer buffer) throws IOException {
         int totalBytesRead = 0;
@@ -549,10 +549,10 @@ public class RconClient implements Closeable {
     /**
      * 转换为字节缓冲区
      *
-     * @param requestId    // 请求ID
-     * @param type         // 类型
-     * @param payloadBytes // 负载字节数组
-     * @return // 字节缓冲区
+     * @param requestId    请求ID
+     * @param type         类型
+     * @param payloadBytes 负载字节数组
+     * @return 字节缓冲区
      */
     private ByteBuffer toByteBuffer(int requestId, int type, byte[] payloadBytes) {
         int totalSize = (3 * Integer.BYTES) + payloadBytes.length + (2 * Byte.BYTES);
@@ -568,6 +568,15 @@ public class RconClient implements Closeable {
 
         buffer.flip();
         return buffer;
+    }
+
+    /**
+     * 检查SocketChannel是否打开
+     *
+     * @return 是否打开
+     */
+    public Boolean isSocketChannelOpen() {
+        return socketChannel != null && socketChannel.isOpen();
     }
 }
 

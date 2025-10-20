@@ -129,9 +129,9 @@ public class OnlineTask {
 
             while (retryCount < maxRetries) {
                 try {
-                    // 先发送一个简单的命令测试连接
-                    String testResponse = rconClient.sendCommand("seed");
-                    if (testResponse == null) {
+                    // 测试连接是否可用
+                    boolean open = rconClient.isSocketChannelOpen();
+                    if (!open) {
                         throw new Exception("Connection test failed");
                     }
 

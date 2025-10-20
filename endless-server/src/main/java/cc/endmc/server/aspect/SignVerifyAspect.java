@@ -118,11 +118,7 @@ public class SignVerifyAspect {
         }
 
         // 5. 限流验证
-        // if (!validateRateLimit(request, response, signVerify)) {
-        //     return false;
-        // }
-
-        return true;
+        return validateRateLimit(request, response, signVerify);
     }
 
     /**

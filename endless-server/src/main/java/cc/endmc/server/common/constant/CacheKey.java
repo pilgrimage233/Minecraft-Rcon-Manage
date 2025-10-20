@@ -48,4 +48,6 @@ public class CacheKey {
     public static final String QUIZ_SUBMISSION_DETAIL_KEY = "quiz_submission:detail:"; // 答题详情前缀
 
     public static final String PLAYER_INFO_KEY = "player_info:"; // 玩家信息前缀
+
+    public static final String MINECRAFT_SERVER_INFO = "minecraft_server_info:"; // 玩家信息前缀
 }

@@ -7,16 +7,20 @@ import cc.endmc.common.utils.StringUtils;
 import cc.endmc.server.annotation.SignVerify;
 import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.CacheKey;
+import cc.endmc.server.common.service.RconService;
 import cc.endmc.server.config.QuestionConfig;
 import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.domain.quiz.*;
 import cc.endmc.server.domain.quiz.vo.WhitelistQuizQuestionVo;
+import cc.endmc.server.domain.server.ServerInfo;
+import cc.endmc.server.model.MinecraftServerInfo;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
 import cc.endmc.server.service.quiz.IWhitelistQuizConfigService;
 import cc.endmc.server.service.quiz.IWhitelistQuizQuestionService;
 import cc.endmc.server.service.quiz.IWhitelistQuizSubmissionService;
 import cc.endmc.server.service.server.IServerInfoService;
 import cc.endmc.server.utils.MinecraftUUIDUtil;
+import cc.endmc.server.utils.NetWorkUtil;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import com.google.common.util.concurrent.RateLimiter;
@@ -57,6 +61,8 @@ public class PublicInterfaceController extends BaseController {
 
     @Autowired
     private RedisCache redisCache;
+    @Autowired
+    private RconService rconService;
 
     /**
      * 聚合查询
@@ -879,6 +885,69 @@ public class PublicInterfaceController extends BaseController {
             data.put("答题详情", details);
         }
 
+        return success(data);
+    }
+
+    /**
+     * 获取服务器状态
+     *
+     * @return AjaxResult
+     */
+    @SignVerify(rateLimitCount = 5)
+    @GetMapping("/getServerStatus")
+    public AjaxResult getServerStatus() {
+
+        // 查询所有服务器
+        final ServerInfo info = new ServerInfo();
+        info.setStatus(1L); // 仅查询启用的服务器
+        List<ServerInfo> serverInfos = serverInfoService.selectServerInfoList(info);
+
+        if (serverInfos.isEmpty()) {
+            return error("未找到服务器信息");
+        }
+        List<Map<String, Object>> data = new ArrayList<>();
+
+
+        for (ServerInfo serverInfo : serverInfos) {
+            String cacheKey = CacheKey.MINECRAFT_SERVER_INFO + serverInfo.getId();
+            if (redisCache.hasKey(cacheKey)) {
+                final Map<String, Object> cacheObject = redisCache.getCacheMap(cacheKey);
+                data.add(cacheObject);
+                continue;
+            }
+            Map<String, Object> statusMap = new HashMap<>();
+            String nameTag = serverInfo.getNameTag();
+            statusMap.put("服务器名称", nameTag);
+            statusMap.put("连接地址", serverInfo.getPlayAddress());
+            statusMap.put("连接端口", String.valueOf(serverInfo.getPlayAddressPort()));
+            statusMap.put("版本", serverInfo.getServerVersion());
+            statusMap.put("核心", serverInfo.getServerCore());
+
+            final boolean rconConnection = NetWorkUtil.testRconConnection(String.valueOf(serverInfo.getId()));
+            statusMap.put("Rcon连接", rconConnection ? "成功" : "失败");
+
+            final MinecraftServerInfo minecraftServerLatency = NetWorkUtil.getMinecraftServerLatency(serverInfo.getPlayAddress(), serverInfo.getPlayAddressPort());
+            if (minecraftServerLatency != null) {
+                statusMap.put("在线状态", minecraftServerLatency.isReachable() ? "在线" : "离线");
+                statusMap.put("在线人数", String.valueOf(minecraftServerLatency.getOnlinePlayers()));
+                statusMap.put("最大人数", String.valueOf(minecraftServerLatency.getMaxPlayers()));
+                statusMap.put("延迟(ms)", String.valueOf(minecraftServerLatency.getLatency()));
+            } else {
+                statusMap.put("在线状态", "离线");
+            }
+
+            final boolean offline = statusMap.get("在线状态").equals("离线");
+            if (offline && !rconConnection) {
+                statusMap.put("指标", "服务熔断");
+            } else if (offline || !rconConnection) {
+                statusMap.put("指标", "服务降级");
+            } else {
+                statusMap.put("指标", "服务正常");
+            }
+            data.add(statusMap);
+
+            redisCache.setCacheMap(cacheKey, statusMap, 1, TimeUnit.MINUTES);
+        }
         return success(data);
     }
 }
