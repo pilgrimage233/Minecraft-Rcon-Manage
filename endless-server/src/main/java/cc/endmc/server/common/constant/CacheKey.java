@@ -50,4 +50,6 @@ public class CacheKey {
     public static final String PLAYER_INFO_KEY = "player_info:"; // 玩家信息前缀
 
     public static final String MINECRAFT_SERVER_INFO = "minecraft_server_info:"; // 玩家信息前缀
+
+    public static final String LAST_USED_SERVER_KEY = "last_used_server:"; // 最后使用的服务器前缀
 }

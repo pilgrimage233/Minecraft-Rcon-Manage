@@ -13,30 +13,38 @@ import java.util.concurrent.ThreadPoolExecutor;
 /**
  * 线程池配置
  *
+ * 根据 CPU 自动调整线程数
+ * 核心线程数 = CPU线程数 * 2
+ * 最大线程数 = 核心线程数 * 4
+ *
  * @author ruoyi
  **/
 @Configuration
 public class ThreadPoolConfig {
-    // 核心线程池大小
-    private int corePoolSize = 50;
 
-    // 最大可创建的线程数
-    private int maxPoolSize = 200;
+    // CPU核心线程数（逻辑线程数）
+    private final int cpuCount = Runtime.getRuntime().availableProcessors();
+
+    // 核心线程池大小（常驻线程）
+    private final int corePoolSize = cpuCount * 2;
+
+    // 最大线程数（峰值扩容）
+    private final int maxPoolSize = corePoolSize * 2;
 
     // 队列最大长度
-    private int queueCapacity = 1000;
+    private final int queueCapacity = 1000;
 
-    // 线程池维护线程所允许的空闲时间
-    private int keepAliveSeconds = 300;
+    // 空闲线程存活时间（秒）
+    private final int keepAliveSeconds = 300;
 
     @Bean(name = "threadPoolTaskExecutor")
     public ThreadPoolTaskExecutor threadPoolTaskExecutor() {
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
-        executor.setMaxPoolSize(maxPoolSize);
         executor.setCorePoolSize(corePoolSize);
+        executor.setMaxPoolSize(maxPoolSize);
         executor.setQueueCapacity(queueCapacity);
         executor.setKeepAliveSeconds(keepAliveSeconds);
-        // 线程池对拒绝任务(无线程可用)的处理策略
+        executor.setThreadNamePrefix("async-pool-");
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         return executor;
     }

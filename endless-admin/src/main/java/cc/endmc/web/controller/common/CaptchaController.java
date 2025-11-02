@@ -1,6 +1,6 @@
 package cc.endmc.web.controller.common;
 
-import cc.endmc.common.config.RuoYiConfig;
+import cc.endmc.common.config.EndlessConfig;
 import cc.endmc.common.constant.CacheConstants;
 import cc.endmc.common.constant.Constants;
 import cc.endmc.common.core.domain.AjaxResult;
@@ -60,7 +60,7 @@ public class CaptchaController {
         BufferedImage image = null;
 
         // 生成验证码
-        String captchaType = RuoYiConfig.getCaptchaType();
+        String captchaType = EndlessConfig.getCaptchaType();
         if ("math".equals(captchaType)) {
             String capText = captchaProducerMath.createText();
             capStr = capText.substring(0, capText.lastIndexOf("@"));

@@ -21,8 +21,10 @@ import cc.endmc.server.service.quiz.IWhitelistQuizSubmissionService;
 import cc.endmc.server.service.server.IServerInfoService;
 import cc.endmc.server.utils.MinecraftUUIDUtil;
 import cc.endmc.server.utils.NetWorkUtil;
+import cn.hutool.core.bean.BeanUtil;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.RateLimiter;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
@@ -540,9 +542,15 @@ public class PublicInterfaceController extends BaseController {
     @GetMapping("/checkQuizStatus")
     public AjaxResult checkQuizStatus(@RequestParam String code) {
         // 从缓存中获取验证信息
-        Map<String, Object> cache = redisCache.getCacheObject(CacheKey.VERIFY_KEY + code);
-        if (cache == null) {
-            cache = redisCache.getCacheObject(CacheKey.VERIFY_FOR_BOT_KEY + code);
+        Map<String, Object> cache;
+        if (Boolean.TRUE.equals(redisCache.hasKey(CacheKey.VERIFY_KEY + code))) {
+            cache = redisCache.getCacheObject(CacheKey.VERIFY_KEY + code);
+        } else if (Boolean.TRUE.equals(redisCache.hasKey(CacheKey.VERIFY_FOR_BOT_KEY + code))) {
+            Object object = redisCache.getCacheObject(CacheKey.VERIFY_FOR_BOT_KEY + code);
+            cache = new HashMap<>();
+            cache.put("whitelistInfo", object);
+        } else {
+            return error("验证码已失效");
         }
 
         // 验证码不存在或已失效
@@ -551,12 +559,13 @@ public class PublicInterfaceController extends BaseController {
         }
 
         // 获取白名单信息
-        JSONObject whitelistInfoJson = (JSONObject) cache.get("whitelistInfo");
-        if (whitelistInfoJson == null) {
+        Object object = cache.get("whitelistInfo");
+        if (object == null) {
             return error("验证信息不完整");
         }
 
-        final WhitelistInfo whitelistInfo = whitelistInfoJson.toJavaObject(WhitelistInfo.class);
+        // 对象转换
+        final WhitelistInfo whitelistInfo = JSONObject.parseObject(JSONObject.toJSONString(object), WhitelistInfo.class);
 
         // 查询答题记录
         final WhitelistQuizSubmission whitelistQuizSubmission = new WhitelistQuizSubmission();
@@ -595,7 +604,9 @@ public class PublicInterfaceController extends BaseController {
         // 从缓存中获取验证信息
         Map<String, Object> cache = redisCache.getCacheObject(CacheKey.VERIFY_KEY + code);
         if (cache == null) {
-            cache = redisCache.getCacheObject(CacheKey.VERIFY_FOR_BOT_KEY + code);
+            Object object = redisCache.getCacheObject(CacheKey.VERIFY_FOR_BOT_KEY + code);
+            cache = new HashMap<>();
+            cache.put("whitelistInfo", object);
         }
 
         // 验证码不存在或已失效
@@ -604,12 +615,12 @@ public class PublicInterfaceController extends BaseController {
         }
 
         // 获取白名单信息
-        JSONObject whitelistInfoJson = (JSONObject) cache.get("whitelistInfo");
-        if (whitelistInfoJson == null) {
+        Object object = cache.get("whitelistInfo");
+        if (object == null) {
             return error("验证信息不完整");
         }
 
-        final WhitelistInfo whitelistInfo = whitelistInfoJson.toJavaObject(WhitelistInfo.class);
+        final WhitelistInfo whitelistInfo = JSONObject.parseObject(JSONObject.toJSONString(object), WhitelistInfo.class);
 
         // 检查该用户是否已经提交过问卷
         WhitelistQuizSubmission existingSubmission = new WhitelistQuizSubmission();

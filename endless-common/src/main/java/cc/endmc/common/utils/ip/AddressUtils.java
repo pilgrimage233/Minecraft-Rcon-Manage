@@ -1,6 +1,6 @@
 package cc.endmc.common.utils.ip;
 
-import cc.endmc.common.config.RuoYiConfig;
+import cc.endmc.common.config.EndlessConfig;
 import cc.endmc.common.constant.Constants;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.common.utils.http.HttpUtils;
@@ -26,7 +26,7 @@ public class AddressUtils {
         if (IpUtils.internalIp(ip)) {
             return "内网IP";
         }
-        if (RuoYiConfig.isAddressEnabled()) {
+        if (EndlessConfig.isAddressEnabled()) {
             try {
                 String rspStr = HttpUtils.sendGet(IP_URL, "ip=" + ip + "&json=true", Constants.GBK);
                 if (StringUtils.isEmpty(rspStr)) {

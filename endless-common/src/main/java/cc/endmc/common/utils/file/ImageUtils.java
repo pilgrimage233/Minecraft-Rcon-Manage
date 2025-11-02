@@ -1,6 +1,6 @@
 package cc.endmc.common.utils.file;
 
-import cc.endmc.common.config.RuoYiConfig;
+import cc.endmc.common.config.EndlessConfig;
 import cc.endmc.common.constant.Constants;
 import cc.endmc.common.utils.StringUtils;
 import org.apache.poi.util.IOUtils;
@@ -64,7 +64,7 @@ public class ImageUtils {
                 in = urlConnection.getInputStream();
             } else {
                 // 本机地址
-                String localPath = RuoYiConfig.getProfile();
+                String localPath = EndlessConfig.getProfile();
                 String downloadPath = localPath + StringUtils.substringAfter(url, Constants.RESOURCE_PREFIX);
                 in = new FileInputStream(downloadPath);
             }

@@ -4,6 +4,7 @@ import cc.endmc.common.constant.Constants;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
+import cc.endmc.framework.manager.AsyncManager;
 import cc.endmc.framework.web.domain.Server;
 import cc.endmc.server.annotation.BotCommand;
 import cc.endmc.server.cache.RconCache;
@@ -73,6 +74,7 @@ import java.util.concurrent.*;
 public class BotClient {
 
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+    private final AsyncManager asyncExecutor = AsyncManager.me();
     private final IWhitelistInfoService whitelistInfoService;
     private final IServerInfoService serverInfoService;
     private final IQqBotConfigService qqBotConfigService;
@@ -215,7 +217,7 @@ public class BotClient {
                 log.info("WebSocket连接已关闭");
             } catch (Exception e) {
                 log.error("关闭WebSocket连接时发生错误: {}", e.getMessage());
-                logError("destroy", e.getMessage(), e.getStackTrace().toString());
+                logError("destroy", e.getMessage(), Arrays.toString(e.getStackTrace()));
             }
         }
 
@@ -229,7 +231,7 @@ public class BotClient {
         } catch (InterruptedException e) {
             scheduler.shutdownNow();
             log.error("关闭调度器时发生错误: {}", e.getMessage());
-            logError("destroy", e.getMessage(), e.getStackTrace().toString());
+            logError("destroy", e.getMessage(), Arrays.toString(e.getStackTrace()));
         }
 
         log.info("机器人客户端已关闭");
@@ -273,7 +275,7 @@ public class BotClient {
             handleMessage(qqMessage);
         } catch (Exception e) {
             log.error("处理WebSocket消息时发生错误: {}", e.getMessage());
-            logError("onMessage", e.getMessage(), e.getStackTrace().toString());
+            logError("onMessage", e.getMessage(), Arrays.toString(e.getStackTrace()));
         }
     }
 
@@ -294,7 +296,7 @@ public class BotClient {
      */
     public void onError(Exception ex) {
         log.error("WebSocket连接发生错误: {}", ex.getMessage());
-        logError("onError", ex.getMessage(), ex.getStackTrace().toString());
+        logError("onError", ex.getMessage(), Arrays.toString(ex.getStackTrace()));
     }
 
     /**
@@ -409,7 +411,7 @@ public class BotClient {
                     } else if (command.startsWith("封禁") || command.startsWith("解封")) {
                         bot.handleBanOperation(message);
                     } else if (command.startsWith("发送指令")) {
-                        bot.handleRconCommand(message);
+                        bot.handleRconCommand(message, false);
                     } else if (command.startsWith("运行状态")) {
                         bot.handleHostStatus(message);
                     } else if (command.startsWith("刷新连接")) {
@@ -421,8 +423,13 @@ public class BotClient {
                     } else if (command.startsWith("添加超管")) {
                         bot.handleAddSuperManager(message);
                     } else {
-                        // 未知命令
-                        sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 未知命令，请使用 " + getCommandPrefix() + "help 查看可用命令。");
+                        // 检查是否有上次使用的服务器
+                        if (redisCache.hasKey(CacheKey.LAST_USED_SERVER_KEY + message.getSender().getUserId())) {
+                            bot.handleRconCommand(message, true);
+                        } else {
+                            // 未知命令
+                            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 未知命令，请使用 " + getCommandPrefix() + "help 查看可用命令。");
+                        }
                     }
                 }
             }
@@ -1073,7 +1080,7 @@ public class BotClient {
      * @param message QQ消息对象
      */
     @BotCommand(description = "发送RCON指令", permissionLevel = 1)
-    public void handleRconCommand(QQMessage message) {
+    public void handleRconCommand(QQMessage message, boolean lastUsed) {
         try {
             // 检查是否是管理员
             if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
@@ -1088,14 +1095,37 @@ public class BotClient {
                 return;
             }
 
-            String[] parts = message.getMessage().trim().split("\\s+", 3);
-            if (parts.length < 3) {
-                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 格式错误，正确格式：发送指令 服务器ID/all 指令内容");
-                return;
-            }
+            String serverId;
+            String command;
+            if (!lastUsed) {
+                String[] parts = message.getMessage().trim().split("\\s+", 3);
+                if (parts.length < 3) {
+                    sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 格式错误，正确格式：发送指令 服务器ID/all 指令内容");
+                    return;
+                }
+                serverId = parts[1];
+                command = parts[2];
 
-            String serverId = parts[1];
-            String command = parts[2];
+                // 清除用户最后使用的服务器ID缓存
+                String lastServerKey = CacheKey.LAST_USED_SERVER_KEY + message.getSender().getUserId();
+                if (redisCache.hasKey(lastServerKey)) {
+                    redisCache.deleteObject(lastServerKey);
+                }
+            } else {
+                // 使用最后使用的服务器ID
+                String[] parts = message.getMessage().trim().split("\\s+", 2);
+                if (parts.length < 1) {
+                    sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 格式错误，正确格式：/指令内容");
+                    return;
+                }
+                command = parts[0]; // 不携带前缀
+                // 获取用户最后使用的服务器ID
+                serverId = redisCache.getCacheObject(CacheKey.LAST_USED_SERVER_KEY + message.getSender().getUserId());
+                if (serverId == null) {
+                    sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 未找到您上次使用的服务器ID，请使用完整格式发送指令。");
+                    return;
+                }
+            }
 
             if (!serverId.contains("all")) {
                 if (!RconCache.containsKey(serverId)) {
@@ -1200,6 +1230,12 @@ public class BotClient {
                     response.append("执行结果：\n").append(result);
                 } else {
                     response.append("指令已执行，无返回结果。");
+                }
+                if (!lastUsed) {
+                    // 缓存用户最后使用的服务器ID，以便下次默认使用
+                    String lastServerKey = CacheKey.LAST_USED_SERVER_KEY + message.getSender().getUserId();
+                    redisCache.setCacheObject(lastServerKey, serverId, 1, TimeUnit.DAYS);
+                    response.append("\n(已记录您最后使用的服务器ID: ").append(serverId).append("，24小时内再次发送指令时将默认使用)");
                 }
                 sendMessage(message, response.toString());
             } catch (Exception e) {
@@ -1721,7 +1757,7 @@ public class BotClient {
 
             String serverAddress = parts[1];
             String ip;
-            int port = 25565; // 默认端口
+            final int port; // 声明为final，因为在lambda表达式中使用
 
             // 解析IP和端口
             if (serverAddress.contains(":")) {
@@ -1735,6 +1771,7 @@ public class BotClient {
                 }
             } else {
                 ip = serverAddress;
+                port = 25565; // 默认端口
             }
 
             // 验证是否为有效的IP地址或域名
@@ -1746,6 +1783,25 @@ public class BotClient {
             // 发送检测中的提示消息
             sendMessage(message, base + " 正在检测服务器 " + ip + ":" + port + " 的连通性，请稍候...");
 
+            // 异步执行服务器测试
+            asyncExecutor.execute(new TimerTask() {
+                @Override
+                public void run() {
+                    performServerTest(message, base, serverAddress, ip, port);
+                }
+            });
+
+        } catch (Exception e) {
+            log.error("测试服务器通断失败: {}", e.getMessage());
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 测试失败，请稍后重试。");
+        }
+    }
+
+    /**
+     * 异步执行服务器连通性测试
+     */
+    private void performServerTest(QQMessage message, String base, String serverAddress, String ip, int port) {
+        try {
             // 尝试解析SRV记录
             boolean hasSrv = false;
             try {
@@ -1908,7 +1964,7 @@ public class BotClient {
                 sendMessage(message, base + " ❌ 服务器连接失败：" + e.getMessage());
             }
         } catch (Exception e) {
-            log.error("测试服务器通断失败: {}", e.getMessage());
+            log.error("异步测试服务器通断失败: {}", e.getMessage());
             sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 测试失败，请稍后重试。");
         }
     }

@@ -1,6 +1,6 @@
 package cc.endmc.common.utils.file;
 
-import cc.endmc.common.config.RuoYiConfig;
+import cc.endmc.common.config.EndlessConfig;
 import cc.endmc.common.constant.Constants;
 import cc.endmc.common.exception.file.FileNameLengthLimitExceededException;
 import cc.endmc.common.exception.file.FileSizeLimitExceededException;
@@ -35,7 +35,7 @@ public class FileUploadUtils {
     /**
      * 默认上传的地址
      */
-    private static String defaultBaseDir = RuoYiConfig.getProfile();
+    private static String defaultBaseDir = EndlessConfig.getProfile();
 
     public static String getDefaultBaseDir() {
         return defaultBaseDir;
@@ -125,7 +125,7 @@ public class FileUploadUtils {
     }
 
     public static final String getPathFileName(String uploadDir, String fileName) throws IOException {
-        int dirLastIndex = RuoYiConfig.getProfile().length() + 1;
+        int dirLastIndex = EndlessConfig.getProfile().length() + 1;
         String currentDir = StringUtils.substring(uploadDir, dirLastIndex);
         return Constants.RESOURCE_PREFIX + "/" + currentDir + "/" + fileName;
     }

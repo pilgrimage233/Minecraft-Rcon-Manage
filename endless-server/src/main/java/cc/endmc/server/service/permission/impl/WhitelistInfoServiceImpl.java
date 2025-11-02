@@ -3,7 +3,7 @@ package cc.endmc.server.service.permission.impl;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
-import cc.endmc.server.async.AsyncManager;
+import cc.endmc.framework.manager.AsyncManager;
 import cc.endmc.server.cache.EmailTempCache;
 import cc.endmc.server.common.EmailTemplates;
 import cc.endmc.server.common.constant.CacheKey;
@@ -51,7 +51,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
 
     // 异步执行器
-    private final AsyncManager asyncManager = AsyncManager.getInstance();
+    private final AsyncManager asyncManager = AsyncManager.me();
 
     @Autowired
     private WhitelistInfoMapper whitelistInfoMapper;

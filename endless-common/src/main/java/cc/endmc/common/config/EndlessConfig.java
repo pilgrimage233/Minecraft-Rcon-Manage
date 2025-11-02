@@ -1,5 +1,7 @@
 package cc.endmc.common.config;
 
+import lombok.Data;
+import lombok.Getter;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
@@ -8,20 +10,24 @@ import org.springframework.stereotype.Component;
  *
  * @author ruoyi
  */
+@Data
 @Component
 @ConfigurationProperties(prefix = "ruoyi")
-public class RuoYiConfig {
+public class EndlessConfig {
     /**
      * 上传路径
      */
+    @Getter
     private static String profile;
     /**
      * 获取地址开关
      */
+    @Getter
     private static boolean addressEnabled;
     /**
      * 验证码类型
      */
+    @Getter
     private static String captchaType;
     /**
      * 项目名称
@@ -36,28 +42,16 @@ public class RuoYiConfig {
      */
     private String copyrightYear;
 
-    public static String getProfile() {
-        return profile;
-    }
-
     public void setProfile(String profile) {
-        RuoYiConfig.profile = profile;
-    }
-
-    public static boolean isAddressEnabled() {
-        return addressEnabled;
+        EndlessConfig.profile = profile;
     }
 
     public void setAddressEnabled(boolean addressEnabled) {
-        RuoYiConfig.addressEnabled = addressEnabled;
-    }
-
-    public static String getCaptchaType() {
-        return captchaType;
+        EndlessConfig.addressEnabled = addressEnabled;
     }
 
     public void setCaptchaType(String captchaType) {
-        RuoYiConfig.captchaType = captchaType;
+        EndlessConfig.captchaType = captchaType;
     }
 
     /**
@@ -86,29 +80,5 @@ public class RuoYiConfig {
      */
     public static String getUploadPath() {
         return getProfile() + "/upload";
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getVersion() {
-        return version;
-    }
-
-    public void setVersion(String version) {
-        this.version = version;
-    }
-
-    public String getCopyrightYear() {
-        return copyrightYear;
-    }
-
-    public void setCopyrightYear(String copyrightYear) {
-        this.copyrightYear = copyrightYear;
     }
 }

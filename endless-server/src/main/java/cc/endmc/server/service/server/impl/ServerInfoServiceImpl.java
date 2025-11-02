@@ -3,7 +3,7 @@ package cc.endmc.server.service.server.impl;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
-import cc.endmc.server.async.AsyncManager;
+import cc.endmc.framework.manager.AsyncManager;
 import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.PasswordManager;
 import cc.endmc.server.common.constant.CacheKey;
@@ -129,7 +129,7 @@ public class ServerInfoServiceImpl implements IServerInfoService {
             }
         }
         // 异步同步黑名单
-        AsyncManager.getInstance().execute(new TimerTask() {
+        AsyncManager.me().execute(new TimerTask() {
             @Override
             public void run() {
                 syncBanList(serverInfo);
@@ -175,7 +175,7 @@ public class ServerInfoServiceImpl implements IServerInfoService {
 
         // 异步同步黑名单
         if (sync) {
-            AsyncManager.getInstance().execute(new TimerTask() {
+            AsyncManager.me().execute(new TimerTask() {
                 @Override
                 public void run() {
                     syncBanList(serverInfo);

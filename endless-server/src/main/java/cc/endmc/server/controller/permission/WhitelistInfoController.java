@@ -11,8 +11,8 @@ import cc.endmc.common.enums.BusinessType;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.common.utils.poi.ExcelUtil;
+import cc.endmc.framework.manager.AsyncManager;
 import cc.endmc.server.annotation.SignVerify;
-import cc.endmc.server.async.AsyncManager;
 import cc.endmc.server.common.EmailTemplates;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.service.EmailService;
@@ -70,7 +70,7 @@ public class WhitelistInfoController extends BaseController {
 
     private final SimpleDateFormat dateFormat;
 
-    private final AsyncManager asyncManager = AsyncManager.getInstance();
+    private final AsyncManager asyncManager = AsyncManager.me();
 
     @Autowired
     private IWhitelistInfoService whitelistInfoService;

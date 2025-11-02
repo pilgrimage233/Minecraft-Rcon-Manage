@@ -1,6 +1,6 @@
 package cc.endmc.common.utils.file;
 
-import cc.endmc.common.config.RuoYiConfig;
+import cc.endmc.common.config.EndlessConfig;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.common.utils.uuid.IdUtils;
@@ -58,7 +58,7 @@ public class FileUtils {
      * @throws IOException IO异常
      */
     public static String writeImportBytes(byte[] data) throws IOException {
-        return writeBytes(data, RuoYiConfig.getImportPath());
+        return writeBytes(data, EndlessConfig.getImportPath());
     }
 
     /**

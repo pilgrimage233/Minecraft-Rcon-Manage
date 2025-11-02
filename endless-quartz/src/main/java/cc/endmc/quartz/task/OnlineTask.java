@@ -7,12 +7,15 @@ import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.rconclient.RconClient;
 import cc.endmc.server.common.service.RconService;
+import cc.endmc.server.domain.bot.QqBotConfig;
 import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.domain.player.PlayerDetails;
 import cc.endmc.server.enums.Identity;
+import cc.endmc.server.mapper.bot.QqBotConfigMapper;
 import cc.endmc.server.mapper.permission.WhitelistInfoMapper;
 import cc.endmc.server.mapper.player.PlayerDetailsMapper;
 import cc.endmc.server.service.player.IPlayerDetailsService;
+import cc.endmc.server.utils.BotUtil;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,6 +41,8 @@ public class OnlineTask {
     private PlayerDetailsMapper playerDetailsMapper;
     @Autowired
     private IPlayerDetailsService playerDetailsService;
+    @Autowired
+    private QqBotConfigMapper qqBotConfigMapper;
     @Autowired
     private RedisCache cache;
     @Autowired
@@ -219,12 +224,34 @@ public class OnlineTask {
         // 更新上线时间
         if (!newOnlinePlayers.isEmpty()) {
             log.info("New online players: {}", newOnlinePlayers);
+            QqBotConfig config = new QqBotConfig();
+            config.setStatus(1L);
+            List<QqBotConfig> botConfigs = qqBotConfigMapper.selectQqBotConfigList(config);
+            // 发送上线通知
+            for (QqBotConfig botConfig : botConfigs) {
+                for (String s : botConfig.getGroupIds().split(",")) {
+                    String message = "玩家上线通知：\n" +
+                            String.join(", ", newOnlinePlayers) + "加入了游戏！";
+                    BotUtil.sendMessage(message, s, botConfig);
+                }
+            }
             playerDetailsService.updateLastOnlineTimeByUserNames(new ArrayList<>(newOnlinePlayers));
         }
 
         // 更新离线时间和游戏时间
         if (!newOfflinePlayers.isEmpty()) {
             log.info("New offline players: {}", newOfflinePlayers);
+            QqBotConfig config = new QqBotConfig();
+            config.setStatus(1L);
+            List<QqBotConfig> botConfigs = qqBotConfigMapper.selectQqBotConfigList(config);
+            // 发送下线通知
+            for (QqBotConfig botConfig : botConfigs) {
+                for (String s : botConfig.getGroupIds().split(",")) {
+                    String message = "玩家下线通知：\n" +
+                            String.join(", ", newOfflinePlayers) + "离开了游戏！";
+                    BotUtil.sendMessage(message, s, botConfig);
+                }
+            }
             // 对每个下线的玩家计算游戏时间
             for (String player : newOfflinePlayers) {
                 try {

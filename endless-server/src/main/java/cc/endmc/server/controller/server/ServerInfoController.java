@@ -10,8 +10,8 @@ import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.enums.BusinessType;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.common.utils.poi.ExcelUtil;
+import cc.endmc.framework.manager.AsyncManager;
 import cc.endmc.server.annotation.SignVerify;
-import cc.endmc.server.async.AsyncManager;
 import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.rconclient.RconClient;
@@ -316,7 +316,7 @@ public class ServerInfoController extends BaseController {
         } finally {
             historyCommand.setUser(name);
             // 异步保存历史指令
-            AsyncManager.getInstance().execute(new TimerTask() {
+            AsyncManager.me().execute(new TimerTask() {
                 @Override
                 public void run() {
                     historyCommandService.insertHistoryCommand(historyCommand);

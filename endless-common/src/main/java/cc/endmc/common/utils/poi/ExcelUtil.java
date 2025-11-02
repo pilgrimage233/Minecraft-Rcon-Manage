@@ -4,7 +4,7 @@ import cc.endmc.common.annotation.Excel;
 import cc.endmc.common.annotation.Excel.ColumnType;
 import cc.endmc.common.annotation.Excel.Type;
 import cc.endmc.common.annotation.Excels;
-import cc.endmc.common.config.RuoYiConfig;
+import cc.endmc.common.config.EndlessConfig;
 import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.common.core.text.Convert;
 import cc.endmc.common.exception.UtilException;
@@ -1136,7 +1136,7 @@ public class ExcelUtil<T> {
      * @param filename 文件名称
      */
     public String getAbsoluteFile(String filename) {
-        String downloadPath = RuoYiConfig.getDownloadPath() + filename;
+        String downloadPath = EndlessConfig.getDownloadPath() + filename;
         File desc = new File(downloadPath);
         if (!desc.getParentFile().exists()) {
             desc.getParentFile().mkdirs();

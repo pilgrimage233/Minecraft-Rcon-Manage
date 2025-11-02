@@ -1,6 +1,6 @@
 package cc.endmc.web.core.config;
 
-import cc.endmc.common.config.RuoYiConfig;
+import cc.endmc.common.config.EndlessConfig;
 import io.swagger.annotations.ApiOperation;
 import io.swagger.models.auth.In;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,7 +29,7 @@ public class SwaggerConfig {
      * 系统基础配置
      */
     @Autowired
-    private RuoYiConfig ruoyiConfig;
+    private EndlessConfig ruoyiConfig;
 
     /**
      * 是否开启swagger
