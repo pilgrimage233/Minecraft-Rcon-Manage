@@ -39,6 +39,29 @@ public class ApiUtil {
     // 上传文件
     public static final String FILE_UPLOAD = "/api/files/upload";
 
+    // 心跳检测
+    public static final String HEARTBEAT = "/api/system/heartbeat";
+
+    // 最后通信回调（带IP地址）
+    public static final String CALLBACK_LAST_COMMUNICATION = "/api/system/communication-callback-with-ip/{uuid}/{ip}";
+
+    // 更新主控信息
+    public static final String UPDATE_MASTER_INFO = "/api/system/master-info-update";
+
+    // 创建实例
+    public static final String CREATE_INSTANCE = "/api/servers/create";
+
+    // 实例列表
+    public static final String LIST_INSTANCES = "/api/servers/list";
+
+    // 实例控制
+    public static final String START_INSTANCE = "/api/servers/%d/start";
+    public static final String STOP_INSTANCE = "/api/servers/%d/stop";
+    public static final String RESTART_INSTANCE = "/api/servers/%d/restart";
+    public static final String KILL_INSTANCE = "/api/servers/%d/kill";
+    public static final String DELETE_INSTANCE = "/api/servers/%d";
+    public static final String CONSOLE_INSTANCE = "/api/servers/%d/console";
+    public static final String COMMAND_INSTANCE = "/api/servers/%d/command";
 
     public static String getBaseUrl(NodeServer nodeServer) {
         return format("%s://%s:%d", nodeServer.getProtocol(), nodeServer.getIp(), nodeServer.getPort());
@@ -78,5 +101,53 @@ public class ApiUtil {
 
     public static String getFileDownloadFromUrlApi(NodeServer nodeServer) {
         return getBaseUrl(nodeServer) + FILE_DOWNLOAD_FROM_URL;
+    }
+
+    public static String getHeartbeatApi(NodeServer nodeServer) {
+        return getBaseUrl(nodeServer) + HEARTBEAT;
+    }
+
+    public static String getCallbackLastCommunicationApi(NodeServer nodeServer, String uuid, String ip) {
+        return getBaseUrl(nodeServer) + CALLBACK_LAST_COMMUNICATION.replace("{uuid}", uuid).replace("{ip}", ip);
+    }
+
+    public static String getUpdateMasterInfoApi(NodeServer nodeServer) {
+        return getBaseUrl(nodeServer) + UPDATE_MASTER_INFO;
+    }
+
+    public static String getCreateInstanceApi(NodeServer nodeServer) {
+        return getBaseUrl(nodeServer) + CREATE_INSTANCE;
+    }
+
+    public static String getListInstancesApi(NodeServer nodeServer) {
+        return getBaseUrl(nodeServer) + LIST_INSTANCES;
+    }
+
+    public static String getStartInstanceApi(NodeServer nodeServer, int serverId) {
+        return getBaseUrl(nodeServer) + String.format(START_INSTANCE, serverId);
+    }
+
+    public static String getStopInstanceApi(NodeServer nodeServer, int serverId) {
+        return getBaseUrl(nodeServer) + String.format(STOP_INSTANCE, serverId);
+    }
+
+    public static String getRestartInstanceApi(NodeServer nodeServer, int serverId) {
+        return getBaseUrl(nodeServer) + String.format(RESTART_INSTANCE, serverId);
+    }
+
+    public static String getKillInstanceApi(NodeServer nodeServer, int serverId) {
+        return getBaseUrl(nodeServer) + String.format(KILL_INSTANCE, serverId);
+    }
+
+    public static String getDeleteInstanceApi(NodeServer nodeServer, int serverId) {
+        return getBaseUrl(nodeServer) + String.format(DELETE_INSTANCE, serverId);
+    }
+
+    public static String getConsoleInstanceApi(NodeServer nodeServer, int serverId) {
+        return getBaseUrl(nodeServer) + String.format(CONSOLE_INSTANCE, serverId);
+    }
+
+    public static String getCommandInstanceApi(NodeServer nodeServer, int serverId) {
+        return getBaseUrl(nodeServer) + String.format(COMMAND_INSTANCE, serverId);
     }
 }
