@@ -403,13 +403,20 @@ public class NodeServerServiceImpl implements INodeServerService {
 
             // MultipartFile需要转换成 File 对象
             if (file != null) {
+                // 获取原始文件名（只取文件名部分，不包含路径）
+                String originalFilename = file.getOriginalFilename();
+                if (originalFilename != null && originalFilename.contains(File.separator)) {
+                    originalFilename = originalFilename.substring(originalFilename.lastIndexOf(File.separator) + 1);
+                }
                 // 创建临时文件
-                File tempFile = File.createTempFile("upload_", "_" + ((MultipartFile) file).getOriginalFilename());
-                ((MultipartFile) file).transferTo(tempFile);
+                File tempFile = File.createTempFile("upload_", "_" + originalFilename);
+                file.transferTo(tempFile);
                 // 添加文件到表单
                 request.form("file", tempFile);
                 // 设置超时
                 request.timeout(30000);
+                // 确保临时文件在使用后被删除
+                tempFile.deleteOnExit();
             }
 
             HttpResponse httpResponse = request.execute();
