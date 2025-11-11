@@ -182,7 +182,7 @@
               <i class="el-icon-document"></i>
               {{ serverStatus.config.version }}
             </el-descriptions-item>
-            <el-descriptions-item v-if="serverStatus.processInfo.command && serverStatus.processInfo.command"
+            <el-descriptions-item v-if="serverStatus.processInfo && serverStatus.processInfo.command"
                                   label="Java">
               <i class="el-icon-document"></i>
               {{ serverStatus.processInfo.command }}
