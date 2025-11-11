@@ -8,9 +8,9 @@ import cc.endmc.node.domain.NodeServer;
 import cc.endmc.node.mapper.NodeServerMapper;
 import cc.endmc.node.service.INodeServerService;
 import cc.endmc.node.utils.ApiUtil;
+import cc.endmc.node.utils.NodeHttpUtil;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
-import cn.hutool.http.HttpUtil;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -100,8 +100,7 @@ public class NodeServerServiceImpl implements INodeServerService {
             params.put("uuid", nodeServer.getUuid());
         }
 
-        final HttpResponse response = HttpUtil.createPost(url)
-                .header(ApiUtil.X_ENDLESS_TOKEN, token)
+        final HttpResponse response = NodeHttpUtil.createPost(nodeServer, url)
                 .body(params.toJSONString())
                 .execute();
         log.info("节点注册请求: {}", params.toJSONString());
@@ -138,8 +137,7 @@ public class NodeServerServiceImpl implements INodeServerService {
             jsonObject.put("secretKey", token);
             jsonObject.put("uuid", nodeServer.getUuid());
 
-            final HttpResponse execute = HttpUtil.createPost(ApiUtil.getUnRegisterApi(nodeServer))
-                    .header(ApiUtil.X_ENDLESS_TOKEN, token)
+            final HttpResponse execute = NodeHttpUtil.createPost(nodeServer, ApiUtil.getUnRegisterApi(nodeServer))
                     .body(jsonObject.toJSONString())
                     .execute();
             log.info("节点注销请求: {}", jsonObject.toJSONString());
@@ -196,19 +194,18 @@ public class NodeServerServiceImpl implements INodeServerService {
     @Override
     public AjaxResult getServerInfo(@NotNull Long id) {
         // 获取节点服务器信息
-        NodeServer nodeServer = getCache(id);
+        NodeServer nodeServer = getNode(id);
 
         if (nodeServer == null) {
             return AjaxResult.error("节点服务器不存在");
         }
 
-        final HttpResponse execute = HttpUtil.createGet(ApiUtil.getHardwareApi(nodeServer))
-                .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken())
+        final HttpResponse execute = NodeHttpUtil.createGet(nodeServer, ApiUtil.getHardwareApi(nodeServer))
                 .execute();
 
         if (execute.isOk()) {
             JSONObject jsonObject = JSONObject.parseObject(execute.body());
-            if (jsonObject.getBoolean("success")) {
+            if (Boolean.TRUE.equals(jsonObject.getBoolean("success"))) {
                 return AjaxResult.success(jsonObject);
             } else {
                 return AjaxResult.error(jsonObject.getString("message"));
@@ -227,24 +224,24 @@ public class NodeServerServiceImpl implements INodeServerService {
     @Override
     public AjaxResult getServerLoad(Long id) {
         // 获取节点服务器信息
-        NodeServer nodeServer = getCache(id);
+        NodeServer nodeServer = getNode(id);
 
         if (nodeServer == null) {
             return AjaxResult.error("节点服务器不存在");
         }
 
-        final HttpResponse execute = HttpUtil.createGet(ApiUtil.getLoadApi(nodeServer))
-                .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken())
+        final HttpResponse execute = NodeHttpUtil.createGet(nodeServer, ApiUtil.getLoadApi(nodeServer))
                 .execute();
 
         if (execute.isOk()) {
             JSONObject jsonObject = JSONObject.parseObject(execute.body());
-            if (jsonObject.getBoolean("success")) {
+            if (Boolean.TRUE.equals(jsonObject.getBoolean("success"))) {
                 return AjaxResult.success(jsonObject);
             } else {
                 return AjaxResult.error(jsonObject.getString("message"));
             }
         } else {
+            log.warn(execute.body());
             return AjaxResult.error("获取节点服务器负载信息失败");
         }
     }
@@ -266,7 +263,7 @@ public class NodeServerServiceImpl implements INodeServerService {
             path = params.get("path").toString();
         }
 
-        NodeServer nodeServer = getCache(id.longValue());
+        NodeServer nodeServer = getNode(id.longValue());
 
         if (nodeServer == null) {
             return AjaxResult.error("节点服务器不存在");
@@ -274,14 +271,13 @@ public class NodeServerServiceImpl implements INodeServerService {
 
         Map<String, Object> param = new HashMap<>();
         param.put("path", path);
-        final HttpResponse execute = HttpUtil.createGet(ApiUtil.getFileListApi(nodeServer))
-                .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken())
+        final HttpResponse execute = NodeHttpUtil.createGet(nodeServer, ApiUtil.getFileListApi(nodeServer))
                 .form(param)
                 .execute();
 
         if (execute.isOk()) {
             JSONObject jsonObject = JSONObject.parseObject(execute.body());
-            if (jsonObject.getBoolean("success")) {
+            if (Boolean.TRUE.equals(jsonObject.getBoolean("success"))) {
                 return AjaxResult.success(jsonObject);
             } else {
                 return AjaxResult.error(jsonObject.getString("message"));
@@ -309,7 +305,7 @@ public class NodeServerServiceImpl implements INodeServerService {
         final Integer id = (Integer) params.get("id");
         final String path = (String) params.get("path");
 
-        NodeServer nodeServer = getCache(id.longValue());
+        NodeServer nodeServer = getNode(id.longValue());
         if (nodeServer == null) {
             log.error("节点服务器不存在: {}", id);
             return;
@@ -319,8 +315,7 @@ public class NodeServerServiceImpl implements INodeServerService {
             Map<String, Object> param = new HashMap<>();
             param.put("path", path);
             // 发送请求
-            HttpResponse httpResponse = HttpUtil.createGet(ApiUtil.getFileDownloadApi(nodeServer))
-                    .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken())
+            HttpResponse httpResponse = NodeHttpUtil.createGet(nodeServer, ApiUtil.getFileDownloadApi(nodeServer))
                     .form(param)
                     .execute();
 
@@ -366,7 +361,7 @@ public class NodeServerServiceImpl implements INodeServerService {
      * @param id 节点服务器主键
      * @return 节点服务器
      */
-    public NodeServer getCache(Long id) {
+    public NodeServer getNode(Long id) {
         if (NodeCache.containsKey(id)) {
             return NodeCache.get(id);
         } else {
@@ -397,14 +392,13 @@ public class NodeServerServiceImpl implements INodeServerService {
         final String path = (String) params.get("path");
         final MultipartFile file = (MultipartFile) params.get("file");
 
-        NodeServer nodeServer = getCache(id.longValue());
+        NodeServer nodeServer = getNode(id.longValue());
         if (nodeServer == null) {
             return AjaxResult.error("节点服务器不存在");
         }
 
         try {
-            HttpRequest request = HttpUtil.createPost(ApiUtil.getFileUploadApi(nodeServer))
-                    .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken())
+            HttpRequest request = NodeHttpUtil.createPost(nodeServer, ApiUtil.getFileUploadApi(nodeServer))
                     .form("path", path);
 
             // MultipartFile需要转换成 File 对象
@@ -425,7 +419,7 @@ public class NodeServerServiceImpl implements INodeServerService {
                 return AjaxResult.error(jsonObject.getString("error"));
             }
 
-            if (jsonObject.getBoolean("success")) {
+            if (Boolean.TRUE.equals(jsonObject.getBoolean("success"))) {
                 return AjaxResult.success("上传成功");
             } else {
                 return AjaxResult.error(jsonObject.getString("message"));
@@ -445,7 +439,7 @@ public class NodeServerServiceImpl implements INodeServerService {
         final String path = (String) params.get("path");
         final String url = (String) params.get("url");
 
-        NodeServer nodeServer = getCache(id.longValue());
+        NodeServer nodeServer = getNode(id.longValue());
 
         if (nodeServer == null) {
             return AjaxResult.error("节点服务器不存在");
@@ -456,8 +450,7 @@ public class NodeServerServiceImpl implements INodeServerService {
             param.put("path", path);
             param.put("url", url);
             // 发送请求
-            HttpResponse httpResponse = HttpUtil.createPost(ApiUtil.getFileDownloadFromUrlApi(nodeServer))
-                    .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken())
+            HttpResponse httpResponse = NodeHttpUtil.createPost(nodeServer, ApiUtil.getFileDownloadFromUrlApi(nodeServer))
                     .form(param)
                     .execute();
 
@@ -466,7 +459,7 @@ public class NodeServerServiceImpl implements INodeServerService {
             }
 
             JSONObject jsonObject = JSONObject.parseObject(httpResponse.body());
-            if (jsonObject.getBoolean("success")) {
+            if (Boolean.TRUE.equals(jsonObject.getBoolean("success"))) {
                 return AjaxResult.success(jsonObject);
             } else {
                 return AjaxResult.error(jsonObject.getString("message"));

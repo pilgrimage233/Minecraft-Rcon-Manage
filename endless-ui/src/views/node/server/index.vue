@@ -210,6 +210,14 @@
             @click="handleFileClick(scope.row)"
           >文件
           </el-button>
+          <el-button
+            v-hasPermi="['node:mcs:list']"
+            icon="el-icon-collection"
+            size="mini"
+            type="text"
+            @click="handleMcsClick(scope.row)"
+          >实例
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -277,6 +285,8 @@
         <el-button @click="cancel">取 消</el-button>
       </div>
     </el-dialog>
+
+
   </div>
 </template>
 
@@ -306,6 +316,7 @@ export default {
       title: "",
       // 是否显示弹出层
       open: false,
+
       // 查询参数
       queryParams: {
         pageNum: 1,
@@ -459,6 +470,10 @@ export default {
     handleFileClick(row) {
       this.$router.push(`/node/server/file/${row.id}`);
     },
+    /** 实例按钮点击操作 */
+    handleMcsClick(row) {
+      this.$router.push({path: '/node/mcs/index', query: {nodeId: row.id, nodeUuid: row.uuid}});
+    },
   }
 };
 </script>
@@ -503,4 +518,6 @@ export default {
     width: 100%;
   }
 }
+
+
 </style>

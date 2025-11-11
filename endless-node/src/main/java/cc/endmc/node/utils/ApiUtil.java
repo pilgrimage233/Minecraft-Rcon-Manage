@@ -61,7 +61,16 @@ public class ApiUtil {
     public static final String KILL_INSTANCE = "/api/servers/%d/kill";
     public static final String DELETE_INSTANCE = "/api/servers/%d";
     public static final String CONSOLE_INSTANCE = "/api/servers/%d/console";
+    public static final String CONSOLE_HISTORY_INSTANCE = "/api/servers/%d/console/history";
     public static final String COMMAND_INSTANCE = "/api/servers/%d/command";
+    public static final String STATUS_INSTANCE = "/api/servers/%d/status";
+
+    public static final String WEBSOCKET_ENDPOINT = "/ws";
+    // WebSocket 控制台
+    public static final String WEBSOCKET_CONSOLE = "/topic/console/";
+    // WebSocket 订阅地址
+    public static final String WEBSOCKET_SUBSCRIBE = "/app/console/subscribe";
+
 
     public static String getBaseUrl(NodeServer nodeServer) {
         return format("%s://%s:%d", nodeServer.getProtocol(), nodeServer.getIp(), nodeServer.getPort());
@@ -147,7 +156,20 @@ public class ApiUtil {
         return getBaseUrl(nodeServer) + String.format(CONSOLE_INSTANCE, serverId);
     }
 
+    public static String getConsoleHistoryInstanceApi(NodeServer nodeServer, int serverId) {
+        return getBaseUrl(nodeServer) + String.format(CONSOLE_HISTORY_INSTANCE, serverId);
+    }
+
     public static String getCommandInstanceApi(NodeServer nodeServer, int serverId) {
         return getBaseUrl(nodeServer) + String.format(COMMAND_INSTANCE, serverId);
     }
+
+    public static String getStatusInstanceApi(NodeServer nodeServer, int serverId) {
+        return getBaseUrl(nodeServer) + String.format(STATUS_INSTANCE, serverId);
+    }
+
+    public static String getWebSocketUrl(NodeServer nodeServer) {
+        return getBaseUrl(nodeServer) + WEBSOCKET_ENDPOINT;
+    }
+
 }

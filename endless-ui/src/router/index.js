@@ -92,13 +92,53 @@ export const constantRoutes = [
 // 动态路由，基于用户权限动态去加载
 export const dynamicRoutes = [
   {
+    path: '/node/mcs',
+    component: Layout,
+    hidden: true,
+    permissions: ['node:mcs:list'],
+    children: [
+      {
+        path: 'index',
+        component: () => import('@/views/node/mcs/index'),
+        name: 'McsList',
+        meta: {title: '实例管理', activeMenu: '/node/mcs'}
+      },
+      {
+        path: 'terminal',
+        component: () => import('@/views/node/mcs/terminal'),
+        name: 'McsTerminal',
+        meta: {title: '实例控制台', activeMenu: '/node/mcs'}
+      }
+    ]
+  },
+  {
+    path: '/node/server',
+    component: Layout,
+    hidden: true,
+    permissions: ['node:server:list'],
+    children: [
+      {
+        path: 'info/:id(\\d+)',
+        component: () => import('@/views/node/server/info'),
+        name: 'ServerInfo',
+        meta: {title: '服务器信息', activeMenu: '/node/server'}
+      },
+      {
+        path: 'file/:id(\\d+)',
+        component: () => import('@/views/node/server/file'),
+        name: 'ServerFile',
+        meta: {title: '文件浏览', activeMenu: '/node/server'}
+      }
+    ]
+  },
+  {
     path: '/system/user-auth',
     component: Layout,
     hidden: true,
     permissions: ['system:user:edit'],
     children: [
       {
-        path: 'role/:userId(\\d+)',
+        path: 'role/:userId(\d+)',
         component: () => import('@/views/system/user/authRole'),
         name: 'AuthRole',
         meta: {title: '分配角色', activeMenu: '/system/user'}

@@ -1,0 +1,535 @@
+<template>
+  <div class="app-container">
+    <el-form v-show="showSearch" ref="queryForm" :inline="true" :model="queryParams" label-width="68px" size="small">
+      <el-form-item label="名称" prop="name">
+        <el-input
+          v-model="queryParams.name"
+          clearable
+          placeholder="请输入服务器名称"
+          @keyup.enter.native="handleQuery"
+        />
+      </el-form-item>
+      <el-form-item label="核心版本" prop="version">
+        <el-input
+          v-model="queryParams.version"
+          clearable
+          placeholder="请输入核心版本"
+          @keyup.enter.native="handleQuery"
+        />
+      </el-form-item>
+      <el-form-item label="最后启动" prop="lastStartTime">
+        <el-date-picker v-model="queryParams.lastStartTime"
+                        clearable
+                        placeholder="请选择最后启动时间"
+                        type="date"
+                        value-format="yyyy-MM-dd">
+        </el-date-picker>
+      </el-form-item>
+      <el-form-item label="最后停止" prop="lastStopTime">
+        <el-date-picker v-model="queryParams.lastStopTime"
+                        clearable
+                        placeholder="请选择最后停止时间"
+                        type="date"
+                        value-format="yyyy-MM-dd">
+        </el-date-picker>
+      </el-form-item>
+      <el-form-item>
+        <el-button icon="el-icon-search" size="mini" type="primary" @click="handleQuery">搜索</el-button>
+        <el-button icon="el-icon-refresh" size="mini" @click="resetQuery">重置</el-button>
+      </el-form-item>
+    </el-form>
+
+    <el-alert
+      v-if="routeNodeId"
+      :closable="true"
+      :title="`正在按节点筛选：Node ID = ${routeNodeId}`"
+      show-icon
+      style="margin-bottom: 12px;"
+      type="info"
+      @close="clearNodeFilter"
+    />
+
+    <el-row :gutter="10" class="mb8">
+      <el-col :span="1.5">
+        <el-button
+          v-hasPermi="['node:mcs:add']"
+          icon="el-icon-plus"
+          plain
+          size="mini"
+          type="primary"
+          @click="handleAdd"
+        >新增
+        </el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
+          v-hasPermi="['node:mcs:edit']"
+          :disabled="single"
+          icon="el-icon-edit"
+          plain
+          size="mini"
+          type="success"
+          @click="handleUpdate"
+        >修改
+        </el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
+          v-hasPermi="['node:mcs:remove']"
+          :disabled="multiple"
+          icon="el-icon-delete"
+          plain
+          size="mini"
+          type="danger"
+          @click="handleDelete"
+        >删除
+        </el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
+          v-hasPermi="['node:mcs:export']"
+          icon="el-icon-download"
+          plain
+          size="mini"
+          type="warning"
+          @click="handleExport"
+        >导出
+        </el-button>
+      </el-col>
+      <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
+    </el-row>
+
+    <el-table v-loading="loading" :data="mcsList" @selection-change="handleSelectionChange">
+      <el-table-column align="center" type="selection" width="55"/>
+      <el-table-column type="expand">
+        <template slot-scope="props">
+          <el-row :gutter="10">
+            <el-col :span="12">
+              <div><b>服务端目录：</b>{{ props.row.serverPath || '-' }}</div>
+              <div style="margin-top:6px;"><b>启动命令：</b>{{ props.row.startStr || '-' }}</div>
+              <div style="margin-top:6px;"><b>其他JVM参数：</b>{{ props.row.jvmArgs || '-' }}</div>
+            </el-col>
+            <el-col :span="12">
+              <div><b>节点UUID：</b>{{ props.row.nodeUuid || '-' }}</div>
+              <div style="margin-top:6px;"><b>描述：</b>{{ props.row.description || '-' }}</div>
+              <div style="margin-top:6px;"><b>备注：</b>{{ props.row.remark || '-' }}</div>
+            </el-col>
+          </el-row>
+        </template>
+      </el-table-column>
+      <el-table-column align="center" label="实例ID" prop="id" width="90"/>
+      <el-table-column align="center" label="所属节点ID" prop="nodeId" width="110"/>
+      <el-table-column align="center" label="服务器名称" prop="name" show-overflow-tooltip/>
+      <el-table-column align="center" label="核心类型" prop="coreType" width="120"/>
+      <el-table-column align="center" label="核心版本" prop="version" width="120"/>
+      <el-table-column align="center" label="XMX(MB)" prop="jvmXmx" width="100"/>
+      <el-table-column align="center" label="XMS(MB)" prop="jvmXms" width="100"/>
+      <el-table-column align="center" label="状态" prop="status" width="120">
+        <template slot-scope="scope">
+          <el-tag :type="statusTagType(scope.row.status)">{{ scope.row.status }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column align="center" label="最后启动时间" prop="lastStartTime" width="180">
+        <template slot-scope="scope">
+          <span>{{ parseTime(scope.row.lastStartTime, '{y}-{m}-{d}') }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column align="center" label="最后停止时间" prop="lastStopTime" width="180">
+        <template slot-scope="scope">
+          <span>{{ parseTime(scope.row.lastStopTime, '{y}-{m}-{d}') }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column align="center" label="服务器描述" prop="description"/>
+      <el-table-column align="center" label="备注" prop="remark"/>
+      <el-table-column align="center" class-name="small-padding fixed-width" label="操作">
+        <template slot-scope="scope">
+          <el-button
+            v-hasPermi="['node:mcs:edit']"
+            icon="el-icon-edit"
+            size="mini"
+            type="text"
+            @click="handleUpdate(scope.row)"
+          >修改
+          </el-button>
+          <el-button
+            v-hasPermi="['node:mcs:list']"
+            icon="el-icon-monitor"
+            size="mini"
+            type="text"
+            @click="openTerminal(scope.row)"
+          >控制台
+          </el-button>
+          <el-button
+            v-hasPermi="['node:mcs:remove']"
+            icon="el-icon-delete"
+            size="mini"
+            type="text"
+            @click="handleDelete(scope.row)"
+          >删除
+          </el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+
+    <pagination
+      v-show="total>0"
+      :limit.sync="queryParams.pageSize"
+      :page.sync="queryParams.pageNum"
+      :total="total"
+      @pagination="getList"
+    />
+
+    <!-- 添加或修改实例管理对话框 -->
+    <el-dialog :title="title" :visible.sync="open" append-to-body width="900px">
+      <el-form ref="form" :model="form" :rules="rules" label-width="120px">
+        <el-divider content-position="left">基本信息</el-divider>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="所属节点ID" prop="nodeId">
+              <el-input v-model="form.nodeId" :disabled="true" placeholder="自动绑定路由参数"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="节点UUID" prop="nodeUuid">
+              <el-input v-model="form.nodeUuid" :disabled="true" placeholder="自动绑定路由参数"/>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="服务器名称" prop="name">
+              <el-input v-model="form.name" placeholder="例如：Survival-1"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="核心类型" prop="coreType">
+              <el-select v-model="form.coreType" placeholder="选择核心类型">
+                <el-option v-for="opt in coreTypeOptions" :key="opt" :label="opt" :value="opt"/>
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="核心版本" prop="version">
+              <el-input v-model="form.version" placeholder="例如：1.20.1"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="最大堆内存(XMX)" prop="jvmXmx">
+              <el-input v-model="form.jvmXmx" placeholder="例如：4096（单位MB）"/>
+            </el-form-item>
+          </el-col>
+        </el-row>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="最小堆内存(XMS)" prop="jvmXms">
+              <el-input v-model="form.jvmXms" placeholder="例如：1024（单位MB）"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="其他JVM参数" prop="jvmArgs">
+              <el-input v-model="form.jvmArgs" :autosize="{ minRows: 1, maxRows: 4 }" placeholder="例如：-XX:+UseG1GC 等"
+                        type="textarea"/>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <el-divider content-position="left">启动配置</el-divider>
+        <el-form-item label="服务端所在目录" prop="serverPath">
+          <el-input v-model="form.serverPath" :autosize="{ minRows: 1, maxRows: 3 }" placeholder="服务器根目录绝对路径，例如：/home/mc/server"
+                    type="textarea"/>
+        </el-form-item>
+        <el-form-item label="启动命令" prop="startStr">
+          <el-input v-model="form.startStr" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="完整启动命令，例如：java -Xmx4096M -Xms1024M -jar paper.jar nogui"
+                    type="textarea"/>
+        </el-form-item>
+        <el-divider content-position="left">备注信息</el-divider>
+        <el-form-item label="服务器描述" prop="description">
+          <el-input v-model="form.description" :autosize="{ minRows: 2, maxRows: 5 }" placeholder="该实例的用途、注意事项等"
+                    type="textarea"/>
+        </el-form-item>
+        <el-form-item label="备注" prop="remark">
+          <el-input v-model="form.remark" :autosize="{ minRows: 1, maxRows: 3 }" placeholder="可选备注信息"
+                    type="textarea"/>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button type="primary" @click="submitForm">确 定</el-button>
+        <el-button @click="cancel">取 消</el-button>
+      </div>
+    </el-dialog>
+  </div>
+</template>
+
+<script>
+import {addMcs, delMcs, getMcs, listMcs, updateMcs} from "@/api/node/mcs";
+import {getServer} from "@/api/node/server";
+
+export default {
+  name: "Mcs",
+  data() {
+    return {
+      // 遮罩层
+      loading: true,
+      // 选中数组
+      ids: [],
+      // 非单个禁用
+      single: true,
+      // 非多个禁用
+      multiple: true,
+      // 显示搜索条件
+      showSearch: true,
+      // 总条数
+      total: 0,
+      // 实例管理表格数据
+      mcsList: [],
+      // 弹出层标题
+      title: "",
+      // 是否显示弹出层
+      open: false,
+      // 查询参数
+      queryParams: {
+        pageNum: 1,
+        pageSize: 10,
+        nodeId: null,
+        nodeUuid: null,
+        name: null,
+        serverPath: null,
+        startStr: null,
+        jvmXmx: null,
+        jvmXms: null,
+        jvmArgs: null,
+        coreType: null,
+        version: null,
+        status: null,
+        lastStartTime: null,
+        lastStopTime: null,
+        description: null,
+      },
+      // 路由参数
+      routeNodeId: this.$route.query.nodeId,
+      routeNodeUuid: this.$route.query.nodeUuid,
+      // 表单参数
+      form: {},
+      coreTypeOptions: ['Paper', 'Spigot', 'Bukkit', 'Purpur', 'Fabric', 'Forge'],
+      // 表单校验
+      rules: {
+        nodeId: [
+          {required: true, message: "所属节点ID不能为空", trigger: "blur"}
+        ],
+        nodeUuid: [
+          {required: true, message: "节点UUID不能为空", trigger: "blur"}
+        ],
+        name: [
+          {required: true, message: "服务器名称不能为空", trigger: "blur"}
+        ],
+        serverPath: [
+          {required: true, message: "服务端所在目录不能为空", trigger: "blur"}
+        ],
+        startStr: [
+          {required: true, message: "启动命令不能为空", trigger: "blur"}
+        ],
+        jvmXmx: [
+          {required: true, message: "最大堆内存(XMX)不能为空", trigger: "blur"}
+        ],
+        jvmXms: [
+          {required: true, message: "最小堆内存(XMS)不能为空", trigger: "blur"}
+        ],
+        coreType: [
+          {required: true, message: "核心类型(如：Paper、Spigot、Bukkit等)不能为空", trigger: "change"}
+        ],
+        version: [
+          {required: true, message: "核心版本不能为空", trigger: "blur"}
+        ],
+      }
+    };
+  },
+  created() {
+    // 使用路由参数中的nodeId进行筛选
+    if (this.$route.query.nodeId) {
+      this.queryParams.nodeId = this.$route.query.nodeId;
+      this.routeNodeId = this.$route.query.nodeId;
+    }
+    if (this.$route.query.nodeUuid) {
+      this.queryParams.nodeUuid = this.$route.query.nodeUuid;
+      this.routeNodeUuid = this.$route.query.nodeUuid;
+    } else if (this.$route.query.nodeId) {
+      // 如果有nodeId但没有nodeUuid，调用getNodeInfo获取
+      this.getNodeInfo(this.$route.query.nodeId);
+    }
+    this.getList();
+  },
+  watch: {
+    // 监听路由变化
+    '$route.query': {
+      handler(newQuery) {
+        if (newQuery.nodeId) {
+          this.queryParams.nodeId = newQuery.nodeId;
+          this.routeNodeId = newQuery.nodeId;
+          this.queryParams.pageNum = 1;
+
+          if (newQuery.nodeUuid) {
+            this.queryParams.nodeUuid = newQuery.nodeUuid;
+            this.routeNodeUuid = newQuery.nodeUuid;
+          } else {
+            // 如果有nodeId但没有nodeUuid，调用getNodeInfo获取
+            this.getNodeInfo(newQuery.nodeId);
+          }
+
+          this.getList();
+        }
+      },
+      deep: true
+    }
+  },
+  methods: {
+    /** 查询实例管理列表 */
+    getList() {
+      this.loading = true;
+      listMcs(this.queryParams).then(response => {
+        this.mcsList = response.rows;
+        this.total = response.total;
+        this.loading = false;
+      });
+    },
+    statusTagType(status) {
+      // 可根据后端的实际状态值进行映射
+      if (status === 'running' || status === 1) return 'success';
+      if (status === 'stopped' || status === 0) return 'info';
+      if (status === 'error' || status === -1) return 'danger';
+      return 'warning';
+    },
+    // 清空节点筛选
+    clearNodeFilter() {
+      // 移除路由参数
+      this.$router.push({path: '/node/mcs/index'});
+      // 清空查询参数
+      this.queryParams.nodeId = null;
+      this.queryParams.nodeUuid = null;
+      this.routeNodeId = null;
+      this.routeNodeUuid = null;
+      this.queryParams.pageNum = 1;
+      this.getList();
+    },
+    // 获取节点信息
+    getNodeInfo(nodeId) {
+      if (!nodeId) return;
+      getServer(nodeId).then(response => {
+        if (response.code === 200 && response.data) {
+          this.queryParams.nodeUuid = response.data.uuid;
+          this.routeNodeUuid = response.data.uuid;
+        }
+      }).catch(() => {
+        // 获取失败不影响后续操作
+      });
+    },
+    // 取消按钮
+    cancel() {
+      this.open = false;
+      this.reset();
+    },
+    // 表单重置
+    reset() {
+      this.form = {
+        id: null,
+        nodeId: this.routeNodeId || null,
+        nodeUuid: this.routeNodeUuid || null,
+        nodeInstancesId: null,
+        name: null,
+        serverPath: null,
+        startStr: null,
+        jvmXmx: null,
+        jvmXms: null,
+        jvmArgs: null,
+        coreType: null,
+        version: null,
+        status: null,
+        lastStartTime: null,
+        lastStopTime: null,
+        description: null,
+        createBy: null,
+        createTime: null,
+        updateBy: null,
+        updateTime: null,
+        remark: null,
+        delFlag: null
+      };
+      this.resetForm("form");
+    },
+    /** 搜索按钮操作 */
+    handleQuery() {
+      this.queryParams.pageNum = 1;
+      this.getList();
+    },
+    /** 重置按钮操作 */
+    resetQuery() {
+      this.resetForm("queryForm");
+      this.handleQuery();
+    },
+    // 多选框选中数据
+    handleSelectionChange(selection) {
+      this.ids = selection.map(item => item.id)
+      this.single = selection.length !== 1
+      this.multiple = !selection.length
+    },
+    /** 新增按钮操作 */
+    handleAdd() {
+      this.reset();
+      this.open = true;
+      this.title = "添加实例管理";
+    },
+    /** 修改按钮操作 */
+    handleUpdate(row) {
+      this.reset();
+      const id = row.id || this.ids
+      getMcs(id).then(response => {
+        this.form = response.data;
+        this.open = true;
+        this.title = "修改实例管理";
+      });
+    },
+    /** 提交按钮 */
+    submitForm() {
+      this.$refs["form"].validate(valid => {
+        if (valid) {
+          if (this.form.id != null) {
+            updateMcs(this.form).then(response => {
+              this.$modal.msgSuccess("修改成功");
+              this.open = false;
+              this.getList();
+            });
+          } else {
+            addMcs(this.form).then(response => {
+              this.$modal.msgSuccess("新增成功");
+              this.open = false;
+              this.getList();
+            });
+          }
+        }
+      });
+    },
+    /** 删除按钮操作 */
+    handleDelete(row) {
+      const ids = row.id || this.ids;
+      this.$modal.confirm('是否确认删除实例管理编号为"' + ids + '"的数据项？').then(function () {
+        return delMcs(ids);
+      }).then(() => {
+        this.getList();
+        this.$modal.msgSuccess("删除成功");
+      }).catch(() => {
+      });
+    },
+    // 打开实例控制台页面
+    openTerminal(row) {
+      this.$router.push({path: '/node/mcs/terminal', query: {serverId: row.id}});
+    },
+    /** 导出按钮操作 */
+    handleExport() {
+      this.download('node/mcs/export', {
+        ...this.queryParams
+      }, `mcs_${new Date().getTime()}.xlsx`)
+    }
+  }
+};
+</script>

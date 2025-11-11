@@ -38,7 +38,7 @@ public class SysIndexController {
     @ResponseBody
     public Map<String, Object> systemInfo() {
         Map<String, Object> map = new java.util.HashMap<>(8);
-
+        map.put("status", "OJBK");
         // 基础信息
         map.put("name", ruoyiConfig.getName());
         map.put("version", ruoyiConfig.getVersion());

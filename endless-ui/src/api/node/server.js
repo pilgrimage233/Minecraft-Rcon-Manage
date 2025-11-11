@@ -112,3 +112,102 @@ export function downloadFromUrl(data) {
     data: data
   })
 }
+
+// 获取节点端实例列表
+export function listNodeInstances(id) {
+  return request({
+    url: `/node/mcs/${id}/instances`,
+    method: 'get'
+  })
+}
+
+// 在节点端创建实例
+export function createNodeInstance(data) {
+  return request({
+    url: '/node/mcs/instance/create',
+    method: 'post',
+    data: data
+  })
+}
+
+// 启动实例
+export function startNodeInstance(data) {
+  return request({
+    url: '/node/mcs/instance/start',
+    method: 'post',
+    data: data
+  })
+}
+
+// 停止实例
+export function stopNodeInstance(data) {
+  return request({
+    url: '/node/mcs/instance/stop',
+    method: 'post',
+    data: data
+  })
+}
+
+// 重启实例
+export function restartNodeInstance(data) {
+  return request({
+    url: '/node/mcs/instance/restart',
+    method: 'post',
+    data: data,
+    timeout: 20000 // 设置更长的超时时间，防止重启操作超时
+  })
+}
+
+// 强制终止实例
+export function killNodeInstance(data) {
+  return request({
+    url: '/node/mcs/instance/kill',
+    method: 'post',
+    data: data
+  })
+}
+
+// 删除实例
+export function deleteNodeInstance(data) {
+  return request({
+    url: '/node/mcs/instance',
+    method: 'delete',
+    data: data
+  })
+}
+
+// 获取控制台输出
+export function getNodeInstanceConsole(params) {
+  return request({
+    url: '/node/mcs/instance/console',
+    method: 'get',
+    params: params
+  })
+}
+
+// 发送命令
+export function sendNodeInstanceCommand(data) {
+  return request({
+    url: '/node/mcs/instance/command',
+    method: 'post',
+    data: data
+  })
+}
+
+// 获取实例状态
+export function getNodeInstanceStatus(params) {
+  return request({
+    url: '/node/mcs/instance/status',
+    method: 'get',
+    params: params
+  })
+}
+
+// 获取控制台历史日志
+export function getNodeInstanceConsoleHistory(params) {
+  return request({
+    url: '/node/mcs/instance/console/history',
+    method: 'get',
+    params: params
+  })
+}
