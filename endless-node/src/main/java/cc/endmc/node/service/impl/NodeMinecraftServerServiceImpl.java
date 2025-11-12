@@ -21,6 +21,8 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 实例管理Service业务层处理
@@ -207,17 +209,28 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
             }
         }
 
-        // 找到 java 命令的位置，在其后插入JVM参数
-        int javaIndex = script.indexOf("java");
-        if (javaIndex != -1) {
-            int insertPos = javaIndex + 4; // "java" 后面
-            // 跳过 java 后面的空格
+        // 找到 java 命令的位置（支持完整路径、引号和 .exe 后缀）
+        // 匹配模式：可能包含引号、路径分隔符（/ 或 \）和可选的 .exe 后缀
+        int javaIndex = -1;
+        int insertPos = -1;
+
+        // 使用正则表达式查找 java 或 java.exe（可能带完整路径和引号）
+        // 匹配: java 或 java.exe 或 /path/to/java 或 'C:\path\to\java.exe' 或 "/path/to/java"
+        Pattern pattern = Pattern.compile("(['\"]?)([^\\s'\"]*[/\\\\])?java(\\.exe)?\\1(?=\\s|$)",
+                Pattern.CASE_INSENSITIVE);
+        Matcher matcher = pattern.matcher(script);
+
+        if (matcher.find()) {
+            javaIndex = matcher.start();
+            insertPos = matcher.end();
+
+            // 跳过 java 命令后面的空格
             while (insertPos < script.length() && script.charAt(insertPos) == ' ') {
                 insertPos++;
             }
 
             StringBuilder sb = new StringBuilder(script);
-            String jvmParams = newXms + " " + newXmx;
+            String jvmParams = " " + newXms + " " + newXmx;
             if (StringUtils.isNotEmpty(otherArgs)) {
                 jvmParams += " " + otherArgs.trim();
             }

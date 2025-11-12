@@ -4,8 +4,9 @@
       <div class="header">
         <div class="title-section">
           <div class="title">
-            <span :class="{ running: statusTag==='success', stopped: statusTag==='info', pulsing: statusTag==='success' }"
-                  class="status-dot"></span>
+            <span
+              :class="{ running: statusTag==='success', stopped: statusTag==='info', pulsing: statusTag==='success' }"
+              class="status-dot"></span>
             <i class="el-icon-cpu title-icon"></i>
             <span class="title-text">{{ instanceInfo ? instanceInfo.name : '加载中...' }}</span>
           </div>
@@ -22,18 +23,23 @@
               <i :class="statusTag==='success' ? 'el-icon-success' : 'el-icon-warning'"></i>
               {{ statusText }}
             </el-tag>
-            <el-tag v-if="serverStatus && serverStatus.runtime && serverStatus.runtime.runtimeFormatted" class="meta-tag"
+            <el-tag v-if="serverStatus && serverStatus.runtime && serverStatus.runtime.runtimeFormatted"
+                    class="meta-tag"
                     size="small">
               <i class="el-icon-time"></i>
               运行时长: {{ serverStatus.runtime.runtimeFormatted }}
             </el-tag>
-            <el-tag v-if="serverStatus && serverStatus.processInfo && serverStatus.processInfo.resourceUsage && hasCpuPercent(serverStatus.processInfo.resourceUsage.cpuPercent)" class="meta-tag"
-                    size="small">
+            <el-tag
+              v-if="serverStatus && serverStatus.processInfo && serverStatus.processInfo.resourceUsage && hasCpuPercent(serverStatus.processInfo.resourceUsage.cpuPercent)"
+              class="meta-tag"
+              size="small">
               <i class="el-icon-cpu"></i>
               CPU: {{ formatCpuPercent(serverStatus.processInfo.resourceUsage.cpuPercent) }}%
             </el-tag>
-            <el-tag v-if="serverStatus && serverStatus.processInfo && serverStatus.processInfo.resourceUsage && serverStatus.processInfo.resourceUsage.memoryMB" class="meta-tag"
-                    size="small">
+            <el-tag
+              v-if="serverStatus && serverStatus.processInfo && serverStatus.processInfo.resourceUsage && serverStatus.processInfo.resourceUsage.memoryMB"
+              class="meta-tag"
+              size="small">
               <i class="el-icon-pie-chart"></i>
               内存: {{ formatMemory(serverStatus.processInfo.resourceUsage.memoryMB) }}
             </el-tag>
@@ -203,18 +209,21 @@
               <i class="el-icon-link"></i>
               {{ serverStatus.processInfo.pid }}
             </el-descriptions-item>
-            <el-descriptions-item v-if="serverStatus.processInfo && serverStatus.processInfo.resourceUsage && serverStatus.processInfo.resourceUsage.memoryMB"
-                                  label="内存占用">
+            <el-descriptions-item
+              v-if="serverStatus.processInfo && serverStatus.processInfo.resourceUsage && serverStatus.processInfo.resourceUsage.memoryMB"
+              label="内存占用">
               <i class="el-icon-pie-chart"></i>
               {{ serverStatus.processInfo.resourceUsage.memoryMB.toFixed(2) }} MB
             </el-descriptions-item>
-            <el-descriptions-item v-if="serverStatus.processInfo && serverStatus.processInfo.resourceUsage && hasCpuPercent(serverStatus.processInfo.resourceUsage.cpuPercent)"
-                                  label="CPU使用率">
+            <el-descriptions-item
+              v-if="serverStatus.processInfo && serverStatus.processInfo.resourceUsage && hasCpuPercent(serverStatus.processInfo.resourceUsage.cpuPercent)"
+              label="CPU使用率">
               <i class="el-icon-cpu"></i>
               {{ formatCpuPercent(serverStatus.processInfo.resourceUsage.cpuPercent) }}%
             </el-descriptions-item>
-            <el-descriptions-item v-if="serverStatus.processInfo && (serverStatus.processInfo.totalCpuDurationSeconds != null || serverStatus.processInfo.totalCpuDurationNanos != null)"
-                                  label="CPU累计时间">
+            <el-descriptions-item
+              v-if="serverStatus.processInfo && (serverStatus.processInfo.totalCpuDurationSeconds != null || serverStatus.processInfo.totalCpuDurationNanos != null)"
+              label="CPU累计时间">
               <i class="el-icon-time"></i>
               {{
                 formatCpuDuration(serverStatus.processInfo.totalCpuDurationSeconds, serverStatus.processInfo.totalCpuDurationNanos)
@@ -398,7 +407,7 @@
                         v-model="item.value"
                         placeholder="请输入值"
                         size="small"
-                        @change="updateConfigValue(item)"
+                        @input="updateConfigValue(item)"
                       >
                         <i slot="prefix" class="el-icon-edit"></i>
                       </el-input>
@@ -462,7 +471,8 @@ export default {
       fileItems: [],
       // WebSocket连接信息
       wsInfo: {
-        consoleWsUrl: '',
+        wsUrl: '',
+        console: '',
         subscribe: '',
         token: ''
       },
@@ -479,6 +489,7 @@ export default {
       editContentLoading: false,
       saveLoading: false,
       showTranslation: true,
+      updateTimer: null, // 防抖定时器
       editorOptions: {
         theme: 'vs-dark',
         language: 'properties',
@@ -644,6 +655,39 @@ export default {
     // 获取实例信息（会在获取成功后自动启动状态轮询）
     this.getInstanceInfo();
   },
+  watch: {
+    // 监听路由参数变化，当切换不同服务器时重新加载数据
+    '$route.query.serverId': {
+      handler(newServerId, oldServerId) {
+        // 只有当 serverId 真正变化时才重新加载
+        if (newServerId && newServerId !== oldServerId) {
+          // 更新 serverId
+          this.serverId = Number(newServerId);
+
+          // 断开旧的 WebSocket 连接
+          this.disconnectWs();
+
+          // 停止旧的状态轮询
+          this.stopStatusPolling();
+
+          // 清空控制台内容
+          this.consoleText = '';
+
+          // 清空文件列表
+          this.fileItems = [];
+          this.currentPath = '';
+
+          // 清空状态信息
+          this.serverStatus = null;
+          this.instanceInfo = null;
+
+          // 重新获取实例信息
+          this.getInstanceInfo();
+        }
+      },
+      immediate: false
+    }
+  },
   computed: {
     canGoParent() {
       if (!this.currentPath) return false
@@ -729,6 +773,10 @@ export default {
     // 清理预览URL
     if (this.previewUrl) {
       URL.revokeObjectURL(this.previewUrl)
+    }
+    // 清理防抖定时器
+    if (this.updateTimer) {
+      clearTimeout(this.updateTimer)
     }
   },
   methods: {
@@ -1057,7 +1105,8 @@ export default {
       this.stompClient = null
       // 清理WebSocket连接信息
       this.wsInfo = {
-        consoleWsUrl: '',
+        wsUrl: '',
+        console: '',
         subscribe: '',
         token: ''
       }
@@ -1259,33 +1308,38 @@ export default {
         }
       })
     },
-    // 更新配置值
+    // 更新配置值（使用防抖优化性能）
     updateConfigValue(row) {
       if (!this.editContent) return
 
-      const lines = this.editContent.split('\n')
-      const newValue = row.isBool ? (row.boolValue ? 'true' : 'false') : row.value
-
-      // 查找并更新对应的配置行
-      for (let i = 0; i < lines.length; i++) {
-        const trimmed = lines[i].trim()
-        if (trimmed && !trimmed.startsWith('#')) {
-          const match = trimmed.match(/^([^=:#]+)[=:](.+)$/)
-          if (match && match[1].trim() === row.key) {
-            // 保持原有的分隔符（= 或 :）
-            const separator = lines[i].includes('=') ? '=' : ':'
-            const indent = lines[i].match(/^\s*/)[0]
-            lines[i] = `${indent}${row.key}${separator}${newValue}`
-            break
-          }
-        }
+      // 清除之前的定时器
+      if (this.updateTimer) {
+        clearTimeout(this.updateTimer)
       }
 
-      // 更新编辑器内容
-      this.editContent = lines.join('\n')
+      // 使用防抖，延迟100ms后再更新编辑器
+      this.updateTimer = setTimeout(() => {
+        const lines = this.editContent.split('\n')
+        const newValue = row.isBool ? (row.boolValue ? 'true' : 'false') : row.value
 
-      // 提示用户
-      this.$message.success(`已更新 ${row.key} 的值`)
+        // 查找并更新对应的配置行
+        for (let i = 0; i < lines.length; i++) {
+          const trimmed = lines[i].trim()
+          if (trimmed && !trimmed.startsWith('#')) {
+            const match = trimmed.match(/^([^=:#]+)[=:](.+)$/)
+            if (match && match[1].trim() === row.key) {
+              // 保持原有的分隔符（= 或 :）
+              const separator = lines[i].includes('=') ? '=' : ':'
+              const indent = lines[i].match(/^\s*/)[0]
+              lines[i] = `${indent}${row.key}${separator}${newValue}`
+              break
+            }
+          }
+        }
+
+        // 更新编辑器内容
+        this.editContent = lines.join('\n')
+      }, 100)
     },
     // 保存配置文件
     async handleSaveConfig() {

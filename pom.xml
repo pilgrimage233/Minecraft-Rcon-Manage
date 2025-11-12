@@ -20,7 +20,7 @@
     </distributionManagement>
 
     <properties>
-        <endless.version>3.0-pre2.20251111</endless.version>
+        <endless.version>3.0-pre3.20251112</endless.version>
         <ruoyi.version>3.8.7</ruoyi.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
