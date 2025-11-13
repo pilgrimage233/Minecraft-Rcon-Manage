@@ -110,6 +110,7 @@ public class NodeServerController extends BaseController {
     /**
      * 获取节点服务器信息
      */
+    @NodeLog(operationType = OperationType.UPDATE_NODE, operationTarget = OperationTarget.NODE_SERVER, operationName = "获取节点服务器信息")
     @GetMapping("/getServerInfo/{id}")
     public AjaxResult getServerInfo(@PathVariable Long id) {
         return nodeServerService.getServerInfo(id);
@@ -118,6 +119,7 @@ public class NodeServerController extends BaseController {
     /**
      * 获取节点服务器负载信息
      */
+    @NodeLog(operationType = OperationType.UPDATE_NODE, operationTarget = OperationTarget.NODE_SERVER, operationName = "获取节点服务器负载信息")
     @GetMapping("/getServerLoad/{id}")
     public AjaxResult getServerLoad(@PathVariable Long id) {
         return nodeServerService.getServerLoad(id);
@@ -126,6 +128,7 @@ public class NodeServerController extends BaseController {
     /**
      * 获取节点服务器文件列表
      */
+    @NodeLog(operationType = OperationType.UPDATE_NODE, operationTarget = OperationTarget.NODE_SERVER, operationName = "获取节点服务器文件列表")
     @PostMapping("/getFileList")
     public AjaxResult getFileList(@RequestBody Map<String, Object> params) {
         return nodeServerService.getFileList(params);
@@ -134,6 +137,7 @@ public class NodeServerController extends BaseController {
     /**
      * 获取节点服务器文件
      */
+    @NodeLog(operationType = OperationType.DOWNLOAD_LOG, operationTarget = OperationTarget.NODE_SERVER, operationName = "下载节点服务器文件")
     @PostMapping("/download")
     public void download(HttpServletResponse response, @RequestBody Map<String, Object> params) {
         nodeServerService.download(response, params);
@@ -142,6 +146,7 @@ public class NodeServerController extends BaseController {
     /**
      * 上传文件
      */
+    @NodeLog(operationType = OperationType.UPDATE_NODE, operationTarget = OperationTarget.NODE_SERVER, operationName = "上传文件到节点服务器")
     @PostMapping("/upload")
     public AjaxResult upload(@RequestParam("id") Integer id,
                              @RequestParam("path") String path,
@@ -156,6 +161,7 @@ public class NodeServerController extends BaseController {
     /**
      * 下载URL文件到节点服务器
      */
+    @NodeLog(operationType = OperationType.DOWNLOAD_LOG, operationTarget = OperationTarget.NODE_SERVER, operationName = "下载URL文件到节点服务器")
     @PostMapping("/downloadFromUrl")
     public AjaxResult downloadFromUrl(@RequestBody Map<String, Object> params) {
         return nodeServerService.downloadFromUrl(params);

@@ -4,6 +4,7 @@ import cc.endmc.common.utils.SecurityUtils;
 import cc.endmc.common.utils.ServletUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.common.utils.ip.IpUtils;
+import cc.endmc.framework.manager.AsyncManager;
 import cc.endmc.node.common.annotation.NodeLog;
 import cc.endmc.node.domain.NodeOperationLog;
 import cc.endmc.node.service.INodeOperationLogService;
@@ -28,6 +29,7 @@ import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Date;
 import java.util.Map;
+import java.util.TimerTask;
 
 /**
  * 节点操作日志记录处理
@@ -39,6 +41,8 @@ public class NodeLogInterceptor {
 
     @Autowired
     private INodeOperationLogService nodeOperationLogService;
+
+    private final AsyncManager asyncManager = AsyncManager.me();
 
     // 配置织入点
     @Pointcut("@annotation(cc.endmc.node.common.annotation.NodeLog)")
@@ -67,52 +71,70 @@ public class NodeLogInterceptor {
     }
 
     protected void handleLog(final JoinPoint joinPoint, final Exception e) {
+
+        // 获取当前的用户
+        final String[] username = {SecurityUtils.getLoginUser().getUsername()};
+
+        // 获取请求信息（在主线程中获取，避免异步线程中无法访问）
+        HttpServletRequest request = ServletUtils.getRequest();
+        final String ipAddr = request != null ? IpUtils.getIpAddr(request) : "unknown";
+        final String requestMethod = request != null ? request.getMethod() : null;
+
+        // 获得注解
+        NodeLog controllerLog;
         try {
-            // 获得注解
-            NodeLog controllerLog = getAnnotationLog(joinPoint);
+            controllerLog = getAnnotationLog(joinPoint);
             if (controllerLog == null) {
                 return;
             }
-            // 获取当前的用户
-            String username = SecurityUtils.getLoginUser().getUsername();
-
-            if (StringUtils.isEmpty(username)) {
-                username = "unknown";
-            }
-
-            // 创建操作日志对象
-            NodeOperationLog nodeLog = new NodeOperationLog();
-            nodeLog.setStatus("0");
-            nodeLog.setOperationIp(IpUtils.getIpAddr(ServletUtils.getRequest()));
-            nodeLog.setOperationType(controllerLog.operationType());
-            nodeLog.setOperationTarget(controllerLog.operationTarget());
-            nodeLog.setOperationName(controllerLog.operationName());
-            nodeLog.setCreateBy(username);
-            nodeLog.setCreateTime(new Date());
-
-            if (e != null) {
-                nodeLog.setStatus("1");
-                nodeLog.setErrorMsg(StringUtils.substring(e.getMessage(), 0, 2000));
-            }
-
-            // 设置方法名称
-            String className = joinPoint.getTarget().getClass().getName();
-            String methodName = joinPoint.getSignature().getName();
-            nodeLog.setMethodName(className + "." + methodName + "()");
-
-            // 设置请求参数
-            if (controllerLog.isSaveRequestData()) {
-                setRequestValue(joinPoint, nodeLog);
-            }
-
-            // 保存数据库
-            nodeOperationLogService.insertNodeOperationLog(nodeLog);
         } catch (Exception exp) {
-            // 记录本地异常日志
-            log.error("==前置通知异常==");
-            log.error("异常信息:{}", exp.getMessage());
-            exp.printStackTrace();
+            log.error("获取操作日志注解异常: {}", exp.getMessage());
+            return;
         }
+
+        asyncManager.execute(new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    if (StringUtils.isEmpty(username[0])) {
+                        username[0] = "unknown";
+                    }
+
+                    // 创建操作日志对象
+                    NodeOperationLog nodeLog = new NodeOperationLog();
+                    nodeLog.setStatus("0");
+                    nodeLog.setOperationIp(ipAddr);
+                    nodeLog.setOperationType(controllerLog.operationType());
+                    nodeLog.setOperationTarget(controllerLog.operationTarget());
+                    nodeLog.setOperationName(controllerLog.operationName());
+                    nodeLog.setCreateBy(username[0]);
+                    nodeLog.setCreateTime(new Date());
+
+                    if (e != null) {
+                        nodeLog.setStatus("1");
+                        nodeLog.setErrorMsg(StringUtils.substring(e.getMessage(), 0, 2000));
+                    }
+
+                    // 设置方法名称
+                    String className = joinPoint.getTarget().getClass().getName();
+                    String methodName = joinPoint.getSignature().getName();
+                    nodeLog.setMethodName(className + "." + methodName + "()");
+
+                    // 设置请求参数
+                    if (controllerLog.isSaveRequestData()) {
+                        setRequestValue(joinPoint, nodeLog, requestMethod);
+                    }
+
+                    // 保存数据库
+                    nodeOperationLogService.insertNodeOperationLog(nodeLog);
+                } catch (Exception exp) {
+                    // 记录本地异常日志
+                    log.error("==前置通知异常==");
+                    log.error("异常信息:{}", exp.getMessage());
+                    exp.printStackTrace();
+                }
+            }
+        });
     }
 
     /**
@@ -130,15 +152,115 @@ public class NodeLogInterceptor {
     /**
      * 设置请求参数
      */
-    private void setRequestValue(JoinPoint joinPoint, NodeOperationLog nodeLog) {
-        HttpServletRequest request = ServletUtils.getRequest();
-        if (request != null) {
-            String method = request.getMethod();
-            if (HttpMethod.PUT.name().equals(method) || HttpMethod.POST.name().equals(method)) {
-                String params = argsArrayToString(joinPoint.getArgs());
-                nodeLog.setOperationParam(StringUtils.substring(params, 0, 2000));
+    private void setRequestValue(JoinPoint joinPoint, NodeOperationLog nodeLog, String requestMethod) {
+        if (requestMethod != null && (HttpMethod.PUT.name().equals(requestMethod) || HttpMethod.POST.name().equals(requestMethod))) {
+            String params = argsArrayToString(joinPoint.getArgs());
+            nodeLog.setOperationParam(StringUtils.substring(params, 0, 2000));
+        }
+
+        // 提取节点ID和对象ID
+        extractNodeAndObjectIds(joinPoint, nodeLog);
+    }
+
+    /**
+     * 提取节点ID和对象ID
+     */
+    private void extractNodeAndObjectIds(JoinPoint joinPoint, NodeOperationLog nodeLog) {
+        Object[] args = joinPoint.getArgs();
+        if (args == null || args.length == 0) {
+            return;
+        }
+
+        for (Object arg : args) {
+            if (arg == null || isFilterObject(arg)) {
+                continue;
+            }
+
+            try {
+                // 处理Map类型参数（常用于传递id、nodeId、serverId等）
+                if (arg instanceof Map) {
+                    Map<?, ?> map = (Map<?, ?>) arg;
+
+                    // 提取nodeId
+                    if (map.containsKey("id") && nodeLog.getNodeId() == null) {
+                        Object idObj = map.get("id");
+                        if (idObj != null) {
+                            nodeLog.setNodeId(convertToLong(idObj));
+                        }
+                    }
+                    if (map.containsKey("nodeId") && nodeLog.getNodeId() == null) {
+                        Object nodeIdObj = map.get("nodeId");
+                        if (nodeIdObj != null) {
+                            nodeLog.setNodeId(convertToLong(nodeIdObj));
+                        }
+                    }
+
+                    // 提取serverId作为gameServerObjId
+                    if (map.containsKey("serverId")) {
+                        Object serverIdObj = map.get("serverId");
+                        if (serverIdObj != null) {
+                            nodeLog.setGameServerObjId(convertToLong(serverIdObj));
+                        }
+                    }
+                }
+                // 处理实体对象（NodeServer、NodeMinecraftServer等）
+                else if (arg.getClass().getName().contains("NodeServer")) {
+                    try {
+                        Method getIdMethod = arg.getClass().getMethod("getId");
+                        Object idObj = getIdMethod.invoke(arg);
+                        if (idObj != null && nodeLog.getNodeObjId() == null) {
+                            nodeLog.setNodeObjId(convertToLong(idObj));
+                        }
+                    } catch (Exception ignored) {
+                    }
+                } else if (arg.getClass().getName().contains("NodeMinecraftServer")) {
+                    try {
+                        Method getIdMethod = arg.getClass().getMethod("getId");
+                        Object idObj = getIdMethod.invoke(arg);
+                        if (idObj != null && nodeLog.getGameServerObjId() == null) {
+                            nodeLog.setGameServerObjId(convertToLong(idObj));
+                        }
+
+                        // 同时获取nodeId
+                        Method getNodeIdMethod = arg.getClass().getMethod("getNodeId");
+                        Object nodeIdObj = getNodeIdMethod.invoke(arg);
+                        if (nodeIdObj != null && nodeLog.getNodeId() == null) {
+                            nodeLog.setNodeId(convertToLong(nodeIdObj));
+                        }
+                    } catch (Exception ignored) {
+                    }
+                }
+                // 处理Long类型的ID参数（通常是第一个参数）
+                else if (arg instanceof Long && nodeLog.getNodeId() == null) {
+                    nodeLog.setNodeId((Long) arg);
+                }
+            } catch (Exception e) {
+                log.debug("提取节点ID失败: {}", e.getMessage());
             }
         }
+    }
+
+    /**
+     * 转换为Long类型
+     */
+    private Long convertToLong(Object obj) {
+        if (obj == null) {
+            return null;
+        }
+        if (obj instanceof Long) {
+            return (Long) obj;
+        }
+        if (obj instanceof Integer) {
+            return ((Integer) obj).longValue();
+        }
+        if (obj instanceof String) {
+            try {
+                return Long.parseLong((String) obj);
+            } catch (NumberFormatException e) {
+                return null;
+            }
+        }
+        return null;
     }
 
     /**
@@ -180,7 +302,6 @@ public class NodeLogInterceptor {
                 return entry.getValue() instanceof MultipartFile;
             }
         }
-        return o instanceof MultipartFile || o instanceof HttpServletRequest || o instanceof HttpServletResponse
-                || o instanceof BindingResult;
+        return o instanceof MultipartFile || o instanceof HttpServletRequest || o instanceof HttpServletResponse || o instanceof BindingResult;
     }
 } 

@@ -42,12 +42,18 @@ public class NodeScheduled {
 
         NodeCache.getMap().values().forEach(nodeServer -> {
             log.debug("正在检查节点服务器 [{}] 的心跳状态", nodeServer.getName());
-            final HttpResponse execute = HttpUtil.createGet(ApiUtil.getHeartbeatApi(nodeServer))
-                    .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken())
-                    .timeout(3000)
-                    .execute();
+            HttpResponse execute;
+            try {
+                execute = HttpUtil.createGet(ApiUtil.getHeartbeatApi(nodeServer))
+                        .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken())
+                        .timeout(3000)
+                        .execute();
+            } catch (Exception e) {
+                log.error("节点服务器 [{}] 心跳检查失败: {}", nodeServer.getName(), e.getMessage());
+                return;
+            }
 
-            if (execute.isOk()) {
+            if (execute != null && execute.isOk()) {
                 final JSONObject body = JSONObject.parseObject(execute.body(), JSONObject.class);
                 if (body.getString("status").equals("OJBK")) {
                     // 更新最后心跳时间

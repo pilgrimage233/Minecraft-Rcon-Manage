@@ -1,148 +1,206 @@
 <template>
-  <div class="app-container">
-    <el-form v-show="showSearch" ref="queryForm" :inline="true" :model="queryParams" label-width="68px" size="small">
-      <el-form-item label="名称" prop="name">
-        <el-input
-          v-model="queryParams.name"
-          clearable
-          placeholder="请输入服务器名称"
-          @keyup.enter.native="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item label="核心版本" prop="version">
-        <el-input
-          v-model="queryParams.version"
-          clearable
-          placeholder="请输入核心版本"
-          @keyup.enter.native="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item label="最后启动" prop="lastStartTime">
-        <el-date-picker v-model="queryParams.lastStartTime"
-                        clearable
-                        placeholder="请选择最后启动时间"
-                        type="date"
-                        value-format="yyyy-MM-dd">
-        </el-date-picker>
-      </el-form-item>
-      <el-form-item label="最后停止" prop="lastStopTime">
-        <el-date-picker v-model="queryParams.lastStopTime"
-                        clearable
-                        placeholder="请选择最后停止时间"
-                        type="date"
-                        value-format="yyyy-MM-dd">
-        </el-date-picker>
-      </el-form-item>
-      <el-form-item>
-        <el-button icon="el-icon-search" size="mini" type="primary" @click="handleQuery">搜索</el-button>
-        <el-button icon="el-icon-refresh" size="mini" @click="resetQuery">重置</el-button>
-      </el-form-item>
-    </el-form>
+  <div class="app-container mcs-container">
+    <!-- 搜索区域 -->
+    <el-card v-show="showSearch" class="search-card" shadow="never">
+      <el-form ref="queryForm" :inline="true" :model="queryParams" label-width="80px" size="small">
+        <el-form-item label="服务器名称" prop="name">
+          <el-input
+            v-model="queryParams.name"
+            clearable
+            placeholder="请输入服务器名称"
+            prefix-icon="el-icon-search"
+            style="width: 200px"
+            @keyup.enter.native="handleQuery"
+          />
+        </el-form-item>
+        <el-form-item label="核心版本" prop="version">
+          <el-input
+            v-model="queryParams.version"
+            clearable
+            placeholder="请输入核心版本"
+            style="width: 160px"
+            @keyup.enter.native="handleQuery"
+          />
+        </el-form-item>
+        <el-form-item label="最后启动" prop="lastStartTime">
+          <el-date-picker
+            v-model="queryParams.lastStartTime"
+            clearable
+            placeholder="请选择最后启动时间"
+            style="width: 180px"
+            type="date"
+            value-format="yyyy-MM-dd"
+          />
+        </el-form-item>
+        <el-form-item label="最后停止" prop="lastStopTime">
+          <el-date-picker
+            v-model="queryParams.lastStopTime"
+            clearable
+            placeholder="请选择最后停止时间"
+            style="width: 180px"
+            type="date"
+            value-format="yyyy-MM-dd"
+          />
+        </el-form-item>
+        <el-form-item>
+          <el-button icon="el-icon-search" size="small" type="primary" @click="handleQuery">搜索</el-button>
+          <el-button icon="el-icon-refresh" size="small" @click="resetQuery">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
 
+    <!-- 节点筛选提示 -->
     <el-alert
       v-if="routeNodeId"
       :closable="true"
       :title="`正在按节点筛选：Node ID = ${routeNodeId}`"
+      class="node-filter-alert"
       show-icon
-      style="margin-bottom: 12px;"
       type="info"
       @close="clearNodeFilter"
     />
 
-    <el-row :gutter="10" class="mb8">
-      <el-col :span="1.5">
-        <el-button
-          v-hasPermi="['node:mcs:add']"
-          icon="el-icon-plus"
-          plain
-          size="mini"
-          type="primary"
-          @click="handleAdd"
-        >新增
-        </el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button
-          v-hasPermi="['node:mcs:edit']"
-          :disabled="single"
-          icon="el-icon-edit"
-          plain
-          size="mini"
-          type="success"
-          @click="handleUpdate"
-        >修改
-        </el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button
-          v-hasPermi="['node:mcs:remove']"
-          :disabled="multiple"
-          icon="el-icon-delete"
-          plain
-          size="mini"
-          type="danger"
-          @click="handleDelete"
-        >删除
-        </el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button
-          v-hasPermi="['node:mcs:export']"
-          icon="el-icon-download"
-          plain
-          size="mini"
-          type="warning"
-          @click="handleExport"
-        >导出
-        </el-button>
-      </el-col>
-      <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
-    </el-row>
+    <!-- 操作按钮区域 -->
+    <el-card class="toolbar-card" shadow="never">
+      <el-row :gutter="10" class="mb8">
+        <el-col :span="1.5">
+          <el-button
+            v-hasPermi="['node:mcs:add']"
+            icon="el-icon-plus"
+            size="small"
+            type="primary"
+            @click="handleAdd"
+          >新增实例
+          </el-button>
+        </el-col>
+        <el-col :span="1.5">
+          <el-button
+            v-hasPermi="['node:mcs:edit']"
+            :disabled="single"
+            icon="el-icon-edit"
+            plain
+            size="small"
+            type="success"
+            @click="handleUpdate"
+          >修改
+          </el-button>
+        </el-col>
+        <el-col :span="1.5">
+          <el-button
+            v-hasPermi="['node:mcs:remove']"
+            :disabled="multiple"
+            icon="el-icon-delete"
+            plain
+            size="small"
+            type="danger"
+            @click="handleDelete"
+          >删除
+          </el-button>
+        </el-col>
+        <el-col :span="1.5">
+          <el-button
+            v-hasPermi="['node:mcs:export']"
+            icon="el-icon-download"
+            plain
+            size="small"
+            type="warning"
+            @click="handleExport"
+          >导出
+          </el-button>
+        </el-col>
+        <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
+      </el-row>
+    </el-card>
 
-    <el-table v-loading="loading" :data="mcsList" @selection-change="handleSelectionChange">
+    <!-- 数据表格 -->
+    <el-card class="table-card" shadow="never">
+      <el-table v-loading="loading" :data="mcsList" border stripe @selection-change="handleSelectionChange">
       <el-table-column align="center" type="selection" width="55"/>
       <el-table-column type="expand">
         <template slot-scope="props">
-          <el-row :gutter="10">
-            <el-col :span="12">
-              <div><b>服务端目录：</b>{{ props.row.serverPath || '-' }}</div>
-              <div style="margin-top:6px;"><b>启动命令：</b>{{ props.row.startStr || '-' }}</div>
-              <div style="margin-top:6px;"><b>其他JVM参数：</b>{{ props.row.jvmArgs || '-' }}</div>
-            </el-col>
-            <el-col :span="12">
-              <div><b>节点UUID：</b>{{ props.row.nodeUuid || '-' }}</div>
-              <div style="margin-top:6px;"><b>描述：</b>{{ props.row.description || '-' }}</div>
-              <div style="margin-top:6px;"><b>备注：</b>{{ props.row.remark || '-' }}</div>
-            </el-col>
-          </el-row>
+          <div class="expand-content">
+            <el-row :gutter="20">
+              <el-col :span="12">
+                <div class="expand-item">
+                  <span class="expand-label">服务端目录：</span>
+                  <span class="expand-value">{{ props.row.serverPath || '-' }}</span>
+                </div>
+                <div class="expand-item">
+                  <span class="expand-label">启动命令：</span>
+                  <span class="expand-value">{{ props.row.startStr || '-' }}</span>
+                </div>
+                <div class="expand-item">
+                  <span class="expand-label">其他JVM参数：</span>
+                  <span class="expand-value">{{ props.row.jvmArgs || '-' }}</span>
+                </div>
+              </el-col>
+              <el-col :span="12">
+                <div class="expand-item">
+                  <span class="expand-label">节点UUID：</span>
+                  <span class="expand-value">{{ props.row.nodeUuid || '-' }}</span>
+                </div>
+                <div class="expand-item">
+                  <span class="expand-label">描述：</span>
+                  <span class="expand-value">{{ props.row.description || '-' }}</span>
+                </div>
+                <div class="expand-item">
+                  <span class="expand-label">备注：</span>
+                  <span class="expand-value">{{ props.row.remark || '-' }}</span>
+                </div>
+              </el-col>
+            </el-row>
+          </div>
         </template>
       </el-table-column>
-      <el-table-column align="center" label="实例ID" prop="id" width="90"/>
-      <el-table-column align="center" label="所属节点ID" prop="nodeId" width="110"/>
-      <el-table-column align="center" label="服务器名称" prop="name" show-overflow-tooltip/>
-      <el-table-column align="center" label="核心类型" prop="coreType" width="120"/>
-      <el-table-column align="center" label="核心版本" prop="version" width="120"/>
-      <el-table-column align="center" label="XMX(MB)" prop="jvmXmx" width="100"/>
-      <el-table-column align="center" label="XMS(MB)" prop="jvmXms" width="100"/>
-      <el-table-column align="center" label="状态" prop="status" width="120">
+        <el-table-column align="center" label="实例ID" prop="id" width="80"/>
+        <el-table-column align="center" label="节点ID" prop="nodeId" width="90"/>
+        <el-table-column align="center" label="服务器名称" min-width="140" prop="name" show-overflow-tooltip>
         <template slot-scope="scope">
-          <el-tag :type="statusTagType(scope.row.status)">{{ scope.row.status }}</el-tag>
+          <i class="el-icon-s-platform" style="color: #409EFF; margin-right: 5px;"></i>
+          <span style="font-weight: 500;">{{ scope.row.name }}</span>
         </template>
       </el-table-column>
-      <el-table-column align="center" label="最后启动时间" prop="lastStartTime" width="180">
+        <el-table-column align="center" label="核心类型" prop="coreType" width="110">
         <template slot-scope="scope">
-          <span>{{ parseTime(scope.row.lastStartTime, '{y}-{m}-{d}') }}</span>
+          <el-tag size="small" type="info">{{ scope.row.coreType }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column align="center" label="最后停止时间" prop="lastStopTime" width="180">
+        <el-table-column align="center" label="核心版本" prop="version" width="110"/>
+        <el-table-column align="center" label="内存配置" width="130">
         <template slot-scope="scope">
-          <span>{{ parseTime(scope.row.lastStopTime, '{y}-{m}-{d}') }}</span>
+          <div style="font-size: 12px;">
+            <div>XMX: {{ scope.row.jvmXmx }}MB</div>
+            <div style="color: #909399;">XMS: {{ scope.row.jvmXms }}MB</div>
+          </div>
         </template>
       </el-table-column>
-      <el-table-column align="center" label="服务器描述" prop="description"/>
-      <el-table-column align="center" label="备注" prop="remark"/>
-      <el-table-column align="center" class-name="small-padding fixed-width" label="操作">
+        <el-table-column align="center" label="状态" prop="status" width="100">
+          <template slot-scope="scope">
+            <el-tag :type="statusTagType(scope.row.status)" size="medium">
+              {{ scope.row.status }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column align="center" label="最后启动" prop="lastStartTime" width="110">
+          <template slot-scope="scope">
+            <span style="font-size: 12px;">{{ parseTime(scope.row.lastStartTime, '{y}-{m}-{d}') }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column align="center" label="最后停止" prop="lastStopTime" width="110">
+          <template slot-scope="scope">
+            <span style="font-size: 12px;">{{ parseTime(scope.row.lastStopTime, '{y}-{m}-{d}') }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column align="center" class-name="small-padding fixed-width" label="操作" width="220">
         <template slot-scope="scope">
+          <el-button
+            v-hasPermi="['node:mcs:list']"
+            icon="el-icon-monitor"
+            size="mini"
+            type="primary"
+            @click="openTerminal(scope.row)"
+          >控制台
+          </el-button>
           <el-button
             v-hasPermi="['node:mcs:edit']"
             icon="el-icon-edit"
@@ -152,17 +210,10 @@
           >修改
           </el-button>
           <el-button
-            v-hasPermi="['node:mcs:list']"
-            icon="el-icon-monitor"
-            size="mini"
-            type="text"
-            @click="openTerminal(scope.row)"
-          >控制台
-          </el-button>
-          <el-button
             v-hasPermi="['node:mcs:remove']"
             icon="el-icon-delete"
             size="mini"
+            style="color: #F56C6C;"
             type="text"
             @click="handleDelete(scope.row)"
           >删除
@@ -178,85 +229,154 @@
       :total="total"
       @pagination="getList"
     />
+    </el-card>
 
     <!-- 添加或修改实例管理对话框 -->
-    <el-dialog :title="title" :visible.sync="open" append-to-body width="900px">
-      <el-form ref="form" :model="form" :rules="rules" label-width="120px">
-        <el-divider content-position="left">基本信息</el-divider>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="所属节点ID" prop="nodeId">
-              <el-input v-model="form.nodeId" :disabled="true" placeholder="自动绑定路由参数"/>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="节点UUID" prop="nodeUuid">
-              <el-input v-model="form.nodeUuid" :disabled="true" placeholder="自动绑定路由参数"/>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="服务器名称" prop="name">
-              <el-input v-model="form.name" placeholder="例如：Survival-1"/>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="核心类型" prop="coreType">
-              <el-select v-model="form.coreType" placeholder="选择核心类型">
-                <el-option v-for="opt in coreTypeOptions" :key="opt" :label="opt" :value="opt"/>
-              </el-select>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="核心版本" prop="version">
-              <el-input v-model="form.version" placeholder="例如：1.20.1"/>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="最大堆内存(XMX)" prop="jvmXmx">
-              <el-input v-model="form.jvmXmx" placeholder="例如：4096（单位MB）"/>
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="20">
-          <el-col :span="12">
-            <el-form-item label="最小堆内存(XMS)" prop="jvmXms">
-              <el-input v-model="form.jvmXms" placeholder="例如：1024（单位MB）"/>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="其他JVM参数" prop="jvmArgs">
-              <el-input v-model="form.jvmArgs" :autosize="{ minRows: 1, maxRows: 4 }" placeholder="例如：-XX:+UseG1GC 等"
-                        type="textarea"/>
-            </el-form-item>
-          </el-col>
-        </el-row>
+    <el-dialog
+      :title="title"
+      :visible.sync="open"
+      append-to-body
+      class="mcs-dialog"
+      width="1000px"
+      @close="cancel"
+    >
+      <el-form ref="form" :model="form" :rules="rules" label-width="130px" size="small">
+        <!-- 基本信息 -->
+        <div class="form-section">
+          <div class="section-header">
+            <i class="el-icon-info"></i>
+            <span>基本信息</span>
+          </div>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="所属节点ID" prop="nodeId">
+                <el-input v-model="form.nodeId" :disabled="true" placeholder="自动绑定路由参数">
+                  <i slot="prefix" class="el-icon-connection"></i>
+                </el-input>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="节点UUID" prop="nodeUuid">
+                <el-input v-model="form.nodeUuid" :disabled="true" placeholder="自动绑定路由参数">
+                  <i slot="prefix" class="el-icon-key"></i>
+                </el-input>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="服务器名称" prop="name">
+                <el-input v-model="form.name" placeholder="例如：Survival-1">
+                  <i slot="prefix" class="el-icon-s-platform"></i>
+                </el-input>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="核心类型" prop="coreType">
+                <el-select v-model="form.coreType" placeholder="选择核心类型" style="width: 100%">
+                  <el-option v-for="opt in coreTypeOptions" :key="opt" :label="opt" :value="opt">
+                    <i class="el-icon-box"></i> {{ opt }}
+                  </el-option>
+                </el-select>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="核心版本" prop="version">
+                <el-input v-model="form.version" placeholder="例如：1.20.1">
+                  <i slot="prefix" class="el-icon-price-tag"></i>
+                </el-input>
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </div>
 
-        <el-divider content-position="left">启动配置</el-divider>
-        <el-form-item label="服务端所在目录" prop="serverPath">
-          <el-input v-model="form.serverPath" :autosize="{ minRows: 1, maxRows: 3 }" placeholder="服务器根目录绝对路径，例如：/home/mc/server"
-                    type="textarea"/>
-        </el-form-item>
-        <el-form-item label="启动命令" prop="startStr">
-          <el-input v-model="form.startStr" :autosize="{ minRows: 2, maxRows: 6 }" placeholder="完整启动命令，例如：java -Xmx4096M -Xms1024M -jar paper.jar nogui"
-                    type="textarea"/>
-        </el-form-item>
-        <el-divider content-position="left">备注信息</el-divider>
-        <el-form-item label="服务器描述" prop="description">
-          <el-input v-model="form.description" :autosize="{ minRows: 2, maxRows: 5 }" placeholder="该实例的用途、注意事项等"
-                    type="textarea"/>
-        </el-form-item>
-        <el-form-item label="备注" prop="remark">
-          <el-input v-model="form.remark" :autosize="{ minRows: 1, maxRows: 3 }" placeholder="可选备注信息"
-                    type="textarea"/>
-        </el-form-item>
+        <!-- JVM配置 -->
+        <div class="form-section">
+          <div class="section-header">
+            <i class="el-icon-cpu"></i>
+            <span>JVM内存配置</span>
+          </div>
+          <el-row :gutter="20">
+            <el-col :span="12">
+              <el-form-item label="最大堆内存(XMX)" prop="jvmXmx">
+                <el-input v-model="form.jvmXmx" placeholder="例如：4096">
+                  <template slot="append">MB</template>
+                </el-input>
+              </el-form-item>
+            </el-col>
+            <el-col :span="12">
+              <el-form-item label="最小堆内存(XMS)" prop="jvmXms">
+                <el-input v-model="form.jvmXms" placeholder="例如：1024">
+                  <template slot="append">MB</template>
+                </el-input>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-form-item label="其他JVM参数" prop="jvmArgs">
+            <el-input
+              v-model="form.jvmArgs"
+              :autosize="{ minRows: 2, maxRows: 4 }"
+              placeholder="例如：-XX:+UseG1GC -XX:+ParallelRefProcEnabled"
+              type="textarea"
+            />
+          </el-form-item>
+        </div>
+
+        <!-- 启动配置 -->
+        <div class="form-section">
+          <div class="section-header">
+            <i class="el-icon-video-play"></i>
+            <span>启动配置</span>
+          </div>
+          <el-form-item label="服务端所在目录" prop="serverPath">
+            <el-input
+              v-model="form.serverPath"
+              :autosize="{ minRows: 1, maxRows: 3 }"
+              placeholder="服务器根目录绝对路径，例如：/home/mc/server"
+              type="textarea"
+            >
+              <i slot="prefix" class="el-icon-folder-opened"></i>
+            </el-input>
+          </el-form-item>
+          <el-form-item label="启动命令" prop="startStr">
+            <el-input
+              v-model="form.startStr"
+              :autosize="{ minRows: 2, maxRows: 6 }"
+              placeholder="完整启动命令，例如：java -Xmx4096M -Xms1024M -jar paper.jar nogui"
+              type="textarea"
+            />
+          </el-form-item>
+        </div>
+
+        <!-- 备注信息 -->
+        <div class="form-section">
+          <div class="section-header">
+            <i class="el-icon-document"></i>
+            <span>备注信息</span>
+          </div>
+          <el-form-item label="服务器描述" prop="description">
+            <el-input
+              v-model="form.description"
+              :autosize="{ minRows: 2, maxRows: 5 }"
+              placeholder="该实例的用途、注意事项等"
+              type="textarea"
+            />
+          </el-form-item>
+          <el-form-item label="备注" prop="remark">
+            <el-input
+              v-model="form.remark"
+              :autosize="{ minRows: 1, maxRows: 3 }"
+              placeholder="可选备注信息"
+              type="textarea"
+            />
+          </el-form-item>
+        </div>
       </el-form>
       <div slot="footer" class="dialog-footer">
-        <el-button type="primary" @click="submitForm">确 定</el-button>
         <el-button @click="cancel">取 消</el-button>
+        <el-button icon="el-icon-check" type="primary" @click="submitForm">确 定</el-button>
       </div>
     </el-dialog>
   </div>
@@ -533,3 +653,236 @@ export default {
   }
 };
 </script>
+
+<style lang="scss" scoped>
+.mcs-container {
+  padding: 20px;
+  background: #f0f2f5;
+
+  .search-card {
+    margin-bottom: 16px;
+    border-radius: 8px;
+
+    ::v-deep .el-card__body {
+      padding: 20px;
+    }
+
+    .el-form {
+      .el-form-item {
+        margin-bottom: 10px;
+      }
+    }
+  }
+
+  .node-filter-alert {
+    margin-bottom: 16px;
+    border-radius: 8px;
+  }
+
+  .toolbar-card {
+    margin-bottom: 16px;
+    border-radius: 8px;
+
+    ::v-deep .el-card__body {
+      padding: 16px 20px;
+    }
+
+    .mb8 {
+      margin-bottom: 0;
+    }
+  }
+
+  .table-card {
+    border-radius: 8px;
+
+    ::v-deep .el-card__body {
+      padding: 20px;
+    }
+
+    .el-table {
+      border-radius: 4px;
+      overflow: hidden;
+
+      th {
+        background: #f5f7fa;
+        color: #606266;
+        font-weight: 600;
+      }
+
+      .expand-content {
+        padding: 20px 50px;
+        background: #fafafa;
+        border-radius: 4px;
+        margin: 10px 0;
+
+        .expand-item {
+          margin-bottom: 12px;
+          line-height: 1.8;
+          font-size: 13px;
+
+          &:last-child {
+            margin-bottom: 0;
+          }
+
+          .expand-label {
+            color: #606266;
+            font-weight: 500;
+            margin-right: 8px;
+          }
+
+          .expand-value {
+            color: #303133;
+            word-break: break-all;
+          }
+        }
+      }
+    }
+  }
+}
+
+// Dialog样式优化
+::v-deep .mcs-dialog {
+  .el-dialog {
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .el-dialog__header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    padding: 20px 24px;
+
+    .el-dialog__title {
+      color: #fff;
+      font-size: 18px;
+      font-weight: 600;
+    }
+
+    .el-dialog__headerbtn {
+      top: 20px;
+      right: 24px;
+
+      .el-dialog__close {
+        color: #fff;
+        font-size: 20px;
+        font-weight: bold;
+
+        &:hover {
+          color: #f0f0f0;
+        }
+      }
+    }
+  }
+
+  .el-dialog__body {
+    padding: 24px;
+    max-height: 65vh;
+    overflow-y: auto;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: #dcdfe6;
+      border-radius: 3px;
+
+      &:hover {
+        background: #c0c4cc;
+      }
+    }
+  }
+
+  .el-dialog__footer {
+    padding: 16px 24px;
+    border-top: 1px solid #e4e7ed;
+    background: #fafafa;
+
+    .dialog-footer {
+      text-align: right;
+
+      .el-button {
+        padding: 10px 24px;
+        border-radius: 6px;
+      }
+    }
+  }
+
+  .form-section {
+    margin-bottom: 24px;
+    padding: 20px;
+    background: #f9fafb;
+    border-radius: 8px;
+    border: 1px solid #e4e7ed;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 12px;
+      border-bottom: 2px solid #409EFF;
+      color: #303133;
+      font-size: 15px;
+      font-weight: 600;
+
+      i {
+        margin-right: 8px;
+        font-size: 18px;
+        color: #409EFF;
+      }
+    }
+
+    .el-form-item {
+      margin-bottom: 18px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      ::v-deep .el-form-item__label {
+        color: #606266;
+        font-weight: 500;
+      }
+
+      ::v-deep .el-input__inner,
+      ::v-deep .el-textarea__inner {
+        border-radius: 6px;
+        transition: all 0.3s;
+
+        &:focus {
+          border-color: #409EFF;
+          box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+        }
+      }
+
+      ::v-deep .el-input.is-disabled .el-input__inner {
+        background-color: #f5f7fa;
+        color: #909399;
+      }
+    }
+  }
+}
+
+// 按钮样式优化
+.el-button {
+  border-radius: 6px;
+  transition: all 0.3s;
+
+  &:hover {
+    transform: translateY(-1px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+}
+
+// 标签样式
+.el-tag {
+  border-radius: 4px;
+  font-weight: 500;
+}
+</style>

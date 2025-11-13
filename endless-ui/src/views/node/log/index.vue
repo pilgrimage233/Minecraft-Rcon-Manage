@@ -6,34 +6,76 @@
           v-model="queryParams.nodeId"
           clearable
           placeholder="请输入节点ID"
+          style="width: 180px"
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
       <el-form-item label="操作类型" prop="operationType">
-        <el-select v-model="queryParams.operationType" clearable placeholder="请选择操作类型">
-          <el-option label="新增节点" value="1"/>
-          <el-option label="修改节点" value="2"/>
-          <el-option label="删除节点" value="3"/>
-          <el-option label="下载日志" value="4"/>
-          <el-option label="启动游戏服务器" value="5"/>
-          <el-option label="停止游戏服务器" value="6"/>
-          <el-option label="重启游戏服务器" value="7"/>
-          <el-option label="强制终止游戏服务器" value="8"/>
-          <el-option label="新增游戏服务器" value="9"/>
-          <el-option label="修改游戏服务器" value="10"/>
-          <el-option label="删除游戏服务器" value="11"/>
+        <el-select v-model="queryParams.operationType" clearable placeholder="请选择操作类型" style="width: 180px">
+          <el-option label="新增节点" value="1">
+            <span style="float: left">新增节点</span>
+            <span style="float: right; color: #67c23a; font-size: 12px">节点</span>
+          </el-option>
+          <el-option label="修改节点" value="2">
+            <span style="float: left">修改节点</span>
+            <span style="float: right; color: #e6a23c; font-size: 12px">节点</span>
+          </el-option>
+          <el-option label="删除节点" value="3">
+            <span style="float: left">删除节点</span>
+            <span style="float: right; color: #f56c6c; font-size: 12px">节点</span>
+          </el-option>
+          <el-option label="下载日志" value="4">
+            <span style="float: left">下载日志</span>
+            <span style="float: right; color: #909399; font-size: 12px">节点</span>
+          </el-option>
+          <el-option label="启动游戏服务器" value="5">
+            <span style="float: left">启动游戏服务器</span>
+            <span style="float: right; color: #67c23a; font-size: 12px">游戏</span>
+          </el-option>
+          <el-option label="停止游戏服务器" value="6">
+            <span style="float: left">停止游戏服务器</span>
+            <span style="float: right; color: #e6a23c; font-size: 12px">游戏</span>
+          </el-option>
+          <el-option label="重启游戏服务器" value="7">
+            <span style="float: left">重启游戏服务器</span>
+            <span style="float: right; color: #e6a23c; font-size: 12px">游戏</span>
+          </el-option>
+          <el-option label="强制终止游戏服务器" value="8">
+            <span style="float: left">强制终止游戏服务器</span>
+            <span style="float: right; color: #f56c6c; font-size: 12px">游戏</span>
+          </el-option>
+          <el-option label="新增游戏服务器" value="9">
+            <span style="float: left">新增游戏服务器</span>
+            <span style="float: right; color: #67c23a; font-size: 12px">游戏</span>
+          </el-option>
+          <el-option label="修改游戏服务器" value="10">
+            <span style="float: left">修改游戏服务器</span>
+            <span style="float: right; color: #e6a23c; font-size: 12px">游戏</span>
+          </el-option>
+          <el-option label="删除游戏服务器" value="11">
+            <span style="float: left">删除游戏服务器</span>
+            <span style="float: right; color: #f56c6c; font-size: 12px">游戏</span>
+          </el-option>
         </el-select>
       </el-form-item>
       <el-form-item label="操作目标" prop="operationTarget">
-        <el-select v-model="queryParams.operationTarget" clearable placeholder="请选择操作目标">
-          <el-option label="节点服务器" value="1"/>
-          <el-option label="游戏服务器" value="2"/>
+        <el-select v-model="queryParams.operationTarget" clearable placeholder="请选择操作目标" style="width: 150px">
+          <el-option label="节点服务器" value="1">
+            <i class="el-icon-s-platform"></i> 节点服务器
+          </el-option>
+          <el-option label="游戏服务器" value="2">
+            <i class="el-icon-s-grid"></i> 游戏服务器
+          </el-option>
         </el-select>
       </el-form-item>
       <el-form-item label="操作状态" prop="status">
-        <el-select v-model="queryParams.status" clearable placeholder="请选择操作状态">
-          <el-option label="成功" value="0"/>
-          <el-option label="失败" value="1"/>
+        <el-select v-model="queryParams.status" clearable placeholder="请选择操作状态" style="width: 150px">
+          <el-option label="成功" value="0">
+            <i class="el-icon-success" style="color: #67c23a"></i> 成功
+          </el-option>
+          <el-option label="失败" value="1">
+            <i class="el-icon-error" style="color: #f56c6c"></i> 失败
+          </el-option>
         </el-select>
       </el-form-item>
       <el-form-item>
@@ -54,39 +96,71 @@
         >导出
         </el-button>
       </el-col>
+      <el-col :span="1.5">
+        <el-tag effect="plain" size="medium">
+          <i class="el-icon-document"></i> 共 {{ total }} 条记录
+        </el-tag>
+      </el-col>
       <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
     </el-row>
 
-    <el-table v-loading="loading" :data="logList" style="width: 100%">
-      <el-table-column align="center" label="操作时间" prop="createTime" width="160"/>
-      <el-table-column align="center" label="节点ID" prop="nodeId" width="100"/>
-      <el-table-column align="center" label="操作类型" prop="operationType" width="120">
+    <el-table v-loading="loading" :data="logList" border stripe style="width: 100%">
+      <el-table-column align="center" label="操作时间" prop="createTime" width="160">
         <template slot-scope="scope">
-          <el-tag :type="getOperationTypeTag(scope.row.operationType)">
+          <i class="el-icon-time"></i>
+          {{ scope.row.createTime }}
+        </template>
+      </el-table-column>
+      <el-table-column align="center" label="节点ID" prop="nodeId" width="100">
+        <template slot-scope="scope">
+          <el-tag size="small" type="info">{{ scope.row.nodeId }}</el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column align="center" label="操作类型" prop="operationType" width="140">
+        <template slot-scope="scope">
+          <el-tag :type="getOperationTypeTag(scope.row.operationType)" effect="dark" size="medium">
+            <i :class="getOperationTypeIcon(scope.row.operationType)"></i>
             {{ getOperationTypeLabel(scope.row.operationType) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column align="center" label="操作目标" prop="operationTarget" width="100">
+      <el-table-column align="center" label="操作目标" prop="operationTarget" width="120">
         <template slot-scope="scope">
-          <el-tag>{{ getOperationTargetLabel(scope.row.operationTarget) }}</el-tag>
+          <el-tag :type="scope.row.operationTarget === '1' ? 'warning' : 'primary'" effect="plain" size="medium">
+            <i :class="scope.row.operationTarget === '1' ? 'el-icon-s-platform' : 'el-icon-s-grid'"></i>
+            {{ getOperationTargetLabel(scope.row.operationTarget) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column align="center" label="操作名称" min-width="150" prop="operationName" show-overflow-tooltip/>
-      <el-table-column align="center" label="方法名称" min-width="150" prop="methodName" show-overflow-tooltip/>
+      <el-table-column align="center" label="操作名称" min-width="150" prop="operationName" show-overflow-tooltip>
+        <template slot-scope="scope">
+          <span style="font-weight: 500">{{ scope.row.operationName }}</span>
+        </template>
+      </el-table-column>
+      <el-table-column align="center" label="方法名称" min-width="180" prop="methodName" show-overflow-tooltip>
+        <template slot-scope="scope">
+          <el-tag effect="plain" size="small" type="info">
+            <i class="el-icon-connection"></i>
+            {{ scope.row.methodName }}
+          </el-tag>
+        </template>
+      </el-table-column>
       <el-table-column align="center" label="执行耗时" prop="executionTime" width="100">
         <template slot-scope="scope">
-          {{ scope.row.executionTime }}ms
+          <el-tag :type="getExecutionTimeTag(scope.row.executionTime)" size="small">
+            {{ scope.row.executionTime }}ms
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column align="center" label="操作状态" prop="status" width="80">
+      <el-table-column align="center" label="操作状态" prop="status" width="100">
         <template slot-scope="scope">
-          <el-tag :type="scope.row.status === '0' ? 'success' : 'danger'">
+          <el-tag :type="scope.row.status === '0' ? 'success' : 'danger'" effect="dark" size="medium">
+            <i :class="scope.row.status === '0' ? 'el-icon-success' : 'el-icon-error'"></i>
             {{ scope.row.status === '0' ? '成功' : '失败' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column align="center" class-name="small-padding fixed-width" label="操作" width="120">
+      <el-table-column align="center" class-name="small-padding fixed-width" label="操作" width="100">
         <template slot-scope="scope">
           <el-button
             icon="el-icon-view"
@@ -138,7 +212,7 @@
             :rows="3"
             readonly
             type="textarea"
-          />
+          ></el-input>
         </el-descriptions-item>
         <el-descriptions-item :span="2" label="操作结果">
           <el-input
@@ -146,7 +220,7 @@
             :rows="3"
             readonly
             type="textarea"
-          />
+          ></el-input>
         </el-descriptions-item>
         <el-descriptions-item v-if="form.status === '1'" :span="2" label="错误消息">
           <el-input
@@ -154,7 +228,7 @@
             :rows="3"
             readonly
             type="textarea"
-          />
+          ></el-input>
         </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
@@ -266,6 +340,23 @@ export default {
       };
       return typeMap[type] || 'info';
     },
+    // 获取操作类型图标
+    getOperationTypeIcon(type) {
+      const iconMap = {
+        '1': 'el-icon-circle-plus-outline',
+        '2': 'el-icon-edit-outline',
+        '3': 'el-icon-delete',
+        '4': 'el-icon-download',
+        '5': 'el-icon-video-play',
+        '6': 'el-icon-video-pause',
+        '7': 'el-icon-refresh',
+        '8': 'el-icon-close',
+        '9': 'el-icon-circle-plus-outline',
+        '10': 'el-icon-edit-outline',
+        '11': 'el-icon-delete'
+      };
+      return iconMap[type] || 'el-icon-info';
+    },
     // 获取操作类型标签文本
     getOperationTypeLabel(type) {
       const typeMap = {
@@ -273,23 +364,30 @@ export default {
         '2': '修改节点',
         '3': '删除节点',
         '4': '下载日志',
-        '5': '启动游戏服务器',
-        '6': '停止游戏服务器',
-        '7': '重启游戏服务器',
-        '8': '强制终止游戏服务器',
-        '9': '新增游戏服务器',
-        '10': '修改游戏服务器',
-        '11': '删除游戏服务器'
+        '5': '启动服务器',
+        '6': '停止服务器',
+        '7': '重启服务器',
+        '8': '强制终止',
+        '9': '新增服务器',
+        '10': '修改服务器',
+        '11': '删除服务器'
       };
       return typeMap[type] || type;
     },
     // 获取操作目标标签文本
     getOperationTargetLabel(target) {
       const targetMap = {
-        '1': '节点服务器',
-        '2': '游戏服务器'
+        '1': '节点',
+        '2': '游戏'
       };
       return targetMap[target] || target;
+    },
+    // 获取执行耗时标签样式
+    getExecutionTimeTag(time) {
+      if (time < 100) return 'success';
+      if (time < 500) return '';
+      if (time < 1000) return 'warning';
+      return 'danger';
     }
   }
 };

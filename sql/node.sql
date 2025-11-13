@@ -71,18 +71,19 @@ values ('节点服务器导出', @parentId, '5', '#', '', 1, 0, 'F', '0', '0', '
         '', null, '');
 
 
+drop table if exists node_operation_log;
 -- 节点操作日志表
 create table node_operation_log
 (
-    id                 bigint auto_increment comment '日志ID'
+    id                 int auto_increment comment '日志ID'
         primary key,
-    node_id            bigint                  not null comment '节点ID',
+    node_id            int          null comment '节点ID',
     operation_type     varchar(64)             not null comment '操作类型（1新增节点 2修改节点 3删除节点 4下载日志 5启动游戏服务器 6停止游戏服务器 7重启游戏服务器 8强制终止游戏服务器 9新增游戏服务器 10修改游戏服务器 11删除游戏服务器）',
     operation_target   varchar(20)             not null comment '操作目标类型（1节点服务器 2游戏服务器）',
-    node_obj_id        bigint                  null comment '节点对象ID',
-    game_server_obj_id bigint                  null comment '游戏服务器对象ID',
+    node_obj_id        int          null comment '节点对象ID',
+    game_server_obj_id int          null comment '游戏服务器对象ID',
     operation_name     varchar(255)            not null comment '操作名称',
-    method_name        varchar(255)            null comment '方法名称',
+    method_name        varchar(256) null comment '方法名',
     operation_param    text                    null comment '操作参数',
     operation_result   text                    null comment '操作结果详情',
     execution_time     int                     null comment '执行耗时(ms)',
@@ -98,30 +99,29 @@ create table node_operation_log
 )
     comment '节点操作日志' collate = utf8mb4_general_ci;
 
--- 索引
-create index idx_node_id
-    on node_operation_log (node_id);
+create index idx_create_time
+    on node_operation_log (create_time);
 
-create index idx_operation_type
-    on node_operation_log (operation_type);
-
-create index idx_operation_target
-    on node_operation_log (operation_target);
-
-create index idx_node_obj_id
-    on node_operation_log (node_obj_id);
+create index idx_execution_time
+    on node_operation_log (execution_time);
 
 create index idx_game_server_obj_id
     on node_operation_log (game_server_obj_id);
 
-create index idx_create_time
-    on node_operation_log (create_time);
+create index idx_node_id
+    on node_operation_log (node_id);
+
+create index idx_node_obj_id
+    on node_operation_log (node_obj_id);
+
+create index idx_operation_target
+    on node_operation_log (operation_target);
+
+create index idx_operation_type
+    on node_operation_log (operation_type);
 
 create index idx_status
     on node_operation_log (status);
-
-create index idx_execution_time
-    on node_operation_log (execution_time);
 
 -- 菜单 SQL
 insert into sys_menu (menu_name, parent_id, order_num, path, component, is_frame, is_cache, menu_type, visible, status,

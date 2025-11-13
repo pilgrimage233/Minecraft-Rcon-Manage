@@ -7,6 +7,9 @@ import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.common.core.page.TableDataInfo;
 import cc.endmc.common.enums.BusinessType;
 import cc.endmc.common.utils.poi.ExcelUtil;
+import cc.endmc.node.common.annotation.NodeLog;
+import cc.endmc.node.common.constant.OperationTarget;
+import cc.endmc.node.common.constant.OperationType;
 import cc.endmc.node.domain.NodeMinecraftServer;
 import cc.endmc.node.service.INodeMinecraftServerService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -67,6 +70,7 @@ public class NodeMinecraftServerController extends BaseController {
      */
     @PreAuthorize("@ss.hasPermi('node:mcs:add')")
     @Log(title = "实例管理", businessType = BusinessType.INSERT)
+    @NodeLog(operationType = OperationType.ADD_GAME_SERVER, operationTarget = OperationTarget.GAME_SERVER, operationName = "新增游戏服务器")
     @AddOrUpdateFilter(add = true)
     @PostMapping
     public AjaxResult add(@RequestBody NodeMinecraftServer nodeMinecraftServer) {
@@ -78,6 +82,7 @@ public class NodeMinecraftServerController extends BaseController {
      */
     @PreAuthorize("@ss.hasPermi('node:mcs:edit')")
     @Log(title = "实例管理", businessType = BusinessType.UPDATE)
+    @NodeLog(operationType = OperationType.UPDATE_GAME_SERVER, operationTarget = OperationTarget.GAME_SERVER, operationName = "修改游戏服务器")
     @AddOrUpdateFilter(edit = true)
     @PutMapping
     public AjaxResult edit(@RequestBody NodeMinecraftServer nodeMinecraftServer) {
@@ -89,6 +94,7 @@ public class NodeMinecraftServerController extends BaseController {
      */
     @PreAuthorize("@ss.hasPermi('node:mcs:remove')")
     @Log(title = "实例管理", businessType = BusinessType.DELETE)
+    @NodeLog(operationType = OperationType.DELETE_GAME_SERVER, operationTarget = OperationTarget.GAME_SERVER, operationName = "删除游戏服务器")
     @DeleteMapping("/{ids}")
     public AjaxResult remove(@PathVariable Long[] ids) {
         return toAjax(nodeMinecraftServerService.deleteNodeMinecraftServerByIds(ids));
@@ -108,6 +114,7 @@ public class NodeMinecraftServerController extends BaseController {
      */
     @PreAuthorize("@ss.hasPermi('node:mcs:add')")
     @Log(title = "实例管理", businessType = BusinessType.INSERT)
+    @NodeLog(operationType = OperationType.ADD_GAME_SERVER, operationTarget = OperationTarget.GAME_SERVER, operationName = "创建游戏服务器实例")
     @AddOrUpdateFilter(add = true)
     @PostMapping("/instance/create")
     public AjaxResult createInstance(@RequestBody Map<String, Object> params) {
@@ -119,6 +126,7 @@ public class NodeMinecraftServerController extends BaseController {
      */
     @PreAuthorize("@ss.hasPermi('node:mcs:edit')")
     @Log(title = "实例管理", businessType = BusinessType.UPDATE)
+    @NodeLog(operationType = OperationType.START_GAME_SERVER, operationTarget = OperationTarget.GAME_SERVER, operationName = "启动游戏服务器")
     @PostMapping("/instance/start")
     public AjaxResult startInstance(@RequestBody Map<String, Object> params) {
         return nodeMinecraftServerService.startInstance(params);
@@ -129,6 +137,7 @@ public class NodeMinecraftServerController extends BaseController {
      */
     @PreAuthorize("@ss.hasPermi('node:mcs:edit')")
     @Log(title = "实例管理", businessType = BusinessType.UPDATE)
+    @NodeLog(operationType = OperationType.STOP_GAME_SERVER, operationTarget = OperationTarget.GAME_SERVER, operationName = "停止游戏服务器")
     @PostMapping("/instance/stop")
     public AjaxResult stopInstance(@RequestBody Map<String, Object> params) {
         return nodeMinecraftServerService.stopInstance(params);
@@ -139,6 +148,7 @@ public class NodeMinecraftServerController extends BaseController {
      */
     @PreAuthorize("@ss.hasPermi('node:mcs:edit')")
     @Log(title = "实例管理", businessType = BusinessType.UPDATE)
+    @NodeLog(operationType = OperationType.RESTART_GAME_SERVER, operationTarget = OperationTarget.GAME_SERVER, operationName = "重启游戏服务器")
     @PostMapping("/instance/restart")
     public AjaxResult restartInstance(@RequestBody Map<String, Object> params) {
         return nodeMinecraftServerService.restartInstance(params);
@@ -149,6 +159,7 @@ public class NodeMinecraftServerController extends BaseController {
      */
     @PreAuthorize("@ss.hasPermi('node:mcs:edit')")
     @Log(title = "实例管理", businessType = BusinessType.UPDATE)
+    @NodeLog(operationType = OperationType.FORCE_TERMINATE_GAME_SERVER, operationTarget = OperationTarget.GAME_SERVER, operationName = "强制终止游戏服务器")
     @PostMapping("/instance/kill")
     public AjaxResult killInstance(@RequestBody Map<String, Object> params) {
         return nodeMinecraftServerService.killInstance(params);
@@ -159,6 +170,7 @@ public class NodeMinecraftServerController extends BaseController {
      */
     @PreAuthorize("@ss.hasPermi('node:mcs:remove')")
     @Log(title = "实例管理", businessType = BusinessType.DELETE)
+    @NodeLog(operationType = OperationType.DELETE_GAME_SERVER, operationTarget = OperationTarget.GAME_SERVER, operationName = "删除游戏服务器实例")
     @DeleteMapping("/instance")
     public AjaxResult deleteInstance(@RequestBody Map<String, Object> params) {
         return nodeMinecraftServerService.deleteInstance(params);
@@ -193,6 +205,7 @@ public class NodeMinecraftServerController extends BaseController {
      */
     @PreAuthorize("@ss.hasPermi('node:mcs:edit')")
     @Log(title = "实例管理", businessType = BusinessType.UPDATE)
+    @NodeLog(operationType = OperationType.UPDATE_GAME_SERVER, operationTarget = OperationTarget.GAME_SERVER, operationName = "发送游戏服务器命令")
     @PostMapping("/instance/command")
     public AjaxResult sendCommand(@RequestBody Map<String, Object> params) {
         return nodeMinecraftServerService.sendCommand(params);

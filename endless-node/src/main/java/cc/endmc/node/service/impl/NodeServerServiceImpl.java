@@ -405,14 +405,18 @@ public class NodeServerServiceImpl implements INodeServerService {
             if (file != null) {
                 // 获取原始文件名（只取文件名部分，不包含路径）
                 String originalFilename = file.getOriginalFilename();
-                if (originalFilename != null && originalFilename.contains(File.separator)) {
-                    originalFilename = originalFilename.substring(originalFilename.lastIndexOf(File.separator) + 1);
+                if (originalFilename != null) {
+                    // 处理Windows和Linux路径分隔符
+                    originalFilename = originalFilename.replace("\\", "/");
+                    if (originalFilename.contains("/")) {
+                        originalFilename = originalFilename.substring(originalFilename.lastIndexOf("/") + 1);
+                    }
                 }
-                // 创建临时文件
-                File tempFile = File.createTempFile("upload_", "_" + originalFilename);
+                // 创建临时文件（不在文件名中包含原始文件名，避免路径问题）
+                File tempFile = File.createTempFile("upload_", ".tmp");
                 file.transferTo(tempFile);
-                // 添加文件到表单
-                request.form("file", tempFile);
+                // 添加文件到表单，使用原始文件名作为表单字段名
+                request.form("file", tempFile, originalFilename);
                 // 设置超时
                 request.timeout(30000);
                 // 确保临时文件在使用后被删除
