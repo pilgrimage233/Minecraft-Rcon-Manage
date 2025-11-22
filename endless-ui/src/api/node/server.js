@@ -135,7 +135,8 @@ export function startNodeInstance(data) {
   return request({
     url: '/node/mcs/instance/start',
     method: 'post',
-    data: data
+    data: data,
+    timeout: 20000
   })
 }
 
@@ -144,7 +145,8 @@ export function stopNodeInstance(data) {
   return request({
     url: '/node/mcs/instance/stop',
     method: 'post',
-    data: data
+    data: data,
+    timeout: 20000
   })
 }
 

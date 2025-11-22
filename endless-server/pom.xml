@@ -30,6 +30,12 @@
             <artifactId>endless-framework</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>cc.endmc</groupId>
+            <artifactId>endless-node</artifactId>
+            <version>3.8.7</version>
+        </dependency>
+
         <!-- Java WebSocket -->
         <dependency>
             <groupId>org.java-websocket</groupId>

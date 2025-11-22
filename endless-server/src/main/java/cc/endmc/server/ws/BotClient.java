@@ -1,11 +1,14 @@
 package cc.endmc.server.ws;
 
 import cc.endmc.common.constant.Constants;
+import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.framework.manager.AsyncManager;
 import cc.endmc.framework.web.domain.Server;
+import cc.endmc.node.domain.NodeMinecraftServer;
+import cc.endmc.node.service.INodeMinecraftServerService;
 import cc.endmc.server.annotation.BotCommand;
 import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.EmailTemplates;
@@ -29,10 +32,13 @@ import cc.endmc.server.utils.CodeUtil;
 import cc.endmc.server.utils.CommandUtil;
 import cc.endmc.server.utils.HtmlUtils;
 import cc.endmc.server.utils.IPUtils;
+import cc.endmc.server.ws.handler.CommandHandler;
+import cc.endmc.server.ws.handler.CommandRegistry;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpUtil;
 import com.alibaba.fastjson2.JSON;
+import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -80,6 +86,7 @@ public class BotClient {
     private final IQqBotConfigService qqBotConfigService;
     private final IQqBotManagerService qqBotManagerService;
     private final IQqBotLogService qqBotLogService;
+    private final INodeMinecraftServerService nodeMinecraftServerService;
     private ScheduledFuture<?> reconnectTask;
     private final Environment env;
     private final RedisCache redisCache;
@@ -88,6 +95,10 @@ public class BotClient {
     private final String appUrl;
     private final BotManager botManager;
     private volatile boolean isShuttingDown = false;
+    /**
+     * 命令注册器
+     */
+    private final CommandRegistry commandRegistry = new CommandRegistry();
     /**
      * -- GETTER --
      * 获取机器人配置
@@ -113,7 +124,8 @@ public class BotClient {
             RedisCache redisCache,
             EmailService emailService,
             RconService rconService,
-            @Value("${app-url}") String appUrl, BotManager botManager) {
+            @Value("${app-url}") String appUrl, BotManager botManager,
+            INodeMinecraftServerService nodeMinecraftServerService) {
         this.redisCache = redisCache;
         this.emailService = emailService;
         this.whitelistInfoService = whitelistInfoService;
@@ -124,9 +136,51 @@ public class BotClient {
         this.qqBotLogService = qqBotLogService;
         this.appUrl = appUrl;
         this.env = env;
+        this.nodeMinecraftServerService = nodeMinecraftServerService;
 
         log.info("BotClient 实例已创建，依赖注入完成");
         this.botManager = botManager;
+
+        // 初始化命令注册器
+        initCommandRegistry();
+    }
+
+    /**
+     * 初始化命令注册器
+     * 注册所有命令及其处理器
+     */
+    private void initCommandRegistry() {
+        // 普通用户命令
+        commandRegistry.register("help", this::handleHelpCommand, "h");
+        commandRegistry.register("白名单申请", this::handleWhitelistApplication, "apply", "wl");
+        commandRegistry.register("查询白名单", this::handleWhitelistQuery, "check", "wlcheck");
+        commandRegistry.register("查询玩家", this::handlePlayerQuery, "player", "p");
+        commandRegistry.register("查询在线", this::handleOnlineQuery, "online", "list");
+        commandRegistry.register("查询服务器", this::handleServerList, "servers", "sv");
+        commandRegistry.register("test", this::handleTestCommand, "ping");
+
+        // 管理员命令
+        commandRegistry.register("过审", this::handleWhitelistReview, "approve", "pass", "通过");
+        commandRegistry.register("拒审", this::handleWhitelistReview, "reject", "deny");
+        commandRegistry.register("封禁", this::handleBanOperation, "ban");
+        commandRegistry.register("解封", this::handleBanOperation, "unban");
+        commandRegistry.register("发送指令", msg -> handleRconCommand(msg, false), "cmd", "rcon");
+        commandRegistry.register("运行状态", this::handleHostStatus, "status", "sys");
+        commandRegistry.register("刷新连接", this::handleRefreshConnection, "refresh", "reload");
+        commandRegistry.register("测试连接", this::handleTestConnection, "testconn", "tc");
+        commandRegistry.register("添加管理", this::handleAddManager, "addadmin", "aa");
+        commandRegistry.register("添加超管", this::handleAddSuperManager, "addsuper", "as");
+
+        // 实例管理命令
+        commandRegistry.register("实例列表", this::handleInstanceList, "instances", "inst");
+        commandRegistry.register("启动实例", this::handleStartInstance, "start", "run");
+        commandRegistry.register("停止实例", this::handleStopInstance, "stop", "kill");
+        commandRegistry.register("重启实例", this::handleRestartInstance, "restart", "reboot");
+        commandRegistry.register("实例状态", this::handleInstanceStatus, "inststatus", "is");
+        commandRegistry.register("实例日志", this::handleInstanceLogs, "logs", "log");
+        commandRegistry.register("实例命令", this::handleInstanceCommand, "instcmd", "ic");
+
+        log.info("命令注册器初始化完成，共注册 {} 个命令", commandRegistry.getAllCommands().size());
     }
 
     /**
@@ -369,68 +423,44 @@ public class BotClient {
 
     /**
      * 处理接收到的QQ消息
-     * 可以在这里添加自定义的消息处理逻辑
+     * 使用策略模式路由命令到对应的处理器
      *
      * @param message QQ消息对象
      */
     public void handleMessage(QQMessage message) {
-        final BotClient bot = botManager.getBot(config.getId());
         try {
-            // 处理消息的具体逻辑
-            if ("group".equals(message.getMessageType()) &&
-                    message.getGroupId() != null &&
-                    config.getGroupIds() != null &&
-                    config.getGroupIds().contains(message.getGroupId().toString())) {
+            // 检查是否是群消息且在配置的群组中
+            if (!"group".equals(message.getMessageType()) ||
+                    message.getGroupId() == null ||
+                    config.getGroupIds() == null ||
+                    !config.getGroupIds().contains(message.getGroupId().toString())) {
+                return;
+            }
 
-                // 检查是否是命令
-                String command = parseCommand(message.getMessage());
-                message.setMessage(command);
-                if (command != null) {
-                    // 根据命令前缀路由到对应的处理方法
-                    if (command.startsWith("help")) {
-                        bot.handleHelpCommand(message);
-                    } else if (command.startsWith("白名单申请")) {
-                        bot.handleWhitelistApplication(message);
-                    } else if (command.startsWith("查询白名单")) {
-                        bot.handleWhitelistQuery(message);
-                    } else if (command.startsWith("查询玩家")) {
-                        bot.handlePlayerQuery(message);
-                    } else if (command.startsWith("查询在线")) {
-                        bot.handleOnlineQuery(message);
-                    } else if (command.startsWith("查询服务器")) {
-                        bot.handleServerList(message);
-                    } else if (command.startsWith("test")) {
-                        String[] parts = command.split("\\s+");
-                        if (parts.length > 1 && (parts[1].startsWith("http") || parts[1].startsWith("https"))) {
-                            bot.testHttp(message);
-                        } else {
-                            bot.testServer(message);
-                        }
-                    } else if (command.startsWith("过审") || command.startsWith("通过") || command.startsWith("拒审")) {
-                        bot.handleWhitelistReview(message);
-                    } else if (command.startsWith("封禁") || command.startsWith("解封")) {
-                        bot.handleBanOperation(message);
-                    } else if (command.startsWith("发送指令")) {
-                        bot.handleRconCommand(message, false);
-                    } else if (command.startsWith("运行状态")) {
-                        bot.handleHostStatus(message);
-                    } else if (command.startsWith("刷新连接")) {
-                        bot.handleRefreshConnection(message);
-                    } else if (command.startsWith("测试连接")) {
-                        bot.handleTestConnection(message);
-                    } else if (command.startsWith("添加管理")) {
-                        bot.handleAddManager(message);
-                    } else if (command.startsWith("添加超管")) {
-                        bot.handleAddSuperManager(message);
-                    } else {
-                        // 检查是否有上次使用的服务器
-                        if (redisCache.hasKey(CacheKey.LAST_USED_SERVER_KEY + message.getSender().getUserId())) {
-                            bot.handleRconCommand(message, true);
-                        } else {
-                            // 未知命令
-                            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 未知命令，请使用 " + getCommandPrefix() + "help 查看可用命令。");
-                        }
-                    }
+            // 解析命令
+            String command = parseCommand(message.getMessage());
+            if (command == null) {
+                return;
+            }
+
+            message.setMessage(command);
+
+            // 提取命令关键字（第一个单词）
+            String commandKey = command.split("\\s+")[0].toLowerCase();
+
+            // 查找命令处理器
+            CommandHandler handler = commandRegistry.getHandler(commandKey);
+
+            if (handler != null) {
+                handler.handle(message);
+            } else {
+                // 未找到命令处理器，检查是否有上次使用的服务器（用于快捷RCON命令）
+                if (redisCache.hasKey(CacheKey.LAST_USED_SERVER_KEY + message.getSender().getUserId())) {
+                    this.handleRconCommand(message, true);
+                } else {
+                    // 未知命令
+                    sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() +
+                            "] 未知命令，请使用 " + getCommandPrefix() + "help 查看可用命令。");
                 }
             }
         } catch (Exception e) {
@@ -440,10 +470,26 @@ public class BotClient {
 
             // 发送错误消息给用户
             try {
-                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 处理命令时发生错误，请稍后重试。");
+                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() +
+                        "] 处理命令时发生错误，请稍后重试。");
             } catch (Exception ex) {
                 log.error("发送错误消息失败: {}", ex.getMessage(), ex);
             }
+        }
+    }
+
+    /**
+     * 处理test命令
+     * 根据参数判断是测试Minecraft服务器还是HTTP/HTTPS服务器
+     *
+     * @param message QQ消息对象
+     */
+    private void handleTestCommand(QQMessage message) {
+        String[] parts = message.getMessage().split("\\s+");
+        if (parts.length > 1 && (parts[1].startsWith("http") || parts[1].startsWith("https"))) {
+            testHttp(message);
+        } else {
+            testServer(message);
         }
     }
 
@@ -539,40 +585,88 @@ public class BotClient {
     public void handleHelpCommand(QQMessage message) {
         String prefix = getCommandPrefix();
         StringBuilder help = new StringBuilder();
-        help.append("[CQ:at,qq=").append(message.getSender().getUserId()).append("] 可用命令列表：\n\n");
+        help.append("[CQ:at,qq=").append(message.getSender().getUserId()).append("]\n");
+        help.append("━━━━━━━━━━━━━━━━━━━━\n");
+        help.append("📖 机器人命令帮助\n");
+        help.append("━━━━━━━━━━━━━━━━━━━━\n\n");
 
         // 所有用户可用的命令
-        help.append("普通用户命令：\n");
-        help.append(prefix).append("help - 显示此帮助信息\n");
-        help.append(prefix).append("白名单申请 <玩家ID> <正版/离线> - 申请白名单\n");
-        help.append(prefix).append("查询白名单 - 查询自己的白名单状态\n");
-        help.append(prefix).append("查询玩家 <玩家ID> - 查询指定玩家信息\n");
-        help.append(prefix).append("查询在线 - 查询所有服务器在线玩家\n");
-        help.append(prefix).append("查询服务器 [全部]/[%模糊匹配] - 查询服务器列表，默认只显示在线服务器\n");
-        help.append(prefix).append("test <IP[:端口]> - 测试指定Minecraft服务器的通断，默认端口25565\n");
-        help.append(prefix).append("test <http://example.com[:port]> - 测试HTTP服务器的通断，默认端口80\n");
-        help.append(prefix).append("test <https://example.com[:port]> - 测试HTTPS服务器的通断，默认端口443\n\n");
+        help.append("👥 普通用户命令\n");
+        help.append("━━━━━━━━━━━━━━━━━━━━\n");
+        help.append("▫️ ").append(prefix).append("help (h)\n");
+        help.append("   显示此帮助信息\n\n");
+        help.append("▫️ ").append(prefix).append("白名单申请 (apply/wl)\n");
+        help.append("   <玩家ID> <正版/离线>\n");
+        help.append("   申请白名单\n\n");
+        help.append("▫️ ").append(prefix).append("查询白名单 (check/wlcheck)\n");
+        help.append("   查询自己的白名单状态\n\n");
+        help.append("▫️ ").append(prefix).append("查询玩家 (player/p)\n");
+        help.append("   <玩家ID>\n");
+        help.append("   查询指定玩家信息\n\n");
+        help.append("▫️ ").append(prefix).append("查询在线 (online/list)\n");
+        help.append("   查询所有服务器在线玩家\n\n");
+        help.append("▫️ ").append(prefix).append("查询服务器 (servers/sv)\n");
+        help.append("   [全部]/[%模糊匹配]\n");
+        help.append("   查询服务器列表\n\n");
+        help.append("▫️ ").append(prefix).append("test (ping)\n");
+        help.append("   <IP[:端口]> 或 <http(s)://url>\n");
+        help.append("   测试服务器连通性\n\n");
 
         // 管理员命令
         List<QqBotManager> managers = config.selectManagerForThisGroup(message.getGroupId(), message.getUserId());
         if (!managers.isEmpty() && managers.get(0).getPermissionType() == 0) {
-            help.append("管理员命令：\n");
-            help.append(prefix).append("过审 <玩家ID> - 通过玩家的白名单申请\n");
-            help.append(prefix).append("拒审 <玩家ID> - 拒绝玩家的白名单申请\n");
-            help.append(prefix).append("封禁 <玩家ID> <原因> - 封禁玩家\n");
-            help.append(prefix).append("解封 <玩家ID> - 解除玩家封禁\n");
-            help.append(prefix).append("发送指令 <服务器ID/all> <指令内容> - 向服务器发送RCON指令\n");
-            help.append(prefix).append("运行状态 - 查看服务器主机运行状态\n");
-            help.append(prefix).append("刷新连接 [服务器ID] - 刷新服务器的RCON连接，不填服务器ID默认刷新所有服务器\n");
-            help.append(prefix).append("测试连接 [服务器ID] - 测试服务器的RCON连接，不填服务器ID默认测试所有服务器\n");
+            help.append("━━━━━━━━━━━━━━━━━━━━\n");
+            help.append("👮 管理员命令\n");
+            help.append("━━━━━━━━━━━━━━━━━━━━\n");
+            help.append("▫️ ").append(prefix).append("过审 (approve/pass)\n");
+            help.append("   <玩家ID> - 通过白名单申请\n\n");
+            help.append("▫️ ").append(prefix).append("拒审 (reject/deny)\n");
+            help.append("   <玩家ID> - 拒绝白名单申请\n\n");
+            help.append("▫️ ").append(prefix).append("封禁 (ban)\n");
+            help.append("   <玩家ID> <原因> - 封禁玩家\n\n");
+            help.append("▫️ ").append(prefix).append("解封 (unban)\n");
+            help.append("   <玩家ID> - 解除玩家封禁\n\n");
+            help.append("▫️ ").append(prefix).append("发送指令 (cmd/rcon)\n");
+            help.append("   <服务器ID/all> <指令>\n");
+            help.append("   发送RCON指令\n\n");
+            help.append("▫️ ").append(prefix).append("运行状态 (status/sys)\n");
+            help.append("   查看主机运行状态\n\n");
+            help.append("▫️ ").append(prefix).append("刷新连接 (refresh/reload)\n");
+            help.append("   [服务器ID] - 刷新RCON连接\n\n");
+            help.append("▫️ ").append(prefix).append("测试连接 (testconn/tc)\n");
+            help.append("   [服务器ID] - 测试RCON连接\n\n");
+            help.append("▫️ ").append(prefix).append("实例列表 (instances/inst)\n");
+            help.append("   查看游戏服务器实例\n\n");
+            help.append("▫️ ").append(prefix).append("启动实例 (start/run)\n");
+            help.append("   <实例ID> - 启动实例\n\n");
+            help.append("▫️ ").append(prefix).append("停止实例 (stop/kill)\n");
+            help.append("   <实例ID> - 停止实例\n\n");
+            help.append("▫️ ").append(prefix).append("重启实例 (restart/reboot)\n");
+            help.append("   <实例ID> - 重启实例\n\n");
+            help.append("▫️ ").append(prefix).append("实例状态 (inststatus/is)\n");
+            help.append("   <实例ID> - 查看实例状态\n\n");
+            help.append("▫️ ").append(prefix).append("实例日志 (logs/log)\n");
+            help.append("   <实例ID> [行数] - 查看实例日志\n\n");
+            help.append("▫️ ").append(prefix).append("实例命令 (instcmd/ic)\n");
+            help.append("   <实例ID> <命令>\n");
+            help.append("   发送实例命令\n\n");
 
             // 超级管理员命令
             if (managers.get(0).getPermissionType() == 0) {
-                help.append("\n超级管理员命令：\n");
-                help.append(prefix).append("添加管理 <QQ号> [群号] - 添加普通管理员，不填群号默认为当前群\n");
-                help.append(prefix).append("添加超管 <QQ号> [群号] - 添加超级管理员，不填群号默认为当前群\n");
+                help.append("━━━━━━━━━━━━━━━━━━━━\n");
+                help.append("⭐ 超级管理员命令\n");
+                help.append("━━━━━━━━━━━━━━━━━━━━\n");
+                help.append("▫️ ").append(prefix).append("添加管理 (addadmin/aa)\n");
+                help.append("   <QQ号> [群号]\n");
+                help.append("   添加普通管理员\n\n");
+                help.append("▫️ ").append(prefix).append("添加超管 (addsuper/as)\n");
+                help.append("   <QQ号> [群号]\n");
+                help.append("   添加超级管理员\n\n");
             }
         }
+
+        help.append("━━━━━━━━━━━━━━━━━━━━\n");
+        help.append("💡 提示：括号内为英文简写命令");
 
         sendMessage(message, help.toString());
     }
@@ -1113,12 +1207,12 @@ public class BotClient {
                 }
             } else {
                 // 使用最后使用的服务器ID
-                String[] parts = message.getMessage().trim().split("\\s+", 2);
-                if (parts.length < 1) {
+                // 直接使用整个消息内容作为命令（已经去除了前缀）
+                command = message.getMessage().trim();
+                if (command.isEmpty()) {
                     sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 格式错误，正确格式：/指令内容");
                     return;
                 }
-                command = parts[0]; // 不携带前缀
                 // 获取用户最后使用的服务器ID
                 serverId = redisCache.getCacheObject(CacheKey.LAST_USED_SERVER_KEY + message.getSender().getUserId());
                 if (serverId == null) {
@@ -2704,6 +2798,499 @@ public class BotClient {
         // 如果有错误信息，也记录错误
         if (errorMessage != null && !errorMessage.isEmpty()) {
             logError(methodName, errorMessage, stackTrace);
+        }
+    }
+
+    /**
+     * 处理实例列表查询命令
+     * 管理员可以查看所有游戏服务器实例
+     *
+     * @param message QQ消息对象
+     */
+    @BotCommand(description = "查看游戏服务器实例列表", permissionLevel = 1)
+    public void handleInstanceList(QQMessage message) {
+        try {
+            // 检查是否是管理员
+            if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
+                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 您没有权限执行此操作。");
+                return;
+            }
+
+            String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
+
+            // 查询所有实例
+            NodeMinecraftServer query = new NodeMinecraftServer();
+            List<NodeMinecraftServer> instances = nodeMinecraftServerService.selectNodeMinecraftServerList(query);
+
+            if (instances.isEmpty()) {
+                sendMessage(message, base + " 当前没有任何游戏服务器实例。");
+                return;
+            }
+
+            // 构建返回消息
+            StringBuilder response = new StringBuilder(base + " 游戏服务器实例列表：\n\n");
+
+            for (NodeMinecraftServer instance : instances) {
+                response.append("ID: ").append(instance.getId()).append("\n");
+                response.append("名称: ").append(instance.getName()).append("\n");
+                response.append("版本: ").append(instance.getVersion()).append("\n");
+                response.append("核心: ").append(instance.getCoreType()).append("\n");
+                response.append("节点ID: ").append(instance.getNodeId()).append("\n");
+                response.append("节点实例ID: ").append(instance.getNodeInstancesId()).append("\n\n");
+            }
+
+            sendMessage(message, response.toString());
+
+            // 更新管理员最后活跃时间
+            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
+
+        } catch (Exception e) {
+            log.error("处理实例列表查询失败: {}", e.getMessage(), e);
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 查询失败，请稍后重试。");
+        }
+    }
+
+    /**
+     * 处理启动实例命令
+     * 管理员可以启动指定的游戏服务器实例
+     *
+     * @param message QQ消息对象
+     */
+    @BotCommand(description = "启动游戏服务器实例", permissionLevel = 1)
+    public void handleStartInstance(QQMessage message) {
+        try {
+            // 检查是否是管理员
+            if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
+                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 您没有权限执行此操作。");
+                return;
+            }
+
+            String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
+            String[] parts = message.getMessage().trim().split("\\s+");
+
+            if (parts.length < 2) {
+                sendMessage(message, base + " 格式错误，正确格式：启动实例 <实例ID>");
+                return;
+            }
+
+            Long instanceId = Long.parseLong(parts[1]);
+            NodeMinecraftServer instance = nodeMinecraftServerService.selectNodeMinecraftServerById(instanceId);
+
+            if (instance == null) {
+                sendMessage(message, base + " 未找到ID为 " + instanceId + " 的实例。");
+                return;
+            }
+
+            // 调用启动接口
+            Map<String, Object> params = new HashMap<>();
+            params.put("id", instance.getNodeId().intValue());
+            params.put("serverId", instanceId.intValue());
+
+            AjaxResult result = nodeMinecraftServerService.startInstance(params);
+
+            if (result.get("code").equals(200)) {
+                sendMessage(message, base + " 实例 " + instance.getName() + " 启动成功！");
+            } else {
+                sendMessage(message, base + " 实例 " + instance.getName() + " 启动失败：" + result.get("msg"));
+            }
+
+            // 更新管理员最后活跃时间
+            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
+
+        } catch (NumberFormatException e) {
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 实例ID格式错误，必须是数字。");
+        } catch (Exception e) {
+            log.error("处理启动实例失败: {}", e.getMessage(), e);
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 启动失败，请稍后重试。");
+        }
+    }
+
+    /**
+     * 处理停止实例命令
+     * 管理员可以停止指定的游戏服务器实例
+     *
+     * @param message QQ消息对象
+     */
+    @BotCommand(description = "停止游戏服务器实例", permissionLevel = 1)
+    public void handleStopInstance(QQMessage message) {
+        try {
+            // 检查是否是管理员
+            if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
+                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 您没有权限执行此操作。");
+                return;
+            }
+
+            String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
+            String[] parts = message.getMessage().trim().split("\\s+");
+
+            if (parts.length < 2) {
+                sendMessage(message, base + " 格式错误，正确格式：停止实例 <实例ID>");
+                return;
+            }
+
+            Long instanceId = Long.parseLong(parts[1]);
+            NodeMinecraftServer instance = nodeMinecraftServerService.selectNodeMinecraftServerById(instanceId);
+
+            if (instance == null) {
+                sendMessage(message, base + " 未找到ID为 " + instanceId + " 的实例。");
+                return;
+            }
+
+            // 调用停止接口
+            Map<String, Object> params = new HashMap<>();
+            params.put("id", instance.getNodeId().intValue());
+            params.put("serverId", instanceId.intValue());
+
+            AjaxResult result = nodeMinecraftServerService.stopInstance(params);
+
+            if (result.get("code").equals(200)) {
+                sendMessage(message, base + " 实例 " + instance.getName() + " 停止成功！");
+            } else {
+                sendMessage(message, base + " 实例 " + instance.getName() + " 停止失败：" + result.get("msg"));
+            }
+
+            // 更新管理员最后活跃时间
+            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
+
+        } catch (NumberFormatException e) {
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 实例ID格式错误，必须是数字。");
+        } catch (Exception e) {
+            log.error("处理停止实例失败: {}", e.getMessage(), e);
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 停止失败，请稍后重试。");
+        }
+    }
+
+    /**
+     * 处理重启实例命令
+     * 管理员可以重启指定的游戏服务器实例
+     *
+     * @param message QQ消息对象
+     */
+    @BotCommand(description = "重启游戏服务器实例", permissionLevel = 1)
+    public void handleRestartInstance(QQMessage message) {
+        try {
+            // 检查是否是管理员
+            if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
+                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 您没有权限执行此操作。");
+                return;
+            }
+
+            String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
+            String[] parts = message.getMessage().trim().split("\\s+");
+
+            if (parts.length < 2) {
+                sendMessage(message, base + " 格式错误，正确格式：重启实例 <实例ID>");
+                return;
+            }
+
+            Long instanceId = Long.parseLong(parts[1]);
+            NodeMinecraftServer instance = nodeMinecraftServerService.selectNodeMinecraftServerById(instanceId);
+
+            if (instance == null) {
+                sendMessage(message, base + " 未找到ID为 " + instanceId + " 的实例。");
+                return;
+            }
+
+            // 调用重启接口
+            Map<String, Object> params = new HashMap<>();
+            params.put("id", instance.getNodeId().intValue());
+            params.put("serverId", instanceId.intValue());
+
+            AjaxResult result = nodeMinecraftServerService.restartInstance(params);
+
+            if (result.get("code").equals(200)) {
+                sendMessage(message, base + " 实例 " + instance.getName() + " 重启成功！");
+            } else {
+                sendMessage(message, base + " 实例 " + instance.getName() + " 重启失败：" + result.get("msg"));
+            }
+
+            // 更新管理员最后活跃时间
+            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
+
+        } catch (NumberFormatException e) {
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 实例ID格式错误，必须是数字。");
+        } catch (Exception e) {
+            log.error("处理重启实例失败: {}", e.getMessage(), e);
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 重启失败，请稍后重试。");
+        }
+    }
+
+    /**
+     * 处理实例状态查询命令
+     * 管理员可以查看指定实例的运行状态
+     *
+     * @param message QQ消息对象
+     */
+    @BotCommand(description = "查看实例运行状态", permissionLevel = 1)
+    public void handleInstanceStatus(QQMessage message) {
+        try {
+            // 检查是否是管理员
+            if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
+                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 您没有权限执行此操作。");
+                return;
+            }
+
+            String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
+            String[] parts = message.getMessage().trim().split("\\s+");
+
+            if (parts.length < 2) {
+                sendMessage(message, base + " 格式错误，正确格式：实例状态 <实例ID>");
+                return;
+            }
+
+            Long instanceId = Long.parseLong(parts[1]);
+            NodeMinecraftServer instance = nodeMinecraftServerService.selectNodeMinecraftServerById(instanceId);
+
+            if (instance == null) {
+                sendMessage(message, base + " 未找到ID为 " + instanceId + " 的实例。");
+                return;
+            }
+
+            // 调用状态查询接口
+            Map<String, Object> params = new HashMap<>();
+            params.put("id", instance.getNodeId().intValue());
+            params.put("serverId", instanceId.intValue());
+
+            AjaxResult result = nodeMinecraftServerService.getStatus(params);
+
+            if (result.get("code").equals(200)) {
+                JSONObject data = (JSONObject) result.get("data");
+                StringBuilder response = new StringBuilder(base + " 实例 " + instance.getName() + " 状态信息：\n\n");
+
+                // 基本信息
+                response.append("━━━━ 基本信息 ━━━━\n");
+                if (data.containsKey("instanceName")) {
+                    response.append("实例名称: ").append(data.getString("instanceName")).append("\n");
+                }
+                if (data.containsKey("serverId")) {
+                    response.append("实例ID: ").append(data.get("serverId")).append("\n");
+                }
+                if (data.containsKey("status")) {
+                    response.append("状态: ").append(data.getString("status")).append("\n");
+                }
+                if (data.containsKey("isRunning")) {
+                    response.append("运行中: ").append(data.getBoolean("isRunning") ? "是" : "否").append("\n");
+                }
+                response.append("\n");
+
+                // 配置信息
+                if (data.containsKey("config")) {
+                    JSONObject config = data.getJSONObject("config");
+                    response.append("━━━━ 配置信息 ━━━━\n");
+                    if (config.containsKey("version")) {
+                        response.append("游戏版本: ").append(config.getString("version")).append("\n");
+                    }
+                    if (config.containsKey("coreType")) {
+                        response.append("核心类型: ").append(config.getString("coreType")).append("\n");
+                    }
+                    if (config.containsKey("port")) {
+                        response.append("端口: ").append(config.get("port")).append("\n");
+                    }
+                    if (config.containsKey("memoryMb")) {
+                        response.append("内存: ").append(config.get("memoryMb")).append("MB\n");
+                    }
+                    if (config.containsKey("filePath")) {
+                        response.append("文件路径: ").append(config.getString("filePath")).append("\n");
+                    }
+                    response.append("\n");
+                }
+
+                // 运行时信息
+                if (data.containsKey("runtime")) {
+                    JSONObject runtime = data.getJSONObject("runtime");
+                    response.append("━━━━ 运行时信息 ━━━━\n");
+                    if (runtime.containsKey("runtimeFormatted")) {
+                        response.append("运行时长: ").append(runtime.getString("runtimeFormatted")).append("\n");
+                    }
+                    if (runtime.containsKey("startTime")) {
+                        response.append("启动时间: ").append(runtime.getString("startTime")).append("\n");
+                    }
+                    response.append("\n");
+                }
+
+                // 进程信息
+                if (data.containsKey("processInfo")) {
+                    JSONObject processInfo = data.getJSONObject("processInfo");
+                    response.append("━━━━ 进程信息 ━━━━\n");
+                    if (processInfo.containsKey("pid")) {
+                        response.append("进程ID: ").append(processInfo.get("pid")).append("\n");
+                    }
+                    if (processInfo.containsKey("isAlive")) {
+                        response.append("进程存活: ").append(processInfo.getBoolean("isAlive") ? "是" : "否").append("\n");
+                    }
+                    if (processInfo.containsKey("cpuUsage")) {
+                        response.append("CPU使用率: ").append(processInfo.get("cpuUsage")).append("%\n");
+                    }
+                    if (processInfo.containsKey("memoryUsage")) {
+                        response.append("内存使用: ").append(processInfo.get("memoryUsage")).append("MB\n");
+                    }
+                    response.append("\n");
+                }
+
+                // 时间戳信息
+                if (data.containsKey("timestamps")) {
+                    JSONObject timestamps = data.getJSONObject("timestamps");
+                    response.append("━━━━ 时间信息 ━━━━\n");
+                    if (timestamps.containsKey("createdAt")) {
+                        response.append("创建时间: ").append(timestamps.getString("createdAt")).append("\n");
+                    }
+                    if (timestamps.containsKey("updatedAt")) {
+                        response.append("更新时间: ").append(timestamps.getString("updatedAt")).append("\n");
+                    }
+                }
+
+                sendMessage(message, response.toString());
+            } else {
+                sendMessage(message, base + " 查询实例状态失败：" + result.get("msg"));
+            }
+
+            // 更新管理员最后活跃时间
+            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
+
+        } catch (NumberFormatException e) {
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 实例ID格式错误，必须是数字。");
+        } catch (Exception e) {
+            log.error("处理实例状态查询失败: {}", e.getMessage(), e);
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 查询失败，请稍后重试。");
+        }
+    }
+
+    /**
+     * 处理实例日志查询命令
+     * 管理员可以查看指定实例的控制台日志
+     *
+     * @param message QQ消息对象
+     */
+    @BotCommand(description = "查看实例控制台日志", permissionLevel = 1)
+    public void handleInstanceLogs(QQMessage message) {
+        try {
+            // 检查是否是管理员
+            if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
+                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 您没有权限执行此操作。");
+                return;
+            }
+
+            String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
+            String[] parts = message.getMessage().trim().split("\\s+");
+
+            if (parts.length < 2) {
+                sendMessage(message, base + " 格式错误，正确格式：实例日志 <实例ID> [行数]");
+                return;
+            }
+
+            Long instanceId = Long.parseLong(parts[1]);
+            int lines = 20; // 默认显示20行
+
+            if (parts.length > 2) {
+                try {
+                    lines = Integer.parseInt(parts[2]);
+                    if (lines > 100) {
+                        lines = 100; // 最多显示100行
+                        sendMessage(message, base + " 最多只能显示100行日志，已自动调整。");
+                    }
+                } catch (NumberFormatException e) {
+                    sendMessage(message, base + " 行数格式错误，使用默认值20行。");
+                }
+            }
+
+            NodeMinecraftServer instance = nodeMinecraftServerService.selectNodeMinecraftServerById(instanceId);
+
+            if (instance == null) {
+                sendMessage(message, base + " 未找到ID为 " + instanceId + " 的实例。");
+                return;
+            }
+
+            // 调用历史日志接口
+            Map<String, Object> params = new HashMap<>();
+            params.put("id", instance.getNodeId().intValue());
+            params.put("serverId", instanceId.intValue());
+
+            AjaxResult result = nodeMinecraftServerService.getConsoleHistory(params);
+
+            if (result.get("code").equals(200)) {
+                JSONObject data = (JSONObject) result.get("data");
+                JSONArray logs = data.getJSONArray("logs");
+
+                if (logs == null || logs.isEmpty()) {
+                    sendMessage(message, base + " 实例 " + instance.getName() + " 暂无日志。");
+                    return;
+                }
+                StringBuilder response = new StringBuilder(base + " 实例 " + instance.getName() + " 最近 " + lines + " 行日志：\n\n");
+                int start = Math.max(0, logs.size() - lines);
+                for (int i = start; i < logs.size(); i++) {
+                    response.append(logs.getString(i)).append("\n");
+                }
+                sendMessage(message, response.toString());
+            } else {
+                sendMessage(message, base + " 获取实例日志失败：" + result.get("msg"));
+            }
+
+            // 更新管理员最后活跃时间
+            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
+
+        } catch (NumberFormatException e) {
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 参数格式错误。");
+        } catch (Exception e) {
+            log.error("处理实例日志查询失败: {}", e.getMessage(), e);
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 查询失败，请稍后重试。");
+        }
+    }
+
+    /**
+     * 处理实例命令发送
+     * 管理员可以向指定实例发送控制台命令
+     *
+     * @param message QQ消息对象
+     */
+    @BotCommand(description = "向实例发送控制台命令", permissionLevel = 1)
+    public void handleInstanceCommand(QQMessage message) {
+        try {
+            // 检查是否是管理员
+            if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
+                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 您没有权限执行此操作。");
+                return;
+            }
+
+            String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
+            String[] parts = message.getMessage().trim().split("\\s+", 3);
+
+            if (parts.length < 3) {
+                sendMessage(message, base + " 格式错误，正确格式：实例命令 <实例ID> <命令>");
+                return;
+            }
+
+            Long instanceId = Long.parseLong(parts[1]);
+            String command = parts[2];
+
+            NodeMinecraftServer instance = nodeMinecraftServerService.selectNodeMinecraftServerById(instanceId);
+
+            if (instance == null) {
+                sendMessage(message, base + " 未找到ID为 " + instanceId + " 的实例。");
+                return;
+            }
+
+            // 调用发送命令接口
+            Map<String, Object> params = new HashMap<>();
+            params.put("id", instance.getNodeId().intValue());
+            params.put("serverId", instanceId.intValue());
+            params.put("command", command);
+
+            AjaxResult result = nodeMinecraftServerService.sendCommand(params);
+
+            if (result.get("code").equals(200)) {
+                sendMessage(message, base + " 命令已发送到实例 " + instance.getName());
+            } else {
+                sendMessage(message, base + " 发送命令失败：" + result.get("msg"));
+            }
+
+            // 更新管理员最后活跃时间
+            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
+
+        } catch (NumberFormatException e) {
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 实例ID格式错误，必须是数字。");
+        } catch (Exception e) {
+            log.error("处理实例命令发送失败: {}", e.getMessage(), e);
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 发送失败，请稍后重试。");
         }
     }
 
