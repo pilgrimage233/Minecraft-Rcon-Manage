@@ -106,14 +106,40 @@ public class ScheduleUtils {
      * @return 结果
      */
     public static boolean whiteList(String invokeTarget) {
-        String packageName = StringUtils.substringBefore(invokeTarget, "(");
-        int count = StringUtils.countMatches(packageName, ".");
-        if (count > 1) {
-            return StringUtils.containsAnyIgnoreCase(invokeTarget, Constants.JOB_WHITELIST_STR);
+        if (invokeTarget == null) {
+            return false;
         }
-        Object obj = SpringUtils.getBean(StringUtils.split(invokeTarget, ".")[0]);
-        String beanPackageName = obj.getClass().getPackage().getName();
-        return StringUtils.containsAnyIgnoreCase(beanPackageName, Constants.JOB_WHITELIST_STR)
-                && !StringUtils.containsAnyIgnoreCase(beanPackageName, Constants.JOB_ERROR_STR);
+
+        // Extract bean name before method call
+        String targetBeforeArgs = StringUtils.substringBefore(invokeTarget, "(");
+        String[] parts = StringUtils.split(targetBeforeArgs, ".");
+        if (parts == null || parts.length == 0) {
+            return false;
+        }
+
+        String beanName = parts[0];
+
+        // Try to resolve bean safely
+        Object beanObj;
+        try {
+            beanObj = SpringUtils.getBean(beanName);
+        } catch (Exception e) {
+            return false; // Bean not found → definitely not whitelisted
+        }
+
+        String beanPackage = beanObj.getClass().getPackage().getName();
+
+        // Secure: must match allowed prefixes EXACTLY or as subpackages
+        for (String allowed : Constants.JOB_WHITELIST_STR) {
+            if (beanPackage.equals(allowed) || beanPackage.startsWith(allowed + ".")) {
+
+                // Must NOT match error/forbidden packages
+                if (!StringUtils.containsAnyIgnoreCase(beanPackage, Constants.JOB_ERROR_STR)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 }
