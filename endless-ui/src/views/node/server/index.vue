@@ -1,6 +1,7 @@
 <template>
   <div class="app-container">
-    <el-form v-show="showSearch" ref="queryForm" :inline="true" :model="queryParams" class="search-form" label-width="85px"
+    <el-form v-show="showSearch" ref="queryForm" :inline="true" :model="queryParams" class="search-form"
+             label-width="85px"
              size="small">
       <el-row :gutter="20">
         <el-col :span="6">
@@ -162,9 +163,11 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column align="center" label="状态" prop="status">
+      <el-table-column align="center" label="状态" prop="status" width="110">
         <template slot-scope="scope">
-          <dict-tag :options="dict.type.sys_normal_disable" :value="scope.row.status"/>
+          <el-tag :type="statusTagType(scope.row.status)" effect="dark" size="medium">
+            {{ getStatusText(scope.row.status) }}
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column align="center" label="最后心跳时间" prop="lastHeartbeat" width="180">
@@ -316,7 +319,11 @@ export default {
       title: "",
       // 是否显示弹出层
       open: false,
-
+      statusDict: {
+        '0': '正常',
+        '1': '停止',
+        '2': '故障',
+      },
       // 查询参数
       queryParams: {
         pageNum: 1,
@@ -473,6 +480,19 @@ export default {
     /** 实例按钮点击操作 */
     handleMcsClick(row) {
       this.$router.push({path: '/node/mcs/index', query: {nodeId: row.id, nodeUuid: row.uuid}});
+    },
+    // 获取状态文本
+    getStatusText(status) {
+      return this.statusDict[status] || '未知';
+    },
+    // 获取状态标签类型
+    statusTagType(status) {
+      const statusMap = {
+        '0': 'success',
+        '1': 'info',
+        '2': 'danger'
+      };
+      return statusMap[status] || 'warning';
     },
   }
 };

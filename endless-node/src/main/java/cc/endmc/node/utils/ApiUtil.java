@@ -59,6 +59,7 @@ public class ApiUtil {
     public static final String STOP_INSTANCE = "/api/servers/%d/stop";
     public static final String RESTART_INSTANCE = "/api/servers/%d/restart";
     public static final String KILL_INSTANCE = "/api/servers/%d/kill";
+    public static final String UPDATE_INSTANCE = "/api/servers/%d";
     public static final String DELETE_INSTANCE = "/api/servers/%d";
     public static final String CONSOLE_INSTANCE = "/api/servers/%d/console";
     public static final String CONSOLE_HISTORY_INSTANCE = "/api/servers/%d/console/history";
@@ -146,6 +147,10 @@ public class ApiUtil {
 
     public static String getKillInstanceApi(NodeServer nodeServer, int serverId) {
         return getBaseUrl(nodeServer) + String.format(KILL_INSTANCE, serverId);
+    }
+
+    public static String getUpdateInstanceApi(NodeServer nodeServer, int serverId) {
+        return getBaseUrl(nodeServer) + String.format(UPDATE_INSTANCE, serverId);
     }
 
     public static String getDeleteInstanceApi(NodeServer nodeServer, int serverId) {

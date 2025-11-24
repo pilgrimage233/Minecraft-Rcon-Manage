@@ -76,6 +76,7 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
         instances.setCoreType(nodeMinecraftServer.getCoreType());
         instances.setFilePath(nodeMinecraftServer.getServerPath());
         instances.setVersion(nodeMinecraftServer.getVersion());
+        instances.setMemoryMb(Integer.valueOf(nodeMinecraftServer.getJvmXmx()));
 
         String args = "-Xms" + nodeMinecraftServer.getJvmXms() + "M " +
                 "-Xmx" + nodeMinecraftServer.getJvmXmx() + "M " +
@@ -109,6 +110,47 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
     @Override
     public int updateNodeMinecraftServer(NodeMinecraftServer nodeMinecraftServer) {
         nodeMinecraftServer.setUpdateTime(DateUtils.getNowDate());
+
+        // 如果有节点实例ID，同步更新节点端实例
+        if (nodeMinecraftServer.getNodeInstancesId() != null && nodeMinecraftServer.getNodeId() != null) {
+            try {
+                NodeServer node = getNode(nodeMinecraftServer.getNodeId());
+                if (node != null) {
+                    // 构建更新数据
+                    ServerInstances instances = new ServerInstances();
+                    instances.setId(nodeMinecraftServer.getNodeInstancesId());
+                    instances.setInstanceName(nodeMinecraftServer.getName());
+                    instances.setCoreType(nodeMinecraftServer.getCoreType());
+                    instances.setFilePath(nodeMinecraftServer.getServerPath());
+                    instances.setVersion(nodeMinecraftServer.getVersion());
+                    instances.setMemoryMb(Integer.valueOf(nodeMinecraftServer.getJvmXmx()));
+
+                    String args = "-Xms" + nodeMinecraftServer.getJvmXms() + "M " +
+                            "-Xmx" + nodeMinecraftServer.getJvmXmx() + "M " +
+                            nodeMinecraftServer.getJvmArgs();
+                    instances.setJvmArgs(args);
+
+                    // 调用节点API更新实例
+                    HttpResponse execute = NodeHttpUtil.createPut(node,
+                                    ApiUtil.getUpdateInstanceApi(node, nodeMinecraftServer.getNodeInstancesId()))
+                            .body(JSONObject.toJSONString(instances))
+                            .execute();
+
+                    if (!execute.isOk()) {
+                        throw new RuntimeException("更新节点实例失败: " + execute.body());
+                    }
+
+                    JSONObject body = JSONObject.parseObject(execute.body(), JSONObject.class);
+                    if (!Boolean.TRUE.equals(body.getBoolean("success"))) {
+                        String error = body.getString("error");
+                        throw new RuntimeException("更新节点实例失败: " + (error != null ? error : "未知错误"));
+                    }
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("同步更新节点实例失败: " + e.getMessage(), e);
+            }
+        }
+        
         return nodeMinecraftServerMapper.updateNodeMinecraftServer(nodeMinecraftServer);
     }
 
@@ -120,6 +162,34 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
      */
     @Override
     public int deleteNodeMinecraftServerByIds(Long[] ids) {
+        // 先删除节点端实例，再删除数据库记录
+        for (Long id : ids) {
+            NodeMinecraftServer server = nodeMinecraftServerMapper.selectNodeMinecraftServerById(id);
+            if (server != null && server.getNodeInstancesId() != null && server.getNodeId() != null) {
+                try {
+                    NodeServer node = getNode(server.getNodeId());
+                    if (node != null) {
+                        // 调用节点API删除实例
+                        HttpResponse execute = NodeHttpUtil.createDelete(node,
+                                        ApiUtil.getDeleteInstanceApi(node, server.getNodeInstancesId()))
+                                .execute();
+
+                        if (execute.isOk()) {
+                            JSONObject body = JSONObject.parseObject(execute.body(), JSONObject.class);
+                            if (!Boolean.TRUE.equals(body.getBoolean("success"))) {
+                                String error = body.getString("error");
+                                throw new RuntimeException("删除节点实例失败: " + (error != null ? error : "未知错误"));
+                            }
+                        } else {
+                            throw new RuntimeException("删除节点实例失败: " + execute.body());
+                        }
+                    }
+                } catch (Exception e) {
+                    throw new RuntimeException("删除服务器 " + id + " 的节点实例失败: " + e.getMessage(), e);
+                }
+            }
+        }
+        
         return nodeMinecraftServerMapper.deleteNodeMinecraftServerByIds(ids);
     }
 
@@ -131,6 +201,32 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
      */
     @Override
     public int deleteNodeMinecraftServerById(Long id) {
+        // 先删除节点端实例，再删除数据库记录
+        NodeMinecraftServer server = nodeMinecraftServerMapper.selectNodeMinecraftServerById(id);
+        if (server != null && server.getNodeInstancesId() != null && server.getNodeId() != null) {
+            try {
+                NodeServer node = getNode(server.getNodeId());
+                if (node != null) {
+                    // 调用节点API删除实例
+                    HttpResponse execute = NodeHttpUtil.createDelete(node,
+                                    ApiUtil.getDeleteInstanceApi(node, server.getNodeInstancesId()))
+                            .execute();
+
+                    if (execute.isOk()) {
+                        JSONObject body = JSONObject.parseObject(execute.body(), JSONObject.class);
+                        if (!Boolean.TRUE.equals(body.getBoolean("success"))) {
+                            String error = body.getString("error");
+                            throw new RuntimeException("删除节点实例失败: " + (error != null ? error : "未知错误"));
+                        }
+                    } else {
+                        throw new RuntimeException("删除节点实例失败: " + execute.body());
+                    }
+                }
+            } catch (Exception e) {
+                throw new RuntimeException("删除服务器 " + id + " 的节点实例失败: " + e.getMessage(), e);
+            }
+        }
+        
         return nodeMinecraftServerMapper.deleteNodeMinecraftServerById(id);
     }
 
@@ -336,6 +432,7 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
             if (Boolean.TRUE.equals(json.getBoolean("success"))) {
                 // 更新最后启动时间
                 nodeMinecraftServer.setLastStartTime(DateUtils.getNowDate());
+                nodeMinecraftServer.setStatus("1");
                 nodeMinecraftServerMapper.updateNodeMinecraftServer(nodeMinecraftServer);
                 return AjaxResult.success(json);
             }
@@ -375,6 +472,7 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
             if (Boolean.TRUE.equals(json.getBoolean("success"))) {
                 // 更新最后停止时间
                 nodeMinecraftServer.setLastStopTime(DateUtils.getNowDate());
+                nodeMinecraftServer.setStatus("2");
                 nodeMinecraftServerMapper.updateNodeMinecraftServer(nodeMinecraftServer);
                 return AjaxResult.success(json);
             }
@@ -603,5 +701,22 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
         } catch (Exception e) {
             return AjaxResult.error("获取服务器状态失败: " + e.getMessage());
         }
+    }
+
+    /**
+     * 仅更新服务器状态（不触发节点API同步）
+     * 用于定时任务同步状态
+     *
+     * @param id     服务器ID
+     * @param status 新状态
+     * @return 结果
+     */
+    @Override
+    public int updateServerStatusOnly(Long id, String status) {
+        NodeMinecraftServer server = new NodeMinecraftServer();
+        server.setId(id);
+        server.setStatus(status);
+        server.setUpdateTime(DateUtils.getNowDate());
+        return nodeMinecraftServerMapper.updateNodeMinecraftServer(server);
     }
 }

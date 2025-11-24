@@ -1,32 +1,48 @@
 <template>
   <div class="app-container">
-    <el-card class="box-card">
-      <div slot="header" class="clearfix">
-        <span>文件浏览</span>
-        <el-button style="float: right; padding: 3px 0" type="text" @click="goBack">返回</el-button>
+    <el-card class="header-card" shadow="hover">
+      <div class="header">
+        <div class="title-section">
+          <div class="title">
+            <i class="el-icon-folder-opened title-icon"></i>
+            <span class="title-text">文件浏览器</span>
+          </div>
+        </div>
+        <div class="actions">
+          <el-button class="action-btn" icon="el-icon-back" size="small" @click="goBack">返回</el-button>
+        </div>
       </div>
+    </el-card>
 
       <!-- 面包屑导航 -->
+    <el-card class="breadcrumb-card" shadow="never">
       <el-breadcrumb class="breadcrumb-container" separator="/">
         <el-breadcrumb-item v-for="(item, index) in breadcrumbs" :key="index"
                             @click.native="handleBreadcrumbClick(item)">
-          <span :class="{'breadcrumb-link': index !== breadcrumbs.length - 1}">{{ item.name }}</span>
+            <span :class="{'breadcrumb-link': index !== breadcrumbs.length - 1}">
+              <i v-if="index === 0" class="el-icon-s-home"></i>
+              {{ item.name }}
+            </span>
         </el-breadcrumb-item>
       </el-breadcrumb>
+    </el-card>
 
       <el-row :gutter="20" class="main-content">
         <!-- 文件列表部分 -->
         <el-col :span="10">
-          <el-card class="file-list-card" shadow="never">
-            <div slot="header" class="clearfix">
-              <span>文件列表</span>
-              <div style="float: right">
+          <el-card class="file-list-card" shadow="hover">
+            <div slot="header" class="card-header">
+              <div class="header-left">
+                <i class="el-icon-document"></i>
+                <span>文件列表</span>
+              </div>
+              <div class="header-right">
                 <el-button-group>
-                  <el-button icon="el-icon-upload" size="mini" type="primary" @click="handleUpload">上传</el-button>
-                  <el-button icon="el-icon-download" size="mini" type="success" @click="handleDownloadFromUrl">
+                  <el-button icon="el-icon-upload" size="small" type="primary" @click="handleUpload">上传</el-button>
+                  <el-button icon="el-icon-download" size="small" type="success" @click="handleDownloadFromUrl">
                     从URL下载
                   </el-button>
-                  <el-button icon="el-icon-refresh" size="mini" type="info" @click="handleRefresh">刷新</el-button>
+                  <el-button icon="el-icon-refresh" size="small" @click="handleRefresh">刷新</el-button>
                 </el-button-group>
               </div>
             </div>
@@ -68,24 +84,29 @@
 
         <!-- 预览/编辑部分 -->
         <el-col :span="14">
-          <el-card v-if="currentFile" class="preview-card" shadow="never">
-            <div slot="header" class="clearfix">
-              <span>{{ currentFile.name }}</span>
-              <el-button-group style="float: right">
-                <el-button
-                  v-if="isEditing"
-                  size="mini"
-                  type="primary"
-                  @click="handleSave"
-                >保存
-                </el-button>
-                <el-button
-                  v-if="isEditing"
-                  size="mini"
-                  @click="handleCancel"
-                >取消
-                </el-button>
-              </el-button-group>
+          <el-card v-if="currentFile" class="preview-card" shadow="hover">
+            <div slot="header" class="card-header">
+              <div class="header-left">
+                <i :class="getFileIcon(currentFile.name)"></i>
+                <span>{{ currentFile.name }}</span>
+              </div>
+              <div class="header-right">
+                <el-button-group v-if="isEditing">
+                  <el-button
+                    icon="el-icon-check"
+                    size="small"
+                    type="primary"
+                    @click="handleSave"
+                  >保存
+                  </el-button>
+                  <el-button
+                    icon="el-icon-close"
+                    size="small"
+                    @click="handleCancel"
+                  >取消
+                  </el-button>
+                </el-button-group>
+              </div>
             </div>
             <!-- Monaco Editor -->
             <div v-if="isTextFile(currentFile.name)" class="editor-container">
@@ -121,14 +142,18 @@
             </div>
             <!-- 其他文件类型 -->
             <div v-else class="file-info">
+              <i class="el-icon-document-delete"></i>
               <p>此文件类型不支持预览</p>
               <p>文件大小: {{ formatFileSize(currentFile.totalSpace) }}</p>
             </div>
           </el-card>
-          <el-empty v-else description="请选择要预览的文件"></el-empty>
+          <el-card v-else class="empty-preview-card" shadow="hover">
+            <el-empty description="请选择要预览的文件">
+              <i class="el-icon-folder-opened empty-icon"></i>
+            </el-empty>
+          </el-card>
         </el-col>
       </el-row>
-    </el-card>
 
     <!-- 上传文件对话框 -->
     <el-dialog :visible.sync="uploadDialogVisible" append-to-body title="上传文件" width="500px">
@@ -289,6 +314,21 @@ export default {
     },
     goBack() {
       this.$router.go(-1);
+    },
+    getFileIcon(filename) {
+      if (!filename) return 'el-icon-document';
+      const ext = filename.toLowerCase();
+      if (ext.endsWith('.txt')) return 'el-icon-document';
+      if (ext.endsWith('.json')) return 'el-icon-tickets';
+      if (ext.endsWith('.xml') || ext.endsWith('.html')) return 'el-icon-document-copy';
+      if (ext.endsWith('.js') || ext.endsWith('.ts')) return 'el-icon-cpu';
+      if (ext.endsWith('.css') || ext.endsWith('.scss')) return 'el-icon-brush';
+      if (ext.endsWith('.jpg') || ext.endsWith('.png') || ext.endsWith('.gif')) return 'el-icon-picture';
+      if (ext.endsWith('.mp3') || ext.endsWith('.wav')) return 'el-icon-headset';
+      if (ext.endsWith('.mp4') || ext.endsWith('.avi')) return 'el-icon-video-camera';
+      if (ext.endsWith('.pdf')) return 'el-icon-document';
+      if (ext.endsWith('.zip') || ext.endsWith('.rar')) return 'el-icon-box';
+      return 'el-icon-document';
     },
     isTextFile(filename) {
       const textExtensions = ['.txt', '.json', '.xml', '.html', '.css', '.js', '.md', '.log', '.yml', '.yaml', '.properties', '.conf', '.ini', '.cmd', '.bat', '.sh', '.bash', '.ps1', '.py', '.java', '.c', '.cpp', '.h', '.cs', '.php', '.sql', '.vue', '.ts', '.tsx', '.jsx'];
@@ -551,35 +591,132 @@ export default {
   min-height: calc(100vh - 84px);
 }
 
-.box-card {
+.header-card {
   margin-bottom: 20px;
+  border-radius: 8px;
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .title-section {
+      flex: 1;
+
+      .title {
+        display: flex;
+        align-items: center;
+
+        .title-icon {
+          font-size: 24px;
+          color: #409EFF;
+          margin-right: 12px;
+        }
+
+        .title-text {
+          font-size: 20px;
+          font-weight: 600;
+          color: #303133;
+        }
+      }
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      .action-btn {
+        padding: 8px 16px;
+      }
+    }
+  }
+}
+
+.breadcrumb-card {
+  margin-bottom: 16px;
+  border-radius: 8px;
+
+  ::v-deep .el-card__body {
+    padding: 12px 20px;
+  }
 }
 
 .breadcrumb-container {
-  margin-bottom: 20px;
-  padding: 10px 0;
-  border-bottom: 1px solid #e8e8e8;
-}
+  .breadcrumb-link {
+    color: #409EFF;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
 
-.breadcrumb-link {
-  color: #409EFF;
-  cursor: pointer;
+    i {
+      margin-right: 4px;
+    }
 
-  &:hover {
-    text-decoration: underline;
+    &:hover {
+      color: #66b1ff;
+      text-decoration: underline;
+    }
   }
 }
 
 .main-content {
-  margin-top: 20px;
+  margin-top: 0;
 }
 
-.file-list-card, .preview-card {
-  height: calc(100vh - 220px);
+.file-list-card, .preview-card, .empty-preview-card {
+  height: calc(100vh - 280px);
+  border-radius: 8px;
+  transition: all 0.3s ease;
 
-  .el-card__body {
+  ::v-deep .el-card__body {
     height: calc(100% - 60px);
     padding: 0;
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .header-left {
+      display: flex;
+      align-items: center;
+      font-size: 16px;
+      font-weight: 600;
+      color: #303133;
+
+      i {
+        margin-right: 8px;
+        font-size: 18px;
+        color: #409EFF;
+      }
+    }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+    }
+  }
+}
+
+.empty-preview-card {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  ::v-deep .el-card__body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+  }
+
+  .empty-icon {
+    font-size: 64px;
+    color: #c0c4cc;
+    margin-bottom: 16px;
   }
 }
 
@@ -593,11 +730,13 @@ export default {
   padding: 20px;
   background-color: #1e1e1e;
   color: #d4d4d4;
-  font-family: 'Consolas', 'Monaco', monospace;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
   white-space: pre-wrap;
   overflow: auto;
   height: calc(100vh - 280px);
   margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
 }
 
 .image-preview {
@@ -606,10 +745,14 @@ export default {
   align-items: center;
   height: calc(100vh - 280px);
   background-color: #f5f7fa;
+  padding: 20px;
 
   img {
     max-height: 100%;
+    max-width: 100%;
     object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
   }
 }
 
@@ -628,32 +771,104 @@ export default {
 
   iframe {
     border: none;
+    border-radius: 4px;
   }
 }
 
 .file-info {
-  padding: 20px;
+  padding: 40px 20px;
   text-align: center;
   color: #909399;
+
+  i {
+    font-size: 64px;
+    color: #c0c4cc;
+    margin-bottom: 16px;
+    display: block;
+  }
+
+  p {
+    margin: 8px 0;
+    font-size: 14px;
+
+    &:first-of-type {
+      font-size: 16px;
+      font-weight: 500;
+      color: #606266;
+    }
+  }
 }
 
-:deep(.el-table) {
+::v-deep .el-table {
   height: 100% !important;
+
+  th {
+    background-color: #fafafa;
+    color: #606266;
+    font-weight: 600;
+  }
+
+  td {
+    color: #303133;
+  }
+
+  .el-table__row {
+    cursor: pointer;
+    transition: all 0.3s ease;
+
+    &:hover {
+      background-color: #f5f7fa;
+    }
+  }
 }
 
-:deep(.el-card__header) {
-  padding: 15px 20px;
-  border-bottom: 1px solid #e8e8e8;
+::v-deep .el-card__header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  background-color: #fafafa;
 }
 
-:deep(.el-empty) {
+::v-deep .el-empty {
   height: 100%;
   display: flex;
   flex-direction: column;
   justify-content: center;
+
+  .el-empty__image {
+    width: 120px;
+    height: 120px;
+  }
+
+  .el-empty__description {
+    margin-top: 16px;
+    font-size: 14px;
+    color: #909399;
+  }
 }
 
 .upload-demo {
   text-align: center;
+
+  ::v-deep .el-upload-dragger {
+    border-radius: 8px;
+    transition: all 0.3s ease;
+
+    &:hover {
+      border-color: #409EFF;
+    }
+  }
+}
+
+::v-deep .el-dialog {
+  border-radius: 8px;
+
+  .el-dialog__header {
+    padding: 20px 20px 16px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .el-dialog__body {
+    padding: 20px;
+  }
 }
 </style>

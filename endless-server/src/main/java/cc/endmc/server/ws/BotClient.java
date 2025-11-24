@@ -8,7 +8,9 @@ import cc.endmc.common.utils.StringUtils;
 import cc.endmc.framework.manager.AsyncManager;
 import cc.endmc.framework.web.domain.Server;
 import cc.endmc.node.domain.NodeMinecraftServer;
+import cc.endmc.node.domain.NodeServer;
 import cc.endmc.node.service.INodeMinecraftServerService;
+import cc.endmc.node.service.INodeServerService;
 import cc.endmc.server.annotation.BotCommand;
 import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.EmailTemplates;
@@ -87,6 +89,7 @@ public class BotClient {
     private final IQqBotManagerService qqBotManagerService;
     private final IQqBotLogService qqBotLogService;
     private final INodeMinecraftServerService nodeMinecraftServerService;
+    private final INodeServerService nodeServerService;
     private ScheduledFuture<?> reconnectTask;
     private final Environment env;
     private final RedisCache redisCache;
@@ -125,7 +128,8 @@ public class BotClient {
             EmailService emailService,
             RconService rconService,
             @Value("${app-url}") String appUrl, BotManager botManager,
-            INodeMinecraftServerService nodeMinecraftServerService) {
+            INodeMinecraftServerService nodeMinecraftServerService,
+            INodeServerService nodeServerService) {
         this.redisCache = redisCache;
         this.emailService = emailService;
         this.whitelistInfoService = whitelistInfoService;
@@ -137,6 +141,7 @@ public class BotClient {
         this.appUrl = appUrl;
         this.env = env;
         this.nodeMinecraftServerService = nodeMinecraftServerService;
+        this.nodeServerService = nodeServerService;
 
         log.info("BotClient 实例已创建，依赖注入完成");
         this.botManager = botManager;
@@ -179,6 +184,7 @@ public class BotClient {
         commandRegistry.register("实例状态", this::handleInstanceStatus, "inststatus", "is");
         commandRegistry.register("实例日志", this::handleInstanceLogs, "logs", "log");
         commandRegistry.register("实例命令", this::handleInstanceCommand, "instcmd", "ic");
+        commandRegistry.register("节点状态", this::handleNodeStatus, "nodestatus", "ns");
 
         log.info("命令注册器初始化完成，共注册 {} 个命令", commandRegistry.getAllCommands().size());
     }
@@ -304,7 +310,7 @@ public class BotClient {
      */
     public void onMessage(String message) {
         try {
-            log.debug("收到消息: {}", message);
+            // log.debug("收到消息: {}", message);
             QQMessage qqMessage = JSON.parseObject(message, QQMessage.class);
 
             // 记录接收到的消息
@@ -650,6 +656,8 @@ public class BotClient {
             help.append("▫️ ").append(prefix).append("实例命令 (instcmd/ic)\n");
             help.append("   <实例ID> <命令>\n");
             help.append("   发送实例命令\n\n");
+            help.append("▫️ ").append(prefix).append("节点状态 (nodestatus/ns)\n");
+            help.append("   [节点ID] - 查看节点服务器状态\n\n");
 
             // 超级管理员命令
             if (managers.get(0).getPermissionType() == 0) {
@@ -3294,4 +3302,266 @@ public class BotClient {
         }
     }
 
+    /**
+     * 处理节点状态查询命令
+     * 管理员可以查询节点服务器的详细状态信息
+     *
+     * @param message QQ消息对象
+     */
+    @BotCommand(description = "查询节点服务器状态", permissionLevel = 1)
+    public void handleNodeStatus(QQMessage message) {
+        try {
+            // 检查是否是管理员
+            if (config.selectManagerForThisGroup(message.getGroupId(), message.getUserId()).isEmpty()) {
+                sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 您没有权限执行此操作。");
+                return;
+            }
+
+            String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
+            String[] parts = message.getMessage().trim().split("\\s+");
+
+            // 获取所有节点服务器
+            NodeServer queryParam = new NodeServer();
+            List<NodeServer> nodeServers = nodeServerService.selectNodeServerList(queryParam);
+
+            if (nodeServers.isEmpty()) {
+                sendMessage(message, base + " 当前没有配置任何节点服务器。");
+                return;
+            }
+
+            // 如果指定了节点ID，只查询该节点
+            if (parts.length > 1) {
+                try {
+                    Long nodeId = Long.parseLong(parts[1]);
+                    NodeServer targetNode = null;
+                    for (NodeServer node : nodeServers) {
+                        if (node.getId().equals(nodeId)) {
+                            targetNode = node;
+                            break;
+                        }
+                    }
+
+                    if (targetNode == null) {
+                        sendMessage(message, base + " 未找到ID为 " + nodeId + " 的节点服务器。");
+                        return;
+                    }
+
+                    // 查询单个节点的详细信息
+                    displayNodeDetails(message, base, targetNode);
+                } catch (NumberFormatException e) {
+                    sendMessage(message, base + " 节点ID格式错误，请输入数字。");
+                }
+                return;
+            }
+
+            // 显示所有节点的概览信息
+            StringBuilder response = new StringBuilder(base + " 节点服务器状态概览：\n\n");
+
+            for (NodeServer node : nodeServers) {
+                response.append("━━━━━━━━━━━━━━━━━━━━\n");
+                response.append("节点ID: ").append(node.getId()).append("\n");
+                response.append("节点名称: ").append(node.getName()).append("\n");
+                response.append("节点地址: ").append(node.getProtocol()).append("://")
+                        .append(node.getIp()).append(":").append(node.getPort()).append("\n");
+                response.append("节点版本: ").append(node.getVersion() != null ? node.getVersion() : "未知").append("\n");
+                response.append("操作系统: ").append(node.getOsType() != null ? node.getOsType() : "未知").append("\n");
+
+                // 尝试获取心跳信息
+                try {
+                    AjaxResult heartbeatResult = nodeServerService.getHeartbeat(node.getId());
+                    if (heartbeatResult != null && heartbeatResult.get("code").equals(200)) {
+                        JSONObject data = (JSONObject) heartbeatResult.get("data");
+                        response.append("状态: ✅ 在线\n");
+                        response.append("运行时间: ").append(formatUptime(data.getLong("uptime"))).append("\n");
+
+                        // 获取系统负载信息
+                        if (data.containsKey("systemLoad")) {
+                            JSONObject systemLoad = data.getJSONObject("systemLoad");
+                            if (systemLoad.containsKey("cpu")) {
+                                JSONObject cpu = systemLoad.getJSONObject("cpu");
+                                response.append("CPU使用率: ").append(String.format("%.2f", cpu.getDouble("load"))).append("%\n");
+                            }
+                            if (systemLoad.containsKey("memoryLoad")) {
+                                response.append("内存使用率: ").append(String.format("%.2f", systemLoad.getDouble("memoryLoad"))).append("%\n");
+                            }
+                        }
+
+                        // 获取服务器实例统计
+                        if (data.containsKey("serverStats")) {
+                            JSONObject serverStats = data.getJSONObject("serverStats");
+                            response.append("实例总数: ").append(serverStats.getInteger("totalInstances")).append("\n");
+                            response.append("运行中: ").append(serverStats.getInteger("runningInstances")).append("\n");
+                            response.append("已停止: ").append(serverStats.getInteger("stoppedInstances")).append("\n");
+                        }
+                    } else {
+                        response.append("状态: ❌ 离线或无响应\n");
+                    }
+                } catch (Exception e) {
+                    response.append("状态: ❌ 查询失败\n");
+                    log.warn("查询节点 {} 心跳信息失败: {}", node.getId(), e.getMessage());
+                }
+
+                response.append("\n");
+            }
+
+            response.append("━━━━━━━━━━━━━━━━━━━━\n");
+            response.append("💡 使用 节点状态 <节点ID> 查看详细信息");
+
+            sendMessage(message, response.toString());
+
+            // 更新管理员最后活跃时间
+            updateQqBotManagerLastActiveTime(message.getSender().getUserId(), config.getId());
+
+        } catch (Exception e) {
+            log.error("处理节点状态查询失败: {}", e.getMessage(), e);
+            sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] 查询失败，请稍后重试。");
+        }
+    }
+
+    /**
+     * 显示单个节点的详细信息
+     */
+    private void displayNodeDetails(QQMessage message, String base, NodeServer node) {
+        try {
+            AjaxResult heartbeatResult = nodeServerService.getHeartbeat(node.getId());
+
+            if (heartbeatResult == null || !heartbeatResult.get("code").equals(200)) {
+                sendMessage(message, base + " 节点 " + node.getName() + " 离线或无响应。");
+                return;
+            }
+
+            JSONObject data = (JSONObject) heartbeatResult.get("data");
+            StringBuilder response = new StringBuilder(base + " 节点详细信息：\n\n");
+
+            // 基本信息
+            response.append("━━━━━━━━━━━━━━━━━━━━\n");
+            response.append("📋 基本信息\n");
+            response.append("━━━━━━━━━━━━━━━━━━━━\n");
+            response.append("节点ID: ").append(node.getId()).append("\n");
+            response.append("节点名称: ").append(node.getName()).append("\n");
+            response.append("节点地址: ").append(node.getProtocol()).append("://")
+                    .append(node.getIp()).append(":").append(node.getPort()).append("\n");
+            response.append("节点版本: ").append(data.getString("version")).append("\n");
+            response.append("协议版本: ").append(data.getString("protocolVersion")).append("\n");
+            response.append("运行时间: ").append(formatUptime(data.getLong("uptime"))).append("\n\n");
+
+            // 系统信息
+            if (data.containsKey("systemInfo")) {
+                JSONObject systemInfo = data.getJSONObject("systemInfo");
+                response.append("━━━━━━━━━━━━━━━━━━━━\n");
+                response.append("💻 系统信息\n");
+                response.append("━━━━━━━━━━━━━━━━━━━━\n");
+                response.append("操作系统: ").append(systemInfo.getString("osName")).append("\n");
+                response.append("系统版本: ").append(systemInfo.getString("osVersion")).append("\n");
+                response.append("系统架构: ").append(systemInfo.getString("architecture")).append("\n");
+                response.append("Java版本: ").append(systemInfo.getString("javaVersion")).append("\n");
+                response.append("处理器数: ").append(systemInfo.getInteger("availableProcessors")).append("\n");
+                response.append("总内存: ").append(formatBytes(systemInfo.getLong("totalMemory"))).append("\n");
+                response.append("可用内存: ").append(formatBytes(systemInfo.getLong("freeMemory"))).append("\n");
+                response.append("最大内存: ").append(formatBytes(systemInfo.getLong("maxMemory"))).append("\n\n");
+            }
+
+            // 系统负载
+            if (data.containsKey("systemLoad")) {
+                JSONObject systemLoad = data.getJSONObject("systemLoad");
+                response.append("━━━━━━━━━━━━━━━━━━━━\n");
+                response.append("📊 系统负载\n");
+                response.append("━━━━━━━━━━━━━━━━━━━━\n");
+
+                if (systemLoad.containsKey("cpu")) {
+                    JSONObject cpu = systemLoad.getJSONObject("cpu");
+                    response.append("CPU使用率: ").append(String.format("%.2f", cpu.getDouble("load"))).append("%\n");
+
+                    if (cpu.containsKey("loadDetail")) {
+                        JSONObject loadDetail = cpu.getJSONObject("loadDetail");
+                        response.append("  用户: ").append(String.format("%.2f", loadDetail.getDouble("user"))).append("%\n");
+                        response.append("  系统: ").append(String.format("%.2f", loadDetail.getDouble("system"))).append("%\n");
+                        response.append("  空闲: ").append(String.format("%.2f", loadDetail.getDouble("idle"))).append("%\n");
+                    }
+                }
+
+                if (systemLoad.containsKey("memoryLoad")) {
+                    response.append("内存使用率: ").append(String.format("%.2f", systemLoad.getDouble("memoryLoad"))).append("%\n");
+                }
+
+                if (systemLoad.containsKey("network")) {
+                    JSONObject network = systemLoad.getJSONObject("network");
+                    response.append("网络接收: ").append(formatBytes(network.getLong("bytesRecvPerSec"))).append("/s\n");
+                    response.append("网络发送: ").append(formatBytes(network.getLong("bytesSentPerSec"))).append("/s\n");
+                }
+                response.append("\n");
+            }
+
+            // 服务器实例统计
+            if (data.containsKey("serverStats")) {
+                JSONObject serverStats = data.getJSONObject("serverStats");
+                response.append("━━━━━━━━━━━━━━━━━━━━\n");
+                response.append("🎮 服务器实例统计\n");
+                response.append("━━━━━━━━━━━━━━━━━━━━\n");
+                response.append("实例总数: ").append(serverStats.getInteger("totalInstances")).append("\n");
+                response.append("运行中: ").append(serverStats.getInteger("runningInstances")).append("\n");
+                response.append("已停止: ").append(serverStats.getInteger("stoppedInstances")).append("\n");
+                response.append("总分配内存: ").append(serverStats.getInteger("totalAllocatedMemory")).append(" MB\n");
+
+                // 显示实例列表
+                if (serverStats.containsKey("instances") && serverStats.getJSONArray("instances").size() > 0) {
+                    response.append("\n实例列表:\n");
+                    JSONArray instances = serverStats.getJSONArray("instances");
+                    for (int i = 0; i < Math.min(instances.size(), 5); i++) {
+                        JSONObject instance = instances.getJSONObject(i);
+                        response.append("  ▫️ ").append(instance.getString("name"))
+                                .append(" (").append(instance.getString("status")).append(")")
+                                .append(" - ").append(instance.getString("coreType"))
+                                .append(" ").append(instance.getString("version"))
+                                .append(" - ").append(instance.getInteger("memoryMb")).append("MB\n");
+                    }
+                    if (instances.size() > 5) {
+                        response.append("  ... 还有 ").append(instances.size() - 5).append(" 个实例\n");
+                    }
+                }
+            }
+
+            response.append("\n━━━━━━━━━━━━━━━━━━━━");
+
+            sendMessage(message, response.toString());
+
+        } catch (Exception e) {
+            log.error("显示节点详细信息失败: {}", e.getMessage(), e);
+            sendMessage(message, base + " 获取节点详细信息失败。");
+        }
+    }
+
+    /**
+     * 格式化运行时间
+     */
+    private String formatUptime(long milliseconds) {
+        long seconds = milliseconds / 1000;
+        long days = seconds / 86400;
+        long hours = (seconds % 86400) / 3600;
+        long minutes = (seconds % 3600) / 60;
+
+        if (days > 0) {
+            return String.format("%d天%d小时%d分钟", days, hours, minutes);
+        } else if (hours > 0) {
+            return String.format("%d小时%d分钟", hours, minutes);
+        } else {
+            return String.format("%d分钟", minutes);
+        }
+    }
+
+    /**
+     * 格式化字节大小
+     */
+    private String formatBytes(long bytes) {
+        if (bytes < 1024) {
+            return bytes + " B";
+        } else if (bytes < 1024 * 1024) {
+            return String.format("%.2f KB", bytes / 1024.0);
+        } else if (bytes < 1024 * 1024 * 1024) {
+            return String.format("%.2f MB", bytes / (1024.0 * 1024));
+        } else {
+            return String.format("%.2f GB", bytes / (1024.0 * 1024 * 1024));
+        }
+    }
 }
+

@@ -1,22 +1,28 @@
 <template>
   <div v-loading="loading" class="app-container" element-loading-text="正在加载服务器信息...">
-    <el-card class="box-card">
-      <div slot="header" class="clearfix">
-        <span>服务器主机信息</span>
-        <div class="header-operations">
-          <el-select v-model="pollingInterval" size="mini" style="margin-right: 15px;" @change="handleIntervalChange">
+    <el-card class="header-card" shadow="hover">
+      <div class="header">
+        <div class="title-section">
+          <div class="title">
+            <i class="el-icon-monitor title-icon"></i>
+            <span class="title-text">服务器主机信息</span>
+          </div>
+        </div>
+        <div class="actions">
+          <el-select v-model="pollingInterval" class="interval-select" size="small" @change="handleIntervalChange">
             <el-option :value="3000" label="3秒"/>
             <el-option :value="5000" label="5秒"/>
             <el-option :value="10000" label="10秒"/>
             <el-option :value="30000" label="30秒"/>
             <el-option :value="60000" label="1分钟"/>
           </el-select>
-          <el-button style="padding: 3px 0" type="text" @click="goBack">返回</el-button>
+          <el-button class="action-btn" icon="el-icon-back" size="small" @click="goBack">返回</el-button>
         </div>
       </div>
+    </el-card>
 
       <!-- 关键指标卡片 -->
-      <el-row :gutter="20" class="metrics-row">
+    <el-row :gutter="16" class="metrics-row">
         <el-col :span="6">
           <el-card class="metric-card" shadow="hover">
             <div class="metric-title">系统负载</div>
@@ -70,19 +76,19 @@
           </el-card>
         </el-col>
         <el-col :span="6">
-          <el-card class="metric-card" shadow="hover">
+          <el-card class="metric-card metric-card-network" shadow="hover">
             <div class="metric-title">网络流量</div>
-            <div class="metric-value">
+            <div class="metric-value network-value">
               <el-tooltip content="实时发送速率" placement="top">
                 <div class="packet-rate">
                   <span class="direction">↑</span>
-                  {{ formatNetworkSpeed(loadInfo.network && loadInfo.network.bytesSentPerSec) }}
+                  <span>{{ formatNetworkSpeed(loadInfo.network && loadInfo.network.bytesSentPerSec) }}</span>
                 </div>
               </el-tooltip>
               <el-tooltip content="实时接收速率" placement="top">
                 <div class="packet-rate">
                   <span class="direction">↓</span>
-                  {{ formatNetworkSpeed(loadInfo.network && loadInfo.network.bytesRecvPerSec) }}
+                  <span>{{ formatNetworkSpeed(loadInfo.network && loadInfo.network.bytesRecvPerSec) }}</span>
                 </div>
               </el-tooltip>
             </div>
@@ -107,8 +113,9 @@
       </el-row>
 
       <!-- CPU信息 -->
-      <el-card class="info-card">
-        <div slot="header">
+    <el-card class="info-card" shadow="hover">
+      <div slot="header" class="card-header">
+        <i class="el-icon-cpu"></i>
           <span>CPU信息</span>
         </div>
         <el-descriptions :column="2" border>
@@ -131,8 +138,9 @@
       </el-card>
 
       <!-- 内存信息 -->
-      <el-card class="info-card">
-        <div slot="header">
+    <el-card class="info-card" shadow="hover">
+      <div slot="header" class="card-header">
+        <i class="el-icon-pie-chart"></i>
           <span>内存信息</span>
         </div>
         <el-descriptions :column="2" border>
@@ -161,8 +169,9 @@
       </el-card>
 
       <!-- 磁盘信息 -->
-      <el-card class="info-card">
-        <div slot="header">
+    <el-card class="info-card" shadow="hover">
+      <div slot="header" class="card-header">
+        <i class="el-icon-coin"></i>
           <span>磁盘信息</span>
         </div>
         <el-table :data="serverInfo.disks" style="width: 100%">
@@ -194,8 +203,9 @@
       </el-card>
 
       <!-- 网络信息 -->
-      <el-card class="info-card">
-        <div slot="header">
+    <el-card class="info-card" shadow="hover">
+      <div slot="header" class="card-header">
+        <i class="el-icon-connection"></i>
           <span>网络信息</span>
         </div>
         <el-table :data="serverInfo.network" style="width: 100%">
@@ -227,8 +237,9 @@
       </el-card>
 
       <!-- 系统信息 -->
-      <el-card class="info-card">
-        <div slot="header">
+    <el-card class="info-card" shadow="hover">
+      <div slot="header" class="card-header">
+        <i class="el-icon-setting"></i>
           <span>系统信息</span>
         </div>
         <el-descriptions :column="2" border>
@@ -246,7 +257,6 @@
           </el-descriptions-item>
         </el-descriptions>
       </el-card>
-    </el-card>
   </div>
 </template>
 
@@ -291,7 +301,13 @@ export default {
     this.startPolling(id);
   },
   beforeDestroy() {
+    // 组件销毁前清理定时器
     this.stopPolling();
+  },
+  beforeRouteLeave(to, from, next) {
+    // 路由离开前清理定时器
+    this.stopPolling();
+    next();
   },
   methods: {
     getInfo(id) {
@@ -410,80 +426,216 @@ export default {
         return (bytesPerSec / (k * k)).toFixed(2) + ' MB/s';
       }
     },
-    handleIntervalChange(value) {
+    handleIntervalChange() {
       // 重启轮询
       this.stopPolling();
-      this.startPolling(this.$route.params.id);
+      const id = this.$route.params.id;
+      if (id) {
+        this.startPolling(id);
+      }
     }
   }
 };
 </script>
 
 <style lang="scss" scoped>
+.app-container {
+  padding: 20px;
+  background-color: #f0f2f5;
+  min-height: calc(100vh - 84px);
+}
+
+.header-card {
+  margin-bottom: 20px;
+  border-radius: 8px;
+
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    .title-section {
+      flex: 1;
+
+      .title {
+        display: flex;
+        align-items: center;
+        margin-bottom: 8px;
+
+        .title-icon {
+          font-size: 24px;
+          color: #409EFF;
+          margin-right: 12px;
+        }
+
+        .title-text {
+          font-size: 20px;
+          font-weight: 600;
+          color: #303133;
+        }
+      }
+    }
+
+    .actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      .interval-select {
+        width: 120px;
+      }
+
+      .action-btn {
+        padding: 8px 16px;
+      }
+    }
+  }
+}
+
 .metrics-row {
   margin-bottom: 20px;
 
   .metric-card {
-    height: 160px;
+    height: 180px;
     text-align: center;
-    position: relative;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+
+    &:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+    }
+
+    ::v-deep .el-card__body {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 20px;
+    }
 
     .metric-title {
       font-size: 14px;
       color: #606266;
-      margin-bottom: 10px;
+      margin-bottom: 12px;
+      font-weight: 500;
     }
 
     .metric-value {
-      font-size: 24px;
+      font-size: 28px;
       font-weight: bold;
       color: #303133;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
+      line-height: 1.2;
+
+      .packet-rate {
+        font-size: 16px;
+        margin-bottom: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        .direction {
+          color: #409EFF;
+          margin-right: 4px;
+          font-size: 18px;
+          font-weight: bold;
+        }
+      }
     }
 
     .metric-detail {
       font-size: 12px;
       color: #909399;
-      margin-bottom: 4px;
+      margin-bottom: 3px;
+      line-height: 1.4;
     }
 
     .metric-progress {
-      position: absolute;
-      bottom: 20px;
-      left: 20px;
-      right: 20px;
+      margin-top: auto;
+      padding-top: 12px;
+    }
+  }
+
+  .metric-card-network {
+    .network-value {
+      font-size: 16px;
+
+      .packet-rate {
+        font-size: 16px;
+        margin-bottom: 2px;
+
+        span:not(.direction) {
+          font-weight: 600;
+        }
+      }
     }
   }
 }
 
 .info-card {
   margin-bottom: 20px;
-}
+  border-radius: 8px;
+  transition: all 0.3s ease;
 
-.el-descriptions {
-  margin: 20px;
-
-  ::v-deep .el-descriptions-item__label {
-    width: 120px;
-    font-weight: bold;
+  &:hover {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   }
-}
 
-.header-operations {
-  float: right;
-  display: flex;
-  align-items: center;
-}
-
-.metric-value {
-  .packet-rate {
+  .card-header {
+    display: flex;
+    align-items: center;
     font-size: 16px;
-    margin-bottom: 4px;
+    font-weight: 600;
+    color: #303133;
 
-    .direction {
+    i {
+      margin-right: 8px;
+      font-size: 18px;
       color: #409EFF;
-      margin-right: 4px;
     }
   }
+}
+
+::v-deep .el-descriptions {
+  .el-descriptions-item__label {
+    width: 140px;
+    font-weight: 600;
+    color: #606266;
+    background-color: #fafafa;
+
+    i {
+      margin-right: 6px;
+      color: #409EFF;
+    }
+  }
+
+  .el-descriptions-item__content {
+    color: #303133;
+  }
+}
+
+::v-deep .el-table {
+  border-radius: 4px;
+
+  th {
+    background-color: #fafafa;
+    color: #606266;
+    font-weight: 600;
+  }
+
+  td {
+    color: #303133;
+  }
+}
+
+::v-deep .el-card__header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+::v-deep .el-card__body {
+  padding: 20px;
 }
 </style>

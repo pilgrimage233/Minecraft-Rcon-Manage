@@ -1,8 +1,8 @@
 package cc.endmc.node.ws;
 
+import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.node.common.NodeCache;
 import cc.endmc.node.domain.NodeServer;
-import cc.endmc.node.mapper.NodeServerMapper;
 import cc.endmc.node.utils.ApiUtil;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.RequiredArgsConstructor;
@@ -14,6 +14,10 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.*;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.socket.client.standard.StandardWebSocketClient;
 import org.springframework.web.socket.messaging.WebSocketStompClient;
 import org.springframework.web.socket.sockjs.client.SockJsClient;
@@ -28,12 +32,13 @@ import java.util.concurrent.ConcurrentHashMap;
 @Controller
 @RequiredArgsConstructor
 @Slf4j
+@RequestMapping("/api/node/console/proxy")
 public class NodeConsoleProxyController {
 
-    private final NodeServerMapper nodeServerMapper;
     private final SimpMessagingTemplate messagingTemplate;
 
     private final Map<String, StompSession> clientToDownstream = new ConcurrentHashMap<>();
+    private final Map<String, Map<String, Object>> wsInfoCache = new ConcurrentHashMap<>();
 
     @MessageMapping("/node/console/subscribe")
     public void subscribeConsole(@Payload Map<String, Object> payload, SimpMessageHeaderAccessor headers) {
@@ -68,17 +73,13 @@ public class NodeConsoleProxyController {
             StompSessionHandler sessionHandler = new StompSessionHandlerAdapter() {
                 @Override
                 public void afterConnected(StompSession downstream, StompHeaders connectedHeaders) {
-                    // 1) 认证
-                    Map<String, Object> authBody = new HashMap<>();
-                    authBody.put("token", node.getToken());
-                    downstream.send("/app/auth", JSONObject.toJSONString(authBody));
-                    // 2) 订阅控制台
+                    // 订阅控制台
                     Map<String, Object> subBody = new HashMap<>();
                     subBody.put("serverId", serverId);
                     subBody.put("token", node.getToken());
                     downstream.send("/app/console/subscribe", JSONObject.toJSONString(subBody));
 
-                    // 3) 监听控制台topic并转发到主控端topic
+                    // 监听控制台topic并转发到主控端topic
                     downstream.subscribe("/topic/console/" + serverId, new StompFrameHandler() {
                         @Override
                         public Type getPayloadType(StompHeaders headers) {
@@ -123,6 +124,82 @@ public class NodeConsoleProxyController {
 
     private String sessionIdKey(String sessionId, long nodeId, int serverId) {
         return sessionId + "::" + nodeId + "::" + serverId;
+    }
+
+    private String wsInfoCacheKey(long nodeId, int serverId) {
+        return nodeId + "::" + serverId;
+    }
+
+    /**
+     * 获取WebSocket连接信息 - 代理模式下直接使用/ws
+     */
+    @GetMapping
+    @ResponseBody
+    public AjaxResult getWsInfo(@RequestParam long nodeId, @RequestParam int serverId) {
+        try {
+            NodeServer node = NodeCache.get(nodeId);
+            if (node == null || !StringUtils.hasText(node.getToken())) {
+                return AjaxResult.error("节点不存在或token缺失");
+            }
+
+            // 构建WebSocket连接信息
+            String wsInfoKey = wsInfoCacheKey(nodeId, serverId);
+            Map<String, Object> wsInfo = wsInfoCache.get(wsInfoKey);
+
+            if (wsInfo == null) {
+                wsInfo = new HashMap<>();
+                // 代理模式下直接使用/ws连接
+                wsInfo.put("wsUrl", "/ws");
+                // 订阅路径
+                wsInfo.put("console", "/topic/node-console/");
+                // 订阅指令路径
+                wsInfo.put("subscribe", "/app/node/console/subscribe");
+                // 使用节点的token
+                wsInfo.put("token", node.getToken());
+
+                // 缓存WebSocket信息，有效期10分钟
+                wsInfoCache.put(wsInfoKey, wsInfo);
+
+                // 定时清理缓存
+                new Timer().schedule(new TimerTask() {
+                    @Override
+                    public void run() {
+                        wsInfoCache.remove(wsInfoKey);
+                    }
+                }, 10 * 60 * 1000);
+            }
+
+            return AjaxResult.success(wsInfo);
+        } catch (Exception e) {
+            log.error("获取WebSocket连接信息失败", e);
+            return AjaxResult.error(e.getMessage());
+        }
+    }
+
+    /**
+     * 断开连接
+     */
+    @MessageMapping("/node/console/disconnect")
+    public void disconnect(@Payload Map<String, Object> payload, SimpMessageHeaderAccessor headers) {
+        String sessionId = headers.getSessionId();
+        if (sessionId == null) return;
+
+        try {
+            Number nodeIdNum = (Number) payload.get("nodeId");
+            Number serverIdNum = (Number) payload.get("serverId");
+            if (nodeIdNum == null || serverIdNum == null) return;
+
+            long nodeId = nodeIdNum.longValue();
+            int serverId = serverIdNum.intValue();
+
+            String key = sessionIdKey(sessionId, nodeId, serverId);
+            StompSession session = clientToDownstream.remove(key);
+            if (session != null && session.isConnected()) {
+                session.disconnect();
+            }
+        } catch (Exception e) {
+            log.error("断开连接失败", e);
+        }
     }
 }
 

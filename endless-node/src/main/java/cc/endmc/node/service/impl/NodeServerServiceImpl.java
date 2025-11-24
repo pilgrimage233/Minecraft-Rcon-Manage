@@ -171,6 +171,11 @@ public class NodeServerServiceImpl implements INodeServerService {
      */
     @Override
     public int deleteNodeServerByIds(Long[] ids) {
+        // 批量注销节点
+        for (Long id : ids) {
+            unregister(id);
+            NodeCache.remove(id);
+        }
         return nodeServerMapper.deleteNodeServerByIds(ids);
     }
 
@@ -182,7 +187,56 @@ public class NodeServerServiceImpl implements INodeServerService {
      */
     @Override
     public int deleteNodeServerById(Long id) {
+        // 先注销节点
+        unregister(id);
+        // 从缓存中移除
+        NodeCache.remove(id);
         return nodeServerMapper.deleteNodeServerById(id);
+    }
+
+    /**
+     * 注销节点服务器
+     *
+     * @param id 节点服务器主键
+     * @return 结果
+     */
+    private AjaxResult unregister(Long id) {
+        NodeServer nodeServer = getNode(id);
+        if (nodeServer == null) {
+            log.warn("节点服务器不存在，无法注销: {}", id);
+            return AjaxResult.error("节点服务器不存在");
+        }
+
+        log.info("开始注销节点: {}", nodeServer.getIp() + ":" + nodeServer.getPort());
+
+        JSONObject params = new JSONObject();
+        params.put("secretKey", nodeServer.getToken());
+        params.put("uuid", nodeServer.getUuid());
+
+        try {
+            final HttpResponse response = NodeHttpUtil.createPost(nodeServer, ApiUtil.getUnRegisterApi(nodeServer))
+                    .body(params.toJSONString())
+                    .execute();
+
+            log.info("节点注销请求: {}", params.toJSONString());
+
+            if (response.isOk() && StringUtils.isNotEmpty(response.body())) {
+                JSONObject jsonObject = JSONObject.parseObject(response.body());
+                if (Boolean.TRUE.equals(jsonObject.getBoolean("success"))) {
+                    log.info("节点注销成功: {}", response.body());
+                    return AjaxResult.success("节点注销成功");
+                } else {
+                    log.warn("节点注销失败: {}", jsonObject.getString("message"));
+                    return AjaxResult.error("节点注销失败: " + jsonObject.getString("message"));
+                }
+            } else {
+                log.error("节点注销失败: {}", response.body());
+                return AjaxResult.error("节点注销失败");
+            }
+        } catch (Exception e) {
+            log.error("节点注销异常", e);
+            return AjaxResult.error("节点注销异常: " + e.getMessage());
+        }
     }
 
     /**
@@ -478,6 +532,37 @@ public class NodeServerServiceImpl implements INodeServerService {
         } catch (Exception e) {
             log.error("下载文件失败", e);
             return AjaxResult.error("下载文件失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取节点服务器心跳信息
+     *
+     * @param id 节点服务器主键
+     * @return 结果
+     */
+    @Override
+    public AjaxResult getHeartbeat(Long id) {
+        // 获取节点服务器信息
+        NodeServer nodeServer = getNode(id);
+
+        if (nodeServer == null) {
+            return AjaxResult.error("节点服务器不存在");
+        }
+
+        final HttpResponse execute = NodeHttpUtil.createGet(nodeServer, ApiUtil.getHeartbeatApi(nodeServer))
+                .execute();
+
+        if (execute.isOk()) {
+            JSONObject jsonObject = JSONObject.parseObject(execute.body());
+            if (jsonObject != null && "OJBK".equals(jsonObject.getString("status"))) {
+                return AjaxResult.success(jsonObject);
+            } else {
+                return AjaxResult.error(jsonObject != null ? jsonObject.getString("message") : "获取心跳信息失败");
+            }
+        } else {
+            log.warn("获取节点服务器心跳信息失败: {}", execute.body());
+            return AjaxResult.error("获取节点服务器心跳信息失败");
         }
     }
 

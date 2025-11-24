@@ -22,6 +22,21 @@
             @keyup.enter.native="handleQuery"
           />
         </el-form-item>
+        <el-form-item label="服务器状态" prop="status">
+          <el-select
+            v-model="queryParams.status"
+            clearable
+            placeholder="请选择状态"
+            style="width: 140px"
+          >
+            <el-option
+              v-for="(label, value) in statusDict"
+              :key="value"
+              :label="label"
+              :value="value"
+            />
+          </el-select>
+        </el-form-item>
         <el-form-item label="最后启动" prop="lastStartTime">
           <el-date-picker
             v-model="queryParams.lastStartTime"
@@ -174,10 +189,11 @@
           </div>
         </template>
       </el-table-column>
-        <el-table-column align="center" label="状态" prop="status" width="100">
+        <el-table-column align="center" label="状态" prop="status" width="110">
           <template slot-scope="scope">
-            <el-tag :type="statusTagType(scope.row.status)" size="medium">
-              {{ scope.row.status }}
+            <el-tag :type="statusTagType(scope.row.status)" effect="dark" size="medium">
+              <i :class="getStatusIcon(scope.row.status)" style="margin-right: 4px;"></i>
+              {{ getStatusText(scope.row.status) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -408,6 +424,13 @@ export default {
       title: "",
       // 是否显示弹出层
       open: false,
+      // 状态字典
+      statusDict: {
+        '0': '未启动',
+        '1': '运行中',
+        '2': '已停止',
+        '3': '异常'
+      },
       // 查询参数
       queryParams: {
         pageNum: 1,
@@ -513,12 +536,29 @@ export default {
         this.loading = false;
       });
     },
+    // 获取状态文本
+    getStatusText(status) {
+      return this.statusDict[status] || '未知';
+    },
+    // 获取状态标签类型
     statusTagType(status) {
-      // 可根据后端的实际状态值进行映射
-      if (status === 'running' || status === 1) return 'success';
-      if (status === 'stopped' || status === 0) return 'info';
-      if (status === 'error' || status === -1) return 'danger';
-      return 'warning';
+      const statusMap = {
+        '0': 'info',      // 未启动 - 灰色
+        '1': 'success',   // 运行中 - 绿色
+        '2': 'info',      // 已停止 - 灰色
+        '3': 'danger'     // 异常 - 红色
+      };
+      return statusMap[status] || 'warning';
+    },
+    // 获取状态图标
+    getStatusIcon(status) {
+      const iconMap = {
+        '0': 'el-icon-video-pause',     // 未启动
+        '1': 'el-icon-video-play',      // 运行中
+        '2': 'el-icon-switch-button',   // 已停止
+        '3': 'el-icon-warning'          // 异常
+      };
+      return iconMap[status] || 'el-icon-question';
     },
     // 清空节点筛选
     clearNodeFilter() {

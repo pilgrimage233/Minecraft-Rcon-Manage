@@ -166,4 +166,13 @@ public class NodeServerController extends BaseController {
     public AjaxResult downloadFromUrl(@RequestBody Map<String, Object> params) {
         return nodeServerService.downloadFromUrl(params);
     }
+
+    /**
+     * 获取节点服务器心跳信息
+     */
+    @NodeLog(operationType = OperationType.UPDATE_NODE, operationTarget = OperationTarget.NODE_SERVER, operationName = "获取节点服务器心跳信息")
+    @GetMapping("/heartbeat/{id}")
+    public AjaxResult getHeartbeat(@PathVariable Long id) {
+        return nodeServerService.getHeartbeat(id);
+    }
 }

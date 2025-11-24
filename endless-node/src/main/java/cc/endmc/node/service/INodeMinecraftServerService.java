@@ -83,4 +83,14 @@ public interface INodeMinecraftServerService {
     public AjaxResult getStatus(Map<String, Object> params);
 
     public AjaxResult sendCommand(Map<String, Object> params);
+
+    /**
+     * 仅更新服务器状态（不触发节点API同步）
+     * 用于定时任务同步状态
+     *
+     * @param id     服务器ID
+     * @param status 新状态
+     * @return 结果
+     */
+    public int updateServerStatusOnly(Long id, String status);
 }

@@ -109,4 +109,12 @@ public interface INodeServerService {
      * @return 结果
      */
     public AjaxResult downloadFromUrl(Map<String, Object> params);
+
+    /**
+     * 获取节点服务器心跳信息
+     *
+     * @param id 节点服务器主键
+     * @return 结果
+     */
+    public AjaxResult getHeartbeat(Long id);
 }
