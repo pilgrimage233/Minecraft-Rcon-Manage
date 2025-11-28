@@ -175,4 +175,13 @@ public class NodeServerController extends BaseController {
     public AjaxResult getHeartbeat(@PathVariable Long id) {
         return nodeServerService.getHeartbeat(id);
     }
+
+    /**
+     * 测试节点服务器连接
+     */
+    @PreAuthorize("@ss.hasPermi('node:server:list')")
+    @PostMapping("/testConnection")
+    public AjaxResult testConnection(@RequestBody NodeServer nodeServer) {
+        return nodeServerService.testConnection(nodeServer);
+    }
 }

@@ -179,7 +179,7 @@
       <el-table-column align="center" label="操作系统类型" prop="osType"/>
       <el-table-column align="center" label="节点描述" prop="description"/>
       <el-table-column align="center" label="备注" prop="remark"/>
-      <el-table-column align="center" class-name="small-padding fixed-width" label="操作" width="200">
+      <el-table-column align="center" class-name="small-padding fixed-width" label="操作" width="240">
         <template slot-scope="scope">
           <el-button
             v-hasPermi="['node:server:edit']"
@@ -220,6 +220,14 @@
             type="text"
             @click="handleMcsClick(scope.row)"
           >实例
+          </el-button>
+          <el-button
+            v-hasPermi="['node:env:list']"
+            icon="el-icon-setting"
+            size="mini"
+            type="text"
+            @click="handleEnvClick(scope.row)"
+          >环境
           </el-button>
         </template>
       </el-table-column>
@@ -284,6 +292,7 @@
         </el-form-item>
       </el-form>
       <div slot="footer" class="dialog-footer">
+        <el-button :loading="testLoading" icon="el-icon-connection" @click="handleTestConnection">测试连接</el-button>
         <el-button type="primary" @click="submitForm">确 定</el-button>
         <el-button @click="cancel">取 消</el-button>
       </div>
@@ -294,7 +303,7 @@
 </template>
 
 <script>
-import {addServer, delServer, getServer, listServer, updateServer} from "@/api/node/server";
+import {addServer, delServer, getServer, listServer, testConnection, updateServer} from "@/api/node/server";
 
 export default {
   name: "Server",
@@ -303,6 +312,8 @@ export default {
     return {
       // 遮罩层
       loading: true,
+      // 测试连接加载状态
+      testLoading: false,
       // 选中数组
       ids: [],
       // 非单个禁用
@@ -480,6 +491,32 @@ export default {
     /** 实例按钮点击操作 */
     handleMcsClick(row) {
       this.$router.push({path: '/node/mcs/index', query: {nodeId: row.id, nodeUuid: row.uuid}});
+    },
+    /** 环境按钮点击操作 */
+    handleEnvClick(row) {
+      this.$router.push({path: '/node/env/index', query: {nodeId: row.id}});
+    },
+    /** 测试连接 */
+    handleTestConnection() {
+      // 验证必填字段
+      if (!this.form.ip || !this.form.port || !this.form.protocol || !this.form.token) {
+        this.$message.warning('请先填写完整的节点信息（IP、端口、协议、秘钥）');
+        return;
+      }
+
+      this.testLoading = true;
+      testConnection(this.form).then(response => {
+        if (response.code === 200) {
+          const data = response.data || {};
+          this.$message.success(`连接成功！节点版本: ${data.version || '未知'}`);
+        } else {
+          this.$message.error(response.msg || '连接失败');
+        }
+      }).catch(error => {
+        this.$message.error('连接失败: ' + (error.message || '网络错误'));
+      }).finally(() => {
+        this.testLoading = false;
+      });
     },
     // 获取状态文本
     getStatusText(status) {

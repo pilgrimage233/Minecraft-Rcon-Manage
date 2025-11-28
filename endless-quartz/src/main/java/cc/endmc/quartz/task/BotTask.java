@@ -279,7 +279,7 @@ public class BotTask {
                 }
 
                 // 更新最后检查时间
-                redisCache.setCacheObject(lastCheckKey, currentTime, 1, TimeUnit.HOURS);
+                redisCache.setCacheObject(lastCheckKey, currentTime, 1, TimeUnit.DAYS);
 
                 log.info("开始检查GitHub项目更新...");
 

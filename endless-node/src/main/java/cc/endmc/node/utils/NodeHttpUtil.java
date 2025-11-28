@@ -13,6 +13,8 @@ import cn.hutool.http.Method;
  */
 public class NodeHttpUtil {
 
+    private static final Integer TIMEOUT = 20000;
+
     /**
      * 创建GET请求，自动添加Token Header
      *
@@ -22,7 +24,8 @@ public class NodeHttpUtil {
      */
     public static HttpRequest createGet(NodeServer nodeServer, String url) {
         return HttpUtil.createGet(url)
-                .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken());
+                .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken())
+                .timeout(TIMEOUT);
     }
 
     /**
@@ -34,7 +37,8 @@ public class NodeHttpUtil {
      */
     public static HttpRequest createPost(NodeServer nodeServer, String url) {
         return HttpUtil.createPost(url)
-                .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken());
+                .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken())
+                .timeout(TIMEOUT);
     }
 
     /**
@@ -46,7 +50,8 @@ public class NodeHttpUtil {
      */
     public static HttpRequest createPut(NodeServer nodeServer, String url) {
         return HttpUtil.createRequest(Method.PUT, url)
-                .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken());
+                .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken())
+                .timeout(TIMEOUT);
     }
 
     /**
@@ -58,7 +63,8 @@ public class NodeHttpUtil {
      */
     public static HttpRequest createDelete(NodeServer nodeServer, String url) {
         return HttpUtil.createRequest(Method.DELETE, url)
-                .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken());
+                .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken())
+                .timeout(TIMEOUT);
     }
 
     /**
@@ -71,7 +77,8 @@ public class NodeHttpUtil {
      */
     public static HttpRequest createRequest(NodeServer nodeServer, Method method, String url) {
         return HttpUtil.createRequest(method, url)
-                .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken());
+                .header(ApiUtil.X_ENDLESS_TOKEN, nodeServer.getToken())
+                .timeout(TIMEOUT);
     }
 }
 

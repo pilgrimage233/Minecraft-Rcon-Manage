@@ -566,4 +566,46 @@ public class NodeServerServiceImpl implements INodeServerService {
         }
     }
 
+    /**
+     * 测试节点服务器连接
+     *
+     * @param nodeServer 节点服务器信息
+     * @return 结果
+     */
+    @Override
+    public AjaxResult testConnection(NodeServer nodeServer) {
+        log.info("开始测试节点连接: {}:{}", nodeServer.getIp(), nodeServer.getPort());
+
+        try {
+            // 构建测试连接URL
+            String url = ApiUtil.getTestConnectionApi(nodeServer);
+
+            // 发送测试请求，设置较短的超时时间
+            final HttpResponse response = NodeHttpUtil.createGet(nodeServer, url)
+                    .timeout(5000) // 5秒超时
+                    .execute();
+
+            if (response.isOk() && StringUtils.isNotEmpty(response.body())) {
+                JSONObject jsonObject = JSONObject.parseObject(response.body());
+                if (Boolean.TRUE.equals(jsonObject.getBoolean("success"))) {
+                    log.info("节点连接测试成功: {}", response.body());
+                    Map<String, Object> data = new HashMap<>();
+                    data.put("version", jsonObject.getString("version"));
+                    data.put("status", jsonObject.getString("status"));
+                    data.put("timestamp", jsonObject.getDate("timestamp"));
+                    return AjaxResult.success("连接成功", data);
+                } else {
+                    log.warn("节点连接测试失败: {}", jsonObject.getString("message"));
+                    return AjaxResult.error("连接失败: " + jsonObject.getString("message"));
+                }
+            } else {
+                log.error("节点连接测试失败，HTTP状态码: {}", response.getStatus());
+                return AjaxResult.error("连接失败，HTTP状态码: " + response.getStatus());
+            }
+        } catch (Exception e) {
+            log.error("节点连接测试异常", e);
+            return AjaxResult.error("连接失败: " + e.getMessage());
+        }
+    }
+
 }

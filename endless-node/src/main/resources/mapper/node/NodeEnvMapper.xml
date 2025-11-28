@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.node.mapper.NodeEnvMapper">
+
+    <resultMap type="NodeEnv" id="NodeEnvResult">
+        <result property="id" column="id"/>
+        <result property="nodeId" column="node_id"/>
+        <result property="version" column="version"/>
+        <result property="envName" column="env_name"/>
+        <result property="path" column="path"/>
+        <result property="javaHome" column="java_home"/>
+        <result property="binPath" column="bin_path"/>
+        <result property="type" column="type"/>
+        <result property="arch" column="arch"/>
+        <result property="isDefault" column="is_default"/>
+        <result property="valid" column="valid"/>
+        <result property="source" column="source"/>
+        <result property="status" column="status"/>
+        <result property="createTime" column="create_time"/>
+        <result property="createBy" column="create_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="remark" column="remark"/>
+        <result property="serverName" column="server_name"/>
+    </resultMap>
+
+    <sql id="selectNodeEnvVo">
+        select e.id,
+               e.node_id,
+               e.version,
+               e.env_name,
+               e.path,
+               e.java_home,
+               e.bin_path,
+               e.type,
+               e.arch,
+               e.is_default,
+               e.valid,
+               e.source,
+               e.status,
+               e.create_time,
+               e.create_by,
+               e.update_time,
+               e.update_by,
+               e.remark,
+               s.name as server_name
+        from node_env e
+                 left join node_server s on e.node_id = s.id
+    </sql>
+
+    <select id="selectNodeEnvList" parameterType="NodeEnv" resultMap="NodeEnvResult">
+        <include refid="selectNodeEnvVo"/>
+        <where>
+            <if test="nodeId != null ">
+                and node_id = #{nodeId}
+            </if>
+            <if test="version != null  and version != ''">
+                and version = #{version}
+            </if>
+            <if test="envName != null  and envName != ''">
+                and env_name like concat('%', #{envName}, '%')
+            </if>
+            <if test="path != null  and path != ''">
+                and path = #{path}
+            </if>
+            <if test="javaHome != null  and javaHome != ''">
+                and java_home = #{javaHome}
+            </if>
+            <if test="binPath != null  and binPath != ''">
+                and bin_path = #{binPath}
+            </if>
+            <if test="type != null ">
+                and type = #{type}
+            </if>
+            <if test="arch != null  and arch != ''">
+                and arch = #{arch}
+            </if>
+            <if test="isDefault != null ">
+                and is_default = #{isDefault}
+            </if>
+            <if test="valid != null ">
+                and valid = #{valid}
+            </if>
+            <if test="source != null  and source != ''">
+                and source = #{source}
+            </if>
+            <if test="status != null ">
+                and status = #{status}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectNodeEnvById" parameterType="Long"
+            resultMap="NodeEnvResult">
+        <include refid="selectNodeEnvVo"/>
+        where e.id = #{id}
+    </select>
+
+    <insert id="insertNodeEnv" parameterType="NodeEnv" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into node_env
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="nodeId != null">node_id,
+            </if>
+            <if test="version != null and version != ''">version,
+            </if>
+            <if test="envName != null">env_name,
+            </if>
+            <if test="path != null and path != ''">path,
+            </if>
+            <if test="javaHome != null">java_home,
+            </if>
+            <if test="binPath != null">bin_path,
+            </if>
+            <if test="type != null">type,
+            </if>
+            <if test="arch != null">arch,
+            </if>
+            <if test="isDefault != null">is_default,
+            </if>
+            <if test="valid != null">valid,
+            </if>
+            <if test="source != null">source,
+            </if>
+            <if test="status != null">status,
+            </if>
+            <if test="createTime != null">create_time,
+            </if>
+            <if test="createBy != null">create_by,
+            </if>
+            <if test="updateTime != null">update_time,
+            </if>
+            <if test="updateBy != null">update_by,
+            </if>
+            <if test="remark != null">remark,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="nodeId != null">#{nodeId},
+            </if>
+            <if test="version != null and version != ''">#{version},
+            </if>
+            <if test="envName != null">#{envName},
+            </if>
+            <if test="path != null and path != ''">#{path},
+            </if>
+            <if test="javaHome != null">#{javaHome},
+            </if>
+            <if test="binPath != null">#{binPath},
+            </if>
+            <if test="type != null">#{type},
+            </if>
+            <if test="arch != null">#{arch},
+            </if>
+            <if test="isDefault != null">#{isDefault},
+            </if>
+            <if test="valid != null">#{valid},
+            </if>
+            <if test="source != null">#{source},
+            </if>
+            <if test="status != null">#{status},
+            </if>
+            <if test="createTime != null">#{createTime},
+            </if>
+            <if test="createBy != null">#{createBy},
+            </if>
+            <if test="updateTime != null">#{updateTime},
+            </if>
+            <if test="updateBy != null">#{updateBy},
+            </if>
+            <if test="remark != null">#{remark},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateNodeEnv" parameterType="NodeEnv">
+        update node_env
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="nodeId != null">node_id =
+                #{nodeId},
+            </if>
+            <if test="version != null and version != ''">version =
+                #{version},
+            </if>
+            <if test="envName != null">env_name =
+                #{envName},
+            </if>
+            <if test="path != null and path != ''">path =
+                #{path},
+            </if>
+            <if test="javaHome != null">java_home =
+                #{javaHome},
+            </if>
+            <if test="binPath != null">bin_path =
+                #{binPath},
+            </if>
+            <if test="type != null">type =
+                #{type},
+            </if>
+            <if test="arch != null">arch =
+                #{arch},
+            </if>
+            <if test="isDefault != null">is_default =
+                #{isDefault},
+            </if>
+            <if test="valid != null">valid =
+                #{valid},
+            </if>
+            <if test="source != null">source =
+                #{source},
+            </if>
+            <if test="status != null">status =
+                #{status},
+            </if>
+            <if test="createTime != null">create_time =
+                #{createTime},
+            </if>
+            <if test="createBy != null">create_by =
+                #{createBy},
+            </if>
+            <if test="updateTime != null">update_time =
+                #{updateTime},
+            </if>
+            <if test="updateBy != null">update_by =
+                #{updateBy},
+            </if>
+            <if test="remark != null">remark =
+                #{remark},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteNodeEnvById" parameterType="Long">
+        delete
+        from node_env
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteNodeEnvByIds" parameterType="String">
+        delete from node_env where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

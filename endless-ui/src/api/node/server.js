@@ -113,6 +113,16 @@ export function downloadFromUrl(data) {
   })
 }
 
+// 测试节点服务器连接
+export function testConnection(data) {
+  return request({
+    url: '/node/server/testConnection',
+    method: 'post',
+    data: data,
+    timeout: 10000 // 10秒超时
+  })
+}
+
 // 获取节点端实例列表
 export function listNodeInstances(id) {
   return request({

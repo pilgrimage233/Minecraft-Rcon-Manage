@@ -312,8 +312,35 @@
         <div class="form-section">
           <div class="section-header">
             <i class="el-icon-cpu"></i>
-            <span>JVM内存配置</span>
+            <span>JVM配置</span>
           </div>
+          <el-row :gutter="20">
+            <el-col :span="24">
+              <el-form-item label="Java环境" prop="javaEnvId">
+                <el-select v-model="form.javaEnvId" clearable placeholder="选择Java环境或自定义" style="width: 100%"
+                           @change="handleJavaEnvChange">
+                  <el-option
+                    v-for="env in javaEnvList"
+                    :key="env.id"
+                    :label="`${env.envName} (${env.version})`"
+                    :value="env.id"
+                  >
+                    <span style="float: left">{{ env.envName }}</span>
+                    <span style="float: right; color: #8492a6; font-size: 13px">{{ env.version }}</span>
+                  </el-option>
+                </el-select>
+              </el-form-item>
+            </el-col>
+          </el-row>
+          <el-row :gutter="20">
+            <el-col :span="24">
+              <el-form-item label="Java可执行路径" prop="javaPath">
+                <el-input v-model="form.javaPath" placeholder="留空使用系统默认，或指定完整路径如：/usr/bin/java">
+                  <i slot="prefix" class="el-icon-link"></i>
+                </el-input>
+              </el-form-item>
+            </el-col>
+          </el-row>
           <el-row :gutter="20">
             <el-col :span="12">
               <el-form-item label="最大堆内存(XMX)" prop="jvmXmx">
@@ -401,6 +428,7 @@
 <script>
 import {addMcs, delMcs, getMcs, listMcs, updateMcs} from "@/api/node/mcs";
 import {getServer} from "@/api/node/server";
+import {listEnv} from "@/api/node/env";
 
 export default {
   name: "Mcs",
@@ -420,6 +448,8 @@ export default {
       total: 0,
       // 实例管理表格数据
       mcsList: [],
+      // Java环境列表
+      javaEnvList: [],
       // 弹出层标题
       title: "",
       // 是否显示弹出层
@@ -599,6 +629,8 @@ export default {
         name: null,
         serverPath: null,
         startStr: null,
+        javaEnvId: null,
+        javaPath: null,
         jvmXmx: null,
         jvmXms: null,
         jvmArgs: null,
@@ -616,6 +648,28 @@ export default {
         delFlag: null
       };
       this.resetForm("form");
+    },
+    /** 加载Java环境列表 */
+    loadJavaEnvList() {
+      if (!this.routeNodeId) return;
+      listEnv({nodeId: this.routeNodeId, valid: 1}).then(response => {
+        this.javaEnvList = response.rows || [];
+      }).catch(() => {
+        this.javaEnvList = [];
+      });
+    },
+    /** Java环境变更处理 */
+    handleJavaEnvChange(envId) {
+      if (!envId) {
+        this.form.javaPath = null;
+        return;
+      }
+      const env = this.javaEnvList.find(e => e.id === envId);
+      if (env && env.binPath) {
+        const os = navigator.platform.toLowerCase();
+        const javaExe = os.includes('win') ? 'java.exe' : 'java';
+        this.form.javaPath = `${env.binPath}/${javaExe}`.replace(/\\/g, '/');
+      }
     },
     /** 搜索按钮操作 */
     handleQuery() {
@@ -636,12 +690,14 @@ export default {
     /** 新增按钮操作 */
     handleAdd() {
       this.reset();
+      this.loadJavaEnvList();
       this.open = true;
       this.title = "添加实例管理";
     },
     /** 修改按钮操作 */
     handleUpdate(row) {
       this.reset();
+      this.loadJavaEnvList();
       const id = row.id || this.ids
       getMcs(id).then(response => {
         this.form = response.data;

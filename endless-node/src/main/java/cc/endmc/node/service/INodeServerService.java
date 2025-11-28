@@ -117,4 +117,12 @@ public interface INodeServerService {
      * @return 结果
      */
     public AjaxResult getHeartbeat(Long id);
+
+    /**
+     * 测试节点服务器连接
+     *
+     * @param nodeServer 节点服务器信息
+     * @return 结果
+     */
+    public AjaxResult testConnection(NodeServer nodeServer);
 }

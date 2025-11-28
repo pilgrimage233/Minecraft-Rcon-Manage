@@ -261,7 +261,7 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
     }
 
     /**
-     * 处理JVM参数：强制替换或添加Xms、Xmx和其他JVM参数
+     * 处理JVM参数：强制替换或添加Xms、Xmx和其他JVM参数，并替换Java路径
      *
      * @param script 原始启动脚本
      * @param server 服务器实例信息
@@ -276,6 +276,7 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
         String newXms = "-Xms" + server.getJvmXms() + "M";
         String newXmx = "-Xmx" + server.getJvmXmx() + "M";
         String otherArgs = server.getJvmArgs();
+        String javaPath = server.getJavaPath();
 
         // 移除脚本中已存在的 -Xms 和 -Xmx 参数
         script = script.replaceAll("-Xms\\d+[MmGgKk]?\\s*", "");
@@ -307,40 +308,82 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
 
         // 找到 java 命令的位置（支持完整路径、引号和 .exe 后缀）
         // 匹配模式：可能包含引号、路径分隔符（/ 或 \）和可选的 .exe 后缀
-        int javaIndex = -1;
-        int insertPos = -1;
-
         // 使用正则表达式查找 java 或 java.exe（可能带完整路径和引号）
         // 匹配: java 或 java.exe 或 /path/to/java 或 'C:\path\to\java.exe' 或 "/path/to/java"
         Pattern pattern = Pattern.compile("(['\"]?)([^\\s'\"]*[/\\\\])?java(\\.exe)?\\1(?=\\s|$)",
                 Pattern.CASE_INSENSITIVE);
         Matcher matcher = pattern.matcher(script);
 
+        final boolean match = javaPath.contains(" ") && !javaPath.startsWith("\"") && !javaPath.startsWith("'");
         if (matcher.find()) {
-            javaIndex = matcher.start();
-            insertPos = matcher.end();
+            int javaStart = matcher.start();
+            int javaEnd = matcher.end();
+
+            // 如果指定了自定义Java路径，替换原有的java命令
+            String javaCommand;
+            if (StringUtils.isNotEmpty(javaPath)) {
+                // 检查路径是否需要引号（包含空格时）
+                if (match) {
+                    javaCommand = "\"" + javaPath + "\"";
+                } else {
+                    javaCommand = javaPath;
+                }
+            } else {
+                // 保留原有的java命令
+                javaCommand = matcher.group(0);
+            }
 
             // 跳过 java 命令后面的空格
+            int insertPos = javaEnd;
             while (insertPos < script.length() && script.charAt(insertPos) == ' ') {
                 insertPos++;
             }
 
-            StringBuilder sb = new StringBuilder(script);
-            String jvmParams = " " + newXms + " " + newXmx;
-            if (StringUtils.isNotEmpty(otherArgs)) {
-                jvmParams += " " + otherArgs.trim();
-            }
-            jvmParams += " ";
+            // 构建新的脚本：java命令 + JVM参数 + 剩余部分
+            StringBuilder sb = new StringBuilder();
 
-            sb.insert(insertPos, jvmParams);
+            // 添加java命令之前的部分
+            sb.append(script, 0, javaStart);
+
+            // 添加java命令
+            sb.append(javaCommand);
+
+            // 添加JVM参数
+            sb.append(" ").append(newXms).append(" ").append(newXmx);
+            if (StringUtils.isNotEmpty(otherArgs)) {
+                sb.append(" ").append(otherArgs.trim());
+            }
+            sb.append(" ");
+
+            // 添加剩余部分
+            sb.append(script.substring(insertPos));
+            
             script = sb.toString();
         } else {
-            // 如果没有找到 java 命令，直接在开头添加（不太可能出现这种情况）
-            String jvmParams = newXms + " " + newXmx;
-            if (StringUtils.isNotEmpty(otherArgs)) {
-                jvmParams += " " + otherArgs.trim();
+            // 如果没有找到 java 命令，构建完整的启动命令
+            StringBuilder sb = new StringBuilder();
+
+            // 添加Java命令
+            if (StringUtils.isNotEmpty(javaPath)) {
+                if (match) {
+                    sb.append("\"").append(javaPath).append("\"");
+                } else {
+                    sb.append(javaPath);
+                }
+            } else {
+                sb.append("java");
             }
-            script = jvmParams + " " + script;
+
+            // 添加JVM参数
+            sb.append(" ").append(newXms).append(" ").append(newXmx);
+            if (StringUtils.isNotEmpty(otherArgs)) {
+                sb.append(" ").append(otherArgs.trim());
+            }
+
+            // 添加原始脚本
+            sb.append(" ").append(script);
+
+            script = sb.toString();
         }
 
         // 清理多余的空格

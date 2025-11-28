@@ -94,6 +94,8 @@ create table node_minecraft_server
     name              varchar(255)             not null comment '服务器名称',
     server_path       varchar(500)             not null comment '服务端所在目录',
     start_str         text                     not null comment '启动命令',
+    java_path   text null comment 'Java路径',
+    java_env_id int  null comment '环境ID',
     jvm_xmx           varchar(20)              not null comment '最大堆内存(XMX)',
     jvm_xms           varchar(20)              not null comment '最小堆内存(XMS)',
     jvm_args          varchar(1000)            null comment '其他JVM参数',
@@ -123,4 +125,46 @@ create index idx_node_uuid
 
 create index idx_status
     on node_minecraft_server (status);
+
+drop table if exists node_env;
+-- 节点Java多版本环境管理表
+CREATE TABLE node_env
+(
+    id          INT AUTO_INCREMENT PRIMARY KEY COMMENT '主键ID',
+
+    node_id     INT          NOT NULL COMMENT '节点ID',
+    version     VARCHAR(64)  NOT NULL COMMENT 'Java版本号，如 1.8.0_361 / 17 / 21',
+    env_name    VARCHAR(64)  NULL COMMENT '环境名称自定义，如 JAVA_17、JAVA_8',
+
+    path        VARCHAR(512) NOT NULL COMMENT 'Java安装根路径（可能不是JAVA_HOME）',
+    java_home   VARCHAR(512) NULL COMMENT 'JAVA_HOME路径',
+    bin_path    VARCHAR(512) NULL COMMENT 'bin目录路径',
+
+    type        VARCHAR(32)  NOT NULL DEFAULT 'JDK' COMMENT '安装类型：JDK、JRE、Runtime',
+    arch        VARCHAR(32)  NULL COMMENT '架构：amd64、arm64、x86',
+
+    is_default  TINYINT(1)   NOT NULL DEFAULT 0 COMMENT '是否为节点默认Java版本：0否|1是',
+    valid       TINYINT(1)   NOT NULL DEFAULT 1 COMMENT '路径是否有效：1有效|0无效',
+    source      VARCHAR(64)  NULL COMMENT '来源：manual、auto_detect、system、sdkman等',
+
+    status      INT          NOT NULL DEFAULT 1 COMMENT '状态：1=正常|0=禁用|9=已删除',
+
+    create_time DATETIME     NOT NULL COMMENT '创建时间',
+    create_by   VARCHAR(64)  NULL COMMENT '创建者',
+    update_time DATETIME     NULL COMMENT '更新时间',
+    update_by   VARCHAR(64)  NULL COMMENT '更新者',
+
+    remark      TEXT         NULL COMMENT '备注',
+
+    -- 防止同一节点重复添加同一版本
+    UNIQUE KEY uk_node_version (node_id, version),
+
+    KEY idx_node_id (node_id),
+    KEY idx_node_default (node_id, is_default),
+    KEY idx_path_prefix (path(64)),
+    KEY idx_java_home_prefix (java_home(64)),
+    KEY idx_source (source),
+    KEY idx_valid (valid),
+    KEY idx_status (status)
+) COMMENT ='节点Java多版本环境管理表';
 

@@ -132,6 +132,20 @@ export const dynamicRoutes = [
     ]
   },
   {
+    path: '/node/env',
+    component: Layout,
+    hidden: true,
+    permissions: ['node:env:list'],
+    children: [
+      {
+        path: 'index',
+        component: () => import('@/views/node/env/index'),
+        name: 'EnvList',
+        meta: {title: 'Java环境管理', activeMenu: '/node/env'}
+      }
+    ]
+  },
+  {
     path: '/system/user-auth',
     component: Layout,
     hidden: true,

@@ -12,6 +12,8 @@
         <result property="name" column="name"/>
         <result property="serverPath" column="server_path"/>
         <result property="startStr" column="start_str"/>
+        <result property="javaPath" column="java_path"/>
+        <result property="javaEnvId" column="java_env_id"/>
         <result property="jvmXmx" column="jvm_xmx"/>
         <result property="jvmXms" column="jvm_xms"/>
         <result property="jvmArgs" column="jvm_args"/>
@@ -37,6 +39,8 @@
                name,
                server_path,
                start_str,
+               java_path,
+               java_env_id,
                jvm_xmx,
                jvm_xms,
                jvm_args,
@@ -129,6 +133,10 @@
             </if>
             <if test="startStr != null and startStr != ''">start_str,
             </if>
+            <if test="javaPath != null and javaPath != ''">java_path,
+            </if>
+            <if test="javaEnvId != null">java_env_id,
+            </if>
             <if test="jvmXmx != null and jvmXmx != ''">jvm_xmx,
             </if>
             <if test="jvmXms != null and jvmXms != ''">jvm_xms,
@@ -172,6 +180,10 @@
             <if test="serverPath != null and serverPath != ''">#{serverPath},
             </if>
             <if test="startStr != null and startStr != ''">#{startStr},
+            </if>
+            <if test="javaPath != null and javaPath != ''">#{javaPath},
+            </if>
+            <if test="javaEnvId != null">#{javaEnvId},
             </if>
             <if test="jvmXmx != null and jvmXmx != ''">#{jvmXmx},
             </if>
@@ -226,6 +238,12 @@
             </if>
             <if test="startStr != null and startStr != ''">start_str =
                 #{startStr},
+            </if>
+            <if test="javaPath != null and javaPath != ''">java_path =
+                #{javaPath},
+            </if>
+            <if test="javaEnvId != null">java_env_id =
+                #{javaEnvId},
             </if>
             <if test="jvmXmx != null and jvmXmx != ''">jvm_xmx =
                 #{jvmXmx},

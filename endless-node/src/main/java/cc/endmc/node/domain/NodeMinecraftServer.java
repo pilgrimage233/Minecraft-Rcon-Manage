@@ -63,6 +63,18 @@ public class NodeMinecraftServer extends BaseEntity {
     private String startStr;
 
     /**
+     * Java路径
+     */
+    @Excel(name = "Java路径")
+    private String javaPath;
+
+    /**
+     * Java环境ID
+     */
+    @Excel(name = "Java环境ID")
+    private String javaEnvId;
+
+    /**
      * 最大堆内存(XMX)
      */
     @Excel(name = "最大堆内存(XMX)")
