@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletResponse;
 import java.util.List;
+import java.util.Map;
 
 /**
  * 节点Java多版本环境管理Controller
@@ -108,5 +109,16 @@ public class NodeEnvController extends BaseController {
     @GetMapping("/scan/{nodeId}")
     public AjaxResult scanEnvironments(@PathVariable Long nodeId) {
         return nodeEnvService.scanEnvironments(nodeId);
+    }
+
+    /**
+     * 一键安装Java环境
+     */
+    @PreAuthorize("@ss.hasPermi('node:env:add')")
+    @Log(title = "一键安装Java环境", businessType = BusinessType.INSERT)
+    @PostMapping("/install")
+    public org.springframework.web.servlet.mvc.method.annotation.SseEmitter installJava(
+            @RequestBody Map<String, Object> params) {
+        return nodeEnvService.installJavaWithProgress(params);
     }
 }

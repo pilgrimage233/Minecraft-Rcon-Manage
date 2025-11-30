@@ -69,8 +69,42 @@
             <div class="terminal-title">
               <i class="el-icon-monitor"></i>
               <span>控制台输出</span>
+              <el-tooltip v-if="wsConnectionMode" :content="getConnectionModeTooltip()" placement="bottom">
+                <el-tag
+                  :type="wsConnectionMode === 'direct' ? 'success' : 'warning'"
+                  class="connection-mode-tag"
+                  effect="dark"
+                  size="small">
+                  <i :class="wsConnectionMode === 'direct' ? 'el-icon-link' : 'el-icon-share'"></i>
+                  {{ wsConnectionMode === 'direct' ? '直连' : '代理' }}
+                </el-tag>
+              </el-tooltip>
             </div>
             <div class="terminal-controls">
+              <el-tooltip content="连接模式设置" placement="bottom">
+                <el-dropdown class="connection-mode-dropdown" trigger="click" @command="handleConnectionModeChange">
+                  <span class="connection-mode-trigger">
+                    <i class="el-icon-setting"></i>
+                  </span>
+                  <el-dropdown-menu slot="dropdown" class="connection-mode-menu">
+                    <el-dropdown-item :class="{ 'is-active': wsPreferredMode === 'auto' }" command="auto">
+                      <i class="el-icon-magic-stick"></i>
+                      <span>自动选择</span>
+                      <span v-if="wsPreferredMode === 'auto'" class="mode-check">✓</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item :class="{ 'is-active': wsPreferredMode === 'direct' }" command="direct">
+                      <i class="el-icon-link"></i>
+                      <span>强制直连</span>
+                      <span v-if="wsPreferredMode === 'direct'" class="mode-check">✓</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item :class="{ 'is-active': wsPreferredMode === 'proxy' }" command="proxy">
+                      <i class="el-icon-share"></i>
+                      <span>强制代理</span>
+                      <span v-if="wsPreferredMode === 'proxy'" class="mode-check">✓</span>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </el-dropdown>
+              </el-tooltip>
               <span class="terminal-dot red"></span>
               <span class="terminal-dot yellow"></span>
               <span class="terminal-dot green"></span>
@@ -78,17 +112,28 @@
           </div>
           <div class="terminal-wrapper">
             <div ref="terminal" class="terminal" @click="focusInput">
-              <pre :class="{ 'empty-content': !consoleText }" class="content">{{ consoleText || ' ' }}</pre>
+              <pre
+                v-if="!consoleText"
+                class="content empty-content"
+              > </pre>
+              <div
+                v-else
+                class="content"
+                v-html="formattedConsoleText"
+              ></div>
             </div>
           </div>
           <div class="cmd-bar">
-            <el-input
+            <el-autocomplete
               v-model="command"
+              :fetch-suggestions="queryCommandSearch"
+              :trigger-on-focus="false"
               class="cmd-input"
               placeholder="输入指令并回车，例如：say hello"
               prefix-icon="el-icon-edit-outline"
               size="small"
               @keyup.enter.native="sendCommand"
+              @select="handleCommandSelect"
             >
               <template slot="prepend">
                 <i class="el-icon-right"></i>
@@ -96,7 +141,13 @@
               <el-button slot="append" :loading="cmdLoading" icon="el-icon-s-promotion" type="primary"
                          @click="sendCommand">发送
               </el-button>
-            </el-input>
+              <template slot-scope="{ item }">
+                <div class="command-suggestion">
+                  <span class="command-name">{{ item.value }}</span>
+                  <span class="command-desc">{{ item.description }}</span>
+                </div>
+              </template>
+            </el-autocomplete>
           </div>
 
           <!-- 快捷配置文件访问区域 -->
@@ -447,7 +498,8 @@ import {
 } from '@/api/node/server'
 import MonacoEditor from 'monaco-editor-vue'
 import './terminal.scss'
-import {mcConfigTranslations} from "@/views/node/mcs/mcConfigTranslations";
+import {mcConfigTranslations} from "@/views/node/mcs/mcConfigTranslations"
+import AnsiToHtml from 'ansi-to-html';
 
 export default {
   name: 'McsTerminal',
@@ -467,6 +519,160 @@ export default {
       statusText: '未知',
       statusTag: 'warning',
       serverStatus: null, // 服务器状态信息
+      ansiConverter: null, // ANSI转HTML转换器
+      // 命令补全列表
+      commandSuggestions: [
+        // 基础命令
+        {value: 'help', description: '显示帮助信息'},
+        {value: 'stop', description: '停止服务器'},
+        {value: 'save-all', description: '保存所有世界数据'},
+        {value: 'save-on', description: '启用自动保存'},
+        {value: 'save-off', description: '禁用自动保存'},
+
+        // 玩家管理
+        {value: 'kick <玩家> [原因]', description: '踢出玩家'},
+        {value: 'ban <玩家> [原因]', description: '封禁玩家'},
+        {value: 'ban-ip <IP> [原因]', description: '封禁IP地址'},
+        {value: 'pardon <玩家>', description: '解除玩家封禁'},
+        {value: 'pardon-ip <IP>', description: '解除IP封禁'},
+        {value: 'banlist [players|ips]', description: '查看封禁列表'},
+        {value: 'whitelist add <玩家>', description: '添加白名单'},
+        {value: 'whitelist remove <玩家>', description: '移除白名单'},
+        {value: 'whitelist list', description: '查看白名单'},
+        {value: 'whitelist on', description: '启用白名单'},
+        {value: 'whitelist off', description: '关闭白名单'},
+        {value: 'whitelist reload', description: '重载白名单'},
+        {value: 'op <玩家>', description: '给予玩家管理员权限'},
+        {value: 'deop <玩家>', description: '移除玩家管理员权限'},
+
+        // 游戏模式
+        {value: 'gamemode survival [玩家]', description: '设置生存模式'},
+        {value: 'gamemode creative [玩家]', description: '设置创造模式'},
+        {value: 'gamemode adventure [玩家]', description: '设置冒险模式'},
+        {value: 'gamemode spectator [玩家]', description: '设置旁观模式'},
+
+        // 时间和天气
+        {value: 'time set day', description: '设置为白天'},
+        {value: 'time set night', description: '设置为夜晚'},
+        {value: 'time set <时间>', description: '设置时间'},
+        {value: 'time add <时间>', description: '增加时间'},
+        {value: 'time query daytime', description: '查询游戏时间'},
+        {value: 'weather clear [持续时间]', description: '设置晴天'},
+        {value: 'weather rain [持续时间]', description: '设置雨天'},
+        {value: 'weather thunder [持续时间]', description: '设置雷雨'},
+
+        // 传送
+        {value: 'tp <玩家> <目标玩家>', description: '传送玩家到另一玩家'},
+        {value: 'tp <玩家> <x> <y> <z>', description: '传送玩家到坐标'},
+        {value: 'teleport <玩家> <x> <y> <z>', description: '传送玩家到坐标'},
+
+        // 给予物品
+        {value: 'give <玩家> <物品> [数量]', description: '给予玩家物品'},
+        {value: 'clear <玩家> [物品]', description: '清空玩家物品'},
+
+        // 效果
+        {value: 'effect give <玩家> <效果> [持续时间] [等级]', description: '给予玩家效果'},
+        {value: 'effect clear <玩家> [效果]', description: '清除玩家效果'},
+
+        // 经验
+        {value: 'xp add <玩家> <数量> [points|levels]', description: '给予玩家经验'},
+        {value: 'xp set <玩家> <数量> [points|levels]', description: '设置玩家经验'},
+        {value: 'xp query <玩家> [points|levels]', description: '查询玩家经验'},
+
+        // 难度
+        {value: 'difficulty peaceful', description: '设置和平难度'},
+        {value: 'difficulty easy', description: '设置简单难度'},
+        {value: 'difficulty normal', description: '设置普通难度'},
+        {value: 'difficulty hard', description: '设置困难难度'},
+
+        // 世界管理
+        {value: 'seed', description: '显示世界种子'},
+        {value: 'setworldspawn [x] [y] [z]', description: '设置世界出生点'},
+        {value: 'spawnpoint <玩家> [x] [y] [z]', description: '设置玩家出生点'},
+        {value: 'gamerule <规则> [值]', description: '设置游戏规则'},
+        {value: 'gamerule keepInventory true', description: '死亡不掉落'},
+        {value: 'gamerule doDaylightCycle false', description: '停止时间流逝'},
+        {value: 'gamerule doMobSpawning false', description: '禁止生物生成'},
+        {value: 'gamerule doFireTick false', description: '禁止火焰蔓延'},
+        {value: 'gamerule mobGriefing false', description: '禁止生物破坏方块'},
+
+        // 聊天和消息
+        {value: 'say <消息>', description: '向所有玩家发送消息'},
+        {value: 'tell <玩家> <消息>', description: '向玩家发送私聊消息'},
+        {value: 'msg <玩家> <消息>', description: '向玩家发送私聊消息'},
+        {value: 'w <玩家> <消息>', description: '向玩家发送私聊消息'},
+        {value: 'me <动作>', description: '发送动作消息'},
+        {value: 'title <玩家> title <文本>', description: '显示标题'},
+        {value: 'title <玩家> subtitle <文本>', description: '显示副标题'},
+        {value: 'title <玩家> actionbar <文本>', description: '显示快捷栏文本'},
+
+        // 服务器信息
+        {value: 'list', description: '列出在线玩家'},
+        {value: 'list uuids', description: '列出在线玩家及UUID'},
+        {value: 'tps', description: '查看服务器TPS'},
+        {value: 'perf', description: '查看性能信息'},
+        {value: 'timings', description: '性能分析工具'},
+
+        // 插件管理 (Bukkit/Spigot/Paper)
+        {value: 'plugins', description: '列出所有插件'},
+        {value: 'pl', description: '列出所有插件'},
+        {value: 'reload', description: '重载服务器配置'},
+        {value: 'reload confirm', description: '确认重载服务器'},
+        {value: 'version', description: '查看服务器版本'},
+        {value: 'ver', description: '查看服务器版本'},
+
+        // 权限管理 (LuckPerms)
+        {value: 'lp user <玩家> permission set <权限> true', description: 'LP: 给予玩家权限'},
+        {value: 'lp user <玩家> permission unset <权限>', description: 'LP: 移除玩家权限'},
+        {value: 'lp user <玩家> parent add <组>', description: 'LP: 添加玩家到组'},
+        {value: 'lp user <玩家> parent remove <组>', description: 'LP: 从组移除玩家'},
+        {value: 'lp group <组> permission set <权限> true', description: 'LP: 给予组权限'},
+        {value: 'lp group list', description: 'LP: 列出所有组'},
+
+        // 世界编辑 (WorldEdit)
+        {value: '//wand', description: 'WE: 获取选区工具'},
+        {value: '//pos1', description: 'WE: 设置第一个点'},
+        {value: '//pos2', description: 'WE: 设置第二个点'},
+        {value: '//set <方块>', description: 'WE: 填充选区'},
+        {value: '//replace <旧方块> <新方块>', description: 'WE: 替换方块'},
+        {value: '//copy', description: 'WE: 复制选区'},
+        {value: '//paste', description: 'WE: 粘贴选区'},
+        {value: '//undo', description: 'WE: 撤销操作'},
+        {value: '//redo', description: 'WE: 重做操作'},
+
+        // 领地管理 (Residence)
+        {value: 'res create <领地名>', description: 'Res: 创建领地'},
+        {value: 'res remove <领地名>', description: 'Res: 删除领地'},
+        {value: 'res tp <领地名>', description: 'Res: 传送到领地'},
+        {value: 'res pset <领地名> <玩家> <权限> true', description: 'Res: 设置玩家权限'},
+
+        // 经济管理 (Vault/EssentialsX)
+        {value: 'eco give <玩家> <金额>', description: '给予玩家金钱'},
+        {value: 'eco take <玩家> <金额>', description: '扣除玩家金钱'},
+        {value: 'eco set <玩家> <金额>', description: '设置玩家金钱'},
+        {value: 'balance <玩家>', description: '查看玩家余额'},
+        {value: 'bal <玩家>', description: '查看玩家余额'},
+        {value: 'pay <玩家> <金额>', description: '支付给玩家'},
+
+        // EssentialsX 常用命令
+        {value: 'spawn', description: 'Ess: 传送到出生点'},
+        {value: 'home [名称]', description: 'Ess: 传送到家'},
+        {value: 'sethome [名称]', description: 'Ess: 设置家'},
+        {value: 'delhome [名称]', description: 'Ess: 删除家'},
+        {value: 'warp <传送点>', description: 'Ess: 传送到传送点'},
+        {value: 'setwarp <传送点>', description: 'Ess: 设置传送点'},
+        {value: 'delwarp <传送点>', description: 'Ess: 删除传送点'},
+        {value: 'tpa <玩家>', description: 'Ess: 请求传送到玩家'},
+        {value: 'tpahere <玩家>', description: 'Ess: 请求玩家传送到你'},
+        {value: 'tpaccept', description: 'Ess: 接受传送请求'},
+        {value: 'tpdeny', description: 'Ess: 拒绝传送请求'},
+        {value: 'back', description: 'Ess: 返回上一个位置'},
+
+        // 调试命令
+        {value: 'debug start', description: '开始调试'},
+        {value: 'debug stop', description: '停止调试'},
+        {value: 'debug report', description: '生成调试报告'}
+      ],
       // 右侧
       filesLoading: false,
       currentPath: '',
@@ -478,6 +684,10 @@ export default {
         subscribe: '',
         token: ''
       },
+      // WebSocket连接模式: 'auto' | 'direct' | 'proxy'
+      wsConnectionMode: null,
+      wsPreferredMode: 'auto', // 用户偏好设置
+      wsDirectFailed: false, // 直连是否失败过
       // 文件预览相关
       previewDialogVisible: false,
       previewFile: null,
@@ -507,11 +717,26 @@ export default {
     }
   },
   created() {
+    // 初始化 ANSI 转换器
+    this.ansiConverter = new AnsiToHtml({
+      fg: '#FFF',
+      bg: '#000',
+      newline: false,
+      escapeXML: true,
+      stream: false
+    });
+
     // 检查必要参数
     if (!this.serverId) {
       this.$message.error('缺少必要的参数：serverId');
       this.$router.push('/node/mcs/index');
       return;
+    }
+
+    // 从localStorage读取用户偏好的连接模式
+    const savedMode = localStorage.getItem('wsConnectionMode');
+    if (savedMode && ['auto', 'direct', 'proxy'].includes(savedMode)) {
+      this.wsPreferredMode = savedMode;
     }
 
     // 获取实例信息（会在获取成功后自动启动状态轮询）
@@ -551,6 +776,20 @@ export default {
     }
   },
   computed: {
+    // 格式化控制台文本（将 ANSI 代码转换为 HTML）
+    formattedConsoleText() {
+      if (!this.consoleText || !this.ansiConverter) return ''
+      try {
+        // 将文本按行分割，逐行转换
+        const lines = this.consoleText.split('\n')
+        const htmlLines = lines.map(line => this.ansiConverter.toHtml(line))
+        return htmlLines.join('<br>')
+      } catch (error) {
+        console.error('ANSI转换失败:', error)
+        // 如果转换失败，返回纯文本（转义HTML）
+        return this.consoleText.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
+      }
+    },
     canGoParent() {
       if (!this.currentPath) return false
       const norm = this.currentPath.replace(/\\/g, '/').replace(/\/$/, '')
@@ -879,35 +1118,77 @@ export default {
       const parent = (this.currentPath.startsWith('/') ? '/' : '') + segs.join('/')
       this.loadFiles(parent)
     },
-    fetchConsoleWsInfo() {
-      if (!this.instanceInfo) return Promise.resolve();
-      // 获取WebSocket连接信息
-      return getNodeInstanceConsole({id: this.instanceInfo.nodeId, serverId: this.serverId}).then(res => {
-        if (res && res.data) {
+    async fetchConsoleWsInfo() {
+      if (!this.instanceInfo) return;
+
+      // 根据用户偏好和历史失败情况决定连接模式
+      if (this.wsPreferredMode === 'proxy' || (this.wsPreferredMode === 'auto' && this.wsDirectFailed)) {
+        // 使用代理模式
+        this.setupProxyMode();
+      } else if (this.wsPreferredMode === 'direct') {
+        // 强制直连模式
+        await this.setupDirectMode();
+      } else {
+        // 自动模式：优先尝试直连
+        try {
+          await this.setupDirectMode();
+        } catch (error) {
+          console.warn('直连模式失败，切换到代理模式:', error);
+          this.wsDirectFailed = true;
+          this.setupProxyMode();
+        }
+      }
+    },
+
+    // 设置直连模式
+    async setupDirectMode() {
+      try {
+        const response = await getNodeInstanceConsole({
+          id: this.instanceInfo.nodeId,
+          serverId: this.serverId
+        });
+
+        if (response && response.data) {
           this.wsInfo = {
-            wsUrl: res.data.wsUrl || '',
-            console: res.data.console || '',
-            subscribe: res.data.subscribe || '',
-            token: res.data.token || ''
-          }
+            wsUrl: response.data.wsUrl || '',
+            console: response.data.console || '',
+            subscribe: response.data.subscribe || '',
+            token: response.data.token || ''
+          };
+          this.wsConnectionMode = 'direct';
+          console.log('使用直连模式');
+        } else {
+          throw new Error('获取节点WebSocket信息失败');
         }
-      }).catch(() => {
-        // 获取失败时使用默认配置
-        this.wsInfo = {
-          wsUrl: '',
-          console: '',
-          subscribe: '',
-          token: ''
-        }
-      })
+      } catch (error) {
+        console.error('设置直连模式失败:', error);
+        throw error;
+      }
+    },
+
+    // 设置代理模式
+    setupProxyMode() {
+      // 根据环境构建WebSocket URL
+      // 开发环境：使用devServer代理，路径为 /dev-api/ws
+      // 生产环境：使用nginx代理，路径为 /prod-api/ws
+      const baseApi = process.env.VUE_APP_BASE_API || '/prod-api';
+      const wsUrl = `${baseApi}/ws`;
+
+      this.wsInfo = {
+        wsUrl: wsUrl,  // 主控端WebSocket地址（通过代理）
+        console: '/topic/node-console/',  // 订阅主控端转发的topic
+        subscribe: '/app/node/console/subscribe',  // 订阅指令路径
+        token: this.$store.getters.token || ''  // 使用当前用户token
+      };
+      this.wsConnectionMode = 'proxy';
+      console.log('使用代理模式, WebSocket URL:', wsUrl);
     },
     connectWs() {
-      if (!this.wsInfo.wsUrl || !this.wsInfo.console || !this.wsInfo.subscribe || !this.wsInfo.token) {
-        console.warn('WebSocket连接信息不完整，使用默认连接方式')
+      if (!this.wsInfo.wsUrl || !this.wsInfo.console || !this.wsInfo.subscribe) {
+        console.warn('WebSocket连接信息不完整')
         return
       }
 
-      // 使用后端返回的WebSocket连接信息
       const SockJS = require('sockjs-client/dist/sockjs.min.js')
       const Stomp = require('stompjs')
 
@@ -916,11 +1197,42 @@ export default {
         this.stompClient = Stomp.over(sock)
         this.stompClient.debug = null
 
-        this.stompClient.connect({
-          "X-Endless-Token": this.wsInfo.token
-        }, () => {
-          // 订阅控制台主题
-          this.subscription = this.stompClient.subscribe(this.wsInfo.console + this.instanceInfo.nodeInstancesId, (msg) => {
+        // 设置连接超时
+        const connectTimeout = setTimeout(() => {
+          if (!this.stompClient || !this.stompClient.connected) {
+            console.error('WebSocket连接超时');
+            this.handleConnectionFailure();
+          }
+        }, 10000); // 10秒超时
+
+        const connectHeaders = this.wsConnectionMode === 'direct'
+          ? {"X-Endless-Token": this.wsInfo.token}
+          : {};
+
+        this.stompClient.connect(connectHeaders, () => {
+          clearTimeout(connectTimeout);
+          console.log(`WebSocket连接成功 (${this.wsConnectionMode}模式)`);
+
+          // 根据连接模式订阅不同的topic
+          let topic, subscribePayload;
+
+          if (this.wsConnectionMode === 'direct') {
+            // 直连模式：订阅节点端topic
+            topic = this.wsInfo.console + this.instanceInfo.nodeInstancesId;
+            subscribePayload = {
+              serverId: this.instanceInfo.nodeInstancesId,
+              token: this.wsInfo.token
+            };
+          } else {
+            // 代理模式：订阅主控端转发的topic
+            topic = this.wsInfo.console + this.instanceInfo.nodeId + '/' + this.instanceInfo.nodeInstancesId;
+            subscribePayload = {
+              nodeId: this.instanceInfo.nodeId,
+              serverId: this.instanceInfo.nodeInstancesId
+            };
+          }
+
+          this.subscription = this.stompClient.subscribe(topic, (msg) => {
             try {
               const body = JSON.parse(msg.body)
               if (body.line) {
@@ -939,32 +1251,108 @@ export default {
           })
 
           // 发送订阅指令
-          this.stompClient.send(this.wsInfo.subscribe, {}, JSON.stringify({
-            serverId: this.instanceInfo.nodeInstancesId,
-            token: this.wsInfo.token
-          }))
-        }, () => {
-          // 断线重连
-          setTimeout(() => this.connectWs(), 2000)
+          this.stompClient.send(this.wsInfo.subscribe, {}, JSON.stringify(subscribePayload))
+
+          console.log('已订阅控制台:', topic)
+
+          // 连接成功，显示提示
+          this.$message.success(`控制台已连接 (${this.wsConnectionMode === 'direct' ? '直连' : '代理'}模式)`);
+        }, (error) => {
+          clearTimeout(connectTimeout);
+          console.error('WebSocket连接失败:', error);
+          this.handleConnectionFailure();
         })
       } catch (error) {
-        console.error('WebSocket连接失败，使用默认连接方式:', error)
+        console.error('WebSocket连接异常:', error);
+        this.handleConnectionFailure();
+      }
+    },
+
+    // 处理连接失败
+    handleConnectionFailure() {
+      // 如果是自动模式且直连失败，尝试切换到代理模式
+      if (this.wsPreferredMode === 'auto' && this.wsConnectionMode === 'direct' && !this.wsDirectFailed) {
+        console.log('直连失败，自动切换到代理模式');
+        this.wsDirectFailed = true;
+        this.$message.warning('直连失败，正在切换到代理模式...');
+
+        // 断开当前连接
+        this.disconnectWs();
+
+        // 重新获取连接信息并连接
+        this.fetchConsoleWsInfo().then(() => {
+          this.connectWs();
+        });
+      } else {
+        // 其他情况，尝试重连
+        this.$message.error('WebSocket连接失败，5秒后重试...');
+        setTimeout(() => this.connectWs(), 5000);
+      }
+    },
+
+    // 处理连接模式切换
+    handleConnectionModeChange(mode) {
+      if (mode === this.wsPreferredMode) return;
+
+      this.wsPreferredMode = mode;
+      this.wsDirectFailed = false; // 重置失败标记
+
+      // 保存用户偏好到localStorage
+      localStorage.setItem('wsConnectionMode', mode);
+
+      const modeText = mode === 'auto' ? '自动' : mode === 'direct' ? '直连' : '代理';
+      this.$message.info(`已切换到${modeText}模式，正在重新连接...`);
+
+      // 断开当前连接
+      this.disconnectWs();
+
+      // 重新获取连接信息并连接
+      this.fetchConsoleWsInfo().then(() => {
+        this.connectWs();
+      });
+    },
+    // 获取连接模式提示文本
+    getConnectionModeTooltip() {
+      if (this.wsConnectionMode === 'direct') {
+        return '直连模式：直接连接节点端，延迟最低';
+      } else {
+        return '代理模式：通过主控端代理连接，兼容性最好';
       }
     },
     disconnectWs() {
       try {
-        if (this.subscription) this.subscription.unsubscribe()
+        // 发送取消订阅指令（仅代理模式需要）
+        if (this.stompClient && this.stompClient.connected && this.instanceInfo && this.wsConnectionMode === 'proxy') {
+          this.stompClient.send('/app/node/console/unsubscribe', {}, JSON.stringify({
+            nodeId: this.instanceInfo.nodeId,
+            serverId: this.serverId
+          }))
+        }
+      } catch (e) {
+        console.error("发送取消订阅指令失败:", e)
+      }
+
+      try {
+        if (this.subscription) {
+          this.subscription.unsubscribe()
+        }
       } catch (e) {
         console.error("取消订阅失败:", e)
       }
+
       try {
-        if (this.stompClient) this.stompClient.disconnect(() => {
-        })
+        if (this.stompClient) {
+          this.stompClient.disconnect(() => {
+            console.log('WebSocket已断开')
+          })
+        }
       } catch (e) {
         console.error("断开WebSocket连接失败:", e)
       }
+
       this.subscription = null
       this.stompClient = null
+
       // 清理WebSocket连接信息
       this.wsInfo = {
         wsUrl: '',
@@ -980,6 +1368,46 @@ export default {
     },
     focusInput() {
       // 用于未来可扩展聚焦输入
+    },
+    // 命令搜索
+    queryCommandSearch(queryString, cb) {
+      const commands = this.commandSuggestions
+      const results = queryString
+        ? commands.filter(this.createCommandFilter(queryString))
+        : commands
+      cb(results)
+    },
+    // 创建命令过滤器
+    createCommandFilter(queryString) {
+      return (command) => {
+        const query = queryString.toLowerCase()
+        const value = command.value.toLowerCase()
+        const desc = command.description.toLowerCase()
+        // 匹配命令名称或描述
+        return value.indexOf(query) === 0 || desc.indexOf(query) !== -1
+      }
+    },
+    // 选择命令
+    handleCommandSelect(item) {
+      // 如果命令包含参数占位符，将光标移到第一个参数位置
+      const hasPlaceholder = item.value.includes('<') || item.value.includes('[')
+      if (hasPlaceholder) {
+        this.$nextTick(() => {
+          // 查找输入框元素
+          const input = this.$el.querySelector('.cmd-input input')
+          if (input) {
+            // 查找第一个 < 或 [ 的位置
+            const firstPlaceholder = Math.min(
+              item.value.indexOf('<') !== -1 ? item.value.indexOf('<') : Infinity,
+              item.value.indexOf('[') !== -1 ? item.value.indexOf('[') : Infinity
+            )
+            if (firstPlaceholder !== Infinity) {
+              input.focus()
+              input.setSelectionRange(firstPlaceholder, firstPlaceholder)
+            }
+          }
+        })
+      }
     },
     sendCommand() {
       if (!this.command || !this.instanceInfo) return

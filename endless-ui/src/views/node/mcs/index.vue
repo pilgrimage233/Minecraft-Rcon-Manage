@@ -3,7 +3,7 @@
     <!-- 搜索区域 -->
     <el-card v-show="showSearch" class="search-card" shadow="never">
       <el-form ref="queryForm" :inline="true" :model="queryParams" label-width="80px" size="small">
-        <el-form-item label="服务器名称" prop="name">
+        <el-form-item label="名称" prop="name">
           <el-input
             v-model="queryParams.name"
             clearable
@@ -22,7 +22,7 @@
             @keyup.enter.native="handleQuery"
           />
         </el-form-item>
-        <el-form-item label="服务器状态" prop="status">
+        <el-form-item label="状态" prop="status">
           <el-select
             v-model="queryParams.status"
             clearable
@@ -666,10 +666,33 @@ export default {
       }
       const env = this.javaEnvList.find(e => e.id === envId);
       if (env && env.binPath) {
-        const os = navigator.platform.toLowerCase();
-        const javaExe = os.includes('win') ? 'java.exe' : 'java';
-        this.form.javaPath = `${env.binPath}/${javaExe}`.replace(/\\/g, '/');
+        // 获取节点服务器信息以确定操作系统类型
+        if (this.routeNodeId) {
+          getServer(this.routeNodeId).then(response => {
+            if (response.code === 200 && response.data) {
+              const osType = (response.data.osType || '').toLowerCase();
+              const isWindows = osType.includes('windows') || osType.includes('win');
+              const javaExe = isWindows ? 'java.exe' : 'java';
+              const separator = isWindows ? '\\' : '/';
+              this.form.javaPath = `${env.binPath}${separator}${javaExe}`;
+            }
+          }).catch(() => {
+            // 降级处理：如果获取失败，使用默认逻辑
+            this.setDefaultJavaPath(env.binPath);
+          });
+        } else {
+          // 如果没有节点ID，使用默认逻辑
+          this.setDefaultJavaPath(env.binPath);
+        }
       }
+    },
+    /** 设置默认Java路径（降级方案） */
+    setDefaultJavaPath(binPath) {
+      // 根据binPath中的路径分隔符判断操作系统
+      const isWindows = binPath.includes('\\') || binPath.includes('C:') || binPath.includes('D:');
+      const javaExe = isWindows ? 'java.exe' : 'java';
+      const separator = isWindows ? '\\' : '/';
+      this.form.javaPath = `${binPath}${separator}${javaExe}`;
     },
     /** 搜索按钮操作 */
     handleQuery() {

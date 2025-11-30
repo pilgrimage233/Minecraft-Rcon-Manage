@@ -1,6 +1,8 @@
 package cc.endmc.node.service;
 
+import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.node.domain.NodeEnv;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.List;
 
@@ -65,7 +67,7 @@ public interface INodeEnvService {
      * @param nodeEnv 节点Java环境信息
      * @return 验证结果
      */
-    public cc.endmc.common.core.domain.AjaxResult verifyEnvironment(NodeEnv nodeEnv);
+    public AjaxResult verifyEnvironment(NodeEnv nodeEnv);
 
     /**
      * 扫描节点上的Java环境
@@ -73,5 +75,13 @@ public interface INodeEnvService {
      * @param nodeId 节点ID
      * @return 扫描结果
      */
-    public cc.endmc.common.core.domain.AjaxResult scanEnvironments(Long nodeId);
+    public AjaxResult scanEnvironments(Long nodeId);
+
+    /**
+     * 一键安装Java环境（流式响应）
+     *
+     * @param params 安装参数（nodeId, version, installPath, vendor）
+     * @return SSE发射器
+     */
+    public SseEmitter installJavaWithProgress(java.util.Map<String, Object> params);
 }

@@ -80,6 +80,17 @@
       </el-col>
       <el-col :span="1.5">
         <el-button
+          v-hasPermi="['node:env:add']"
+          icon="el-icon-download"
+          plain
+          size="mini"
+          type="success"
+          @click="handleInstallJava"
+        >一键安装
+        </el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
           v-hasPermi="['node:env:edit']"
           :disabled="single"
           icon="el-icon-edit"
@@ -176,6 +187,113 @@
       :total="total"
       @pagination="getList"
     />
+
+    <!-- 一键安装Java对话框 -->
+    <el-dialog :close-on-click-modal="false" :visible.sync="installDialogVisible" append-to-body
+               title="一键安装Java环境" width="600px">
+      <el-form ref="installForm" :model="installForm" :rules="installRules" label-width="120px">
+        <el-form-item label="节点服务器" prop="nodeId">
+          <el-select v-model="installForm.nodeId" :disabled="installing" placeholder="请选择节点服务器"
+                     style="width: 100%">
+            <el-option
+              v-for="server in nodeServerList"
+              :key="server.id"
+              :label="server.serverName"
+              :value="server.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="Java版本" prop="version">
+          <el-select v-model="installForm.version" :disabled="installing" placeholder="请选择Java版本"
+                     style="width: 100%">
+            <el-option
+              :disabled="!isVersionSupported('8')"
+              label="Java 8"
+              value="8"
+            />
+            <el-option
+              :disabled="!isVersionSupported('11')"
+              label="Java 11"
+              value="11"
+            />
+            <el-option
+              :disabled="!isVersionSupported('17')"
+              label="Java 17 (推荐)"
+              value="17"
+            />
+            <el-option
+              :disabled="!isVersionSupported('21')"
+              label="Java 21"
+              value="21"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="安装路径" prop="installPath">
+          <el-input v-model="installForm.installPath" :disabled="installing"
+                    placeholder="例如: f:\Endless\Endless-Node\java"/>
+          <span style="color: #909399; font-size: 12px;">
+            将在此路径下创建Java安装目录
+          </span>
+        </el-form-item>
+        <el-form-item label="供应商" prop="vendor">
+          <el-select v-model="installForm.vendor" :disabled="installing" placeholder="请选择供应商" style="width: 100%"
+                     @change="handleVendorChange">
+            <el-option label="Adoptium (推荐)" value="Adoptium">
+              <span>Adoptium</span>
+              <span style="color: #8492a6; font-size: 12px; margin-left: 10px;">开源稳定，支持所有版本</span>
+            </el-option>
+            <el-option label="Amazon Corretto" value="Corretto">
+              <span>Amazon Corretto</span>
+              <span style="color: #8492a6; font-size: 12px; margin-left: 10px;">AWS优化，生产就绪</span>
+            </el-option>
+            <el-option label="Azul Zulu" value="Zulu">
+              <span>Azul Zulu</span>
+              <span style="color: #8492a6; font-size: 12px; margin-left: 10px;">企业级支持</span>
+            </el-option>
+            <el-option label="Microsoft OpenJDK" value="Microsoft">
+              <span>Microsoft OpenJDK</span>
+              <span style="color: #8492a6; font-size: 12px; margin-left: 10px;">仅支持 11/17/21</span>
+            </el-option>
+            <el-option label="Oracle GraalVM" value="GraalVM">
+              <span>Oracle GraalVM</span>
+              <span style="color: #8492a6; font-size: 12px; margin-left: 10px;">高性能，仅支持 17/21</span>
+            </el-option>
+          </el-select>
+          <span style="color: #909399; font-size: 12px; display: block; margin-top: 5px;">
+            {{ getVendorTip() }}
+          </span>
+        </el-form-item>
+
+        <!-- 安装进度显示 -->
+        <div v-if="installing" style="margin-top: 20px;">
+          <el-progress :percentage="installProgress" :status="installStatus"></el-progress>
+          <div ref="installLogsContainer" class="install-logs-container"
+               style="margin-top: 10px; padding: 10px; background: #f5f7fa; border-radius: 4px; max-height: 200px; overflow-y: auto;">
+            <div v-for="(log, index) in installLogs" :key="index"
+                 style="font-size: 12px; line-height: 1.8; color: #606266; margin-bottom: 4px;">
+              <i :class="getLogIcon(log.type)" :style="{color: getLogColor(log.type)}"></i>
+              {{ log.message }}
+            </div>
+          </div>
+        </div>
+
+        <el-alert
+          v-if="!installing"
+          :closable="false"
+          style="margin-top: 15px"
+          title="提示：安装过程可能需要几分钟，请耐心等待。系统会自动下载并解压Java环境。"
+          type="info"
+        />
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button v-if="!installing && installStatus !== 'success'" @click="cancelInstall">取 消</el-button>
+        <el-button v-if="installStatus === 'success'" type="success" @click="handleInstallComplete">完成</el-button>
+        <el-button v-if="installStatus !== 'success'" :disabled="installing" :loading="installing" type="primary"
+                   @click="submitInstall">
+          {{ installing ? '安装中...' : '开始安装' }}
+        </el-button>
+      </div>
+    </el-dialog>
 
     <!-- 添加或修改节点Java多版本环境管理对话框 -->
     <el-dialog :title="title" :visible.sync="open" append-to-body width="700px">
@@ -284,6 +402,34 @@ export default {
       verifying: false,
       // 扫描加载状态
       scanning: false,
+      // 安装加载状态
+      installing: false,
+      installProgress: 0,
+      installStatus: '',
+      installLogs: [],
+      installEventSource: null,
+      // 安装对话框
+      installDialogVisible: false,
+      installForm: {
+        nodeId: null,
+        version: '17',
+        installPath: '',
+        vendor: 'Adoptium'
+      },
+      installRules: {
+        nodeId: [
+          {required: true, message: "请选择节点服务器", trigger: "change"}
+        ],
+        version: [
+          {required: true, message: "请选择Java版本", trigger: "change"}
+        ],
+        installPath: [
+          {required: true, message: "请输入安装路径", trigger: "blur"}
+        ],
+        vendor: [
+          {required: true, message: "请选择供应商", trigger: "change"}
+        ]
+      },
       // 遮罩层
       loading: true,
       // 选中数组
@@ -629,6 +775,260 @@ export default {
         }
         this.getList();
       });
+    },
+    /** 一键安装Java */
+    handleInstallJava() {
+      this.installForm = {
+        nodeId: this.queryParams.nodeId || null,
+        version: '17',
+        installPath: '',
+        vendor: 'Adoptium'
+      };
+      this.installing = false;
+      this.installProgress = 0;
+      this.installStatus = '';
+      this.installLogs = [];
+      this.installDialogVisible = true;
+      this.$nextTick(() => {
+        this.$refs['installForm'].clearValidate();
+      });
+    },
+    /** 提交安装 */
+    submitInstall() {
+      if (this.installing) return;
+
+      this.$refs['installForm'].validate(valid => {
+        if (valid) {
+          this.installing = true;
+          this.installProgress = 0;
+          this.installStatus = '';
+          this.installLogs = [];
+
+          this.startInstallWithSSE();
+        }
+      });
+    },
+
+    /** 使用SSE开始安装 */
+    startInstallWithSSE() {
+      // 使用主控端的代理接口
+      const url = process.env.VUE_APP_BASE_API + '/node/env/install';
+
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + this.$store.getters.token
+        },
+        body: JSON.stringify({
+          nodeId: this.installForm.nodeId,
+          version: this.installForm.version,
+          installPath: this.installForm.installPath,
+          vendor: this.installForm.vendor
+        })
+      }).then(response => {
+        if (!response.ok) {
+          throw new Error('请求失败');
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = ''; // 用于存储不完整的数据
+
+        const readStream = () => {
+          reader.read().then(({done, value}) => {
+            if (done) {
+              // 处理剩余的buffer
+              if (buffer.trim()) {
+                this.processSSELine(buffer);
+              }
+              this.installing = false;
+              return;
+            }
+
+            // 将新数据追加到buffer
+            buffer += decoder.decode(value, {stream: true});
+
+            // 按行分割
+            const lines = buffer.split('\n');
+
+            // 保留最后一个可能不完整的行
+            buffer = lines.pop() || '';
+
+            // 处理完整的行
+            lines.forEach(line => {
+              this.processSSELine(line);
+            });
+
+            readStream();
+          }).catch(error => {
+            console.error('读取流失败:', error);
+            this.installing = false;
+            this.$message.error('安装失败: ' + error.message);
+          });
+        };
+
+        readStream();
+      }).catch(error => {
+        console.error('安装Java失败:', error);
+        this.installing = false;
+        this.$message.error('安装失败: ' + error.message);
+      });
+    },
+
+    /** 处理单行SSE数据 */
+    processSSELine(line) {
+      line = line.trim();
+      if (line.startsWith('data:')) {
+        try {
+          const jsonStr = line.substring(5).trim();
+          if (jsonStr) {
+            const data = JSON.parse(jsonStr);
+            this.handleInstallProgress(data);
+          }
+        } catch (e) {
+          console.error('解析SSE数据失败:', line, e);
+        }
+      }
+    },
+
+    /** 处理安装进度 */
+    handleInstallProgress(data) {
+      if (data.progress !== undefined) {
+        this.installProgress = Math.min(100, Math.max(0, data.progress));
+      }
+
+      if (data.message) {
+        this.installLogs.push({
+          type: data.type || 'info',
+          message: data.message,
+          time: new Date().toLocaleTimeString()
+        });
+
+        // 自动滚动到底部
+        this.$nextTick(() => {
+          const logContainer = this.$refs.installLogsContainer;
+          if (logContainer) {
+            logContainer.scrollTop = logContainer.scrollHeight;
+          }
+        });
+      }
+
+      if (data.success === true || data.type === 'success') {
+        this.installStatus = 'success';
+        this.installProgress = 100;
+        this.installing = false;
+
+        // 显示成功消息框
+        this.$alert(
+          `Java ${data.version || ''} 安装成功！环境已自动添加到列表中。`,
+          '安装完成',
+          {
+            confirmButtonText: '确定',
+            type: 'success',
+            callback: () => {
+              this.installDialogVisible = false;
+              this.getList();
+            }
+          }
+        );
+      } else if (data.type === 'error') {
+        this.installStatus = 'exception';
+        this.installing = false;
+        this.$message.error(data.message || '安装失败');
+      }
+    },
+
+    /** 取消安装 */
+    cancelInstall() {
+      if (this.installing) {
+        this.$message.warning('安装正在进行中，请等待完成');
+        return;
+      }
+      this.installDialogVisible = false;
+      this.installLogs = [];
+      this.installProgress = 0;
+      this.installStatus = '';
+    },
+
+    /** 处理安装完成 */
+    handleInstallComplete() {
+      this.installDialogVisible = false;
+      this.installLogs = [];
+      this.installProgress = 0;
+      this.installStatus = '';
+      this.getList();
+    },
+
+    /** 获取日志图标 */
+    getLogIcon(type) {
+      const icons = {
+        'info': 'el-icon-info',
+        'success': 'el-icon-success',
+        'error': 'el-icon-error',
+        'warning': 'el-icon-warning'
+      };
+      return icons[type] || 'el-icon-info';
+    },
+
+    /** 获取日志颜色 */
+    getLogColor(type) {
+      const colors = {
+        'info': '#409EFF',
+        'success': '#67C23A',
+        'error': '#F56C6C',
+        'warning': '#E6A23C'
+      };
+      return colors[type] || '#909399';
+    },
+
+    /** 判断版本是否被当前供应商支持 */
+    isVersionSupported(version) {
+      const vendor = this.installForm.vendor;
+
+      // 定义每个供应商支持的版本
+      const supportedVersions = {
+        'Adoptium': ['8', '11', '17', '21'],
+        'Corretto': ['8', '11', '17', '21'],
+        'Zulu': ['8', '11', '17', '21'],
+        'Microsoft': ['11', '17', '21'],
+        'GraalVM': ['17', '21']
+      };
+
+      const versions = supportedVersions[vendor] || ['8', '11', '17', '21'];
+      return versions.includes(version);
+    },
+
+    /** 处理供应商变化 */
+    handleVendorChange(vendor) {
+      // 检查当前选择的版本是否被新供应商支持
+      const currentVersion = this.installForm.version;
+
+      if (!this.isVersionSupported(currentVersion)) {
+        // 如果不支持，自动选择该供应商支持的推荐版本
+        const recommendedVersions = {
+          'Microsoft': '17',
+          'GraalVM': '17'
+        };
+
+        const newVersion = recommendedVersions[vendor] || '17';
+        this.installForm.version = newVersion;
+
+        this.$message.info(`${vendor} 不支持 Java ${currentVersion}，已自动切换到 Java ${newVersion}`);
+      }
+    },
+
+    /** 获取供应商提示 */
+    getVendorTip() {
+      const vendor = this.installForm.vendor;
+      const tips = {
+        'Adoptium': '开源且稳定，适合大多数场景，支持 Java 8/11/17/21',
+        'Corretto': 'AWS 优化版本，适合云环境和生产部署，支持 Java 8/11/17/21',
+        'Zulu': '企业级 OpenJDK，提供长期支持，支持 Java 8/11/17/21',
+        'Microsoft': '微软构建的 OpenJDK，适合 Azure 环境，支持 Java 11/17/21',
+        'GraalVM': '高性能 JDK，支持多语言和 AOT 编译，支持 Java 17/21'
+      };
+      return tips[vendor] || '请选择供应商';
     }
   }
 };

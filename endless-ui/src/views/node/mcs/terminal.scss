@@ -337,6 +337,21 @@
   z-index: 0;
 }
 
+/* ANSI 颜色支持 - 确保 HTML 内容正确显示 */
+.terminal .content {
+  /* 重置可能影响颜色的样式 */
+  * {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+  }
+
+  /* 确保 ansi-to-html 生成的样式生效 */
+  span {
+    display: inline;
+  }
+}
+
 /* 控制台文本样式增强 */
 .terminal .content {
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 0 1px rgba(201, 209, 217, 0.05);
@@ -1193,4 +1208,254 @@
   font-size: 12px;
   line-height: 1.5;
   flex: 1;
+}
+
+
+// 连接模式标签样式
+.connection-mode-tag {
+  margin-left: 12px;
+  font-weight: 500;
+  padding: 4px 10px;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  line-height: 1;
+
+  i {
+    margin-right: 4px;
+    font-size: 12px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  }
+}
+
+// 连接模式下拉菜单
+.connection-mode-dropdown {
+  margin-right: 12px;
+
+  .connection-mode-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #f5f7fa;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    border: 1px solid #e4e7ed;
+
+    i {
+      color: #606266;
+      font-size: 16px;
+      transition: transform 0.3s ease;
+    }
+
+    &:hover {
+      background: #ecf5ff;
+      border-color: #409eff;
+      transform: scale(1.05);
+
+      i {
+        color: #409eff;
+        transform: rotate(90deg);
+      }
+    }
+  }
+}
+
+// 连接模式菜单样式
+.connection-mode-menu {
+  min-width: 200px;
+  padding: 8px 0;
+
+  .el-dropdown-menu__item {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    font-size: 14px;
+    transition: all 0.2s ease;
+    position: relative;
+
+    i {
+      margin-right: 10px;
+      font-size: 14px;
+      color: #606266;
+      transition: color 0.2s ease;
+    }
+
+    span {
+      flex: 1;
+    }
+
+    .mode-check {
+      color: #67c23a;
+      font-weight: bold;
+      font-size: 16px;
+      margin-left: 10px;
+    }
+
+    &.is-active {
+      background: #f0f9ff;
+      color: #409eff;
+
+      i {
+        color: #409eff;
+      }
+    }
+
+    &:hover {
+      background: #ecf5ff;
+      color: #409eff;
+
+      i {
+        color: #409eff;
+        transform: scale(1.1);
+      }
+    }
+  }
+}
+
+// 终端头部样式优化（浅色调）
+.terminal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: #ffffff;
+  border-bottom: 1px solid #e4e7ed;
+
+  .terminal-title {
+    display: flex;
+    align-items: center;
+    color: #303133;
+    font-size: 15px;
+    font-weight: 500;
+
+    i {
+      margin-right: 8px;
+      font-size: 18px;
+      color: #409eff;
+    }
+  }
+
+  .terminal-controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+}
+
+// 终端点样式
+.terminal-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  display: inline-block;
+  transition: all 0.3s ease;
+
+  &.red {
+    background: #ff5f56;
+    box-shadow: 0 0 0 0 rgba(255, 95, 86, 0.4);
+
+    &:hover {
+      box-shadow: 0 0 0 4px rgba(255, 95, 86, 0.4);
+    }
+  }
+
+  &.yellow {
+    background: #ffbd2e;
+    box-shadow: 0 0 0 0 rgba(255, 189, 46, 0.4);
+
+    &:hover {
+      box-shadow: 0 0 0 4px rgba(255, 189, 46, 0.4);
+    }
+  }
+
+  &.green {
+    background: #27c93f;
+    box-shadow: 0 0 0 0 rgba(39, 201, 63, 0.4);
+
+    &:hover {
+      box-shadow: 0 0 0 4px rgba(39, 201, 63, 0.4);
+    }
+  }
+}
+
+// 命令建议样式
+.command-suggestion {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  transition: all 0.2s ease;
+
+  .command-name {
+    font-family: 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+    font-weight: 600;
+    color: #409eff;
+    flex-shrink: 0;
+    margin-right: 16px;
+    font-size: 13px;
+    letter-spacing: 0.3px;
+  }
+
+  .command-desc {
+    font-size: 12px;
+    color: #909399;
+    text-align: right;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    line-height: 1.5;
+  }
+}
+
+// 命令建议下拉面板样式
+.el-autocomplete-suggestion {
+  li {
+    padding: 0 !important;
+    line-height: normal !important;
+
+    &:hover {
+      background: #f0f7ff !important;
+
+      .command-suggestion {
+        .command-name {
+          color: #66b1ff;
+        }
+
+        .command-desc {
+          color: #606266;
+        }
+      }
+    }
+
+    &.highlighted {
+      background: #ecf5ff !important;
+
+      .command-suggestion {
+        .command-name {
+          color: #409eff;
+          font-weight: 700;
+        }
+      }
+    }
+  }
+}
+
+// 命令输入框自动完成样式优化
+.cmd-input.el-autocomplete {
+  width: 100%;
+
+  .el-input__inner {
+    font-family: 'JetBrains Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
+  }
 }

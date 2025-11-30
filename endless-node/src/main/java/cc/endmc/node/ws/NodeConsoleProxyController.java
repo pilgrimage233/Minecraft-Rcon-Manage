@@ -3,127 +3,80 @@ package cc.endmc.node.ws;
 import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.node.common.NodeCache;
 import cc.endmc.node.domain.NodeServer;
-import cc.endmc.node.utils.ApiUtil;
-import com.alibaba.fastjson2.JSONObject;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.event.EventListener;
 import org.springframework.messaging.handler.annotation.MessageMapping;
 import org.springframework.messaging.handler.annotation.Payload;
 import org.springframework.messaging.simp.SimpMessageHeaderAccessor;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.messaging.simp.stomp.*;
+import org.springframework.messaging.simp.stomp.StompHeaderAccessor;
 import org.springframework.stereotype.Controller;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-import org.springframework.web.socket.client.standard.StandardWebSocketClient;
-import org.springframework.web.socket.messaging.WebSocketStompClient;
-import org.springframework.web.socket.sockjs.client.SockJsClient;
-import org.springframework.web.socket.sockjs.client.Transport;
-import org.springframework.web.socket.sockjs.client.WebSocketTransport;
+import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
-import java.lang.reflect.Type;
-import java.net.URI;
-import java.util.*;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Timer;
+import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
 
+/**
+ * 节点控制台WebSocket代理控制器
+ * 使用连接池管理到各个节点的持久化连接
+ */
 @Controller
 @RequiredArgsConstructor
 @Slf4j
 @RequestMapping("/api/node/console/proxy")
 public class NodeConsoleProxyController {
 
-    private final SimpMessagingTemplate messagingTemplate;
+    private final NodeConnectionPool connectionPool;
 
-    private final Map<String, StompSession> clientToDownstream = new ConcurrentHashMap<>();
+    // WebSocket信息缓存
     private final Map<String, Map<String, Object>> wsInfoCache = new ConcurrentHashMap<>();
 
+    /**
+     * 订阅节点服务器控制台
+     */
     @MessageMapping("/node/console/subscribe")
     public void subscribeConsole(@Payload Map<String, Object> payload, SimpMessageHeaderAccessor headers) {
         String sessionId = headers.getSessionId();
+        if (sessionId == null) {
+            log.warn("客户端会话ID为空");
+            return;
+        }
+
         try {
+            // 解析参数
             Number nodeIdNum = (Number) payload.get("nodeId");
             Number serverIdNum = (Number) payload.get("serverId");
+
             if (nodeIdNum == null || serverIdNum == null) {
-                Map<String, Object> resp = new HashMap<>();
-                resp.put("error", "缺少参数");
-                messagingTemplate.convertAndSendToUser(Objects.requireNonNull(sessionId), "/queue/node-console", resp);
+                log.warn("订阅参数不完整: nodeId={}, serverId={}", nodeIdNum, serverIdNum);
                 return;
             }
+
             long nodeId = nodeIdNum.longValue();
             int serverId = serverIdNum.intValue();
 
+            // 验证节点是否存在
             NodeServer node = NodeCache.get(nodeId);
             if (node == null || !StringUtils.hasText(node.getToken())) {
-                Map<String, Object> resp = new HashMap<>();
-                resp.put("error", "节点不存在或token缺失");
-                messagingTemplate.convertAndSendToUser(Objects.requireNonNull(sessionId), "/queue/node-console", resp);
+                log.error("节点不存在或token缺失: nodeId={}", nodeId);
                 return;
             }
 
-            // 建立到节点端的 STOMP 连接
-            List<Transport> transports = new ArrayList<>();
-            transports.add(new WebSocketTransport(new StandardWebSocketClient()));
-            SockJsClient sockJsClient = new SockJsClient(transports);
-            WebSocketStompClient stompClient = new WebSocketStompClient(sockJsClient);
+            // 使用连接池订阅
+            connectionPool.subscribe(nodeId, serverId, sessionId);
+            log.info("客户端订阅成功: sessionId={}, nodeId={}, serverId={}", sessionId, nodeId, serverId);
 
-            String wsUrl = ApiUtil.getBaseUrl(node) + "/ws";
-            StompSessionHandler sessionHandler = new StompSessionHandlerAdapter() {
-                @Override
-                public void afterConnected(StompSession downstream, StompHeaders connectedHeaders) {
-                    // 订阅控制台
-                    Map<String, Object> subBody = new HashMap<>();
-                    subBody.put("serverId", serverId);
-                    subBody.put("token", node.getToken());
-                    downstream.send("/app/console/subscribe", JSONObject.toJSONString(subBody));
-
-                    // 监听控制台topic并转发到主控端topic
-                    downstream.subscribe("/topic/console/" + serverId, new StompFrameHandler() {
-                        @Override
-                        public Type getPayloadType(StompHeaders headers) {
-                            return byte[].class;
-                        }
-
-                        @Override
-                        public void handleFrame(StompHeaders headers, Object payload) {
-                            try {
-                                String text = new String((byte[]) payload);
-                                messagingTemplate.convertAndSend("/topic/node-console/" + nodeId + "/" + serverId, JSONObject.parse(text));
-                            } catch (Exception e) {
-                                Map<String, Object> msg = new HashMap<>();
-                                msg.put("line", payload.toString());
-                                messagingTemplate.convertAndSend("/topic/node-console/" + nodeId + "/" + serverId, msg);
-                            }
-                        }
-                    });
-
-                    clientToDownstream.put(sessionIdKey(sessionId, nodeId, serverId), downstream);
-                    Map<String, Object> ok = new HashMap<>();
-                    ok.put("message", "已代理订阅控制台");
-                    messagingTemplate.convertAndSendToUser(Objects.requireNonNull(sessionId), "/queue/node-console", ok);
-                }
-
-                @Override
-                public void handleTransportError(StompSession session, Throwable exception) {
-                    Map<String, Object> err = new HashMap<>();
-                    err.put("error", "下游连接异常: " + exception.getMessage());
-                    messagingTemplate.convertAndSendToUser(Objects.requireNonNull(sessionId), "/queue/node-console", err);
-                }
-            };
-
-            stompClient.connect(URI.create(wsUrl).toString(), sessionHandler);
         } catch (Exception e) {
-            log.error("代理订阅失败", e);
-            Map<String, Object> err = new HashMap<>();
-            err.put("error", e.getMessage());
-            messagingTemplate.convertAndSendToUser(Objects.requireNonNull(headers.getSessionId()), "/queue/node-console", err);
+            log.error("订阅控制台失败: sessionId={}", sessionId, e);
         }
-    }
-
-    private String sessionIdKey(String sessionId, long nodeId, int serverId) {
-        return sessionId + "::" + nodeId + "::" + serverId;
     }
 
     private String wsInfoCacheKey(long nodeId, int serverId) {
@@ -177,10 +130,10 @@ public class NodeConsoleProxyController {
     }
 
     /**
-     * 断开连接
+     * 取消订阅
      */
-    @MessageMapping("/node/console/disconnect")
-    public void disconnect(@Payload Map<String, Object> payload, SimpMessageHeaderAccessor headers) {
+    @MessageMapping("/node/console/unsubscribe")
+    public void unsubscribe(@Payload Map<String, Object> payload, SimpMessageHeaderAccessor headers) {
         String sessionId = headers.getSessionId();
         if (sessionId == null) return;
 
@@ -192,13 +145,24 @@ public class NodeConsoleProxyController {
             long nodeId = nodeIdNum.longValue();
             int serverId = serverIdNum.intValue();
 
-            String key = sessionIdKey(sessionId, nodeId, serverId);
-            StompSession session = clientToDownstream.remove(key);
-            if (session != null && session.isConnected()) {
-                session.disconnect();
-            }
+            connectionPool.unsubscribe(nodeId, serverId, sessionId);
+            log.info("客户端取消订阅: sessionId={}, nodeId={}, serverId={}", sessionId, nodeId, serverId);
         } catch (Exception e) {
-            log.error("断开连接失败", e);
+            log.error("取消订阅失败: sessionId={}", sessionId, e);
+        }
+    }
+
+    /**
+     * 监听WebSocket断开事件，清理订阅
+     */
+    @EventListener
+    public void handleWebSocketDisconnect(SessionDisconnectEvent event) {
+        StompHeaderAccessor accessor = StompHeaderAccessor.wrap(event.getMessage());
+        String sessionId = accessor.getSessionId();
+
+        if (sessionId != null) {
+            log.info("客户端断开连接，清理订阅: sessionId={}", sessionId);
+            connectionPool.disconnectClient(sessionId);
         }
     }
 }

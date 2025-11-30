@@ -3,6 +3,7 @@ package cc.endmc.node.service.impl;
 import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
+import cc.endmc.framework.manager.AsyncManager;
 import cc.endmc.node.domain.NodeEnv;
 import cc.endmc.node.domain.NodeServer;
 import cc.endmc.node.mapper.NodeEnvMapper;
@@ -15,10 +16,18 @@ import com.alibaba.fastjson2.JSONObject;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TimerTask;
 
 /**
  * 节点Java多版本环境管理Service业务层处理
@@ -229,6 +238,139 @@ public class NodeEnvServiceImpl implements INodeEnvService {
         } catch (Exception e) {
             log.error("扫描Java环境失败", e);
             return AjaxResult.error("扫描失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 一键安装Java环境（流式响应）
+     */
+    @Override
+    public SseEmitter installJavaWithProgress(Map<String, Object> params) {
+        final SseEmitter emitter = new SseEmitter(600000L);
+
+        // 使用AsyncManager异步执行
+        AsyncManager.me().execute(new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    installJavaInternal(params, emitter);
+                } catch (Exception e) {
+                    try {
+                        Map<String, Object> errorData = new HashMap<>();
+                        errorData.put("type", "error");
+                        errorData.put("message", e.getMessage());
+                        errorData.put("progress", 0);
+                        emitter.send(SseEmitter.event().data(errorData));
+                        emitter.complete();
+                    } catch (Exception ex) {
+                        emitter.completeWithError(ex);
+                    }
+                }
+            }
+        });
+
+        return emitter;
+    }
+
+    /**
+     * 一键安装Java环境（内部实现）
+     */
+    private void installJavaInternal(Map<String, Object> params,
+                                     SseEmitter emitter) throws Exception {
+        Long nodeId = params.get("nodeId") != null ? Long.valueOf(params.get("nodeId").toString()) : null;
+        String version = (String) params.get("version");
+        String installPath = (String) params.get("installPath");
+        String vendor = (String) params.getOrDefault("vendor", "Adoptium");
+
+        if (nodeId == null) {
+            throw new RuntimeException("节点ID不能为空");
+        }
+        if (version == null || version.trim().isEmpty()) {
+            throw new RuntimeException("Java版本不能为空");
+        }
+        if (installPath == null || installPath.trim().isEmpty()) {
+            throw new RuntimeException("安装路径不能为空");
+        }
+
+        NodeServer nodeServer = nodeServerService.selectNodeServerById(nodeId);
+        if (nodeServer == null) {
+            throw new RuntimeException("节点服务器不存在");
+        }
+
+        try {
+            String url = ApiUtil.getJavaEnvInstallApi(nodeServer);
+
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("version", version);
+            requestBody.put("installPath", installPath);
+            requestBody.put("vendor", vendor);
+
+            log.info("开始在节点 {} 上安装Java {}, 路径: {}", nodeId, version, installPath);
+
+            // 使用流式请求
+            URL apiUrl = new URL(url);
+            HttpURLConnection connection = (HttpURLConnection) apiUrl.openConnection();
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "application/json");
+            connection.setRequestProperty("X-Endless-Token", nodeServer.getToken());
+            connection.setDoOutput(true);
+            connection.setConnectTimeout(30000);
+            connection.setReadTimeout(600000);
+
+            // 发送请求体
+            try (OutputStream os = connection.getOutputStream()) {
+                byte[] input = requestBody.toJSONString().getBytes(StandardCharsets.UTF_8);
+                os.write(input, 0, input.length);
+            }
+
+            // 读取SSE流
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))) {
+                String line;
+                JSONObject lastData = null;
+
+                while ((line = reader.readLine()) != null) {
+                    if (line.startsWith("data:")) {
+                        String jsonStr = line.substring(5).trim();
+                        if (!jsonStr.isEmpty()) {
+                            JSONObject data = JSONObject.parseObject(jsonStr);
+                            lastData = data;
+
+                            // 转发到前端
+                            Map<String, Object> dataMap = new HashMap<>();
+                            for (String key : data.keySet()) {
+                                dataMap.put(key, data.get(key));
+                            }
+                            emitter.send(SseEmitter.event().data(dataMap));
+
+                            // 如果安装成功，保存到数据库
+                            if (Boolean.TRUE.equals(data.get("success"))) {
+                                NodeEnv nodeEnv = new NodeEnv();
+                                nodeEnv.setNodeId(nodeId);
+                                nodeEnv.setVersion(data.getString("version"));
+                                nodeEnv.setPath(data.getString("javaHome"));
+                                nodeEnv.setJavaHome(data.getString("javaHome"));
+                                nodeEnv.setBinPath(data.getString("javaHome") + "/bin");
+                                nodeEnv.setType(data.getString("type"));
+                                nodeEnv.setArch(data.getString("arch"));
+                                nodeEnv.setSource(data.getString("vendor"));
+                                nodeEnv.setEnvName("Java " + data.getString("version") + " (" + data.getString("vendor") + ")");
+                                nodeEnv.setIsDefault(0);
+                                nodeEnv.setValid(1);
+                                nodeEnv.setRemark("自动安装");
+                                nodeEnv.setCreateTime(DateUtils.getNowDate());
+
+                                insertNodeEnv(nodeEnv);
+                            }
+                        }
+                    }
+                }
+
+                emitter.complete();
+            }
+        } catch (Exception e) {
+            log.error("安装Java环境失败", e);
+            throw e;
         }
     }
 }

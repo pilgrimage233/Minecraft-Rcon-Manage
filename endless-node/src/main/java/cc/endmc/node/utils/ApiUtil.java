@@ -35,6 +35,7 @@ public class ApiUtil {
     // Java环境相关
     public static final String JAVA_ENV_VERIFY = "/api/java-env/verify";
     public static final String JAVA_ENV_SCAN = "/api/java-env/scan";
+    public static final String JAVA_ENV_INSTALL = "/api/java-env/install";
 
     // 实例相关
     public static final String CREATE_INSTANCE = "/api/servers/create";
@@ -184,6 +185,13 @@ public class ApiUtil {
     // WebSocket API
     public static String getWebSocketUrl(NodeServer nodeServer) {
         return buildUrl(nodeServer, WEBSOCKET_ENDPOINT);
+    }
+
+    /**
+     * 获取Java环境安装API
+     */
+    public static String getJavaEnvInstallApi(NodeServer nodeServer) {
+        return buildUrl(nodeServer, JAVA_ENV_INSTALL);
     }
 
 }

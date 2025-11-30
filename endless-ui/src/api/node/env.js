@@ -59,3 +59,13 @@ export function scanEnv(nodeId) {
     method: 'get'
   })
 }
+
+// 一键安装Java环境
+export function installJava(data) {
+  return request({
+    url: '/node/env/install',
+    method: 'post',
+    data: data,
+    timeout: 600000 // 10分钟超时
+  })
+}
