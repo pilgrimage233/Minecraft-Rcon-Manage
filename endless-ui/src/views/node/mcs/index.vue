@@ -13,6 +13,24 @@
             @keyup.enter.native="handleQuery"
           />
         </el-form-item>
+        <el-form-item label="核心类型" prop="coreType">
+          <el-select
+            v-model="queryParams.coreType"
+            clearable
+            placeholder="请选择核心类型"
+            style="width: 140px"
+          >
+            <el-option
+              v-for="opt in coreTypeOptions"
+              :key="opt"
+              :label="opt"
+              :value="opt"
+            >
+              <span style="font-size: 14px; margin-right: 6px;">{{ coreTypeIcons[opt] }}</span>
+              <span>{{ opt }}</span>
+            </el-option>
+          </el-select>
+        </el-form-item>
         <el-form-item label="核心版本" prop="version">
           <el-input
             v-model="queryParams.version"
@@ -291,7 +309,8 @@
               <el-form-item label="核心类型" prop="coreType">
                 <el-select v-model="form.coreType" placeholder="选择核心类型" style="width: 100%">
                   <el-option v-for="opt in coreTypeOptions" :key="opt" :label="opt" :value="opt">
-                    <i class="el-icon-box"></i> {{ opt }}
+                    <span style="font-size: 16px; margin-right: 8px;">{{ coreTypeIcons[opt] }}</span>
+                    <span>{{ opt }}</span>
                   </el-option>
                 </el-select>
               </el-form-item>
@@ -343,14 +362,14 @@
           </el-row>
           <el-row :gutter="20">
             <el-col :span="12">
-              <el-form-item label="最大堆内存(XMX)" prop="jvmXmx">
+              <el-form-item label="最大内存(XMX)" prop="jvmXmx">
                 <el-input v-model="form.jvmXmx" placeholder="例如：4096">
                   <template slot="append">MB</template>
                 </el-input>
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="最小堆内存(XMS)" prop="jvmXms">
+              <el-form-item label="最小内存(XMS)" prop="jvmXms">
                 <el-input v-model="form.jvmXms" placeholder="例如：1024">
                   <template slot="append">MB</template>
                 </el-input>
@@ -485,7 +504,59 @@ export default {
       routeNodeUuid: this.$route.query.nodeUuid,
       // 表单参数
       form: {},
-      coreTypeOptions: ['Paper', 'Spigot', 'Bukkit', 'Purpur', 'Fabric', 'Forge'],
+      coreTypeOptions: [
+        'Vanilla',
+        'Paper',
+        'Spigot',
+        'Bukkit',
+        'CraftBukkit',
+        'Purpur',
+        'Pufferfish',
+        'Airplane',
+        'Tuinity',
+        'Fabric',
+        'Forge',
+        'NeoForge',
+        'Quilt',
+        'Sponge',
+        'Mohist',
+        'Arclight',
+        'CatServer',
+        'Magma',
+        'Banner',
+        'Leaves',
+        'Folia',
+        'Velocity',
+        'BungeeCord',
+        'Waterfall'
+      ],
+      // 核心类型图标映射
+      coreTypeIcons: {
+        'Vanilla': '🍦',
+        'Paper': '📄',
+        'Spigot': '🔧',
+        'Bukkit': '📦',
+        'CraftBukkit': '⚒️',
+        'Purpur': '💜',
+        'Pufferfish': '🐡',
+        'Airplane': '✈️',
+        'Tuinity': '⚡',
+        'Fabric': '🧵',
+        'Forge': '⚙️',
+        'NeoForge': '🔨',
+        'Quilt': '🧶',
+        'Sponge': '🧽',
+        'Mohist': '🌋',
+        'Arclight': '💡',
+        'CatServer': '🐱',
+        'Magma': '🔥',
+        'Banner': '🚩',
+        'Leaves': '🍃',
+        'Folia': '🌿',
+        'Velocity': '🚀',
+        'BungeeCord': '🔗',
+        'Waterfall': '💧'
+      },
       // 表单校验
       rules: {
         nodeId: [

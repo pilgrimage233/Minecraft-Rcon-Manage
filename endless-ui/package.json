@@ -2,7 +2,7 @@
   "name": "endless-ui",
   "version": "3.8.7",
   "description": "EndlessManager",
-  "author": "若依",
+  "author": "Pilgrimage233",
   "license": "MIT",
   "scripts": {
     "dev": "vue-cli-service serve",
@@ -83,7 +83,7 @@
     "eslint-plugin-vue": "7.2.0",
     "lint-staged": "10.5.3",
     "runjs": "4.4.2",
-    "sass": "^1.32.13",
+    "sass": "1.32.13",
     "sass-loader": "^10.1.1",
     "script-ext-html-webpack-plugin": "2.1.5",
     "svg-sprite-loader": "5.1.1",

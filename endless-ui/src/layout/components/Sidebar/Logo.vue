@@ -1,6 +1,5 @@
 <template>
   <div :class="{'collapse':collapse}"
-       :style="{ backgroundColor: sideTheme === 'theme-dark' ? variables.menuBackground : variables.menuLightBackground }"
        class="sidebar-logo-container">
     <transition name="sidebarLogoFade">
       <router-link v-if="collapse" key="collapse" class="sidebar-logo-link" to="/">
@@ -21,7 +20,7 @@
 </template>
 
 <script>
-import logoImg from '@/assets/logo/logo.png'
+import logoImg from '@/assets/logo/logo.svg'
 import variables from '@/assets/styles/variables.scss'
 
 export default {
@@ -50,8 +49,10 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+@import "~@/assets/styles/variables.scss";
+
 .sidebarLogoFade-enter-active {
-  transition: opacity 1.5s;
+  transition: opacity 0.3s ease;
 }
 
 .sidebarLogoFade-enter,
@@ -62,38 +63,70 @@ export default {
 .sidebar-logo-container {
   position: relative;
   width: 100%;
-  height: 50px;
-  line-height: 50px;
-  background: #2b2f3a;
+  height: 60px;
+  line-height: 60px;
+  background: transparent;
   text-align: center;
   overflow: hidden;
+  padding: 0 12px;
+  margin-bottom: 8px;
+
+  // 底部分隔线
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 16px;
+    right: 16px;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+  }
 
   & .sidebar-logo-link {
     height: 100%;
     width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+
+    &:hover {
+      .sidebar-logo {
+        transform: scale(1.05);
+      }
+    }
 
     & .sidebar-logo {
-      width: 32px;
-      height: 32px;
-      vertical-align: middle;
+      width: 36px;
+      height: 36px;
       margin-right: 12px;
+      transition: transform 0.3s ease;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+      flex-shrink: 0;
     }
 
     & .sidebar-title {
-      display: inline-block;
       margin: 0;
       color: #fff;
-      font-weight: 600;
-      line-height: 50px;
-      font-size: 14px;
-      font-family: Avenir, Helvetica Neue, Arial, Helvetica, sans-serif;
-      vertical-align: middle;
+      font-weight: 700;
+      font-size: 16px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      letter-spacing: 0.5px;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      white-space: nowrap;
     }
   }
 
   &.collapse {
+    padding: 0;
+
     .sidebar-logo {
       margin-right: 0px;
+    }
+
+    &::after {
+      left: 8px;
+      right: 8px;
     }
   }
 }

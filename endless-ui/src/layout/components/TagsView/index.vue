@@ -240,50 +240,72 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+@import "~@/assets/styles/variables.scss";
+
 .tags-view-container {
-  height: 34px;
+  height: $tags-height;
   width: 100%;
-  background: #fff;
-  border-bottom: 1px solid #d8dce5;
-  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, .12), 0 0 3px 0 rgba(0, 0, 0, .04);
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
 
   .tags-view-wrapper {
+    display: flex;
+    align-items: center;
+    height: 100%;
+    flex: 1;
+    overflow: hidden;
+
     .tags-view-item {
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
       position: relative;
       cursor: pointer;
-      height: 26px;
-      line-height: 26px;
-      border: 1px solid #d8dce5;
-      color: #495060;
-      background: #fff;
-      padding: 0 8px;
+      height: 28px;
+      line-height: 28px;
+      border: none;
+      color: #64748b;
+      background: #f1f5f9;
+      padding: 0 12px;
       font-size: 12px;
-      margin-left: 5px;
-      margin-top: 4px;
+      margin: 0 3px;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
 
       &:first-of-type {
-        margin-left: 15px;
+        margin-left: 8px;
       }
 
       &:last-of-type {
-        margin-right: 15px;
+        margin-right: 8px;
+      }
+
+      &:hover {
+        background: rgba(var(--theme-color-rgb, 99, 102, 241), 0.1);
+        color: var(--theme-color, $primary-color);
       }
 
       &.active {
-        background-color: #42b983;
+        background: linear-gradient(135deg, var(--theme-color, $primary-color) 0%, var(--theme-color-light, $primary-light) 100%);
         color: #fff;
-        border-color: #42b983;
+        box-shadow: 0 2px 8px rgba(var(--theme-color-rgb, 99, 102, 241), 0.35);
 
         &::before {
-          content: '';
-          background: #fff;
-          display: inline-block;
-          width: 8px;
-          height: 8px;
-          border-radius: 50%;
-          position: relative;
-          margin-right: 2px;
+          display: none;
+        }
+
+        .el-icon-close {
+          color: rgba(255, 255, 255, 0.8);
+
+          &:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            color: #fff;
+          }
         }
       }
     }
@@ -295,20 +317,36 @@ export default {
     z-index: 3000;
     position: absolute;
     list-style-type: none;
-    padding: 5px 0;
-    border-radius: 4px;
-    font-size: 12px;
+    padding: 8px 0;
+    border-radius: $border-radius-md;
+    font-size: 13px;
     font-weight: 400;
-    color: #333;
-    box-shadow: 2px 2px 3px 0 rgba(0, 0, 0, .3);
+    color: #334155;
+    box-shadow: $shadow-lg;
+    border: 1px solid rgba(0, 0, 0, 0.05);
+    min-width: 140px;
 
     li {
       margin: 0;
-      padding: 7px 16px;
+      padding: 8px 16px;
       cursor: pointer;
+      display: flex;
+      align-items: center;
+      transition: all 0.15s ease;
+
+      i {
+        margin-right: 8px;
+        font-size: 14px;
+        color: #94a3b8;
+      }
 
       &:hover {
-        background: #eee;
+        background: rgba(99, 102, 241, 0.08);
+        color: $primary-color;
+
+        i {
+          color: $primary-color;
+        }
       }
     }
   }
@@ -316,27 +354,30 @@ export default {
 </style>
 
 <style lang="scss">
-//reset element css of el-icon-close
+@import "~@/assets/styles/variables.scss";
+
 .tags-view-wrapper {
   .tags-view-item {
     .el-icon-close {
       width: 16px;
       height: 16px;
-      vertical-align: 2px;
+      vertical-align: 0;
       border-radius: 50%;
       text-align: center;
-      transition: all .3s cubic-bezier(.645, .045, .355, 1);
+      transition: all 0.2s ease;
       transform-origin: 100% 50%;
+      margin-left: 4px;
+      color: #94a3b8;
 
       &:before {
-        transform: scale(.6);
+        transform: scale(0.7);
         display: inline-block;
-        vertical-align: -3px;
+        vertical-align: -2px;
       }
 
       &:hover {
-        background-color: #b4bccc;
-        color: #fff;
+        background-color: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
       }
     }
   }

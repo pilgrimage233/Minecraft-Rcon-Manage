@@ -14,15 +14,7 @@
           <ruo-yi-git id="ruoyi-git" class="right-menu-item hover-effect"/>
         </el-tooltip>
 
-        <el-tooltip content="文档地址" effect="dark" placement="bottom">
-          <ruo-yi-doc id="ruoyi-doc" class="right-menu-item hover-effect"/>
-        </el-tooltip>
-
         <screenfull id="screenfull" class="right-menu-item hover-effect"/>
-
-        <el-tooltip content="布局大小" effect="dark" placement="bottom">
-          <size-select id="size-select" class="right-menu-item hover-effect"/>
-        </el-tooltip>
 
       </template>
 
@@ -90,6 +82,9 @@ export default {
       get() {
         return this.$store.state.settings.topNav
       }
+    },
+    themeColor() {
+      return this.$store.state.settings.theme || '#6366f1'
     }
   },
   methods: {
@@ -113,28 +108,41 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+@import "~@/assets/styles/variables.scss";
+
 .navbar {
-  height: 50px;
-  overflow: hidden;
+  height: $navbar-height;
+  overflow: visible;
   position: relative;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0, 21, 41, .08);
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: none;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px 0 0;
 
   .hamburger-container {
-    line-height: 46px;
+    line-height: $navbar-height;
     height: 100%;
     float: left;
     cursor: pointer;
-    transition: background .3s;
+    transition: all 0.3s ease;
     -webkit-tap-highlight-color: transparent;
+    padding: 0 16px;
+    display: flex;
+    align-items: center;
 
     &:hover {
-      background: rgba(0, 0, 0, .025)
+      background: rgba(var(--theme-color-rgb, 99, 102, 241), 0.08);
     }
   }
 
   .breadcrumb-container {
     float: left;
+    margin-left: 8px;
   }
 
   .topmenu-container {
@@ -148,55 +156,96 @@ export default {
   }
 
   .right-menu {
-    float: right;
+    display: flex;
+    align-items: center;
     height: 100%;
-    line-height: 50px;
 
     &:focus {
       outline: none;
     }
 
     .right-menu-item {
-      display: inline-block;
-      padding: 0 8px;
-      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 10px;
+      height: 36px;
       font-size: 18px;
-      color: #5a5e66;
-      vertical-align: text-bottom;
+      color: #64748b;
+      border-radius: $border-radius-sm;
+      margin: 0 2px;
+      transition: all 0.2s ease;
 
       &.hover-effect {
         cursor: pointer;
-        transition: background .3s;
 
         &:hover {
-          background: rgba(0, 0, 0, .025)
+          background: rgba(var(--theme-color-rgb, 99, 102, 241), 0.08);
+          color: var(--theme-color, $primary-color);
         }
       }
     }
 
     .avatar-container {
-      margin-right: 30px;
+      margin-left: 12px;
 
       .avatar-wrapper {
-        margin-top: 5px;
-        position: relative;
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        padding: 4px 12px 4px 4px;
+        // 移除圆角，避免方形轮廓
+        border-radius: 0;
+        transition: all 0.2s ease;
+        // 确保没有阴影
+        box-shadow: none !important;
+        // 移除背景色
+        background: transparent !important;
+
+        &:hover {
+          // 悬浮时也不显示背景
+          background: transparent !important;
+          // 悬浮时也不显示阴影
+          box-shadow: none !important;
+        }
 
         .user-avatar {
-          cursor: pointer;
-          width: 40px;
-          height: 40px;
-          border-radius: 10px;
+          width: 36px;
+          height: 36px;
+          // 移除圆角，改为方形头像
+          border-radius: 0;
+          // 移除边框
+          border: none !important;
+          transition: all 0.2s ease;
+          // 确保头像本身没有阴影
+          box-shadow: none !important;
+          // 移除可能的 outline
+          outline: none !important;
         }
 
         .el-icon-caret-bottom {
-          cursor: pointer;
-          position: absolute;
-          right: -20px;
-          top: 25px;
+          margin-left: 6px;
           font-size: 12px;
+          color: #94a3b8;
+          transition: transform 0.2s ease;
+        }
+
+        &:hover {
+          .el-icon-caret-bottom {
+            color: var(--theme-color, $primary-color);
+          }
         }
       }
     }
   }
+}
+
+// 全局覆盖 - 确保下拉菜单容器没有额外阴影
+::v-deep .el-dropdown {
+  box-shadow: none !important;
+}
+
+::v-deep .avatar-container .el-dropdown {
+  box-shadow: none !important;
 }
 </style>

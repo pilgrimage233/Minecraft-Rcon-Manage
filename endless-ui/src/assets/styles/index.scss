@@ -4,15 +4,19 @@
 @import './element-ui.scss';
 @import './sidebar.scss';
 @import './btn.scss';
-@import './fonts.scss'; // 引入现代化字体配置
+@import './fonts.scss';
 
 body {
   height: 100%;
-  // 字体渲染已在 fonts.scss 中统一配置
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #f1f5f9;
 }
 
 label {
-  font-weight: 700;
+  font-weight: 600;
+  color: #334155;
 }
 
 html {
@@ -120,6 +124,11 @@ aside {
 //main-container全局样式
 .app-container {
   padding: 20px;
+  background: #fff;
+  border-radius: $border-radius-lg;
+  box-shadow: $shadow-sm;
+  margin: 16px;
+  min-height: calc(100vh - 56px - 38px - 32px);
 }
 
 .components-container {

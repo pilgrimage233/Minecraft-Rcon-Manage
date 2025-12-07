@@ -132,8 +132,11 @@ samp,
 // Element UI 组件字体优化
 .el-button,
 .el-input,
+.el-input__inner,
 .el-textarea,
+.el-textarea__inner,
 .el-select,
+.el-select-dropdown,
 .el-date-picker,
 .el-form-item__label,
 .el-table,
@@ -141,7 +144,59 @@ samp,
 .el-menu,
 .el-tabs,
 .el-card {
-  font-family: var(--font-family-base);
+  font-family: var(--font-family-base) !important;
+}
+
+// 确保所有输入框使用统一字体
+input,
+textarea,
+select,
+button {
+  font-family: var(--font-family-base) !important;
+}
+
+// Element UI 输入框内部元素
+.el-input__inner,
+.el-textarea__inner,
+.el-select .el-input__inner,
+.el-autocomplete-suggestion li,
+.el-select-dropdown__item {
+  font-family: var(--font-family-base) !important;
+  font-weight: var(--font-weight-normal);
+}
+
+// Placeholder 文本字体
+input::placeholder,
+textarea::placeholder,
+.el-input__inner::placeholder,
+.el-textarea__inner::placeholder {
+  font-family: var(--font-family-base) !important;
+  font-weight: var(--font-weight-normal);
+  opacity: 0.6;
+}
+
+// 下拉选项字体
+.el-select-dropdown__item,
+.el-option,
+.el-cascader-menu__item,
+.el-autocomplete-suggestion__list li {
+  font-family: var(--font-family-base) !important;
+  font-weight: var(--font-weight-normal);
+}
+
+// 日期选择器字体
+.el-date-picker,
+.el-time-picker,
+.el-picker-panel {
+  font-family: var(--font-family-base) !important;
+}
+
+// 确保所有弹出层使用统一字体
+.el-popper,
+.el-message,
+.el-notification,
+.el-tooltip__popper {
+  font-family: var(--font-family-base) !important;
 }
 
 // 按钮字重优化

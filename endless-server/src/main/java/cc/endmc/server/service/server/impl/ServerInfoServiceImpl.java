@@ -4,6 +4,8 @@ import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.framework.manager.AsyncManager;
+import cc.endmc.node.domain.NodeServer;
+import cc.endmc.node.service.INodeServerService;
 import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.PasswordManager;
 import cc.endmc.server.common.constant.CacheKey;
@@ -67,6 +69,9 @@ public class ServerInfoServiceImpl implements IServerInfoService {
 
     @Autowired
     private PasswordManager PasswordManager;
+
+    @Autowired
+    private INodeServerService nodeServerService;
 
 
     /**
@@ -358,6 +363,41 @@ public class ServerInfoServiceImpl implements IServerInfoService {
         // 服务器数量
         List<ServerInfo> serverInfo = serverInfoMapper.selectServerInfoList(new ServerInfo());
         result.put("serverCount", serverInfo.size());
+
+        // 节点统计
+        try {
+            List<NodeServer> nodeServers = nodeServerService.selectNodeServerList(new NodeServer());
+            result.put("nodeCount", nodeServers.size());
+            // 在线节点数量
+            long onlineNodeCount = nodeServers.stream()
+                    .filter(node -> "0".equals(node.getStatus()))
+                    .count();
+            result.put("onlineNodeCount", onlineNodeCount);
+            // 离线节点数量
+            long offlineNodeCount = nodeServers.stream()
+                    .filter(node -> "1".equals(node.getStatus()))
+                    .count();
+            result.put("offlineNodeCount", offlineNodeCount);
+            // 节点列表简要信息
+            List<Map<String, Object>> nodeList = new ArrayList<>();
+            for (NodeServer node : nodeServers) {
+                Map<String, Object> nodeInfo = new HashMap<>();
+                nodeInfo.put("id", node.getId());
+                nodeInfo.put("name", node.getName());
+                nodeInfo.put("status", node.getStatus());
+                nodeInfo.put("version", node.getVersion());
+                nodeInfo.put("osType", node.getOsType());
+                nodeInfo.put("lastHeartbeat", node.getLastHeartbeat());
+                nodeList.add(nodeInfo);
+            }
+            result.put("nodeList", nodeList);
+        } catch (Exception e) {
+            log.error("获取节点统计信息失败", e);
+            result.put("nodeCount", 0);
+            result.put("onlineNodeCount", 0);
+            result.put("offlineNodeCount", 0);
+            result.put("nodeList", new ArrayList<>());
+        }
 
         return result;
     }

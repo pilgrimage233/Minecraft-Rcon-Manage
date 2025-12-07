@@ -39,6 +39,24 @@
             <span>主题颜色</span>
             <theme-picker style="float: right;height: 26px;margin: -3px 8px 0 0;" @change="themeChange"/>
           </div>
+
+          <div class="preset-themes">
+            <div class="preset-themes-title">预置主题方案</div>
+            <div class="preset-themes-list">
+              <div
+                v-for="themeItem in presetThemes"
+                :key="themeItem.themeColor"
+                :class="['preset-theme-item', { active: theme === themeItem.themeColor }]"
+                :title="themeItem.name"
+                @click="selectPresetTheme(themeItem)"
+              >
+                <div :style="{ background: themeItem.preview }" class="theme-preview">
+                  <i v-if="theme === themeItem.themeColor" class="el-icon-check"></i>
+                </div>
+                <div class="theme-name">{{ themeItem.name.split(' ')[1] }}</div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <el-divider/>
@@ -88,7 +106,93 @@ export default {
   data() {
     return {
       theme: this.$store.state.settings.theme,
-      sideTheme: this.$store.state.settings.sideTheme
+      sideTheme: this.$store.state.settings.sideTheme,
+      presetThemes: [
+        {
+          name: 'Indigo 靛蓝',
+          themeColor: '#6366f1',
+          sidebarBg: 'linear-gradient(180deg, #1e1b4b 0%, #312e81 100%)',
+          sidebarBgLight: '#ffffff',
+          preview: 'linear-gradient(135deg, #1e1b4b 0%, #6366f1 100%)'
+        },
+        {
+          name: 'Blue 蓝色',
+          themeColor: '#3b82f6',
+          sidebarBg: 'linear-gradient(180deg, #1e3a8a 0%, #1e40af 100%)',
+          sidebarBgLight: '#ffffff',
+          preview: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)'
+        },
+        {
+          name: 'Purple 紫色',
+          themeColor: '#a855f7',
+          sidebarBg: 'linear-gradient(180deg, #581c87 0%, #6b21a8 100%)',
+          sidebarBgLight: '#ffffff',
+          preview: 'linear-gradient(135deg, #581c87 0%, #a855f7 100%)'
+        },
+        {
+          name: 'Pink 粉色',
+          themeColor: '#ec4899',
+          sidebarBg: 'linear-gradient(180deg, #831843 0%, #9f1239 100%)',
+          sidebarBgLight: '#ffffff',
+          preview: 'linear-gradient(135deg, #831843 0%, #ec4899 100%)'
+        },
+        {
+          name: 'Red 红色',
+          themeColor: '#ef4444',
+          sidebarBg: 'linear-gradient(180deg, #7f1d1d 0%, #991b1b 100%)',
+          sidebarBgLight: '#ffffff',
+          preview: 'linear-gradient(135deg, #7f1d1d 0%, #ef4444 100%)'
+        },
+        {
+          name: 'Orange 橙色',
+          themeColor: '#f97316',
+          sidebarBg: 'linear-gradient(180deg, #7c2d12 0%, #9a3412 100%)',
+          sidebarBgLight: '#ffffff',
+          preview: 'linear-gradient(135deg, #7c2d12 0%, #f97316 100%)'
+        },
+        {
+          name: 'Amber 琥珀',
+          themeColor: '#f59e0b',
+          sidebarBg: 'linear-gradient(180deg, #78350f 0%, #92400e 100%)',
+          sidebarBgLight: '#ffffff',
+          preview: 'linear-gradient(135deg, #78350f 0%, #f59e0b 100%)'
+        },
+        {
+          name: 'Green 绿色',
+          themeColor: '#10b981',
+          sidebarBg: 'linear-gradient(180deg, #064e3b 0%, #065f46 100%)',
+          sidebarBgLight: '#ffffff',
+          preview: 'linear-gradient(135deg, #064e3b 0%, #10b981 100%)'
+        },
+        {
+          name: 'Teal 青色',
+          themeColor: '#14b8a6',
+          sidebarBg: 'linear-gradient(180deg, #134e4a 0%, #115e59 100%)',
+          sidebarBgLight: '#ffffff',
+          preview: 'linear-gradient(135deg, #134e4a 0%, #14b8a6 100%)'
+        },
+        {
+          name: 'Cyan 蓝绿',
+          themeColor: '#06b6d4',
+          sidebarBg: 'linear-gradient(180deg, #164e63 0%, #155e75 100%)',
+          sidebarBgLight: '#ffffff',
+          preview: 'linear-gradient(135deg, #164e63 0%, #06b6d4 100%)'
+        },
+        {
+          name: 'Sky 天蓝',
+          themeColor: '#0ea5e9',
+          sidebarBg: 'linear-gradient(180deg, #0c4a6e 0%, #075985 100%)',
+          sidebarBgLight: '#ffffff',
+          preview: 'linear-gradient(135deg, #0c4a6e 0%, #0ea5e9 100%)'
+        },
+        {
+          name: 'Slate 石板',
+          themeColor: '#64748b',
+          sidebarBg: 'linear-gradient(180deg, #1e293b 0%, #334155 100%)',
+          sidebarBgLight: '#ffffff',
+          preview: 'linear-gradient(135deg, #1e293b 0%, #64748b 100%)'
+        }
+      ]
     };
   },
   computed: {
@@ -165,6 +269,21 @@ export default {
       })
       this.theme = val;
     },
+    selectPresetTheme(themeItem) {
+      // 设置主题色
+      this.themeChange(themeItem.themeColor);
+
+      // 设置侧边栏背景色
+      this.$store.dispatch('settings/changeSetting', {
+        key: 'sidebarBg',
+        value: themeItem.sidebarBg
+      });
+
+      this.$store.dispatch('settings/changeSetting', {
+        key: 'sidebarBgLight',
+        value: themeItem.sidebarBgLight
+      });
+    },
     handleTheme(val) {
       this.$store.dispatch('settings/changeSetting', {
         key: 'sideTheme',
@@ -174,6 +293,8 @@ export default {
     },
     saveSetting() {
       this.$modal.loading("正在保存到本地，请稍候...");
+      const sidebarBg = this.$store.state.settings.sidebarBg;
+      const sidebarBgLight = this.$store.state.settings.sidebarBgLight;
       this.$cache.local.set(
         "layout-setting",
         `{
@@ -183,7 +304,9 @@ export default {
             "sidebarLogo":${this.sidebarLogo},
             "dynamicTitle":${this.dynamicTitle},
             "sideTheme":"${this.sideTheme}",
-            "theme":"${this.theme}"
+            "theme":"${this.theme}",
+            "sidebarBg":"${sidebarBg}",
+            "sidebarBgLight":"${sidebarBgLight}"
           }`
       );
       setTimeout(this.$modal.closeLoading(), 1000)
@@ -198,31 +321,42 @@ export default {
 </script>
 
 <style lang="scss" scoped>
+@import "~@/assets/styles/variables.scss";
+
 .setting-drawer-content {
   .setting-drawer-title {
-    margin-bottom: 12px;
-    color: rgba(0, 0, 0, .85);
-    font-size: 14px;
-    line-height: 22px;
-    font-weight: bold;
+    margin-bottom: 16px;
+    color: #1e293b;
+    font-size: 15px;
+    line-height: 24px;
+    font-weight: 600;
   }
 
   .setting-drawer-block-checbox {
     display: flex;
     justify-content: flex-start;
     align-items: center;
-    margin-top: 10px;
-    margin-bottom: 20px;
+    margin-top: 12px;
+    margin-bottom: 24px;
+    gap: 12px;
 
     .setting-drawer-block-checbox-item {
       position: relative;
-      margin-right: 16px;
-      border-radius: 2px;
+      border-radius: 8px;
       cursor: pointer;
+      overflow: hidden;
+      transition: all 0.2s ease;
+      border: 2px solid transparent;
+
+      &:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
 
       img {
-        width: 48px;
-        height: 48px;
+        width: 56px;
+        height: 56px;
+        display: block;
       }
 
       .setting-drawer-block-checbox-selectIcon {
@@ -231,37 +365,119 @@ export default {
         right: 0;
         width: 100%;
         height: 100%;
-        padding-top: 15px;
-        padding-left: 24px;
-        color: #1890ff;
+        padding-top: 18px;
+        padding-left: 28px;
+        color: $primary-color;
         font-weight: 700;
-        font-size: 14px;
+        font-size: 16px;
+        background: rgba(99, 102, 241, 0.1);
       }
     }
   }
 }
 
 .drawer-container {
-  padding: 20px;
+  padding: 24px;
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.6;
   word-wrap: break-word;
 
   .drawer-title {
-    margin-bottom: 12px;
-    color: rgba(0, 0, 0, .85);
-    font-size: 14px;
-    line-height: 22px;
+    margin-bottom: 16px;
+    color: #1e293b;
+    font-size: 15px;
+    line-height: 24px;
+    font-weight: 600;
   }
 
   .drawer-item {
-    color: rgba(0, 0, 0, .65);
+    color: #475569;
     font-size: 14px;
-    padding: 12px 0;
+    padding: 14px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #f1f5f9;
+
+    &:last-child {
+      border-bottom: none;
+    }
   }
 
-  .drawer-switch {
-    float: right
+  ::v-deep .el-divider {
+    margin: 20px 0;
+    background-color: #f1f5f9;
+  }
+
+  ::v-deep .el-button {
+    margin-top: 8px;
+    margin-right: 8px;
+  }
+}
+
+.preset-themes {
+  margin-top: 16px;
+
+  .preset-themes-title {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 12px;
+  }
+
+  .preset-themes-list {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+
+    .preset-theme-item {
+      cursor: pointer;
+      transition: all 0.2s ease;
+
+      &:hover {
+        transform: translateY(-2px);
+
+        .theme-preview {
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+      }
+
+      &.active {
+        .theme-preview {
+          box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+          transform: scale(1.05);
+          border: 2px solid rgba(99, 102, 241, 0.5);
+        }
+      }
+
+      .theme-preview {
+        width: 100%;
+        height: 50px;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+        position: relative;
+        overflow: hidden;
+
+        i {
+          color: #fff;
+          font-size: 20px;
+          font-weight: bold;
+          text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+          z-index: 1;
+        }
+      }
+
+      .theme-name {
+        text-align: center;
+        font-size: 12px;
+        color: #64748b;
+        margin-top: 6px;
+        font-weight: 500;
+      }
+    }
   }
 }
 </style>

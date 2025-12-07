@@ -1,0 +1,153 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- 背景渐变 - 更丰富的层次 -->
+    <radialGradient id="bgGradient" cx="50%" cy="40%">
+      <stop offset="0%" style="stop-color:#66BB6A;stop-opacity:1"/>
+      <stop offset="50%" style="stop-color:#4CAF50;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#2E7D32;stop-opacity:1"/>
+    </radialGradient>
+
+    <!-- 方块顶面渐变 -->
+    <linearGradient id="topGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#E8F5E9;stop-opacity:1"/>
+      <stop offset="50%" style="stop-color:#C8E6C9;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#A5D6A7;stop-opacity:1"/>
+    </linearGradient>
+
+    <!-- 方块左面渐变 -->
+    <linearGradient id="leftGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#81C784;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#66BB6A;stop-opacity:1"/>
+    </linearGradient>
+
+    <!-- 方块右面渐变 -->
+    <linearGradient id="rightGradient" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#A5D6A7;stop-opacity:1"/>
+      <stop offset="100%" style="stop-color:#81C784;stop-opacity:1"/>
+    </linearGradient>
+
+    <!-- 光泽效果 -->
+    <radialGradient id="gloss" cx="30%" cy="30%">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.4"/>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0"/>
+    </radialGradient>
+
+    <!-- 阴影滤镜 -->
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="3"/>
+      <feOffset dx="0" dy="2" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.3"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- 内阴影效果 -->
+    <filter id="innerShadow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2" result="blur"/>
+      <feOffset in="blur" dx="0" dy="1" result="offsetBlur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.2" result="color"/>
+      <feComposite in="color" in2="offsetBlur" operator="in" result="shadow"/>
+      <feComposite in="shadow" in2="SourceAlpha" operator="in" result="innerShadow"/>
+      <feMerge>
+        <feMergeNode in="SourceGraphic"/>
+        <feMergeNode in="innerShadow"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- 外圈光晕 -->
+  <circle cx="64" cy="64" r="62" fill="url(#bgGradient)" opacity="0.3"/>
+
+  <!-- 主背景圆形 -->
+  <circle cx="64" cy="64" r="58" fill="url(#bgGradient)"/>
+
+  <!-- 光泽层 -->
+  <ellipse cx="64" cy="45" rx="45" ry="35" fill="url(#gloss)"/>
+
+  <!-- Minecraft风格的方块 - 带阴影 -->
+  <g transform="translate(32, 26)" filter="url(#shadow)">
+    <!-- 方块阴影底座 -->
+    <ellipse cx="32" cy="50" rx="22" ry="6" fill="#000000" opacity="0.2"/>
+
+    <!-- 主方块 - 右面 -->
+    <path d="M32 8 L52 18 L52 38 L32 48 L32 28 Z"
+          fill="url(#rightGradient)"
+          stroke="#1B5E20"
+          stroke-width="1.5"
+          stroke-linejoin="round"/>
+
+    <!-- 主方块 - 顶面 -->
+    <path d="M32 8 L52 18 L32 28 L12 18 Z"
+          fill="url(#topGradient)"
+          stroke="#1B5E20"
+          stroke-width="1.5"
+          stroke-linejoin="round"/>
+
+    <!-- 主方块 - 左面 -->
+    <path d="M12 18 L12 38 L32 48 L32 28 Z"
+          fill="url(#leftGradient)"
+          stroke="#1B5E20"
+          stroke-width="1.5"
+          stroke-linejoin="round"/>
+
+    <!-- 方块细节 - 顶面网格 -->
+    <g opacity="0.3">
+      <line x1="22" y1="13" x2="22" y2="23" stroke="#1B5E20" stroke-width="1"/>
+      <line x1="32" y1="18" x2="32" y2="28" stroke="#1B5E20" stroke-width="1"/>
+      <line x1="42" y1="13" x2="42" y2="23" stroke="#1B5E20" stroke-width="1"/>
+      <line x1="17" y1="15.5" x2="47" y2="15.5" stroke="#1B5E20" stroke-width="1"/>
+      <line x1="17" y1="20.5" x2="47" y2="20.5" stroke="#1B5E20" stroke-width="1"/>
+    </g>
+
+    <!-- 方块高光 -->
+    <path d="M32 8 L48 16 L32 24 L16 16 Z"
+          fill="white"
+          opacity="0.15"/>
+
+    <!-- 左面高光 -->
+    <path d="M14 20 L14 36 L18 38 L18 22 Z"
+          fill="white"
+          opacity="0.1"/>
+  </g>
+
+  <!-- 装饰粒子效果 -->
+  <g opacity="0.6">
+    <circle cx="25" cy="35" r="2" fill="#C8E6C9"/>
+    <circle cx="95" cy="45" r="1.5" fill="#A5D6A7"/>
+    <circle cx="88" cy="75" r="2" fill="#81C784"/>
+    <circle cx="30" cy="85" r="1.5" fill="#66BB6A"/>
+    <circle cx="100" cy="90" r="2" fill="#C8E6C9"/>
+  </g>
+
+  <!-- 无限符号 (代表Endless) - 更精致 -->
+  <g transform="translate(64, 88)" filter="url(#shadow)">
+    <!-- 无限符号阴影 -->
+    <path
+      d="M -18 1 C -18 -6, -11 -9, -6 -6 C -1 -3, 1 3, 6 6 C 11 9, 18 6, 18 1 C 18 -6, 11 -9, 6 -6 C 1 -3, -1 3, -6 6 C -11 9, -18 6, -18 1 Z"
+      fill="#000000"
+      opacity="0.2"/>
+
+    <!-- 无限符号主体 -->
+    <path
+      d="M -18 0 C -18 -7, -11 -10, -6 -7 C -1 -4, 1 2, 6 5 C 11 8, 18 5, 18 0 C 18 -7, 11 -10, 6 -7 C 1 -4, -1 2, -6 5 C -11 8, -18 5, -18 0 Z"
+      fill="white"
+      opacity="0.95"
+      stroke="#E8F5E9"
+      stroke-width="1"/>
+
+    <!-- 无限符号高光 -->
+    <ellipse cx="-9" cy="-3" rx="4" ry="3" fill="white" opacity="0.4"/>
+    <ellipse cx="9" cy="-3" rx="4" ry="3" fill="white" opacity="0.4"/>
+  </g>
+
+  <!-- 外圈装饰 - 双层 -->
+  <circle cx="64" cy="64" r="58" fill="none" stroke="white" stroke-width="1.5" opacity="0.2"/>
+  <circle cx="64" cy="64" r="55" fill="none" stroke="white" stroke-width="1" opacity="0.15"/>
+
+  <!-- 顶部光晕 -->
+  <ellipse cx="64" cy="20" rx="30" ry="8" fill="white" opacity="0.1"/>
+</svg>
