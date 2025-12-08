@@ -118,7 +118,15 @@ public class NodeEnvController extends BaseController {
     @Log(title = "一键安装Java环境", businessType = BusinessType.INSERT)
     @PostMapping("/install")
     public org.springframework.web.servlet.mvc.method.annotation.SseEmitter installJava(
-            @RequestBody Map<String, Object> params) {
+            @RequestBody Map<String, Object> params,
+            javax.servlet.http.HttpServletResponse response) {
+        // 关键修复:设置响应头禁用缓冲
+        response.setContentType("text/event-stream");
+        response.setCharacterEncoding("UTF-8");
+        response.setHeader("Cache-Control", "no-cache");
+        response.setHeader("Connection", "keep-alive");
+        response.setHeader("X-Accel-Buffering", "no");  // 禁用Nginx缓冲
+        
         return nodeEnvService.installJavaWithProgress(params);
     }
 }

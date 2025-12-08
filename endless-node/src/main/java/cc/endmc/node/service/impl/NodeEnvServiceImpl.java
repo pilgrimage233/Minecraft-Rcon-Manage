@@ -341,26 +341,66 @@ public class NodeEnvServiceImpl implements INodeEnvService {
                             for (String key : data.keySet()) {
                                 dataMap.put(key, data.get(key));
                             }
-                            emitter.send(SseEmitter.event().data(dataMap));
+                            // 关键修复:添加comment强制刷新
+                            emitter.send(SseEmitter.event().data(dataMap).comment(""));
+
+                            // 立即刷新,确保数据被发送
+                            try {
+                                Thread.sleep(10);
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                            }
 
                             // 如果安装成功，保存到数据库
                             if (Boolean.TRUE.equals(data.get("success"))) {
-                                NodeEnv nodeEnv = new NodeEnv();
-                                nodeEnv.setNodeId(nodeId);
-                                nodeEnv.setVersion(data.getString("version"));
-                                nodeEnv.setPath(data.getString("javaHome"));
-                                nodeEnv.setJavaHome(data.getString("javaHome"));
-                                nodeEnv.setBinPath(data.getString("javaHome") + "/bin");
-                                nodeEnv.setType(data.getString("type"));
-                                nodeEnv.setArch(data.getString("arch"));
-                                nodeEnv.setSource(data.getString("vendor"));
-                                nodeEnv.setEnvName("Java " + data.getString("version") + " (" + data.getString("vendor") + ")");
-                                nodeEnv.setIsDefault(0);
-                                nodeEnv.setValid(1);
-                                nodeEnv.setRemark("自动安装");
-                                nodeEnv.setCreateTime(DateUtils.getNowDate());
+                                String installedVersion = data.getString("version");
+                                log.info("节点返回的version: {}, 安装时传入的version: {}", installedVersion, version);
 
-                                insertNodeEnv(nodeEnv);
+                                if (installedVersion == null || installedVersion.trim().isEmpty()) {
+                                    installedVersion = version;  // 如果返回的version为空,使用传入的参数
+                                    log.warn("节点返回的version为空,使用传入的参数: {}", version);
+                                }
+
+                                // 先检查是否已存在相同版本
+                                NodeEnv queryEnv = new NodeEnv();
+                                queryEnv.setNodeId(nodeId);
+                                queryEnv.setVersion(installedVersion);
+                                log.info("检查是否存在: nodeId={}, version={}", nodeId, installedVersion);
+                                List<NodeEnv> existingEnvs = selectNodeEnvList(queryEnv);
+
+                                if (existingEnvs == null || existingEnvs.isEmpty()) {
+                                    NodeEnv nodeEnv = new NodeEnv();
+                                    nodeEnv.setNodeId(nodeId);
+                                    nodeEnv.setVersion(installedVersion);
+                                    nodeEnv.setPath(data.getString("javaHome"));
+                                    nodeEnv.setJavaHome(data.getString("javaHome"));
+                                    nodeEnv.setBinPath(data.getString("javaHome") + "/bin");
+                                    nodeEnv.setType(data.getString("type"));
+                                    nodeEnv.setArch(data.getString("arch"));
+                                    nodeEnv.setSource(data.getString("vendor"));
+                                    nodeEnv.setEnvName("Java " + data.getString("fullVersion") + " (" + data.getString("vendor") + ")");
+                                    nodeEnv.setIsDefault(0);
+                                    nodeEnv.setValid(1);
+                                    nodeEnv.setRemark("自动安装");
+                                    nodeEnv.setCreateTime(DateUtils.getNowDate());
+
+                                    insertNodeEnv(nodeEnv);
+                                    log.info("Java环境已保存到数据库: nodeId={}, version={}", nodeId, data.getString("version"));
+                                } else {
+                                    NodeEnv existingEnv = existingEnvs.get(0);
+                                    existingEnv.setPath(data.getString("javaHome"));
+                                    existingEnv.setJavaHome(data.getString("javaHome"));
+                                    existingEnv.setBinPath(data.getString("javaHome") + "/bin");
+                                    existingEnv.setType(data.getString("type"));
+                                    existingEnv.setArch(data.getString("arch"));
+                                    existingEnv.setSource(data.getString("vendor"));
+                                    existingEnv.setEnvName("Java " + data.getString("fullVersion") + " (" + data.getString("vendor") + ")");
+                                    existingEnv.setValid(1);
+                                    existingEnv.setUpdateTime(DateUtils.getNowDate());
+
+                                    updateNodeEnv(existingEnv);
+                                    log.info("Java环境已更新: nodeId={}, version={}", nodeId, data.getString("version"));
+                                }
                             }
                         }
                     }

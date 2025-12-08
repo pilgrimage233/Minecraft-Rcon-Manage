@@ -54,40 +54,40 @@
         <include refid="selectNodeEnvVo"/>
         <where>
             <if test="nodeId != null ">
-                and node_id = #{nodeId}
+                and e.node_id = #{nodeId}
             </if>
             <if test="version != null  and version != ''">
-                and version = #{version}
+                and e.version = #{version}
             </if>
             <if test="envName != null  and envName != ''">
-                and env_name like concat('%', #{envName}, '%')
+                and e.env_name like concat('%', #{envName}, '%')
             </if>
             <if test="path != null  and path != ''">
-                and path = #{path}
+                and e.path = #{path}
             </if>
             <if test="javaHome != null  and javaHome != ''">
-                and java_home = #{javaHome}
+                and e.java_home = #{javaHome}
             </if>
             <if test="binPath != null  and binPath != ''">
-                and bin_path = #{binPath}
+                and e.bin_path = #{binPath}
             </if>
             <if test="type != null ">
-                and type = #{type}
+                and e.type = #{type}
             </if>
             <if test="arch != null  and arch != ''">
-                and arch = #{arch}
+                and e.arch = #{arch}
             </if>
             <if test="isDefault != null ">
-                and is_default = #{isDefault}
+                and e.is_default = #{isDefault}
             </if>
             <if test="valid != null ">
-                and valid = #{valid}
+                and e.valid = #{valid}
             </if>
             <if test="source != null  and source != ''">
-                and source = #{source}
+                and e.source = #{source}
             </if>
             <if test="status != null ">
-                and status = #{status}
+                and e.status = #{status}
             </if>
         </where>
     </select>

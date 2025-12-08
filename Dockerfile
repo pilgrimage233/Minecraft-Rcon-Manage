@@ -27,4 +27,4 @@ COPY --from=build /app/endless-admin/target/endless-manager.jar ./app.jar
 EXPOSE 8080
 
 # 直接启动，不指定外部配置文件位置
-ENTRYPOINT ["java", "-Xmx1G", "-jar", "app.jar"]
+ENTRYPOINT ["sh", "-c", "java -Xmx1G $JAVA_OPTS -jar app.jar"]
