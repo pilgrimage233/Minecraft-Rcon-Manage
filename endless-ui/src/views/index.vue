@@ -1,51 +1,63 @@
 <template>
-  <div v-loading.fullscreen.lock="loading" class="dashboard-container" element-loading-text="数据加载中...">
-    <!-- 版本更新提示 -->
-    <el-alert
+  <div class="dashboard-container">
+    <!-- 测试按钮 - 仅在有更新时显示 -->
+    <el-button
       v-if="hasUpdate"
-      :closable="true"
-      :title="null"
-      class="version-alert"
-      show-icon
-      type="info"
+      size="mini"
+      style="margin-bottom: 16px;"
+      type="primary"
+      @click="testUpdateDialog"
     >
-      <div class="update-content">
-        <div class="version-header">
-          <i class="el-icon-refresh"></i>
-          <span class="update-title">发现新版本可用！</span>
+      查看更新
+    </el-button>
+
+    <!-- 版本更新弹窗 -->
+    <el-dialog
+      :close-on-click-modal="false"
+      :visible.sync="updateDialogVisible"
+      center
+      class="update-dialog"
+      title="版本更新提示"
+      width="500px"
+    >
+      <div class="update-dialog-content">
+        <div class="update-icon">
+          <i class="el-icon-download"></i>
         </div>
-        <div class="version-info">
-          <div class="version-row">
-            <span class="version-label">当前版本:</span>
-            <span class="version-value">{{ currentVersion }}</span>
+        <div class="update-title">发现新版本可用！</div>
+        <div class="version-compare">
+          <div class="version-item current">
+            <div class="version-label">当前版本</div>
+            <div class="version-number">{{ currentVersion }}</div>
           </div>
-          <div class="version-row">
-            <span class="version-label">最新版本:</span>
-            <span class="version-value latest">{{ latestVersion }}</span>
+          <div class="version-arrow">
+            <i class="el-icon-right"></i>
+          </div>
+          <div class="version-item latest">
+            <div class="version-label">最新版本</div>
+            <div class="version-number">{{ latestVersion }}</div>
           </div>
         </div>
-        <div v-if="releaseNotes" class="update-notes">
-          <div class="notes-title">
+        <div v-if="releaseNotes" class="release-notes">
+          <div class="notes-header">
             <i class="el-icon-document"></i>
-            <span>更新内容:</span>
+            <span>更新内容</span>
           </div>
-          <div class="notes-content">{{ releaseNotes }}</div>
-        </div>
-        <div class="update-actions">
-          <el-button
-            icon="el-icon-download"
-            size="small"
-            type="primary"
-            @click="goToDownload"
-          >
-            立即更新
-          </el-button>
+          <div class="notes-body" v-html="parsedReleaseNotes"></div>
         </div>
       </div>
-    </el-alert>
+      <span slot="footer" class="dialog-footer">
+        <el-button @click="remindLater">3天后提醒</el-button>
+        <el-button type="primary" @click="goToDownload">
+          <i class="el-icon-download"></i>
+          立即更新
+        </el-button>
+      </span>
+    </el-dialog>
 
     <!-- 统计数据卡片 -->
-    <div class="stats-section">
+    <div v-loading="loadingStates.basicStats || loadingStates.nodeStats" class="stats-section"
+         element-loading-text="加载中...">
       <div class="section-header">
         <i class="el-icon-data-analysis"></i>
         <span>数据概览</span>
@@ -69,11 +81,13 @@
     </div>
 
     <!-- 节点状态卡片 -->
-    <div v-if="nodeList.length > 0" class="node-section">
+    <div v-if="nodeList.length > 0 || loadingStates.nodeStats" v-loading="loadingStates.nodeStats" class="node-section"
+         element-loading-text="加载节点信息...">
       <div class="section-header">
         <i class="el-icon-connection"></i>
         <span>节点状态</span>
-        <el-tag :type="onlineNodeCount === nodeCount ? 'success' : 'warning'" class="node-status-tag" size="small">
+        <el-tag v-if="!loadingStates.nodeStats" :type="onlineNodeCount === nodeCount ? 'success' : 'warning'"
+                class="node-status-tag" size="small">
           {{ onlineNodeCount }}/{{ nodeCount }} 在线
         </el-tag>
       </div>
@@ -118,12 +132,14 @@
     <el-row :gutter="20" style="margin-top: 20px">
       <!-- 在线玩家信息 -->
       <el-col :lg="12" :md="24">
-        <el-card class="dashboard-card online-card">
+        <el-card v-loading="loadingStates.onlinePlayer" class="dashboard-card online-card"
+                 element-loading-text="加载在线信息...">
           <div slot="header" class="card-header">
             <div class="header-left">
               <i class="el-icon-user"></i>
               <span>实时在线信息</span>
-              <el-tag v-if="serverList.length > 0" effect="plain" size="mini" type="success">
+              <el-tag v-if="serverList.length > 0 && !loadingStates.onlinePlayer" effect="plain" size="mini"
+                      type="success">
                 {{ totalOnlinePlayers }} 人在线
               </el-tag>
             </div>
@@ -136,7 +152,7 @@
               </el-button>
             </div>
           </div>
-          <div v-if="serverList.length > 0" class="online-info-wrapper">
+          <div v-if="serverList.length > 0 && !loadingStates.onlinePlayer" class="online-info-wrapper">
             <div v-for="(server, index) in displayServerList" :key="index" class="server-status"
                  @click="showServerDetail(server)">
               <div :class="['status-icon', server.isError ? 'error' : 'online']">
@@ -159,7 +175,7 @@
               <span>{{ queryTime }}</span>
             </div>
           </div>
-          <div v-else class="empty-state">
+          <div v-else-if="!loadingStates.onlinePlayer" class="empty-state">
             <i class="el-icon-warning-outline"></i>
             <span>暂无在线数据</span>
           </div>
@@ -217,7 +233,8 @@
 
       <!-- 游戏时长排行榜 -->
       <el-col :lg="12" :md="24">
-        <el-card class="dashboard-card rank-card">
+        <el-card v-loading="loadingStates.topPlayers" class="dashboard-card rank-card"
+                 element-loading-text="加载排行榜...">
           <div slot="header" class="card-header">
             <div class="header-left">
               <i class="el-icon-trophy"></i>
@@ -268,9 +285,11 @@
 </template>
 
 <script>
-import {getAggregateData} from '@/api/dashboard'
+import {getBasicStats, getNodeStats, getOnlinePlayerInfo, getTopPlayers} from '@/api/dashboard'
 import {mapActions, mapState} from 'vuex'
 import NodeInstanceDialog from './index/NodeInstanceDialog.vue'
+import {marked} from 'marked'
+import DOMPurify from 'dompurify'
 
 export default {
   name: 'Index',
@@ -282,7 +301,7 @@ export default {
       statsData: {},
       onlineInfo: null,
       topTenPlayers: [],
-      loading: true,
+      loading: false,
       refreshing: false,
       animatedValues: [],
       nodeList: [],
@@ -297,7 +316,16 @@ export default {
       currentServer: {},
       // 节点实例弹窗
       nodeDialogVisible: false,
-      selectedNode: {}
+      selectedNode: {},
+      // 加载状态
+      loadingStates: {
+        basicStats: false,
+        nodeStats: false,
+        topPlayers: false,
+        onlinePlayer: false
+      },
+      // 版本更新弹窗
+      updateDialogVisible: false
     }
   },
   computed: {
@@ -308,6 +336,20 @@ export default {
       'releaseNotes',
       'downloadUrl'
     ]),
+    // 解析 Markdown 格式的更新说明
+    parsedReleaseNotes() {
+      if (!this.releaseNotes) return ''
+      try {
+        // 使用 marked 解析 markdown
+        const rawHtml = marked(this.releaseNotes)
+        // 使用 DOMPurify 清理 HTML，防止 XSS 攻击
+        return DOMPurify.sanitize(rawHtml)
+      } catch (error) {
+        console.error('解析 Markdown 失败:', error)
+        // 如果解析失败，返回纯文本
+        return this.releaseNotes
+      }
+    },
     displayServerList() {
       return this.serverList.slice(0, this.maxDisplayServers)
     },
@@ -365,33 +407,153 @@ export default {
   },
   created() {
     this.getStats()
-    this.checkUpdate()
+    this.checkUpdateAndShow()
+  },
+  watch: {
+    // 监听 hasUpdate 的变化
+    hasUpdate(newVal) {
+      if (newVal) {
+        this.showUpdateDialogIfNeeded()
+      }
+    }
   },
   methods: {
     ...mapActions('version', ['checkUpdate']),
+    // 检查更新并显示弹窗
+    async checkUpdateAndShow() {
+      await this.checkUpdate()
+      await this.$nextTick()
+
+      // 由于 hasUpdate 可能异步更新，通过 watch 来处理
+      // 如果已经是 true，直接显示
+      if (this.hasUpdate) {
+        this.showUpdateDialogIfNeeded()
+      }
+    },
+    // 显示更新弹窗（如果需要）
+    showUpdateDialogIfNeeded() {
+      if (!this.hasUpdate) return
+
+      // 检查是否在3天内已提醒过
+      const remindKey = `update_remind_${this.latestVersion}`
+      const lastRemindTime = localStorage.getItem(remindKey)
+
+      if (lastRemindTime) {
+        const threeDaysInMs = 3 * 24 * 60 * 60 * 1000
+        const timePassed = Date.now() - parseInt(lastRemindTime)
+        if (timePassed < threeDaysInMs) {
+          return // 3天内不再提醒
+        }
+      }
+
+      // 显示更新弹窗
+      this.updateDialogVisible = true
+    },
+    // 3天后提醒
+    remindLater() {
+      const remindKey = `update_remind_${this.latestVersion}`
+      localStorage.setItem(remindKey, Date.now().toString())
+      this.updateDialogVisible = false
+      this.$message.success('已设置3天后提醒')
+    },
+    // 查看更新（清除提醒记录并显示弹窗）
+    testUpdateDialog() {
+      // 清除所有提醒记录
+      Object.keys(localStorage)
+        .filter(k => k.startsWith('update_remind_'))
+        .forEach(k => localStorage.removeItem(k))
+      // 显示弹窗
+      this.updateDialogVisible = true
+    },
     async getStats() {
       if (this.refreshing) return
       this.refreshing = true
+
+      // 并行加载所有数据，互不阻塞
+      const promises = [
+        this.loadBasicStats(),
+        this.loadNodeStats(),
+        this.loadTopPlayers(),
+        this.loadOnlinePlayerInfo()
+      ]
+
+      // 等待所有请求完成
+      await Promise.allSettled(promises)
+
+      this.refreshing = false
+    },
+    // 加载基础统计数据
+    async loadBasicStats() {
+      this.loadingStates.basicStats = true
       try {
-        const response = await getAggregateData()
+        const response = await getBasicStats()
         if (response.code === 200) {
-          this.statsData = response.data
-          this.onlineInfo = response.data.onlinePlayer
-          this.topTenPlayers = response.data.topTen
-          this.nodeCount = response.data.nodeCount || 0
-          this.onlineNodeCount = response.data.onlineNodeCount || 0
-          this.nodeList = response.data.nodeList || []
-          this.parseOnlineInfo(response.data.onlinePlayer)
+          this.statsData = {
+            ...this.statsData,
+            ...response.data
+          }
           this.animateValues()
         }
       } catch (error) {
-        console.error('获取统计数据失败:', error)
-        this.$message.error('数据加载失败，请稍后重试')
+        console.error('获取基础统计数据失败:', error)
+        this.$message.warning('基础统计数据加载失败')
       } finally {
-        setTimeout(() => {
-          this.loading = false
-          this.refreshing = false
-        }, 300)
+        this.loadingStates.basicStats = false
+      }
+    },
+    // 加载节点统计信息
+    async loadNodeStats() {
+      this.loadingStates.nodeStats = true
+      try {
+        const response = await getNodeStats()
+        if (response.code === 200) {
+          this.nodeCount = response.data.nodeCount || 0
+          this.onlineNodeCount = response.data.onlineNodeCount || 0
+          this.nodeList = response.data.nodeList || []
+          this.statsData = {
+            ...this.statsData,
+            nodeCount: this.nodeCount
+          }
+          this.animateValues()
+        }
+      } catch (error) {
+        console.error('获取节点统计信息失败:', error)
+        this.$message.warning('节点统计信息加载失败')
+      } finally {
+        this.loadingStates.nodeStats = false
+      }
+    },
+    // 加载游戏时长排行榜
+    async loadTopPlayers() {
+      this.loadingStates.topPlayers = true
+      try {
+        const response = await getTopPlayers()
+        if (response.code === 200) {
+          this.topTenPlayers = response.data || []
+        }
+      } catch (error) {
+        console.error('获取游戏时长排行榜失败:', error)
+        this.$message.warning('游戏时长排行榜加载失败')
+      } finally {
+        this.loadingStates.topPlayers = false
+      }
+    },
+    // 加载在线玩家信息
+    async loadOnlinePlayerInfo() {
+      this.loadingStates.onlinePlayer = true
+      try {
+        const response = await getOnlinePlayerInfo()
+        if (response.code === 200) {
+          this.onlineInfo = response.data
+          this.parseOnlineInfo(response.data)
+        }
+      } catch (error) {
+        console.error('获取在线玩家信息失败:', error)
+        // 在线玩家信息失败不显示错误提示，因为这个接口最容易超时
+        this.serverList = []
+        this.queryTime = ''
+      } finally {
+        this.loadingStates.onlinePlayer = false
       }
     },
     animateValues() {
@@ -455,6 +617,7 @@ export default {
     goToDownload() {
       if (this.downloadUrl) {
         window.open(this.downloadUrl, '_blank')
+        this.updateDialogVisible = false
       }
     },
     // 解析在线玩家信息
@@ -1149,100 +1312,249 @@ export default {
   }
 }
 
-.version-alert {
-  margin-bottom: 20px;
-  border-radius: 12px;
-  overflow: hidden;
-  border: none;
-  box-shadow: 0 2px 12px rgba(64, 158, 255, 0.15);
-
-  .update-content {
-    padding: 16px 20px;
+// 版本更新弹窗样式
+::v-deep .update-dialog {
+  .el-dialog__header {
+    padding: 20px 20px 10px;
+    text-align: center;
+    border-bottom: 1px solid #ebeef5;
   }
 
-  .version-header {
-    display: flex;
-    align-items: center;
-    margin-bottom: 16px;
+  .el-dialog__title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #303133;
+  }
 
-    i {
-      font-size: 20px;
-      color: #409EFF;
-      margin-right: 8px;
+  .el-dialog__body {
+    padding: 30px 40px;
+  }
+
+  .el-dialog__footer {
+    padding: 15px 20px 20px;
+    text-align: center;
+    border-top: 1px solid #ebeef5;
+  }
+
+  .update-dialog-content {
+    text-align: center;
+
+    .update-icon {
+      width: 80px;
+      height: 80px;
+      margin: 0 auto 20px;
+      background: linear-gradient(135deg, #409EFF 0%, #66b1ff 100%);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+
+      i {
+        font-size: 40px;
+        color: #fff;
+      }
     }
 
     .update-title {
-      font-size: 16px;
+      font-size: 20px;
       font-weight: 600;
       color: #303133;
+      margin-bottom: 24px;
     }
-  }
 
-  .version-info {
-    background: #f8f9fa;
-    border-radius: 8px;
-    padding: 12px 16px;
-    margin-bottom: 16px;
-
-    .version-row {
+    .version-compare {
       display: flex;
       align-items: center;
-      margin: 4px 0;
+      justify-content: center;
+      gap: 20px;
+      margin-bottom: 24px;
+      padding: 20px;
+      background: #f5f7fa;
+      border-radius: 8px;
 
-      .version-label {
-        width: 80px;
-        color: #606266;
-        font-size: 14px;
+      .version-item {
+        flex: 1;
+        max-width: 140px;
+
+        .version-label {
+          font-size: 13px;
+          color: #909399;
+          margin-bottom: 8px;
+        }
+
+        .version-number {
+          font-size: 18px;
+          font-weight: 600;
+          color: #606266;
+          padding: 8px 12px;
+          background: #fff;
+          border-radius: 6px;
+          border: 1px solid #dcdfe6;
+        }
+
+        &.latest .version-number {
+          color: #67c23a;
+          border-color: #67c23a;
+          background: #f0f9ff;
+        }
       }
 
-      .version-value {
-        font-size: 14px;
-        color: #303133;
-        font-weight: 500;
+      .version-arrow {
+        color: #409EFF;
+        font-size: 20px;
+        flex-shrink: 0;
+      }
+    }
 
-        &.latest {
-          color: #67c23a;
+    .release-notes {
+      text-align: left;
+      margin-top: 20px;
+
+      .notes-header {
+        display: flex;
+        align-items: center;
+        margin-bottom: 12px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #303133;
+
+        i {
+          margin-right: 6px;
+          color: #409EFF;
+        }
+      }
+
+      .notes-body {
+        background: #f5f7fa;
+        border-radius: 6px;
+        padding: 12px 16px;
+        font-size: 14px;
+        color: #606266;
+        line-height: 1.8;
+        max-height: 200px;
+        overflow-y: auto;
+        border: 1px solid #e4e7ed;
+        text-align: left;
+
+        // Markdown 样式
+        ::v-deep {
+          h1, h2, h3, h4, h5, h6 {
+            margin: 12px 0 8px;
+            font-weight: 600;
+            color: #303133;
+            line-height: 1.4;
+          }
+
+          h1 {
+            font-size: 18px;
+          }
+
+          h2 {
+            font-size: 16px;
+          }
+
+          h3 {
+            font-size: 15px;
+          }
+
+          h4, h5, h6 {
+            font-size: 14px;
+          }
+
+          p {
+            margin: 8px 0;
+          }
+
+          ul, ol {
+            margin: 8px 0;
+            padding-left: 24px;
+          }
+
+          li {
+            margin: 4px 0;
+          }
+
+          code {
+            background: #e6effb;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 13px;
+            color: #409EFF;
+          }
+
+          pre {
+            background: #282c34;
+            color: #abb2bf;
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 8px 0;
+
+            code {
+              background: transparent;
+              padding: 0;
+              color: inherit;
+            }
+          }
+
+          blockquote {
+            border-left: 3px solid #409EFF;
+            padding-left: 12px;
+            margin: 8px 0;
+            color: #606266;
+          }
+
+          a {
+            color: #409EFF;
+            text-decoration: none;
+
+            &:hover {
+              text-decoration: underline;
+            }
+          }
+
+          strong {
+            font-weight: 600;
+            color: #303133;
+          }
+
+          em {
+            font-style: italic;
+          }
+
+          hr {
+            border: none;
+            border-top: 1px solid #dcdfe6;
+            margin: 12px 0;
+          }
+
+          table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 8px 0;
+
+            th, td {
+              border: 1px solid #dcdfe6;
+              padding: 6px 12px;
+              text-align: left;
+            }
+
+            th {
+              background: #f5f7fa;
+              font-weight: 600;
+            }
+          }
         }
       }
     }
   }
 
-  .update-notes {
-    margin: 16px 0;
-
-    .notes-title {
-      display: flex;
-      align-items: center;
-      margin-bottom: 8px;
-
-      i {
-        font-size: 16px;
-        color: #909399;
-        margin-right: 6px;
-      }
-
-      span {
-        font-size: 14px;
-        font-weight: 600;
-        color: #303133;
-      }
+  .dialog-footer {
+    .el-button {
+      padding: 10px 20px;
     }
-
-    .notes-content {
-      background: #f8f9fa;
-      border-radius: 8px;
-      padding: 12px 16px;
-      font-size: 14px;
-      color: #606266;
-      line-height: 1.6;
-      white-space: pre-line;
-    }
-  }
-
-  .update-actions {
-    display: flex;
-    gap: 12px;
-    margin-top: 16px;
   }
 }
 

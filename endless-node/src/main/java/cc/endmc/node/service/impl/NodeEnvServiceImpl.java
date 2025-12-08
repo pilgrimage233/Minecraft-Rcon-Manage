@@ -413,4 +413,49 @@ public class NodeEnvServiceImpl implements INodeEnvService {
             throw e;
         }
     }
+
+    /**
+     * 取消Java安装任务
+     */
+    @Override
+    public AjaxResult cancelInstall(Map<String, Object> params) {
+        try {
+            Long nodeId = params.get("nodeId") != null ? Long.valueOf(params.get("nodeId").toString()) : null;
+            String taskId = (String) params.get("taskId");
+
+            if (nodeId == null) {
+                return AjaxResult.error("节点ID不能为空");
+            }
+            if (taskId == null || taskId.trim().isEmpty()) {
+                return AjaxResult.error("任务ID不能为空");
+            }
+
+            NodeServer nodeServer = nodeServerService.selectNodeServerById(nodeId);
+            if (nodeServer == null) {
+                return AjaxResult.error("节点服务器不存在");
+            }
+
+            // 调用节点端的取消接口
+            String url = ApiUtil.getJavaEnvCancelApi(nodeServer);
+
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("taskId", taskId);
+
+            String response = NodeHttpUtil.createPost(nodeServer, url)
+                    .body(requestBody.toJSONString())
+                    .execute()
+                    .body();
+            JSONObject result = JSONObject.parseObject(response);
+
+            if (result != null && result.getBoolean("success")) {
+                return AjaxResult.success("任务已取消");
+            } else {
+                String error = result != null ? result.getString("error") : "取消失败";
+                return AjaxResult.error(error);
+            }
+        } catch (Exception e) {
+            log.error("取消安装任务失败", e);
+            return AjaxResult.error("取消失败: " + e.getMessage());
+        }
+    }
 }

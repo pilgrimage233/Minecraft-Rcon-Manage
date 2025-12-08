@@ -10,7 +10,7 @@ COPY . .
 # 编译并打包
 RUN mvn clean package
 
-FROM openjdk:8-jdk
+FROM azul/zulu-openjdk:8
 LABEL maintainer="EndlessManager"
 
 # 设置时区

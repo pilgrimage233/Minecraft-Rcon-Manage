@@ -189,7 +189,8 @@
     />
 
     <!-- 一键安装Java对话框 -->
-    <el-dialog :close-on-click-modal="false" :visible.sync="installDialogVisible" append-to-body
+    <el-dialog :before-close="handleDialogClose" :close-on-click-modal="false" :visible.sync="installDialogVisible"
+               append-to-body
                title="一键安装Java环境" width="600px">
       <el-form ref="installForm" :model="installForm" :rules="installRules" label-width="120px">
         <el-form-item label="节点服务器" prop="nodeId">
@@ -238,17 +239,17 @@
         <el-form-item label="供应商" prop="vendor">
           <el-select v-model="installForm.vendor" :disabled="installing" placeholder="请选择供应商" style="width: 100%"
                      @change="handleVendorChange">
-            <el-option label="Adoptium (推荐)" value="Adoptium">
+            <el-option label="Azul Zulu (推荐)" value="Zulu">
+              <span>Azul Zulu</span>
+              <span style="color: #8492a6; font-size: 12px; margin-left: 10px;">企业级支持，Lunar 官方JDK </span>
+            </el-option>
+            <el-option label="Adoptium" value="Adoptium">
               <span>Adoptium</span>
               <span style="color: #8492a6; font-size: 12px; margin-left: 10px;">开源稳定，支持所有版本</span>
             </el-option>
             <el-option label="Amazon Corretto" value="Corretto">
               <span>Amazon Corretto</span>
               <span style="color: #8492a6; font-size: 12px; margin-left: 10px;">AWS优化，生产就绪</span>
-            </el-option>
-            <el-option label="Azul Zulu" value="Zulu">
-              <span>Azul Zulu</span>
-              <span style="color: #8492a6; font-size: 12px; margin-left: 10px;">企业级支持</span>
             </el-option>
             <el-option label="Microsoft OpenJDK" value="Microsoft">
               <span>Microsoft OpenJDK</span>
@@ -391,7 +392,7 @@
 </template>
 
 <script>
-import {addEnv, delEnv, getEnv, listEnv, scanEnv, updateEnv, verifyEnv} from "@/api/node/env";
+import {addEnv, cancelInstall, delEnv, getEnv, listEnv, scanEnv, updateEnv, verifyEnv} from "@/api/node/env";
 import {listServer} from "@/api/node/server";
 
 export default {
@@ -408,13 +409,15 @@ export default {
       installStatus: '',
       installLogs: [],
       installEventSource: null,
+      installAbortController: null,
+      installTaskId: null,
       // 安装对话框
       installDialogVisible: false,
       installForm: {
         nodeId: null,
         version: '17',
         installPath: '',
-        vendor: 'Adoptium'
+        vendor: 'Zulu'
       },
       installRules: {
         nodeId: [
@@ -782,7 +785,7 @@ export default {
         nodeId: this.queryParams.nodeId || null,
         version: '17',
         installPath: '',
-        vendor: 'Adoptium'
+        vendor: 'Zulu'
       };
       this.installing = false;
       this.installProgress = 0;
@@ -811,6 +814,9 @@ export default {
 
     /** 使用SSE开始安装 */
     startInstallWithSSE() {
+      // 创建新的 AbortController
+      this.installAbortController = new AbortController();
+
       // 使用主控端的代理接口
       const url = process.env.VUE_APP_BASE_API + '/node/env/install';
 
@@ -825,7 +831,8 @@ export default {
           version: this.installForm.version,
           installPath: this.installForm.installPath,
           vendor: this.installForm.vendor
-        })
+        }),
+        signal: this.installAbortController.signal
       }).then(response => {
         if (!response.ok) {
           throw new Error('请求失败');
@@ -870,9 +877,19 @@ export default {
 
         readStream();
       }).catch(error => {
-        console.error('安装Java失败:', error);
+        // 如果是用户主动取消，不显示错误消息
+        if (error.name === 'AbortError') {
+          console.log('安装已被用户取消');
+          this.installLogs.push({
+            type: 'warning',
+            message: '安装已取消',
+            time: new Date().toLocaleTimeString()
+          });
+        } else {
+          console.error('安装Java失败:', error);
+          this.$message.error('安装失败: ' + error.message);
+        }
         this.installing = false;
-        this.$message.error('安装失败: ' + error.message);
       });
     },
 
@@ -894,6 +911,12 @@ export default {
 
     /** 处理安装进度 */
     handleInstallProgress(data) {
+      // 保存任务ID
+      if (data.type === 'task_created' && data.taskId) {
+        this.installTaskId = data.taskId;
+        console.log('任务ID:', this.installTaskId);
+      }
+
       if (data.progress !== undefined) {
         this.installProgress = Math.min(100, Math.max(0, data.progress));
       }
@@ -942,13 +965,61 @@ export default {
     /** 取消安装 */
     cancelInstall() {
       if (this.installing) {
-        this.$message.warning('安装正在进行中，请等待完成');
+        this.$confirm('安装正在进行中，确定要取消吗？这将停止下载并清理临时文件。', '提示', {
+          confirmButtonText: '确定取消',
+          cancelButtonText: '继续安装',
+          type: 'warning'
+        }).then(() => {
+          // 调用后端取消接口
+          this.cancelInstallTask();
+        }).catch(() => {
+          // 用户选择继续安装
+        });
         return;
       }
       this.installDialogVisible = false;
       this.installLogs = [];
       this.installProgress = 0;
       this.installStatus = '';
+      this.installTaskId = null;
+    },
+
+    /** 调用后端取消安装任务 */
+    cancelInstallTask() {
+      if (!this.installTaskId) {
+        this.$message.warning('任务ID不存在，无法取消');
+        // 仍然中止前端连接
+        if (this.installAbortController) {
+          this.installAbortController.abort();
+          this.installAbortController = null;
+        }
+        this.installing = false;
+        this.installDialogVisible = false;
+        return;
+      }
+
+      // 调用取消接口
+      cancelInstall({
+        nodeId: this.installForm.nodeId,
+        taskId: this.installTaskId
+      }).then(response => {
+        this.$message.success('已取消安装');
+      }).catch(error => {
+        console.error('取消安装失败:', error);
+        this.$message.error('取消失败');
+      }).finally(() => {
+        // 中止前端连接
+        if (this.installAbortController) {
+          this.installAbortController.abort();
+          this.installAbortController = null;
+        }
+        this.installing = false;
+        this.installStatus = 'exception';
+        this.installDialogVisible = false;
+        this.installLogs = [];
+        this.installProgress = 0;
+        this.installTaskId = null;
+      });
     },
 
     /** 处理安装完成 */
@@ -958,6 +1029,43 @@ export default {
       this.installProgress = 0;
       this.installStatus = '';
       this.getList();
+    },
+
+    /** 处理对话框关闭 */
+    handleDialogClose(done) {
+      if (this.installing) {
+        this.$confirm('安装正在进行中，确定要关闭吗？关闭后安装将被取消。', '提示', {
+          confirmButtonText: '确定关闭',
+          cancelButtonText: '继续安装',
+          type: 'warning'
+        }).then(() => {
+          // 调用取消接口
+          if (this.installTaskId) {
+            cancelInstall({
+              nodeId: this.installForm.nodeId,
+              taskId: this.installTaskId
+            }).catch(error => {
+              console.error('取消安装失败:', error);
+            });
+          }
+
+          // 中止前端连接
+          if (this.installAbortController) {
+            this.installAbortController.abort();
+            this.installAbortController = null;
+          }
+          this.installing = false;
+          this.installStatus = '';
+          this.installLogs = [];
+          this.installProgress = 0;
+          this.installTaskId = null;
+          done();
+        }).catch(() => {
+          // 用户选择继续安装
+        });
+      } else {
+        done();
+      }
     },
 
     /** 获取日志图标 */

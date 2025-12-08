@@ -159,27 +159,63 @@ export default {
 .title {
   margin: 0px auto 30px auto;
   text-align: center;
-  color: #707070;
+  color: #333;
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: 1px;
 }
 
 .register-form {
-  border-radius: 6px;
+  border-radius: 12px;
   background: #ffffff;
-  width: 400px;
-  padding: 25px 25px 5px 25px;
+  width: 420px;
+  padding: 35px 40px 15px 40px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 
   .el-input {
-    height: 38px;
+    height: 42px;
 
     input {
-      height: 38px;
+      height: 42px;
+      border-radius: 8px;
+      border: 1px solid #dcdfe6;
+      transition: all 0.3s;
+
+      &:focus {
+        border-color: #409eff;
+        box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
+      }
     }
   }
 
   .input-icon {
-    height: 39px;
+    height: 42px;
     width: 14px;
     margin-left: 2px;
+  }
+
+  .el-button--primary {
+    height: 42px;
+    border-radius: 8px;
+    font-size: 15px;
+    font-weight: 500;
+    letter-spacing: 1px;
+    transition: all 0.3s;
+
+    &:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
+    }
+  }
+
+  .link-type {
+    color: #409eff;
+    transition: color 0.3s;
+
+    &:hover {
+      color: #66b1ff;
+    }
   }
 }
 
@@ -191,12 +227,18 @@ export default {
 
 .register-code {
   width: 33%;
-  height: 38px;
+  height: 42px;
   float: right;
 
   img {
     cursor: pointer;
     vertical-align: middle;
+    border-radius: 6px;
+    transition: all 0.3s;
+
+    &:hover {
+      opacity: 0.8;
+    }
   }
 }
 
@@ -211,9 +253,11 @@ export default {
   font-family: Arial;
   font-size: 12px;
   letter-spacing: 1px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .register-code-img {
-  height: 38px;
+  height: 42px;
+  border-radius: 6px;
 }
 </style>

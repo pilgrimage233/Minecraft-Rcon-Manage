@@ -69,3 +69,12 @@ export function installJava(data) {
     timeout: 600000 // 10分钟超时
   })
 }
+
+// 取消Java安装任务
+export function cancelInstall(data) {
+  return request({
+    url: '/node/env/install/cancel',
+    method: 'post',
+    data: data
+  })
+}

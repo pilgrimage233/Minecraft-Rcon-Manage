@@ -84,4 +84,12 @@ public interface INodeEnvService {
      * @return SSE发射器
      */
     public SseEmitter installJavaWithProgress(java.util.Map<String, Object> params);
+
+    /**
+     * 取消Java安装任务
+     *
+     * @param params 参数（nodeId, taskId）
+     * @return 取消结果
+     */
+    public AjaxResult cancelInstall(java.util.Map<String, Object> params);
 }

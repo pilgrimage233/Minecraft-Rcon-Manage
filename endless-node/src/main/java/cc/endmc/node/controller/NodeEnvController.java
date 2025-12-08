@@ -129,4 +129,14 @@ public class NodeEnvController extends BaseController {
         
         return nodeEnvService.installJavaWithProgress(params);
     }
+
+    /**
+     * 取消Java安装任务
+     */
+    @PreAuthorize("@ss.hasPermi('node:env:add')")
+    @Log(title = "取消Java安装", businessType = BusinessType.OTHER)
+    @PostMapping("/install/cancel")
+    public AjaxResult cancelInstall(@RequestBody Map<String, Object> params) {
+        return nodeEnvService.cancelInstall(params);
+    }
 }

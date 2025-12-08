@@ -36,6 +36,7 @@ public class ApiUtil {
     public static final String JAVA_ENV_VERIFY = "/api/java-env/verify";
     public static final String JAVA_ENV_SCAN = "/api/java-env/scan";
     public static final String JAVA_ENV_INSTALL = "/api/java-env/install";
+    public static final String JAVA_ENV_CANCEL = "/api/java-env/install/cancel";
 
     // 实例相关
     public static final String CREATE_INSTANCE = "/api/servers/create";
@@ -192,6 +193,13 @@ public class ApiUtil {
      */
     public static String getJavaEnvInstallApi(NodeServer nodeServer) {
         return buildUrl(nodeServer, JAVA_ENV_INSTALL);
+    }
+
+    /**
+     * 获取Java环境安装取消API
+     */
+    public static String getJavaEnvCancelApi(NodeServer nodeServer) {
+        return buildUrl(nodeServer, JAVA_ENV_CANCEL);
     }
 
 }

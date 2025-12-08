@@ -164,61 +164,36 @@ export default {
   height: 100%;
   background-image: url("../assets/images/login-background.jpg");
   background-size: cover;
-  background-position: center;
-  position: relative;
-
-  &::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.2);
-    z-index: 1;
-  }
 }
 
 .title {
   margin: 0px auto 30px auto;
   text-align: center;
   color: #333;
-  font-weight: 600;
-  font-size: 28px;
-  letter-spacing: 2px;
+  font-size: 26px;
+  font-weight: 500;
+  letter-spacing: 1px;
 }
 
 .login-form {
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.25);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.2);
-  width: 400px;
-  padding: 40px 35px 25px 35px;
-  position: relative;
-  z-index: 2;
-  transition: all 0.3s ease;
-
-  &:hover {
-    box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.3);
-    transform: translateY(-2px);
-  }
+  border-radius: 12px;
+  background: #ffffff;
+  width: 420px;
+  padding: 35px 40px 15px 40px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
 
   .el-input {
     height: 42px;
 
     input {
       height: 42px;
-      background: rgba(255, 255, 255, 0.8);
-      border: 1px solid rgba(255, 255, 255, 0.4);
       border-radius: 8px;
-      transition: all 0.3s ease;
+      border: 1px solid #dcdfe6;
+      transition: all 0.3s;
 
       &:focus {
-        background: rgba(255, 255, 255, 0.95);
-        border-color: #409EFF;
+        border-color: #409eff;
+        box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
       }
     }
   }
@@ -230,35 +205,32 @@ export default {
   }
 
   .el-checkbox {
-    color: #333;
-    font-weight: 500;
-
     ::v-deep .el-checkbox__label {
-      color: #333;
+      color: #606266;
     }
   }
 
   .el-button--primary {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border: none;
+    height: 42px;
     border-radius: 8px;
-    font-weight: 600;
+    font-size: 15px;
+    font-weight: 500;
     letter-spacing: 1px;
-    transition: all 0.3s ease;
+    transition: all 0.3s;
 
     &:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+      opacity: 0.9;
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(64, 158, 255, 0.3);
     }
   }
 
   .link-type {
-    color: #667eea;
-    font-weight: 500;
-    transition: all 0.3s ease;
+    color: #409eff;
+    transition: color 0.3s;
 
     &:hover {
-      color: #764ba2;
+      color: #66b1ff;
     }
   }
 }
@@ -278,10 +250,10 @@ export default {
     cursor: pointer;
     vertical-align: middle;
     border-radius: 6px;
-    transition: all 0.3s ease;
+    transition: all 0.3s;
 
     &:hover {
-      transform: scale(1.05);
+      opacity: 0.8;
     }
   }
 }
@@ -297,8 +269,7 @@ export default {
   font-family: Arial;
   font-size: 12px;
   letter-spacing: 1px;
-  z-index: 2;
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
 .login-code-img {
