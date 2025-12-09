@@ -7,6 +7,7 @@ import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.rconclient.RconClient;
 import cc.endmc.server.common.service.RconService;
+import cc.endmc.server.domain.bot.BotGroupCommandConfig;
 import cc.endmc.server.domain.bot.QqBotConfig;
 import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.domain.player.PlayerDetails;
@@ -14,6 +15,7 @@ import cc.endmc.server.enums.Identity;
 import cc.endmc.server.mapper.bot.QqBotConfigMapper;
 import cc.endmc.server.mapper.permission.WhitelistInfoMapper;
 import cc.endmc.server.mapper.player.PlayerDetailsMapper;
+import cc.endmc.server.service.bot.IBotGroupCommandConfigService;
 import cc.endmc.server.service.player.IPlayerDetailsService;
 import cc.endmc.server.utils.BotUtil;
 import com.alibaba.fastjson2.JSONObject;
@@ -47,6 +49,16 @@ public class OnlineTask {
     private RedisCache cache;
     @Autowired
     private RconService rconService;
+    /**
+     * 功能开关 - 玩家上线通知
+     */
+    private static final String CMD_ONLINE_NOTIFY = "玩家上线通知";
+    /**
+     * 功能开关 - 玩家下线通知
+     */
+    private static final String CMD_OFFLINE_NOTIFY = "玩家下线通知";
+    @Autowired
+    private IBotGroupCommandConfigService commandConfigService;
 
     /**
      * 根据用户uuid同步用户名称
@@ -230,9 +242,12 @@ public class OnlineTask {
             // 发送上线通知
             for (QqBotConfig botConfig : botConfigs) {
                 for (String s : botConfig.getGroupIds().split(",")) {
-                    String message = "玩家上线通知：\n" +
-                            String.join(", ", newOnlinePlayers) + "加入了游戏！";
-                    BotUtil.sendMessage(message, s, botConfig);
+                    // 检查该群是否启用了玩家上线通知功能
+                    if (isCommandEnabled(s, CMD_ONLINE_NOTIFY)) {
+                        String message = "玩家上线通知：\n" +
+                                String.join(", ", newOnlinePlayers) + "加入了游戏！";
+                        BotUtil.sendMessage(message, s, botConfig);
+                    }
                 }
             }
             playerDetailsService.updateLastOnlineTimeByUserNames(new ArrayList<>(newOnlinePlayers));
@@ -247,9 +262,12 @@ public class OnlineTask {
             // 发送下线通知
             for (QqBotConfig botConfig : botConfigs) {
                 for (String s : botConfig.getGroupIds().split(",")) {
-                    String message = "玩家下线通知：\n" +
-                            String.join(", ", newOfflinePlayers) + "离开了游戏！";
-                    BotUtil.sendMessage(message, s, botConfig);
+                    // 检查该群是否启用了玩家下线通知功能
+                    if (isCommandEnabled(s, CMD_OFFLINE_NOTIFY)) {
+                        String message = "玩家下线通知：\n" +
+                                String.join(", ", newOfflinePlayers) + "离开了游戏！";
+                        BotUtil.sendMessage(message, s, botConfig);
+                    }
                 }
             }
             // 对每个下线的玩家计算游戏时间
@@ -363,5 +381,24 @@ public class OnlineTask {
             }
         }
         log.debug("commandRetry end");
+    }
+
+    /**
+     * 检查指定群组的功能是否启用
+     *
+     * @param groupId    群组ID
+     * @param commandKey 功能关键字
+     * @return 是否启用
+     */
+    private boolean isCommandEnabled(String groupId, String commandKey) {
+        try {
+            BotGroupCommandConfig config = commandConfigService.checkCommandEnabled(groupId, commandKey);
+            // 如果没有配置或启用状态为1，则认为启用
+            return config == null || config.getIsEnabled() == null || config.getIsEnabled() == 1;
+        } catch (Exception e) {
+            log.error("检查功能开关状态失败: groupId={}, commandKey={}, error={}", groupId, commandKey, e.getMessage());
+            // 出错时默认启用，避免影响正常功能
+            return true;
+        }
     }
 }

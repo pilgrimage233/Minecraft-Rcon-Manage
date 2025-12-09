@@ -17,7 +17,7 @@ public class CacheKey {
 
     public static final String SERVER_INFO_UPDATE_TIME_KEY = "server_manager:server_info_updateTime"; // 服务器信息更新时间前缀
 
-    public static final String COMMAND_INFO_KEY = "server_manager:command_info"; // 指令信息前缀
+    public static final String COMMAND_INFO_KEY = "server_manager:command_info"; // 指令信息前缀（包含群组指令配置缓存）
 
     public static final String ERROR_COMMAND_CACHE_KEY = "server_manager:error_command_cache"; // 错误指令缓存前缀
 

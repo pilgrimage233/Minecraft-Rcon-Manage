@@ -19,12 +19,10 @@ import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.rconclient.RconClient;
 import cc.endmc.server.common.service.EmailService;
 import cc.endmc.server.common.service.RconService;
-import cc.endmc.server.domain.bot.QqBotConfig;
-import cc.endmc.server.domain.bot.QqBotLog;
-import cc.endmc.server.domain.bot.QqBotManager;
-import cc.endmc.server.domain.bot.QqBotManagerGroup;
+import cc.endmc.server.domain.bot.*;
 import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.domain.server.ServerInfo;
+import cc.endmc.server.service.bot.IBotGroupCommandConfigService;
 import cc.endmc.server.service.bot.IQqBotConfigService;
 import cc.endmc.server.service.bot.IQqBotLogService;
 import cc.endmc.server.service.bot.IQqBotManagerService;
@@ -70,6 +68,7 @@ import java.security.cert.Certificate;
 import java.security.cert.X509Certificate;
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 /**
  * QQ机器人WebSocket客户端
@@ -90,6 +89,7 @@ public class BotClient {
     private final IQqBotLogService qqBotLogService;
     private final INodeMinecraftServerService nodeMinecraftServerService;
     private final INodeServerService nodeServerService;
+    private final IBotGroupCommandConfigService commandConfigService;
     private ScheduledFuture<?> reconnectTask;
     private final Environment env;
     private final RedisCache redisCache;
@@ -129,7 +129,8 @@ public class BotClient {
             RconService rconService,
             @Value("${app-url}") String appUrl, BotManager botManager,
             INodeMinecraftServerService nodeMinecraftServerService,
-            INodeServerService nodeServerService) {
+            INodeServerService nodeServerService,
+            IBotGroupCommandConfigService commandConfigService) {
         this.redisCache = redisCache;
         this.emailService = emailService;
         this.whitelistInfoService = whitelistInfoService;
@@ -142,6 +143,7 @@ public class BotClient {
         this.env = env;
         this.nodeMinecraftServerService = nodeMinecraftServerService;
         this.nodeServerService = nodeServerService;
+        this.commandConfigService = commandConfigService;
 
         log.info("BotClient 实例已创建，依赖注入完成");
         this.botManager = botManager;
@@ -185,6 +187,11 @@ public class BotClient {
         commandRegistry.register("实例日志", this::handleInstanceLogs, "logs", "log");
         commandRegistry.register("实例命令", this::handleInstanceCommand, "instcmd", "ic");
         commandRegistry.register("节点状态", this::handleNodeStatus, "nodestatus", "ns");
+
+        // 功能开关命令（管理员）
+        commandRegistry.register("关闭", this::handleDisableCommand, "disable", "off");
+        commandRegistry.register("开启", this::handleEnableCommand, "enable", "on");
+        commandRegistry.register("功能列表", this::handleCommandList, "cmdlist", "cl");
 
         log.info("命令注册器初始化完成，共注册 {} 个命令", commandRegistry.getAllCommands().size());
     }
@@ -458,6 +465,23 @@ public class BotClient {
             CommandHandler handler = commandRegistry.getHandler(commandKey);
 
             if (handler != null) {
+                // 获取主命令名称（用于检查配置）
+                String mainCommand = commandRegistry.getMainCommand(commandKey);
+
+                // 检查命令是否在该群组启用（关闭/开启/功能列表命令不受限制）
+                if (!isCommandControlCommand(mainCommand)) {
+                    BotGroupCommandConfig cmdConfig = commandConfigService.checkCommandEnabled(
+                            message.getGroupId().toString(), mainCommand);
+                    if (cmdConfig != null && cmdConfig.getIsEnabled() != null && cmdConfig.getIsEnabled() == 0) {
+                        // 命令已被禁用
+                        String disabledMsg = StringUtils.isNotEmpty(cmdConfig.getDisabledMessage())
+                                ? cmdConfig.getDisabledMessage()
+                                : "该功能已在本群禁用";
+                        sendMessage(message, "[CQ:at,qq=" + message.getSender().getUserId() + "] " + disabledMsg);
+                        return;
+                    }
+                }
+
                 handler.handle(message);
             } else {
                 // 未找到命令处理器，检查是否有上次使用的服务器（用于快捷RCON命令）
@@ -497,6 +521,146 @@ public class BotClient {
         } else {
             testServer(message);
         }
+    }
+
+    /**
+     * 判断是否是功能控制命令（这些命令不受开关限制）
+     */
+    private boolean isCommandControlCommand(String command) {
+        return "关闭".equals(command) || "开启".equals(command) || "功能列表".equals(command) || "help".equals(command);
+    }
+
+    /**
+     * 处理关闭功能命令
+     * 格式：关闭 <功能名称>
+     */
+    @BotCommand(description = "关闭指定功能", permissionLevel = 1)
+    private void handleDisableCommand(QQMessage message) {
+        handleToggleCommand(message, false);
+    }
+
+    /**
+     * 处理开启功能命令
+     * 格式：开启 <功能名称>
+     */
+    @BotCommand(description = "开启指定功能", permissionLevel = 1)
+    private void handleEnableCommand(QQMessage message) {
+        handleToggleCommand(message, true);
+    }
+
+    /**
+     * 处理功能开关切换
+     */
+    private void handleToggleCommand(QQMessage message, boolean enable) {
+        String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
+
+        // 检查管理员权限
+        List<QqBotManager> managers = config.selectManagerForThisGroup(message.getGroupId(), message.getUserId());
+        if (managers.isEmpty()) {
+            sendMessage(message, base + " 您没有权限执行此操作，需要管理员权限。");
+            return;
+        }
+
+        String[] parts = message.getMessage().split("\\s+");
+        if (parts.length < 2) {
+            String action = enable ? "开启" : "关闭";
+            sendMessage(message, base + " 格式错误，正确格式：" + action + " <功能名称>\n使用 /功能列表 查看所有可用功能。");
+            return;
+        }
+
+        String commandKey = parts[1];
+
+        // 不允许关闭功能控制命令本身
+        if (isCommandControlCommand(commandKey)) {
+            sendMessage(message, base + " 该功能不允许被关闭。");
+            return;
+        }
+
+        // 获取主命令名称（如果是注册的命令别名，则转换为主命令）
+        String mainCommand = commandKey;
+        if (commandRegistry.hasCommand(commandKey)) {
+            mainCommand = commandRegistry.getMainCommand(commandKey);
+        } else {
+            // 检查是否是系统功能（非指令类功能，如玩家上下线通知）
+            BotGroupCommandConfig systemConfig = commandConfigService.checkCommandEnabled("default", commandKey);
+            if (systemConfig == null) {
+                sendMessage(message, base + " 未找到功能：" + commandKey + "\n使用 /功能列表 查看所有可用功能。");
+                return;
+            }
+        }
+
+        // 执行切换
+        int result = commandConfigService.toggleCommandStatus(
+                message.getGroupId().toString(),
+                mainCommand,
+                enable,
+                message.getSender().getUserId().toString()
+        );
+
+        if (result > 0) {
+            String action = enable ? "开启" : "关闭";
+            sendMessage(message, base + " 已成功" + action + "功能：" + mainCommand);
+        } else if (result == -1) {
+            sendMessage(message, base + " 功能配置不存在：" + mainCommand);
+        } else {
+            sendMessage(message, base + " 操作失败，请稍后重试。");
+        }
+    }
+
+    /**
+     * 处理功能列表命令
+     * 显示所有可用功能及其在当前群的启用状态
+     */
+    @BotCommand(description = "查看功能列表", permissionLevel = 0)
+    private void handleCommandList(QQMessage message) {
+        String base = "[CQ:at,qq=" + message.getSender().getUserId() + "]";
+        String groupId = message.getGroupId().toString();
+
+        StringBuilder sb = new StringBuilder();
+        sb.append(base).append("\n");
+        sb.append("━━━━━━━━━━━━━━━━━━━━\n");
+        sb.append("📋 功能列表\n");
+        sb.append("━━━━━━━━━━━━━━━━━━━━\n\n");
+
+        // 获取所有默认配置的命令
+        BotGroupCommandConfig query = new BotGroupCommandConfig();
+        query.setGroupId("default");
+        List<BotGroupCommandConfig> defaultConfigs = commandConfigService.selectBotGroupCommandConfigList(query);
+
+        // 按分类分组
+        Map<String, List<BotGroupCommandConfig>> categoryMap = defaultConfigs.stream()
+                .collect(Collectors.groupingBy(
+                        c -> c.getCommandCategory() != null ? c.getCommandCategory() : "other"
+                ));
+
+        String[] categories = {"user", "admin", "super", "system"};
+        String[] categoryNames = {"👥 普通用户功能", "👮 管理员功能", "⭐ 超级管理员功能", "🔔 系统通知功能"};
+
+        for (int i = 0; i < categories.length; i++) {
+            List<BotGroupCommandConfig> configs = categoryMap.get(categories[i]);
+            if (configs == null || configs.isEmpty()) continue;
+
+            sb.append(categoryNames[i]).append("\n");
+            sb.append("────────────────────\n");
+
+            for (BotGroupCommandConfig cfg : configs) {
+                // 检查该群组的实际状态
+                BotGroupCommandConfig actualConfig = commandConfigService.checkCommandEnabled(groupId, cfg.getCommandKey());
+                boolean enabled = actualConfig == null || actualConfig.getIsEnabled() == null || actualConfig.getIsEnabled() == 1;
+                String status = enabled ? "✅" : "❌";
+                sb.append(status).append(" ").append(cfg.getCommandKey());
+                if (StringUtils.isNotEmpty(cfg.getCommandName())) {
+                    sb.append(" (").append(cfg.getCommandName()).append(")");
+                }
+                sb.append("\n");
+            }
+            sb.append("\n");
+        }
+
+        sb.append("━━━━━━━━━━━━━━━━━━━━\n");
+        sb.append("💡 管理员可使用 /关闭 <功能> 或 /开启 <功能> 来控制");
+
+        sendMessage(message, sb.toString());
     }
 
     /**
@@ -671,6 +835,17 @@ public class BotClient {
                 help.append("   <QQ号> [群号]\n");
                 help.append("   添加超级管理员\n\n");
             }
+
+            // 功能开关命令
+            help.append("━━━━━━━━━━━━━━━━━━━━\n");
+            help.append("🔧 功能开关命令\n");
+            help.append("━━━━━━━━━━━━━━━━━━━━\n");
+            help.append("▫️ ").append(prefix).append("关闭 (disable/off)\n");
+            help.append("   <功能名称> - 关闭指定功能\n\n");
+            help.append("▫️ ").append(prefix).append("开启 (enable/on)\n");
+            help.append("   <功能名称> - 开启指定功能\n\n");
+            help.append("▫️ ").append(prefix).append("功能列表 (cmdlist/cl)\n");
+            help.append("   查看所有功能及状态\n\n");
         }
 
         help.append("━━━━━━━━━━━━━━━━━━━━\n");

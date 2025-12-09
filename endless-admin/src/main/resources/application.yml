@@ -3,7 +3,7 @@ ruoyi:
   # 名称
   name: EndlessManager
   # 版本
-  version: 3.0
+  version: 3.1
   # 构建时间
   build: 20251208
   # 版权年份
