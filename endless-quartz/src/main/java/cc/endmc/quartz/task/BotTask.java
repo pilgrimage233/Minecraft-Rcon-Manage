@@ -139,7 +139,7 @@ public class BotTask {
                 isFail = true;
                 continue;
             } else {
-                log.debug("群 {} 成员列表获取成功: {}", groupId, jsonObject);
+                log.debug("群 {} 成员列表获取成功,数量: {}", groupId, jsonObject.size());
             }
 
             final List<JSONObject> members = jsonObject.getJSONArray("data").toJavaList(JSONObject.class);

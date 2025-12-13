@@ -70,7 +70,7 @@ public class RconService {
     /**
      * 发送Rcon命令
      *
-     * @param key 服务器ID
+     * @param key     服务器ID
      * @param command 命令
      */
     public String sendCommand(String key, String command) {
@@ -80,8 +80,8 @@ public class RconService {
     /**
      * 发送Rcon命令
      *
-     * @param key 服务器ID
-     * @param command 命令
+     * @param key        服务器ID
+     * @param command    命令
      * @param onlineFlag 是否在线
      */
     public String sendCommand(String key, String command, boolean onlineFlag) {
@@ -238,14 +238,21 @@ public class RconService {
                 log.error("RCON连接失败: {} ({}:{})", info.getNameTag(), serverIp, port);
             }
 
-            RconCache.put(info.getId().toString(), client.get());
-            log.debug(RconMsg.CONNECT_SUCCESS + "{}", info.getNameTag());
+            if (client.get().isSocketChannelOpen()) {
+                RconCache.put(info.getId().toString(), client.get());
 
-            // 清除错误次数
-            if (redisCache.hasKey(ERROR_COUNT_KEY)) {
-                redisCache.deleteObject(ERROR_COUNT_KEY);
+                log.debug(RconMsg.CONNECT_SUCCESS + "{}", info.getNameTag());
+
+                // 清除错误次数
+                if (redisCache.hasKey(ERROR_COUNT_KEY)) {
+                    redisCache.deleteObject(ERROR_COUNT_KEY);
+                }
+                return true;
+            } else {
+                log.error("RCON连接失败，Socket通道未打开: {} ({}:{})", info.getNameTag(), serverIp, port);
+                return false;
             }
-            return true;
+
         } catch (Exception e) {
             // 记录错误次数
             if (redisCache.hasKey(ERROR_COUNT_KEY)) {

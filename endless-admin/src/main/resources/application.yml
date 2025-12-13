@@ -3,7 +3,7 @@ ruoyi:
   # 名称
   name: EndlessManager
   # 版本
-  version: 3.1
+  version: 3.2
   # 构建时间
   build: 20251208
   # 版权年份
@@ -206,3 +206,18 @@ qq:
 app:
   # 鉴权密钥 (请设置为复杂且唯一的密钥)
   secret-key:
+
+# 日志清理配置
+cleanup:
+  # 任务日志清理配置
+  job-log:
+    # 保留天数，默认30天
+    retain-days: 30
+  # 操作日志清理配置
+  oper-log:
+    # 保留天数，默认90天
+    retain-days: 90
+  # 登录日志清理配置
+  login-log:
+    # 保留天数，默认30天
+    retain-days: 30

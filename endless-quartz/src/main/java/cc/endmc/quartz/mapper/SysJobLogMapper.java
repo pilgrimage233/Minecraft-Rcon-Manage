@@ -1,6 +1,7 @@
 package cc.endmc.quartz.mapper;
 
 import cc.endmc.quartz.domain.SysJobLog;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -61,4 +62,49 @@ public interface SysJobLogMapper {
      * 清空任务日志
      */
     public void cleanJobLog();
+
+    /**
+     * 根据保留天数删除任务日志
+     *
+     * @param retainDays 保留天数
+     * @return 删除记录数
+     */
+    int deleteJobLogByRetainDays(@Param("retainDays") int retainDays);
+
+    /**
+     * 根据保留天数删除操作日志
+     *
+     * @param retainDays 保留天数
+     * @return 删除记录数
+     */
+    int deleteOperLogByRetainDays(@Param("retainDays") int retainDays);
+
+    /**
+     * 根据保留天数删除登录日志
+     *
+     * @param retainDays 保留天数
+     * @return 删除记录数
+     */
+    int deleteLoginLogByRetainDays(@Param("retainDays") int retainDays);
+
+    /**
+     * 获取任务日志总数
+     *
+     * @return 总记录数
+     */
+    long getJobLogCount();
+
+    /**
+     * 获取操作日志总数
+     *
+     * @return 总记录数
+     */
+    long getOperLogCount();
+
+    /**
+     * 获取登录日志总数
+     *
+     * @return 总记录数
+     */
+    long getLoginLogCount();
 }

@@ -99,4 +99,43 @@
         )
     </insert>
 
+    <!-- 根据保留天数删除任务日志 -->
+    <delete id="deleteJobLogByRetainDays">
+        DELETE
+        FROM sys_job_log
+        WHERE create_time &lt; DATE_SUB(NOW(), INTERVAL #{retainDays} DAY)
+    </delete>
+
+    <!-- 根据保留天数删除操作日志 -->
+    <delete id="deleteOperLogByRetainDays">
+        DELETE
+        FROM sys_oper_log
+        WHERE oper_time &lt; DATE_SUB(NOW(), INTERVAL #{retainDays} DAY)
+    </delete>
+
+    <!-- 根据保留天数删除登录日志 -->
+    <delete id="deleteLoginLogByRetainDays">
+        DELETE
+        FROM sys_logininfor
+        WHERE login_time &lt; DATE_SUB(NOW(), INTERVAL #{retainDays} DAY)
+    </delete>
+
+    <!-- 获取任务日志总数 -->
+    <select id="getJobLogCount" resultType="long">
+        SELECT COUNT(*)
+        FROM sys_job_log
+    </select>
+
+    <!-- 获取操作日志总数 -->
+    <select id="getOperLogCount" resultType="long">
+        SELECT COUNT(*)
+        FROM sys_oper_log
+    </select>
+
+    <!-- 获取登录日志总数 -->
+    <select id="getLoginLogCount" resultType="long">
+        SELECT COUNT(*)
+        FROM sys_logininfor
+    </select>
+
 </mapper> 

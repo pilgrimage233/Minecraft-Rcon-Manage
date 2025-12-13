@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.system.mapper.SysFeedbackRecordMapper">
+
+    <resultMap type="cc.endmc.system.domain.SysFeedbackRecord" id="SysFeedbackRecordResult">
+        <id property="id" column="id"/>
+        <result property="uuid" column="uuid"/>
+        <result property="userId" column="user_id"/>
+        <result property="userName" column="user_name"/>
+        <result property="feedbackType" column="feedback_type"/>
+        <result property="title" column="title"/>
+        <result property="status" column="status"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO sys_feedback_record (uuid, user_id, user_name, feedback_type, title, status)
+        VALUES (#{uuid}, #{userId}, #{userName}, #{feedbackType}, #{title}, #{status})
+    </insert>
+
+    <select id="selectByUuid" resultMap="SysFeedbackRecordResult">
+        SELECT *
+        FROM sys_feedback_record
+        WHERE uuid = #{uuid}
+    </select>
+
+    <select id="selectByUserId" resultMap="SysFeedbackRecordResult">
+        SELECT *
+        FROM sys_feedback_record
+        WHERE user_id = #{userId}
+        ORDER BY create_time DESC
+    </select>
+
+    <update id="updateStatus">
+        UPDATE sys_feedback_record
+        SET status = #{status}
+        WHERE uuid = #{uuid}
+    </update>
+
+</mapper>
