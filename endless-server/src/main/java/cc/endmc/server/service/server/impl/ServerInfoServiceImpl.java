@@ -17,18 +17,20 @@ import cc.endmc.server.domain.permission.OperatorList;
 import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.domain.player.PlayerDetails;
 import cc.endmc.server.domain.player.vo.PlayerDetailsVo;
+import cc.endmc.server.domain.server.ServerCommandInfo;
 import cc.endmc.server.domain.server.ServerInfo;
+import cc.endmc.server.mapper.permission.WhitelistInfoMapper;
 import cc.endmc.server.mapper.player.PlayerDetailsMapper;
 import cc.endmc.server.mapper.server.ServerInfoMapper;
 import cc.endmc.server.service.permission.IBanlistInfoService;
 import cc.endmc.server.service.permission.IOperatorListService;
-import cc.endmc.server.service.permission.IWhitelistInfoService;
+import cc.endmc.server.service.server.IServerCommandInfoService;
 import cc.endmc.server.service.server.IServerInfoService;
+import cc.endmc.server.utils.OnlinePlayerUtil;
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -41,38 +43,21 @@ import java.util.stream.Collectors;
  * @author ruoyi
  * @date 2024-03-10
  */
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class ServerInfoServiceImpl implements IServerInfoService {
 
-    private static final Log log = LogFactory.getLog(ServerInfoServiceImpl.class);
-
-    @Autowired
-    private ServerInfoMapper serverInfoMapper;
-
-    @Autowired
-    private RedisCache redisCache;
-
-    @Autowired
-    private RconService rconService;
-
-    @Autowired
-    private IWhitelistInfoService whitelistInfo;
-
-    @Autowired
-    private PlayerDetailsMapper playerDetailsMapper;
-
-    @Autowired
-    private IOperatorListService operatorListService;
-
-    @Autowired
-    private IBanlistInfoService banlistInfoService;
-
-    @Autowired
-    private PasswordManager PasswordManager;
-
-    @Autowired
-    private INodeServerService nodeServerService;
-
+    private final ServerInfoMapper serverInfoMapper;
+    private final RedisCache redisCache;
+    private final RconService rconService;
+    private final WhitelistInfoMapper whitelistInfoMapper;
+    private final PlayerDetailsMapper playerDetailsMapper;
+    private final IOperatorListService operatorListService;
+    private final IBanlistInfoService banlistInfoService;
+    private final PasswordManager PasswordManager;
+    private final INodeServerService nodeServerService;
+    private final IServerCommandInfoService serverCommandInfo;
 
     /**
      * 查询服务器信息
@@ -127,6 +112,19 @@ public class ServerInfoServiceImpl implements IServerInfoService {
         final int result = serverInfoMapper.insertServerInfo(serverInfo);
         // 更新缓存
         if (result > 0) {
+            // 初始化服务器命令
+            ServerCommandInfo commandInfo = new ServerCommandInfo();
+            commandInfo.setServerId(serverInfo.getId().toString());
+            commandInfo.setOnlineAddWhitelistCommand("whitelist add {player}");
+            commandInfo.setOfflineAddWhitelistCommand("whitelist add {player}");
+            commandInfo.setOnlineRmWhitelistCommand("whitelist remove {player}");
+            commandInfo.setOfflineRmWhitelistCommand("whitelist remove {player}");
+            commandInfo.setOnlineAddBanCommand("ban {player} {reason}");
+            commandInfo.setOfflineAddBanCommand("ban {player} {reason}");
+            commandInfo.setOnlineRmBanCommand("pardon {player}");
+            commandInfo.setOfflineRmBanCommand("pardon {player}");
+            serverCommandInfo.insertServerCommandInfo(commandInfo);
+
             this.rebuildCache();
             // 初始化Rcon连接
             if (RconCache.containsKey(serverInfo.getId().toString())) {
@@ -240,82 +238,116 @@ public class ServerInfoServiceImpl implements IServerInfoService {
     @Override
     public Map<String, Object> getOnlinePlayer(boolean cache) {
         Map<String, Object> result = new HashMap<>();
-        List<ServerInfo> serverInfo;
-        // 从Redis缓存中获取serverInfo
-        if (redisCache.hasKey(CacheKey.SERVER_INFO_KEY)) {
-            serverInfo = redisCache.getCacheObject(CacheKey.SERVER_INFO_KEY);
-        } else {
-            rconService.reBuildCache();
-            serverInfo = redisCache.getCacheObject(CacheKey.SERVER_INFO_KEY);
-        }
-        if (serverInfo != null) {
-            for (ServerInfo info : serverInfo) {
-                if (info.getStatus() == 0) {
-                    continue;
-                }
-                final String id = info.getId().toString();
-                // 获取在线玩家
-                Map<String, Object> onlinePlayer = new HashMap<>();
-                List<String> playerList = new ArrayList<>();
-                String[] split;
-                try {
-                    String cacheKey = CacheKey.SERVER_PLAYER_KEY + id;
-                    if (cache && (redisCache.hasKey(cacheKey) || redisCache.getCacheObject(cacheKey) != null)) {
-                        playerList = redisCache.getCacheList(cacheKey);
-                    } else {
-                        if (info.getServerCore().equalsIgnoreCase("Velocity")) {
-                            final String response = rconService.sendCommand(id, "glist all", false);
-                            if (response == null) continue;
-                            String[] lines = response.split("\n");
-                            // 处理Velocity格式
-                            for (String line : lines) {
-                                split = line.split(":");
-                                if (split.length > 1) {
-                                    String[] players = split[1].trim().split(", ");
-                                    playerList = Arrays.stream(players)
-                                            .filter(StringUtils::isNotEmpty)
-                                            .collect(Collectors.toList());
-                                }
+        List<ServerInfo> serverInfoList = getServerInfoList();
+
+        if (serverInfoList != null) {
+            // 使用并行流提高性能
+            serverInfoList.parallelStream()
+                    .filter(info -> info.getStatus() == 1) // 只处理在线服务器
+                    .forEach(info -> {
+                        String serverName = info.getNameTag();
+                        try {
+                            Map<String, Object> playerInfo = getServerPlayerInfo(info, cache);
+                            synchronized (result) {
+                                result.put(serverName, playerInfo);
                             }
-                        } else {
-                            // 处理其他服务器核心的响应格式
-                            String list = rconService.sendCommand(id, "list", false);
-                            if (list != null) {
-                                // 判断是否插件服装有ESS
-                                if (!list.startsWith("There are")) {
-                                    list = rconService.sendCommand(id, "minecraft:list", false);
-                                }
-                                split = list.split(":");
-                                if (split.length > 1) {
-                                    String[] players = split[1].trim().split(", ");
-                                    playerList = Arrays.stream(players)
-                                            .filter(StringUtils::isNotEmpty)
-                                            .collect(Collectors.toList());
-                                }
+                        } catch (Exception e) {
+                            synchronized (result) {
+                                result.put(serverName, "服务器连接失败，请检查服务器状态");
                             }
+                            handleServerConnectionError(info, e);
                         }
-                        if (!playerList.isEmpty()) {
-                            redisCache.setCacheList(cacheKey, playerList);
-                            redisCache.expire(cacheKey, 30, TimeUnit.SECONDS);
-                        }
-                    }
-                    onlinePlayer.put("在线人数", playerList.size());
-                    onlinePlayer.put("在线玩家", playerList.toString());
-                    result.put(info.getNameTag(), onlinePlayer);
-                } catch (Exception e) {
-                    result.put(info.getNameTag(), "服务器连接失败，请检查服务器状态");
-                    // 随机重连
-                    Random random = new Random();
-                    int i = random.nextInt(10);
-                    if (i % 2 == 0) {
-                        rconService.reconnect(info.getId().toString());
-                    }
-                    log.error("获取在线玩家失败：" + e.getMessage());
-                }
-            }
+                    });
+
             result.put("查询时间", DateUtils.getTime());
         }
         return result;
+    }
+
+    /**
+     * 获取服务器信息列表
+     */
+    private List<ServerInfo> getServerInfoList() {
+        if (redisCache.hasKey(CacheKey.SERVER_INFO_KEY)) {
+            return redisCache.getCacheObject(CacheKey.SERVER_INFO_KEY);
+        } else {
+            rconService.reBuildCache();
+            return redisCache.getCacheObject(CacheKey.SERVER_INFO_KEY);
+        }
+    }
+
+    /**
+     * 获取单个服务器的玩家信息
+     */
+    private Map<String, Object> getServerPlayerInfo(ServerInfo info, boolean cache) {
+        String serverId = info.getId().toString();
+        String cacheKey = CacheKey.SERVER_PLAYER_KEY + serverId;
+
+        List<String> playerList;
+
+        // 尝试从缓存获取
+        if (cache && redisCache.hasKey(cacheKey)) {
+            playerList = redisCache.getCacheList(cacheKey);
+        } else {
+            // 从服务器获取玩家列表
+            playerList = fetchPlayerListFromServer(info);
+
+            // 缓存结果
+            if (!playerList.isEmpty() && cache) {
+                redisCache.setCacheList(cacheKey, playerList);
+                redisCache.expire(cacheKey, 30, TimeUnit.SECONDS);
+            }
+        }
+
+        Map<String, Object> playerInfo = new HashMap<>();
+        playerInfo.put("在线人数", playerList.size());
+        playerInfo.put("在线玩家", playerList.toString());
+        return playerInfo;
+    }
+
+    /**
+     * 从服务器获取玩家列表
+     */
+    private List<String> fetchPlayerListFromServer(ServerInfo info) {
+        return OnlinePlayerUtil.getOnlinePlayersFromServer(info);
+    }
+
+    /**
+     * 处理服务器连接错误
+     */
+    private void handleServerConnectionError(ServerInfo info, Exception e) {
+        String serverId = info.getId().toString();
+        log.error("获取服务器 {} 在线玩家失败: {}", info.getNameTag(), e.getMessage());
+        // 根据异常类型决定是否尝试重连
+        if (shouldAttemptReconnect(e)) {
+            AsyncManager.me().execute(new TimerTask() {
+                @Override
+                public void run() {
+                    try {
+                        Thread.sleep(1000); // 等待1秒后重连
+                        rconService.reconnect(serverId);
+                        log.info("尝试重连服务器: {}", info.getNameTag());
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        log.warn("重连任务被中断: {}", info.getNameTag());
+                    }
+                }
+            });
+        }
+    }
+
+    /**
+     * 判断是否应该尝试重连
+     */
+    private boolean shouldAttemptReconnect(Exception e) {
+        String message = e.getMessage();
+        if (message == null) return false;
+
+        // 网络相关错误才尝试重连
+        return message.contains("Connection") ||
+                message.contains("timeout") ||
+                message.contains("refused") ||
+                message.contains("reset");
     }
 
     @Override
@@ -327,7 +359,7 @@ public class ServerInfoServiceImpl implements IServerInfoService {
         result.put("onlinePlayer", onlinePlayer);
 
         // 申请数量
-        List<WhitelistInfo> whitelistInfos = whitelistInfo.selectWhitelistInfoList(new WhitelistInfo());
+        List<WhitelistInfo> whitelistInfos = whitelistInfoMapper.selectWhitelistInfoList(new WhitelistInfo());
         result.put("applyCount", whitelistInfos.size());
 
         // 白名单数量
@@ -435,7 +467,7 @@ public class ServerInfoServiceImpl implements IServerInfoService {
             }
 
             banlistInfos.forEach(o -> ids.add(o.getWhiteId()));
-            final List<WhitelistInfo> whitelistInfos = whitelistInfo.selectWhitelistInfoByIds(ids);
+            final List<WhitelistInfo> whitelistInfos = whitelistInfoMapper.selectWhitelistInfoByIds(ids);
             Map<Long, WhitelistInfo> map = whitelistInfos.stream()
                     .collect(Collectors.toMap(WhitelistInfo::getId, info -> info, (a, b) -> b));
 
