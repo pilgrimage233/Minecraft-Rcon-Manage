@@ -18,7 +18,7 @@ public class QuartzConfig {
     @Bean
     public Properties quartzProperties() {
         Properties properties = new Properties();
-        properties.put("org.quartz.scheduler.instanceName", "MCServerScheduler");
+        properties.put("org.quartz.scheduler.instanceName", "Endless");
         properties.put("org.quartz.scheduler.instanceId", "AUTO");
         properties.put("org.quartz.threadPool.class", "org.quartz.simpl.SimpleThreadPool");
         properties.put("org.quartz.threadPool.threadCount", "10");

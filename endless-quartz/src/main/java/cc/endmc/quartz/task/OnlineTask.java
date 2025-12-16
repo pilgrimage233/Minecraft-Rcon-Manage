@@ -5,7 +5,6 @@ import cc.endmc.common.utils.StringUtils;
 import cc.endmc.common.utils.http.HttpUtils;
 import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.CacheKey;
-import cc.endmc.server.common.rconclient.RconClient;
 import cc.endmc.server.common.service.RconService;
 import cc.endmc.server.domain.bot.BotGroupCommandConfig;
 import cc.endmc.server.domain.bot.QqBotConfig;
@@ -17,10 +16,13 @@ import cc.endmc.server.mapper.permission.WhitelistInfoMapper;
 import cc.endmc.server.mapper.player.PlayerDetailsMapper;
 import cc.endmc.server.service.bot.IBotGroupCommandConfigService;
 import cc.endmc.server.service.player.IPlayerDetailsService;
+import cc.endmc.server.service.statistics.IPlayerActivityStatsService;
 import cc.endmc.server.utils.BotUtil;
+import cc.endmc.server.utils.OnlinePlayerUtil;
+import cc.endmc.server.utils.PlayerMonitorUtil;
 import com.alibaba.fastjson2.JSONObject;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
@@ -35,20 +37,21 @@ import java.util.*;
  */
 @Slf4j
 @Component("onlineTask")
+@RequiredArgsConstructor
 public class OnlineTask {
 
-    @Autowired
-    private WhitelistInfoMapper whitelistInfoMapper;
-    @Autowired
-    private PlayerDetailsMapper playerDetailsMapper;
-    @Autowired
-    private IPlayerDetailsService playerDetailsService;
-    @Autowired
-    private QqBotConfigMapper qqBotConfigMapper;
-    @Autowired
-    private RedisCache cache;
-    @Autowired
-    private RconService rconService;
+    private final IPlayerDetailsService playerDetailsService;
+    private final IBotGroupCommandConfigService commandConfigService;
+    private final IPlayerActivityStatsService activityStatsService;
+
+    private final WhitelistInfoMapper whitelistInfoMapper;
+    private final PlayerDetailsMapper playerDetailsMapper;
+    private final QqBotConfigMapper qqBotConfigMapper;
+
+    private final RedisCache cache;
+    private final RconService rconService;
+    private final PlayerMonitorUtil playerMonitorUtil;
+
     /**
      * 功能开关 - 玩家上线通知
      */
@@ -57,8 +60,6 @@ public class OnlineTask {
      * 功能开关 - 玩家下线通知
      */
     private static final String CMD_OFFLINE_NOTIFY = "玩家下线通知";
-    @Autowired
-    private IBotGroupCommandConfigService commandConfigService;
 
     /**
      * 根据用户uuid同步用户名称
@@ -132,184 +133,113 @@ public class OnlineTask {
      * 根据高密度定时查询在线用户更新最后一次上线时间
      */
     public void monitor() {
-        Map<String, RconClient> map = RconCache.getMap();
-        if (map == null || map.isEmpty()) {
-            return;
-        }
-        Set<String> onlinePlayer = new HashSet<>();
-
-        for (Map.Entry<String, RconClient> entry : map.entrySet()) {
-            String serverName = entry.getKey();
-            RconClient rconClient = entry.getValue();
-            int retryCount = 0;
-            int maxRetries = 3;  // 最大重试次数
-
-            while (retryCount < maxRetries) {
-                try {
-                    // 测试连接是否可用
-                    boolean open = rconClient.isSocketChannelOpen();
-                    if (!open) {
-                        throw new Exception("Connection test failed");
-                    }
-
-                    // 获取在线玩家列表
-                    String list = rconClient.sendCommand("list");
-                    if (list == null || !list.startsWith("There are")) {
-                        list = rconClient.sendCommand("minecraft:list");
-                    }
-                    if (StringUtils.isNotEmpty(list)) {
-                        if (list.contains("There are")) {
-                            String[] parts = list.split(":");
-                            if (parts.length > 1) {
-                                String playerList = parts[1].trim();
-                                if (!playerList.isEmpty()) {
-                                    String[] players = playerList.split(", ");
-                                    for (String player : players) {
-                                        onlinePlayer.add(player.toLowerCase().trim());
-                                    }
-                                }
-                            }
-                        } else if (list.contains("Online (")) {
-                            String[] parts = list.split(":");
-                            if (parts.length > 1) {
-                                String playerList = parts[1].trim();
-                                if (!playerList.isEmpty()) {
-                                    String[] players = playerList.split(", ");
-                                    for (String player : players) {
-                                        onlinePlayer.add(player.toLowerCase().trim());
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    // 成功获取数据，跳出重试循环
-                    break;
-
-                } catch (Exception e) {
-                    retryCount++;
-                    if (retryCount >= maxRetries) {
-                        log.error("Failed to get online players from server {} after {} retries: {}",
-                                serverName, maxRetries, e.getMessage());
-                        // 尝试重新建立连接
-                        try {
-                            rconClient.close();
-                            // 重新初始化Rcon连接
-                            rconService.reconnect(serverName);
-                        } catch (Exception closeEx) {
-                            log.error("Failed to close RCON connection for server {}: {}",
-                                    serverName, closeEx.getMessage());
-                        }
-                    } else {
-                        log.warn("Retry {} for server {}: {}",
-                                retryCount, serverName, e.getMessage());
-                        try {
-                            // 重试前等待一小段时间
-                            Thread.sleep(5000);
-                        } catch (InterruptedException ie) {
-                            Thread.currentThread().interrupt();
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-
         if (cache == null) {
             log.error("Cache is not initialized.");
             return;
         }
 
-        // 获取缓存中的在线玩家
-        Set<String> cacheOnlinePlayer = cache.getCacheObject(CacheKey.ONLINE_PLAYER_KEY);
-        if (cacheOnlinePlayer == null) {
-            cacheOnlinePlayer = new HashSet<>();
+        try {
+            // 获取所有在线玩家
+            Set<String> currentOnlinePlayers = OnlinePlayerUtil.getAllOnlinePlayers();
+
+            // 清理无效的玩家名
+            currentOnlinePlayers = playerMonitorUtil.cleanPlayerNames(currentOnlinePlayers);
+
+            // 检测玩家变化
+            PlayerMonitorUtil.PlayerChangeInfo changeInfo = playerMonitorUtil.detectPlayerChanges(currentOnlinePlayers);
+
+            if (!changeInfo.hasChanges()) {
+                return; // 没有变化，直接返回
+            }
+
+            // 处理新上线的玩家
+            if (!changeInfo.getNewOnlinePlayers().isEmpty()) {
+                handleNewOnlinePlayers(changeInfo.getNewOnlinePlayers());
+                playerMonitorUtil.handlePlayersOnline(changeInfo.getNewOnlinePlayers());
+            }
+
+            // 处理新下线的玩家
+            if (!changeInfo.getNewOfflinePlayers().isEmpty()) {
+                handleNewOfflinePlayers(changeInfo.getNewOfflinePlayers());
+                playerMonitorUtil.handlePlayersOffline(changeInfo.getNewOfflinePlayers());
+            }
+
+            log.debug("玩家监控完成 - 在线: {}, 新上线: {}, 新下线: {}",
+                    changeInfo.getTotalOnlineCount(),
+                    changeInfo.getNewOnlinePlayers().size(),
+                    changeInfo.getNewOfflinePlayers().size());
+
+        } catch (Exception e) {
+            log.error("玩家监控任务执行失败", e);
         }
+    }
 
-        // 找出新上线的玩家（当前在线但缓存中没有的）
-        Set<String> newOnlinePlayers = new HashSet<>(onlinePlayer);
-        newOnlinePlayers.removeAll(cacheOnlinePlayer);
+    /**
+     * 处理新上线的玩家
+     */
+    private void handleNewOnlinePlayers(Set<String> newOnlinePlayers) {
+        log.info("检测到玩家上线: {}", newOnlinePlayers);
 
-        // 找出新下线的玩家（缓存中有但当前不在线的）
-        Set<String> newOfflinePlayers = new HashSet<>(cacheOnlinePlayer);
-        newOfflinePlayers.removeAll(onlinePlayer);
+        // 发送上线通知
+        sendPlayerNotification(newOnlinePlayers, CMD_ONLINE_NOTIFY, "上线");
 
-        // 更新上线时间
-        if (!newOnlinePlayers.isEmpty()) {
-            log.info("New online players: {}", newOnlinePlayers);
+        // 记录玩家活跃度（上线时记录为新玩家检测）
+        for (String playerName : newOnlinePlayers) {
+            try {
+                // 检查是否为新玩家（简单检查，可以根据实际需求优化）
+                boolean isNewPlayer = isNewPlayerToday(playerName);
+                activityStatsService.recordDailyActivity(playerName, 0L, isNewPlayer);
+            } catch (Exception e) {
+                log.error("记录玩家 {} 上线活跃度失败: {}", playerName, e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * 处理新下线的玩家
+     */
+    private void handleNewOfflinePlayers(Set<String> newOfflinePlayers) {
+        log.info("检测到玩家下线: {}", newOfflinePlayers);
+
+        // 发送下线通知
+        sendPlayerNotification(newOfflinePlayers, CMD_OFFLINE_NOTIFY, "下线");
+
+        // 记录玩家活跃度（下线时记录在线时长）
+        for (String playerName : newOfflinePlayers) {
+            try {
+                // 计算本次在线时长
+                Long onlineMinutes = calculatePlayerOnlineTime(playerName);
+                if (onlineMinutes > 0) {
+                    activityStatsService.recordDailyActivity(playerName, onlineMinutes, false);
+                }
+            } catch (Exception e) {
+                log.error("记录玩家 {} 下线活跃度失败: {}", playerName, e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * 发送玩家上下线通知
+     */
+    private void sendPlayerNotification(Set<String> players, String commandKey, String actionType) {
+        try {
             QqBotConfig config = new QqBotConfig();
             config.setStatus(1L);
             List<QqBotConfig> botConfigs = qqBotConfigMapper.selectQqBotConfigList(config);
-            // 发送上线通知
+
+            String message = playerMonitorUtil.formatPlayerNotification(players, actionType);
+
             for (QqBotConfig botConfig : botConfigs) {
-                for (String s : botConfig.getGroupIds().split(",")) {
-                    // 检查该群是否启用了玩家上线通知功能
-                    if (isCommandEnabled(s, CMD_ONLINE_NOTIFY)) {
-                        String message = "玩家上线通知：\n" +
-                                String.join(", ", newOnlinePlayers) + "加入了游戏！";
-                        BotUtil.sendMessage(message, s, botConfig);
+                String[] groupIds = botConfig.getGroupIds().split(",");
+                for (String groupId : groupIds) {
+                    if (isCommandEnabled(groupId.trim(), commandKey)) {
+                        BotUtil.sendMessage(message, groupId.trim(), botConfig);
                     }
                 }
             }
-            playerDetailsService.updateLastOnlineTimeByUserNames(new ArrayList<>(newOnlinePlayers));
+        } catch (Exception e) {
+            log.error("发送玩家{}通知失败", actionType, e);
         }
-
-        // 更新离线时间和游戏时间
-        if (!newOfflinePlayers.isEmpty()) {
-            log.info("New offline players: {}", newOfflinePlayers);
-            QqBotConfig config = new QqBotConfig();
-            config.setStatus(1L);
-            List<QqBotConfig> botConfigs = qqBotConfigMapper.selectQqBotConfigList(config);
-            // 发送下线通知
-            for (QqBotConfig botConfig : botConfigs) {
-                for (String s : botConfig.getGroupIds().split(",")) {
-                    // 检查该群是否启用了玩家下线通知功能
-                    if (isCommandEnabled(s, CMD_OFFLINE_NOTIFY)) {
-                        String message = "玩家下线通知：\n" +
-                                String.join(", ", newOfflinePlayers) + "离开了游戏！";
-                        BotUtil.sendMessage(message, s, botConfig);
-                    }
-                }
-            }
-            // 对每个下线的玩家计算游戏时间
-            for (String player : newOfflinePlayers) {
-                try {
-                    PlayerDetails details = new PlayerDetails();
-                    details.setUserName(player);
-                    List<PlayerDetails> playerList = playerDetailsService.selectPlayerDetailsList(details);
-
-                    if (!playerList.isEmpty()) {
-                        PlayerDetails playerDetails = playerList.get(0);
-                        Date lastOnlineTime = playerDetails.getLastOnlineTime();
-                        Date now = new Date();
-
-                        if (lastOnlineTime != null) {
-                            // 计算本次游戏时间(分钟)
-                            long gameTimeMinutes = (now.getTime() - lastOnlineTime.getTime()) / (1000 * 60);
-
-                            // 更新总游戏时间，处理null值情况
-                            Long currentGameTime = playerDetails.getGameTime();
-                            currentGameTime = (currentGameTime == null) ? gameTimeMinutes : currentGameTime + gameTimeMinutes;
-                            playerDetails.setGameTime(currentGameTime);
-
-                            // 更新最后离线时间
-                            playerDetails.setLastOfflineTime(now);
-
-                            // 更新到数据库
-                            playerDetailsService.updatePlayerDetails(playerDetails, false);
-
-                            log.info("Updated game time for player {}: current session {} minutes, total {} minutes",
-                                    player, gameTimeMinutes, currentGameTime);
-                        }
-                    }
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    log.error("Failed to update game time for player {}: {}", player, e.getMessage());
-                }
-            }
-        }
-
-        // 更新缓存为当前在线玩家
-        cache.setCacheObject(CacheKey.ONLINE_PLAYER_KEY, onlinePlayer);
     }
 
     /**
@@ -399,6 +329,77 @@ public class OnlineTask {
             log.error("检查功能开关状态失败: groupId={}, commandKey={}, error={}", groupId, commandKey, e.getMessage());
             // 出错时默认启用，避免影响正常功能
             return true;
+        }
+    }
+
+    /**
+     * 检查玩家是否为今日新玩家
+     *
+     * @param playerName 玩家名
+     * @return 是否为新玩家
+     */
+    private boolean isNewPlayerToday(String playerName) {
+        try {
+            PlayerDetails details = new PlayerDetails();
+            details.setUserName(playerName);
+            List<PlayerDetails> playerList = playerDetailsService.selectPlayerDetailsList(details);
+
+            if (playerList.isEmpty()) {
+                return true; // 数据库中没有记录，认为是新玩家
+            }
+
+            PlayerDetails playerDetails = playerList.get(0);
+            Date createTime = playerDetails.getCreateTime();
+
+            if (createTime == null) {
+                return true;
+            }
+
+            // 检查创建时间是否为今天
+            String today = cc.endmc.common.utils.DateUtils.dateTimeNow("yyyy-MM-dd");
+            String createDate = cc.endmc.common.utils.DateUtils.parseDateToStr("yyyy-MM-dd", createTime);
+
+            return today.equals(createDate);
+
+        } catch (Exception e) {
+            log.error("检查玩家 {} 是否为新玩家失败: {}", playerName, e.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 计算玩家本次在线时长
+     *
+     * @param playerName 玩家名
+     * @return 在线时长（分钟）
+     */
+    private Long calculatePlayerOnlineTime(String playerName) {
+        try {
+            PlayerDetails details = new PlayerDetails();
+            details.setUserName(playerName);
+            List<PlayerDetails> playerList = playerDetailsService.selectPlayerDetailsList(details);
+
+            if (playerList.isEmpty()) {
+                return 0L;
+            }
+
+            PlayerDetails playerDetails = playerList.get(0);
+            Date lastOnlineTime = playerDetails.getLastOnlineTime();
+
+            if (lastOnlineTime == null) {
+                return 0L;
+            }
+
+            // 计算从上次上线到现在的时长
+            long diffMs = System.currentTimeMillis() - lastOnlineTime.getTime();
+            long minutes = diffMs / (1000 * 60);
+
+            // 限制最大在线时长为24小时，避免异常数据
+            return Math.min(minutes, 24 * 60);
+
+        } catch (Exception e) {
+            log.error("计算玩家 {} 在线时长失败: {}", playerName, e.getMessage());
+            return 0L;
         }
     }
 }
