@@ -81,6 +81,52 @@
               </el-tooltip>
             </div>
             <div class="terminal-controls">
+              <el-tooltip content="终端主题" placement="bottom">
+                <el-dropdown class="theme-dropdown" trigger="click" @command="handleThemeChange">
+                  <span class="theme-trigger">
+                    <i class="el-icon-brush"></i>
+                  </span>
+                  <el-dropdown-menu slot="dropdown" class="theme-menu">
+                    <el-dropdown-item :class="{ 'is-active': terminalTheme === 'github-dark' }" command="github-dark">
+                      <i class="el-icon-moon"></i>
+                      <span>GitHub Dark</span>
+                      <span v-if="terminalTheme === 'github-dark'" class="theme-check">✓</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item :class="{ 'is-active': terminalTheme === 'dracula' }" command="dracula">
+                      <i class="el-icon-star-off"></i>
+                      <span>Dracula</span>
+                      <span v-if="terminalTheme === 'dracula'" class="theme-check">✓</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item :class="{ 'is-active': terminalTheme === 'monokai' }" command="monokai">
+                      <i class="el-icon-sunny"></i>
+                      <span>Monokai</span>
+                      <span v-if="terminalTheme === 'monokai'" class="theme-check">✓</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item :class="{ 'is-active': terminalTheme === 'solarized-dark' }"
+                                      command="solarized-dark">
+                      <i class="el-icon-cloudy"></i>
+                      <span>Solarized Dark</span>
+                      <span v-if="terminalTheme === 'solarized-dark'" class="theme-check">✓</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item :class="{ 'is-active': terminalTheme === 'one-dark' }" command="one-dark">
+                      <i class="el-icon-view"></i>
+                      <span>One Dark</span>
+                      <span v-if="terminalTheme === 'one-dark'" class="theme-check">✓</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item :class="{ 'is-active': terminalTheme === 'terminal-green' }"
+                                      command="terminal-green">
+                      <i class="el-icon-cpu"></i>
+                      <span>Terminal Green</span>
+                      <span v-if="terminalTheme === 'terminal-green'" class="theme-check">✓</span>
+                    </el-dropdown-item>
+                    <el-dropdown-item :class="{ 'is-active': terminalTheme === 'warm-light' }" command="warm-light">
+                      <i class="el-icon-sunny"></i>
+                      <span>Warm-Light</span>
+                      <span v-if="terminalTheme === 'warm-light'" class="theme-check">✓</span>
+                    </el-dropdown-item>
+                  </el-dropdown-menu>
+                </el-dropdown>
+              </el-tooltip>
               <el-tooltip content="连接模式设置" placement="bottom">
                 <el-dropdown class="connection-mode-dropdown" trigger="click" @command="handleConnectionModeChange">
                   <span class="connection-mode-trigger">
@@ -111,7 +157,7 @@
             </div>
           </div>
           <div class="terminal-wrapper">
-            <div ref="terminal" class="terminal" @click="focusInput">
+            <div ref="terminal" :class="['terminal', `terminal-theme-${terminalTheme}`]" @click="focusInput">
               <pre
                 v-if="!consoleText"
                 class="content empty-content"
@@ -123,7 +169,7 @@
               ></div>
             </div>
           </div>
-          <div class="cmd-bar">
+          <div :class="['cmd-bar', `cmd-bar-theme-${terminalTheme}`]">
             <el-autocomplete
               v-model="command"
               :fetch-suggestions="queryCommandSearch"
@@ -688,6 +734,8 @@ export default {
       wsConnectionMode: null,
       wsPreferredMode: 'auto', // 用户偏好设置
       wsDirectFailed: false, // 直连是否失败过
+      // 终端主题
+      terminalTheme: 'github-dark', // 默认主题
       // 文件预览相关
       previewDialogVisible: false,
       previewFile: null,
@@ -737,6 +785,12 @@ export default {
     const savedMode = localStorage.getItem('wsConnectionMode');
     if (savedMode && ['auto', 'direct', 'proxy'].includes(savedMode)) {
       this.wsPreferredMode = savedMode;
+    }
+
+    // 从localStorage读取用户偏好的终端主题
+    const savedTheme = localStorage.getItem('terminalTheme');
+    if (savedTheme && ['github-dark', 'dracula', 'monokai', 'solarized-dark', 'one-dark', 'terminal-green', 'warm-light'].includes(savedTheme)) {
+      this.terminalTheme = savedTheme;
     }
 
     // 获取实例信息（会在获取成功后自动启动状态轮询）
@@ -1290,6 +1344,27 @@ export default {
       }
     },
 
+    // 处理主题切换
+    handleThemeChange(theme) {
+      if (theme === this.terminalTheme) return;
+
+      this.terminalTheme = theme;
+
+      // 保存用户偏好到localStorage
+      localStorage.setItem('terminalTheme', theme);
+
+      const themeNames = {
+        'github-dark': 'GitHub Dark',
+        'dracula': 'Dracula',
+        'monokai': 'Monokai',
+        'solarized-dark': 'Solarized Dark',
+        'one-dark': 'One Dark',
+        'terminal-green': 'Terminal Green',
+        'warm-light': 'Warm-Light'
+      };
+
+      this.$message.success(`已切换到 ${themeNames[theme]} 主题`);
+    },
     // 处理连接模式切换
     handleConnectionModeChange(mode) {
       if (mode === this.wsPreferredMode) return;
