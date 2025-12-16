@@ -12,8 +12,8 @@ import cc.endmc.node.utils.NodeHttpUtil;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
 import com.alibaba.fastjson2.JSONObject;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,9 +39,10 @@ import java.util.Map;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class NodeServerServiceImpl implements INodeServerService {
-    @Autowired
-    private NodeServerMapper nodeServerMapper;
+
+    private final NodeServerMapper nodeServerMapper;
 
     @Value("${ruoyi.version}")
     private String version;

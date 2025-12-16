@@ -8,8 +8,8 @@ import cc.endmc.node.utils.ApiUtil;
 import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpUtil;
 import com.alibaba.fastjson2.JSONObject;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -26,10 +26,10 @@ import java.util.List;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class NodeScheduled {
 
-    @Autowired
-    private NodeServerMapper nodeServerMapper;
+    private final NodeServerMapper nodeServerMapper;
 
     private final String OK = "OJBK";
     private final Integer TIMEOUT = 10000;

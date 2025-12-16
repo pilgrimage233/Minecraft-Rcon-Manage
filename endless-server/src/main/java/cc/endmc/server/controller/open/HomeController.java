@@ -15,8 +15,8 @@ import cc.endmc.server.service.permission.IBanlistInfoService;
 import cc.endmc.server.service.permission.IOperatorListService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
 import cc.endmc.server.service.server.IServerInfoService;
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -32,25 +32,15 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/api/v1/home")
+@RequiredArgsConstructor
 public class HomeController extends BaseController {
 
-    @Autowired
-    private IServerInfoService serverInfoService;
-
-    @Autowired
-    private IWhitelistInfoService whitelistInfoService;
-
-    @Autowired
-    private IOperatorListService operatorListService;
-
-    @Autowired
-    private IBanlistInfoService banlistInfoService;
-
-    @Autowired
-    private INodeServerService nodeServerService;
-
-    @Autowired
-    private PlayerDetailsMapper playerDetailsMapper;
+    private final IServerInfoService serverInfoService;
+    private final IWhitelistInfoService whitelistInfoService;
+    private final IOperatorListService operatorListService;
+    private final IBanlistInfoService banlistInfoService;
+    private final INodeServerService nodeServerService;
+    private final PlayerDetailsMapper playerDetailsMapper;
 
     /**
      * 获取基础统计数据（不包含在线玩家信息）

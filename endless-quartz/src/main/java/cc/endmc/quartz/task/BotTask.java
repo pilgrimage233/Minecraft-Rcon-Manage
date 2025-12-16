@@ -14,8 +14,8 @@ import cn.hutool.http.HttpResponse;
 import cn.hutool.http.HttpUtil;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONObject;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -30,21 +30,14 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component("botTask")
+@RequiredArgsConstructor
 public class BotTask {
-    @Autowired
-    private IWhitelistInfoService whitelistInfoService;
 
-    @Autowired
-    private BotManager botManager;
-
-    @Autowired
-    private IQqBotConfigService qqBotConfigService;
-
-    @Autowired
-    private RedisCache redisCache;
-
-    @Autowired
-    private Environment env;
+    private final IWhitelistInfoService whitelistInfoService;
+    private final BotManager botManager;
+    private final IQqBotConfigService qqBotConfigService;
+    private final RedisCache redisCache;
+    private final Environment env;
 
     /**
      * 监控白名单用户是否退群

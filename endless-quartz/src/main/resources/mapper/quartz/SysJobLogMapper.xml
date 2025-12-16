@@ -138,4 +138,17 @@
         FROM sys_logininfor
     </select>
 
+    <!-- 根据保留天数删除QQ机器人日志 -->
+    <delete id="deleteQqBotLogByRetainDays">
+        DELETE
+        FROM qq_bot_log
+        WHERE create_time &lt; DATE_SUB(NOW(), INTERVAL #{retainDays} DAY)
+    </delete>
+
+    <!-- 获取QQ机器人日志总数 -->
+    <select id="getQqBotLogCount" resultType="long">
+        SELECT COUNT(*)
+        FROM qq_bot_log
+    </select>
+
 </mapper> 

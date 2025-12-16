@@ -8,7 +8,7 @@ import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.mapper.permission.BanlistInfoMapper;
 import cc.endmc.server.mapper.permission.WhitelistInfoMapper;
 import cc.endmc.server.service.permission.IBanlistInfoService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -20,15 +20,12 @@ import java.util.List;
  * @date 2024-03-28
  */
 @Service
+@RequiredArgsConstructor
 public class BanlistInfoServiceImpl implements IBanlistInfoService {
-    @Autowired
-    private BanlistInfoMapper banlistInfoMapper;
 
-    @Autowired
-    private WhitelistInfoMapper whitelistInfoMapper;
-
-    @Autowired
-    private RconService rconService;
+    private final BanlistInfoMapper banlistInfoMapper;
+    private final WhitelistInfoMapper whitelistInfoMapper;
+    private final RconService rconService;
 
     /**
      * 查询封禁管理

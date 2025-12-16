@@ -25,9 +25,9 @@ import cc.endmc.server.service.player.IPlayerDetailsService;
 import cc.endmc.server.service.quiz.IWhitelistQuizSubmissionService;
 import cc.endmc.server.service.server.IServerInfoService;
 import com.alibaba.fastjson2.JSONObject;
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -45,40 +45,22 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
-
     // 时间格式化
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-
     // 异步执行器
     private final AsyncManager asyncManager = AsyncManager.me();
 
-    @Autowired
-    private WhitelistInfoMapper whitelistInfoMapper;
-
-    @Autowired
-    private IWhitelistDeadlineInfoService deadlineInfoService;
-
-    @Autowired
-    private IBanlistInfoService banlistInfoService;
-
-    @Autowired
-    private IServerInfoService serverInfoService;
-
-    @Autowired
-    private EmailService emailService;
-
-    @Autowired
-    private RconService rconService;
-
-    @Autowired
-    private IPlayerDetailsService playerDetailsService;
-
-    @Autowired
-    private IWhitelistQuizSubmissionService quizSubmissionService;
-
-    @Autowired
-    private RedisCache redisCache;
+    private final WhitelistInfoMapper whitelistInfoMapper;
+    private final IWhitelistDeadlineInfoService deadlineInfoService;
+    private final IBanlistInfoService banlistInfoService;
+    private final IServerInfoService serverInfoService;
+    private final EmailService emailService;
+    private final RconService rconService;
+    private final IPlayerDetailsService playerDetailsService;
+    private final IWhitelistQuizSubmissionService quizSubmissionService;
+    private final RedisCache redisCache;
 
     @Value("${app-url}")
     private String appUrl;

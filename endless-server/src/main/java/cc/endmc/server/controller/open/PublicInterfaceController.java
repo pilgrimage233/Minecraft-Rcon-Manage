@@ -21,12 +21,10 @@ import cc.endmc.server.service.quiz.IWhitelistQuizSubmissionService;
 import cc.endmc.server.service.server.IServerInfoService;
 import cc.endmc.server.utils.MinecraftUUIDUtil;
 import cc.endmc.server.utils.NetWorkUtil;
-import cn.hutool.core.bean.BeanUtil;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.util.concurrent.RateLimiter;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
@@ -42,29 +40,18 @@ import java.util.stream.Collectors;
  */
 @RestController
 @RequestMapping("/api/v1")
+@RequiredArgsConstructor
 public class PublicInterfaceController extends BaseController {
 
     private final RateLimiter rateLimiter = RateLimiter.create(10.0); // 每秒最多10个请求
 
-    @Autowired
-    private IServerInfoService serverInfoService;
-
-    @Autowired
-    private IWhitelistInfoService whitelistInfoService;
-
-    @Autowired
-    private IWhitelistQuizConfigService quizConfigService;
-
-    @Autowired
-    private IWhitelistQuizQuestionService quizQuestionService;
-
-    @Autowired
-    private IWhitelistQuizSubmissionService quizSubmissionService;
-
-    @Autowired
-    private RedisCache redisCache;
-    @Autowired
-    private RconService rconService;
+    private final IServerInfoService serverInfoService;
+    private final IWhitelistInfoService whitelistInfoService;
+    private final IWhitelistQuizConfigService quizConfigService;
+    private final IWhitelistQuizQuestionService quizQuestionService;
+    private final IWhitelistQuizSubmissionService quizSubmissionService;
+    private final RedisCache redisCache;
+    private final RconService rconService;
 
     /**
      * 聚合查询

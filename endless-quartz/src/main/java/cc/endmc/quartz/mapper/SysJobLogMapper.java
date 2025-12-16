@@ -107,4 +107,19 @@ public interface SysJobLogMapper {
      * @return 总记录数
      */
     long getLoginLogCount();
+
+    /**
+     * 根据保留天数删除QQ机器人日志
+     *
+     * @param retainDays 保留天数
+     * @return 删除记录数
+     */
+    int deleteQqBotLogByRetainDays(@Param("retainDays") int retainDays);
+
+    /**
+     * 获取QQ机器人日志总数
+     *
+     * @return 总记录数
+     */
+    long getQqBotLogCount();
 }

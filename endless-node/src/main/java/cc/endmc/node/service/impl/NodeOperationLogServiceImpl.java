@@ -4,7 +4,7 @@ import cc.endmc.common.utils.DateUtils;
 import cc.endmc.node.domain.NodeOperationLog;
 import cc.endmc.node.mapper.NodeOperationLogMapper;
 import cc.endmc.node.service.INodeOperationLogService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,9 +16,10 @@ import java.util.List;
  * @date 2025-04-24
  */
 @Service
+@RequiredArgsConstructor
 public class NodeOperationLogServiceImpl implements INodeOperationLogService {
-    @Autowired
-    private NodeOperationLogMapper nodeOperationLogMapper;
+
+    private final NodeOperationLogMapper nodeOperationLogMapper;
 
     /**
      * 查询操作日志

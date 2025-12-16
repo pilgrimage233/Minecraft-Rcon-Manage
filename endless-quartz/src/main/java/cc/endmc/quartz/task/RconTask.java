@@ -9,8 +9,8 @@ import cc.endmc.server.common.rconclient.RconClient;
 import cc.endmc.server.common.service.RconService;
 import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.service.server.IServerInfoService;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -22,20 +22,15 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @Component("rconTask")
+@RequiredArgsConstructor
 public class RconTask {
 
-    @Autowired
-    private RedisCache redisCache;
-
-    @Autowired
-    private IServerInfoService serverInfoService;
-
-    @Autowired
-    private RconService rconService;
+    private final RedisCache redisCache;
+    private final IServerInfoService serverInfoService;
+    private final RconService rconService;
 
     @Value("${server.port}")
     private String port;
-
 
     // 定时刷新Redis缓存
     public void refreshRedisCache() {

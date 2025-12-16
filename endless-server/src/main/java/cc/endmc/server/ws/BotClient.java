@@ -41,10 +41,10 @@ import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.Getter;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Lazy;
@@ -53,6 +53,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import javax.naming.directory.Attribute;
 import javax.naming.directory.Attributes;
@@ -77,9 +78,12 @@ import java.util.stream.Collectors;
 @Lazy
 @Slf4j
 @Component
+@RequiredArgsConstructor
 @Scope(value = ConfigurableBeanFactory.SCOPE_PROTOTYPE)
 public class BotClient {
 
+    @Value("${app-url}")
+    private String appUrl;
     private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
     private final AsyncManager asyncExecutor = AsyncManager.me();
     private final IWhitelistInfoService whitelistInfoService;
@@ -95,7 +99,6 @@ public class BotClient {
     private final RedisCache redisCache;
     private final EmailService emailService;
     private final RconService rconService;
-    private final String appUrl;
     private final BotManager botManager;
     private volatile boolean isShuttingDown = false;
     /**
@@ -112,41 +115,9 @@ public class BotClient {
     private QqBotConfig config;
     private WebSocketClient wsClient;
 
-    /**
-     * 构造函数
-     * 初始化依赖
-     */
-    @Autowired
-    public BotClient(
-            IWhitelistInfoService whitelistInfoService,
-            IServerInfoService serverInfoService,
-            IQqBotConfigService qqBotConfigService,
-            IQqBotManagerService qqBotManagerService,
-            IQqBotLogService qqBotLogService,
-            Environment env,
-            RedisCache redisCache,
-            EmailService emailService,
-            RconService rconService,
-            @Value("${app-url}") String appUrl, BotManager botManager,
-            INodeMinecraftServerService nodeMinecraftServerService,
-            INodeServerService nodeServerService,
-            IBotGroupCommandConfigService commandConfigService) {
-        this.redisCache = redisCache;
-        this.emailService = emailService;
-        this.whitelistInfoService = whitelistInfoService;
-        this.serverInfoService = serverInfoService;
-        this.rconService = rconService;
-        this.qqBotConfigService = qqBotConfigService;
-        this.qqBotManagerService = qqBotManagerService;
-        this.qqBotLogService = qqBotLogService;
-        this.appUrl = appUrl;
-        this.env = env;
-        this.nodeMinecraftServerService = nodeMinecraftServerService;
-        this.nodeServerService = nodeServerService;
-        this.commandConfigService = commandConfigService;
-
+    @PostConstruct
+    public void init() {
         log.info("BotClient 实例已创建，依赖注入完成");
-        this.botManager = botManager;
 
         // 初始化命令注册器
         initCommandRegistry();
@@ -3287,6 +3258,9 @@ public class BotClient {
                     }
                     if (runtime.containsKey("startTime")) {
                         response.append("启动时间: ").append(runtime.getString("startTime")).append("\n");
+                    }
+                    if (instance.getJavaPath() != null && !instance.getJavaPath().isEmpty()) {
+                        response.append("使用Java: ").append(instance.getJavaPath()).append("\n");
                     }
                     response.append("\n");
                 }

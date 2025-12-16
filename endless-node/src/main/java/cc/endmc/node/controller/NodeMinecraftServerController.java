@@ -12,7 +12,7 @@ import cc.endmc.node.common.constant.OperationTarget;
 import cc.endmc.node.common.constant.OperationType;
 import cc.endmc.node.domain.NodeMinecraftServer;
 import cc.endmc.node.service.INodeMinecraftServerService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -29,9 +29,10 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/node/mcs")
+@RequiredArgsConstructor
 public class NodeMinecraftServerController extends BaseController {
-    @Autowired
-    private INodeMinecraftServerService nodeMinecraftServerService;
+
+    private final INodeMinecraftServerService nodeMinecraftServerService;
 
     /**
      * 查询实例管理列表

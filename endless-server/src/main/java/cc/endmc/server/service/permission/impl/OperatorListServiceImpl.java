@@ -4,7 +4,7 @@ import cc.endmc.common.utils.DateUtils;
 import cc.endmc.server.domain.permission.OperatorList;
 import cc.endmc.server.mapper.permission.OperatorListMapper;
 import cc.endmc.server.service.permission.IOperatorListService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,9 +16,10 @@ import java.util.List;
  * @date 2025-01-11
  */
 @Service
+@RequiredArgsConstructor
 public class OperatorListServiceImpl implements IOperatorListService {
-    @Autowired
-    private OperatorListMapper operatorListMapper;
+
+    private final OperatorListMapper operatorListMapper;
 
     /**
      * 查询管理员名单

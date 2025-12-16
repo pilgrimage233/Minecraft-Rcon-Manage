@@ -13,7 +13,7 @@ import cc.endmc.node.common.constant.OperationTarget;
 import cc.endmc.node.common.constant.OperationType;
 import cc.endmc.node.domain.NodeServer;
 import cc.endmc.node.service.INodeServerService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -32,9 +32,10 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/node/server")
+@RequiredArgsConstructor
 public class NodeServerController extends BaseController {
-    @Autowired
-    private INodeServerService nodeServerService;
+
+    private final INodeServerService nodeServerService;
 
     /**
      * 查询节点服务器列表

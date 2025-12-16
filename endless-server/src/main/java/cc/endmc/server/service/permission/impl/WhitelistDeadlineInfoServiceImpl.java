@@ -4,7 +4,7 @@ import cc.endmc.common.utils.DateUtils;
 import cc.endmc.server.domain.permission.WhitelistDeadlineInfo;
 import cc.endmc.server.mapper.permission.WhitelistDeadlineInfoMapper;
 import cc.endmc.server.service.permission.IWhitelistDeadlineInfoService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -16,9 +16,10 @@ import java.util.List;
  * @date 2025-08-15
  */
 @Service
+@RequiredArgsConstructor
 public class WhitelistDeadlineInfoServiceImpl implements IWhitelistDeadlineInfoService {
-    @Autowired
-    private WhitelistDeadlineInfoMapper whitelistDeadlineInfoMapper;
+
+    private final WhitelistDeadlineInfoMapper whitelistDeadlineInfoMapper;
 
     /**
      * 查询时限管理

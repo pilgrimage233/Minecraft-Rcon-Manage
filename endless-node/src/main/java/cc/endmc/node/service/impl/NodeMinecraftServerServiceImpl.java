@@ -15,7 +15,7 @@ import cc.endmc.node.utils.NodeHttpUtil;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
 import com.alibaba.fastjson2.JSONObject;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.HashMap;
@@ -31,12 +31,11 @@ import java.util.regex.Pattern;
  * @date 2025-10-28
  */
 @Service
+@RequiredArgsConstructor
 public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerService {
-    @Autowired
-    private NodeMinecraftServerMapper nodeMinecraftServerMapper;
 
-    @Autowired
-    private NodeServerMapper nodeServerMapper;
+    private final NodeMinecraftServerMapper nodeMinecraftServerMapper;
+    private final NodeServerMapper nodeServerMapper;
 
     /**
      * 查询实例管理

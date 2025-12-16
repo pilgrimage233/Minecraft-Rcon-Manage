@@ -1,8 +1,8 @@
 package cc.endmc.quartz.task;
 
 import cc.endmc.quartz.mapper.SysJobLogMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -14,10 +14,10 @@ import org.springframework.stereotype.Component;
  */
 @Slf4j
 @Component("logCleanupTask")
+@RequiredArgsConstructor
 public class LogCleanupTask {
 
-    @Autowired
-    private SysJobLogMapper sysJobLogMapper;
+    private final SysJobLogMapper sysJobLogMapper;
 
     /**
      * 任务日志保留天数，默认30天
@@ -36,6 +36,12 @@ public class LogCleanupTask {
      */
     @Value("${cleanup.login-log.retain-days:30}")
     private int loginLogRetainDays;
+
+    /**
+     * QQ机器人日志保留天数，默认7天
+     */
+    @Value("${cleanup.qq-bot-log.retain-days:7}")
+    private int qqBotLogRetainDays;
 
     /**
      * 清理任务日志
@@ -77,6 +83,19 @@ public class LogCleanupTask {
     }
 
     /**
+     * 清理QQ机器人日志
+     */
+    public void cleanQqBotLog() {
+        log.info("开始清理QQ机器人日志，保留天数：{}", qqBotLogRetainDays);
+        try {
+            int deletedCount = sysJobLogMapper.deleteQqBotLogByRetainDays(qqBotLogRetainDays);
+            log.info("QQ机器人日志清理完成，删除记录数：{}", deletedCount);
+        } catch (Exception e) {
+            log.error("清理QQ机器人日志失败", e);
+        }
+    }
+
+    /**
      * 清理所有日志（综合清理任务）
      */
     public void cleanAllLogs() {
@@ -84,6 +103,7 @@ public class LogCleanupTask {
         cleanJobLog();
         cleanOperLog();
         cleanLoginLog();
+        cleanQqBotLog();
         log.info("综合日志清理任务完成");
     }
 
@@ -102,6 +122,24 @@ public class LogCleanupTask {
             log.error("保留天数参数格式错误：{}", retainDays, e);
         } catch (Exception e) {
             log.error("清理任务日志失败", e);
+        }
+    }
+
+    /**
+     * 自定义保留天数清理QQ机器人日志
+     *
+     * @param retainDays 保留天数
+     */
+    public void cleanQqBotLogWithDays(String retainDays) {
+        try {
+            int days = Integer.parseInt(retainDays);
+            log.info("开始清理QQ机器人日志，自定义保留天数：{}", days);
+            int deletedCount = sysJobLogMapper.deleteQqBotLogByRetainDays(days);
+            log.info("QQ机器人日志清理完成，删除记录数：{}", deletedCount);
+        } catch (NumberFormatException e) {
+            log.error("保留天数参数格式错误：{}", retainDays, e);
+        } catch (Exception e) {
+            log.error("清理QQ机器人日志失败", e);
         }
     }
 }

@@ -9,7 +9,7 @@ import cc.endmc.common.enums.BusinessType;
 import cc.endmc.common.utils.poi.ExcelUtil;
 import cc.endmc.node.domain.NodeEnv;
 import cc.endmc.node.service.INodeEnvService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -25,9 +25,10 @@ import java.util.Map;
  */
 @RestController
 @RequestMapping("/node/env")
+@RequiredArgsConstructor
 public class NodeEnvController extends BaseController {
-    @Autowired
-    private INodeEnvService nodeEnvService;
+
+    private final INodeEnvService nodeEnvService;
 
     /**
      * 查询节点Java多版本环境管理列表

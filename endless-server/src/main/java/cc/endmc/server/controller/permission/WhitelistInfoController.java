@@ -38,8 +38,8 @@ import com.alibaba.fastjson2.JSONObject;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.core.io.Resource;
@@ -48,6 +48,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import javax.annotation.PostConstruct;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
@@ -66,48 +67,30 @@ import java.util.regex.Pattern;
  */
 @RestController
 @RequestMapping("/mc/whitelist")
+@RequiredArgsConstructor
 public class WhitelistInfoController extends BaseController {
 
-    private final SimpleDateFormat dateFormat;
-
+    private final IWhitelistInfoService whitelistInfoService;
     private final AsyncManager asyncManager = AsyncManager.me();
-
-    @Autowired
-    private IWhitelistInfoService whitelistInfoService;
-
-    @Autowired
-    private IIpLimitInfoService iIpLimitInfoService;
-
-    @Autowired
-    private IWhitelistQuizConfigService quizConfigService;
-
-    @Autowired
-    private IWhitelistQuizSubmissionService quizSubmissionService;
-
+    private final IIpLimitInfoService iIpLimitInfoService;
+    private final IWhitelistQuizConfigService quizConfigService;
+    private final IWhitelistQuizSubmissionService quizSubmissionService;
+    private final IPlayerDetailsService playerDetailsService;
+    private final IQqBotConfigService qqBotConfigService;
+    private final EmailService emailService;
+    private final RedisCache redisCache;
+    private SimpleDateFormat dateFormat;
+    @Value("${app-url}")
+    private String appUrl;
     @Value("${whitelist.iplimit}")
     private String iplimit;
-
     @Value("${whitelist.email}")
     private String ADMIN_EMAIL;
 
-    @Autowired
-    private IPlayerDetailsService playerDetailsService;
-
-    @Autowired
-    private EmailService emailService;
-
-    @Autowired
-    private RedisCache redisCache;
-
-    @Value("${app-url}")
-    private String appUrl;
-
-    @Autowired
-    private IQqBotConfigService qqBotConfigService;
-
-    public WhitelistInfoController() {
-        this.dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
-        this.dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
+    @PostConstruct
+    public void init() {
+        dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+        dateFormat.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
     }
 
     @SignVerify // 开启签名验证

@@ -9,7 +9,7 @@ import cc.endmc.common.enums.BusinessType;
 import cc.endmc.common.utils.poi.ExcelUtil;
 import cc.endmc.node.domain.NodeOperationLog;
 import cc.endmc.node.service.INodeOperationLogService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -24,9 +24,10 @@ import java.util.List;
  */
 @RestController
 @RequestMapping("/node/log")
+@RequiredArgsConstructor
 public class NodeOperationLogController extends BaseController {
-    @Autowired
-    private INodeOperationLogService nodeOperationLogService;
+
+    private final INodeOperationLogService nodeOperationLogService;
 
     /**
      * 查询操作日志列表

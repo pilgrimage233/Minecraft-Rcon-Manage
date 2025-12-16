@@ -13,8 +13,8 @@ import cc.endmc.node.utils.ApiUtil;
 import cc.endmc.node.utils.NodeHttpUtil;
 import cn.hutool.http.HttpResponse;
 import com.alibaba.fastjson2.JSONObject;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
@@ -37,12 +37,11 @@ import java.util.TimerTask;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class NodeEnvServiceImpl implements INodeEnvService {
-    @Autowired
-    private NodeEnvMapper nodeEnvMapper;
 
-    @Autowired
-    private INodeServerService nodeServerService;
+    private final NodeEnvMapper nodeEnvMapper;
+    private final INodeServerService nodeServerService;
 
     /**
      * 查询节点Java多版本环境管理
