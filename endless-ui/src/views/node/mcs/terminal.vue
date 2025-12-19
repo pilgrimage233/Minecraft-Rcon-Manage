@@ -81,6 +81,17 @@
               </el-tooltip>
             </div>
             <div class="terminal-controls">
+              <el-tooltip content="刷新终端连接" placement="bottom">
+                <el-button
+                  :loading="wsRefreshLoading"
+                  class="refresh-ws-btn"
+                  icon="el-icon-refresh"
+                  size="mini"
+                  type="text"
+                  @click="refreshWebSocket"
+                >
+                </el-button>
+              </el-tooltip>
               <el-tooltip content="终端主题" placement="bottom">
                 <el-dropdown class="theme-dropdown" trigger="click" @command="handleThemeChange">
                   <span class="theme-trigger">
@@ -261,6 +272,129 @@
             <span>加载中...</span>
           </div>
         </el-card>
+
+        <!-- 在线玩家管理 -->
+        <el-card class="side-card players-card" shadow="hover">
+          <div slot="header" class="card-header">
+            <i class="el-icon-user"></i>
+            <span>在线玩家</span>
+            <div class="player-header-actions">
+              <el-tooltip content="刷新玩家列表" placement="top">
+                <el-button
+                  :loading="playersLoading"
+                  icon="el-icon-refresh"
+                  size="mini"
+                  type="text"
+                  @click="refreshPlayers">
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="自动刷新" placement="top">
+                <el-button
+                  :type="autoRefreshPlayers ? 'primary' : 'text'"
+                  icon="el-icon-timer"
+                  size="mini"
+                  @click="toggleAutoRefresh">
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="诊断Query连接" placement="top">
+                <el-button
+                  :loading="diagnosticLoading"
+                  icon="el-icon-s-tools"
+                  size="mini"
+                  type="text"
+                  @click="runQueryDiagnostic">
+                </el-button>
+              </el-tooltip>
+            </div>
+          </div>
+
+          <div v-if="playersLoading && !playersData" class="loading-placeholder">
+            <i class="el-icon-loading"></i>
+            <span>加载玩家信息...</span>
+          </div>
+
+          <div v-else-if="playersData">
+            <!-- 玩家统计 -->
+            <div class="players-stats">
+              <el-tag size="small" type="success">
+                <i class="el-icon-user"></i>
+                在线: {{ playersData.playerCount.online }}/{{ playersData.playerCount.max }}
+              </el-tag>
+            </div>
+
+            <!-- 玩家列表 -->
+            <div v-if="playersData.players && playersData.players.length > 0" class="players-list">
+              <div
+                v-for="player in playersData.players"
+                :key="player.name"
+                class="player-item">
+                <div class="player-info">
+                  <div class="player-avatar">
+                    <img
+                      :alt="player.name"
+                      :src="`https://crafatar.com/avatars/${player.name}?size=32&overlay`"
+                      @error="handleAvatarError">
+                  </div>
+                  <div class="player-details">
+                    <div class="player-name">{{ player.name }}</div>
+                    <div v-if="player.joinTime" class="player-time">
+                      {{ formatPlayerTime(player.joinTime) }}
+                    </div>
+                  </div>
+                </div>
+                <div class="player-actions">
+                  <el-dropdown trigger="click" @command="(action) => handlePlayerAction(player.name, action)">
+                    <el-button icon="el-icon-more" size="mini" type="text"></el-button>
+                    <el-dropdown-menu slot="dropdown">
+                      <el-dropdown-item command="kick">
+                        <i class="el-icon-close"></i>踢出
+                      </el-dropdown-item>
+                      <el-dropdown-item command="ban">
+                        <i class="el-icon-circle-close"></i>封禁
+                      </el-dropdown-item>
+                      <el-dropdown-item command="op">
+                        <i class="el-icon-star-on"></i>设为管理员
+                      </el-dropdown-item>
+                      <el-dropdown-item command="deop">
+                        <i class="el-icon-star-off"></i>取消管理员
+                      </el-dropdown-item>
+                      <el-dropdown-item command="gamemode-creative" divided>
+                        <i class="el-icon-magic-stick"></i>创造模式
+                      </el-dropdown-item>
+                      <el-dropdown-item command="gamemode-survival">
+                        <i class="el-icon-sword"></i>生存模式
+                      </el-dropdown-item>
+                      <el-dropdown-item command="gamemode-adventure">
+                        <i class="el-icon-map-location"></i>冒险模式
+                      </el-dropdown-item>
+                      <el-dropdown-item command="gamemode-spectator">
+                        <i class="el-icon-view"></i>观察者模式
+                      </el-dropdown-item>
+                      <el-dropdown-item command="whitelist-add" divided>
+                        <i class="el-icon-plus"></i>加入白名单
+                      </el-dropdown-item>
+                      <el-dropdown-item command="whitelist-remove">
+                        <i class="el-icon-minus"></i>移出白名单
+                      </el-dropdown-item>
+                    </el-dropdown-menu>
+                  </el-dropdown>
+                </div>
+              </div>
+            </div>
+
+            <div v-else class="no-players">
+              <i class="el-icon-user"></i>
+              <span>暂无在线玩家</span>
+            </div>
+          </div>
+
+          <div v-else class="no-players">
+            <i class="el-icon-warning"></i>
+            <span>无法获取玩家信息</span>
+            <el-button size="mini" type="text" @click="refreshPlayers">重试</el-button>
+          </div>
+        </el-card>
+
         <el-card class="side-card status-card" shadow="hover">
           <div slot="header" class="card-header">
             <i class="el-icon-data-line"></i>
@@ -334,18 +468,31 @@
         </el-card>
         <el-card class="side-card file-card" shadow="hover">
           <div slot="header" class="card-header">
-            <i class="el-icon-folder"></i>
-            <span>文件浏览</span>
-            <el-button
-              :disabled="!canGoParent"
-              class="parent-btn"
-              icon="el-icon-back"
-              style="float: right; padding: 3px 8px"
-              type="text"
-              @click="goParent"
-            >
-              上级
-            </el-button>
+            <div class="file-header-title">
+              <i class="el-icon-folder"></i>
+              <span>文件浏览</span>
+            </div>
+            <div class="file-header-actions">
+              <el-button
+                class="expand-btn"
+                icon="el-icon-full-screen"
+                size="mini"
+                type="text"
+                @click="openFileDialog"
+              >
+                展开
+              </el-button>
+              <el-button
+                :disabled="!canGoParent"
+                class="parent-btn"
+                icon="el-icon-back"
+                size="mini"
+                type="text"
+                @click="goParent"
+              >
+                上级
+              </el-button>
+            </div>
           </div>
           <div class="path-container">
             <i class="el-icon-location-outline"></i>
@@ -371,11 +518,16 @@
                   <div v-if="!item.isDir" class="file-actions">
                     <i class="el-icon-view" title="预览" @click.stop="handlePreview(item)"></i>
                     <i
-                      v-if="isMcConfigFile(item.name)"
+                      v-if="isEditableFile(item.name)"
                       class="el-icon-edit"
-                      title="编辑配置"
+                      title="编辑文件"
                       @click.stop="handleEditConfig(item)"
                     ></i>
+                    <i class="el-icon-download" title="下载文件" @click.stop="handleDownloadFile(item)"></i>
+                    <i class="el-icon-delete" title="删除文件" @click.stop="handleDeleteFile(item)"></i>
+                  </div>
+                  <div v-else class="file-actions">
+                    <i class="el-icon-delete" title="删除目录" @click.stop="handleDeleteFile(item)"></i>
                   </div>
                 </div>
               </div>
@@ -417,33 +569,148 @@
       <div slot="footer" class="dialog-footer">
         <el-button @click="previewDialogVisible = false">关 闭</el-button>
         <el-button
-          v-if="previewFile && isMcConfigFile(previewFile.name)"
+          v-if="previewFile"
+          icon="el-icon-download"
+          @click="handleDownloadFile(previewFile)"
+        >
+          下载文件
+        </el-button>
+        <el-button
+          v-if="previewFile && isEditableFile(previewFile.name)"
+          icon="el-icon-edit"
           type="primary"
           @click="openEditDialog"
         >
-          编辑配置
+          编辑文件
         </el-button>
       </div>
     </el-dialog>
 
-    <!-- MC配置文件编辑对话框 -->
+    <!-- 文件浏览独立对话框 -->
     <el-dialog
       :close-on-click-modal="false"
-      :title="editFile ? `编辑配置 - ${editFile.name}` : '编辑配置'"
+      :visible.sync="fileDialogVisible"
+      class="file-browser-dialog"
+      title="文件浏览器"
+      width="80%"
+    >
+      <div class="file-dialog-content">
+        <div class="file-dialog-header">
+          <div class="path-container">
+            <i class="el-icon-location-outline"></i>
+            <div class="path">{{ currentPath || (instanceInfo && instanceInfo.serverPath) || '/' }}</div>
+          </div>
+          <div class="file-dialog-actions">
+            <el-button
+              :disabled="!canGoParent"
+              icon="el-icon-back"
+              size="small"
+              @click="goParent"
+            >
+              上级目录
+            </el-button>
+            <el-button
+              icon="el-icon-refresh"
+              size="small"
+              @click="refreshFiles"
+            >
+              刷新
+            </el-button>
+          </div>
+        </div>
+
+        <el-scrollbar class="file-dialog-scrollbar">
+          <div v-loading="filesLoading" class="file-dialog-list">
+            <div v-if="fileItems.length === 0 && !filesLoading" class="empty-files">
+              <i class="el-icon-document-delete"></i>
+              <span>目录为空</span>
+            </div>
+            <div
+              v-for="item in fileItems"
+              :key="item.fullPath"
+              class="file-dialog-row"
+              @click="handleFileClick(item)"
+              @dblclick="enter(item)"
+            >
+              <div class="file-info">
+                <i
+                  :class="item.isDir ? 'el-icon-folder file-icon folder-icon' : 'el-icon-document file-icon file-icon-doc'"
+                />
+                <span :title="item.name" class="name">{{ item.name }}</span>
+                <el-tag v-if="item.isDir" class="dir-tag" size="mini" type="info">目录</el-tag>
+                <el-tag v-else-if="isMcConfigFile(item.name)" class="config-tag" size="mini" type="success">配置
+                </el-tag>
+              </div>
+              <div v-if="!item.isDir" class="file-actions">
+                <el-button
+                  icon="el-icon-view"
+                  size="mini"
+                  type="text"
+                  @click.stop="handlePreview(item)"
+                >
+                  预览
+                </el-button>
+                <el-button
+                  v-if="isEditableFile(item.name)"
+                  icon="el-icon-edit"
+                  size="mini"
+                  type="text"
+                  @click.stop="handleEditConfig(item)"
+                >
+                  编辑
+                </el-button>
+                <el-button
+                  icon="el-icon-download"
+                  size="mini"
+                  type="text"
+                  @click.stop="handleDownloadFile(item)"
+                >
+                  下载
+                </el-button>
+                <el-button
+                  icon="el-icon-delete"
+                  size="mini"
+                  type="text"
+                  @click.stop="handleDeleteFile(item)"
+                >
+                  删除
+                </el-button>
+              </div>
+              <div v-else class="file-actions">
+                <el-button
+                  icon="el-icon-delete"
+                  size="mini"
+                  type="text"
+                  @click.stop="handleDeleteFile(item)"
+                >
+                  删除
+                </el-button>
+              </div>
+            </div>
+          </div>
+        </el-scrollbar>
+      </div>
+    </el-dialog>
+
+    <!-- 文件编辑对话框 -->
+    <el-dialog
+      :close-on-click-modal="false"
+      :title="editFile ? `编辑文件 - ${editFile.name}` : '编辑文件'"
       :visible.sync="editDialogVisible"
       class="config-edit-dialog"
       width="90%"
     >
       <el-row :gutter="20">
-        <!-- 左侧：原始配置 -->
-        <el-col :span="showTranslation ? 12 : 24">
+        <!-- 左侧：文件内容 -->
+        <el-col :span="(showTranslation && isMcConfigFile(editFile ? editFile.name : '')) ? 12 : 24">
           <el-card class="editor-panel-card" shadow="never">
             <div slot="header" class="editor-panel-header">
               <div class="header-left">
                 <i class="el-icon-document"></i>
-                <span>原始配置</span>
+                <span>{{ isMcConfigFile(editFile ? editFile.name : '') ? '原始配置' : '文件内容' }}</span>
               </div>
               <el-button
+                v-if="isMcConfigFile(editFile ? editFile.name : '')"
                 icon="el-icon-s-tools"
                 plain
                 size="mini"
@@ -473,7 +740,7 @@
           </el-card>
         </el-col>
         <!-- 右侧：配置说明 -->
-        <el-col v-if="showTranslation" :span="12">
+        <el-col v-if="showTranslation && isMcConfigFile(editFile ? editFile.name : '')" :span="12">
           <el-card class="config-panel-card" shadow="never">
             <div slot="header" class="config-panel-header">
               <i class="el-icon-s-tools"></i>
@@ -485,7 +752,9 @@
                 <div v-for="(item, index) in translatedConfig" :key="index" class="config-item">
                   <div class="config-item-header">
                     <span class="config-item-key">{{ item.key }}</span>
-                    <el-tag v-if="item.type" class="config-item-type" size="mini">{{ item.type }}</el-tag>
+                    <div class="config-item-tags">
+                      <el-tag v-if="item.type" class="config-item-type" size="mini">{{ item.type }}</el-tag>
+                    </div>
                   </div>
                   <div class="config-item-body">
                     <div class="config-item-value">
@@ -529,8 +798,9 @@
 </template>
 
 <script>
-import {getMcs} from '@/api/node/mcs'
+import {getMcs, getServerPlayers, playerAction, queryDiagnostic} from '@/api/node/mcs'
 import {
+  deleteFile,
   downloadFile,
   getNodeInstanceConsole,
   getNodeInstanceConsoleHistory,
@@ -566,6 +836,12 @@ export default {
       statusTag: 'warning',
       serverStatus: null, // 服务器状态信息
       ansiConverter: null, // ANSI转HTML转换器
+      // 玩家管理相关
+      playersData: null, // 玩家数据
+      playersLoading: false, // 玩家加载状态
+      autoRefreshPlayers: false, // 自动刷新玩家
+      playersTimer: null, // 玩家刷新定时器
+      diagnosticLoading: false, // 诊断加载状态
       // 命令补全列表
       commandSuggestions: [
         // 基础命令
@@ -736,12 +1012,16 @@ export default {
       wsDirectFailed: false, // 直连是否失败过
       // 终端主题
       terminalTheme: 'github-dark', // 默认主题
+      // WebSocket刷新状态
+      wsRefreshLoading: false,
       // 文件预览相关
       previewDialogVisible: false,
       previewFile: null,
       previewContent: '',
       previewUrl: '',
       previewLoading: false,
+      // 文件浏览独立对话框
+      fileDialogVisible: false,
       // 编辑配置相关
       editDialogVisible: false,
       editFile: null,
@@ -836,7 +1116,7 @@ export default {
       try {
         // 将文本按行分割，逐行转换
         const lines = this.consoleText.split('\n')
-        const htmlLines = lines.map(line => this.ansiConverter.toHtml(line))
+        const htmlLines = lines.map(line => this.formatLogLine(line))
         return htmlLines.join('<br>')
       } catch (error) {
         console.error('ANSI转换失败:', error)
@@ -877,11 +1157,13 @@ export default {
       const lines = this.editContent.split('\n')
       const result = []
 
+      // 只处理文件中实际存在的配置项
       lines.forEach((line, index) => {
         const trimmed = line.trim()
         if (!trimmed || trimmed.startsWith('#')) return
 
-        const match = trimmed.match(/^([^=:#]+)[=:](.+)$/)
+        // 修改正则表达式，允许空值
+        const match = trimmed.match(/^([^=:#]+)[=:](.*)$/)
         if (match) {
           const key = match[1].trim()
           const value = match[2].trim()
@@ -913,12 +1195,14 @@ export default {
             zhDesc: translation.zh || '暂无说明',
             type: translation.type || autoType,
             isBool: isBool,
-            boolValue: boolValue
+            boolValue: boolValue,
+            existsInFile: true
           })
         }
       })
 
-      return result
+      // 按照在文件中的顺序排序（保持原有顺序）
+      return result.sort((a, b) => a.lineIndex - b.lineIndex)
     }
   },
   beforeDestroy() {
@@ -932,6 +1216,11 @@ export default {
     // 清理防抖定时器
     if (this.updateTimer) {
       clearTimeout(this.updateTimer)
+    }
+    // 清理玩家刷新定时器
+    if (this.playersTimer) {
+      clearInterval(this.playersTimer)
+      this.playersTimer = null
     }
   },
   methods: {
@@ -955,6 +1244,8 @@ export default {
           if (!this.statusTimer) {
             this.startStatusPolling();
           }
+          // 初始化玩家数据
+          this.refreshPlayers();
         } else {
           this.$message.error('获取实例信息失败');
           this.$router.push('/node/mcs/index');
@@ -1556,14 +1847,102 @@ export default {
     // 判断是否为文本文件
     isTextFile(filename) {
       if (!filename) return false
-      const textExtensions = ['.txt', '.json', '.xml', '.html', '.css', '.js', '.md', '.log', '.yml', '.yaml', '.properties', '.conf', '.ini', '.toml', '.cfg', '.sh', '.bat']
-      return textExtensions.some(ext => filename.toLowerCase().endsWith(ext))
+      const textExtensions = [
+        '.txt', '.json', '.xml', '.html', '.css', '.js', '.md', '.log',
+        '.yml', '.yaml', '.properties', '.conf', '.ini', '.toml', '.cfg',
+        '.sh', '.bat', '.cmd', '.ps1', '.py', '.java', '.c', '.cpp', '.h',
+        '.cs', '.php', '.sql', '.vue', '.ts', '.tsx', '.jsx', '.go', '.rs',
+        '.rb', '.pl', '.lua', '.r', '.scala', '.kt', '.swift', '.dart',
+        '.dockerfile', '.gitignore', '.gitattributes', '.editorconfig',
+        '.env', '.example', '.sample', '.template', '.backup', '.bak',
+        '.config', '.settings', '.prefs', '.options', '.rc', '.profile'
+      ]
+      return textExtensions.some(ext => filename.toLowerCase().endsWith(ext)) ||
+        // 检查无扩展名的常见配置文件
+        ['dockerfile', 'makefile', 'readme', 'license', 'changelog', 'authors', 'contributors'].includes(filename.toLowerCase())
     },
     // 判断是否为图片文件
     isImageFile(filename) {
       if (!filename) return false
       const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp', '.svg', '.ico']
       return imageExtensions.some(ext => filename.toLowerCase().endsWith(ext))
+    },
+    // 判断文件是否可编辑
+    isEditableFile(filename) {
+      if (!filename) return false
+      // MC配置文件肯定可编辑
+      if (this.isMcConfigFile(filename)) return true
+      // 文本文件可编辑
+      if (this.isTextFile(filename)) return true
+      // 其他特殊情况
+      return false
+    },
+    // 根据文件名获取编辑器语言
+    getEditorLanguage(filename) {
+      if (!filename) return 'plaintext'
+
+      const ext = filename.toLowerCase()
+      const languageMap = {
+        // Web 相关
+        '.html': 'html',
+        '.htm': 'html',
+        '.css': 'css',
+        '.js': 'javascript',
+        '.jsx': 'javascript',
+        '.ts': 'typescript',
+        '.tsx': 'typescript',
+        '.vue': 'html',
+
+        // 配置文件
+        '.json': 'json',
+        '.xml': 'xml',
+        '.yml': 'yaml',
+        '.yaml': 'yaml',
+        '.toml': 'toml',
+        '.ini': 'ini',
+        '.conf': 'ini',
+        '.cfg': 'ini',
+        '.properties': 'properties',
+
+        // 脚本
+        '.sh': 'shell',
+        '.bash': 'shell',
+        '.bat': 'bat',
+        '.cmd': 'bat',
+        '.ps1': 'powershell',
+
+        // 标记语言
+        '.md': 'markdown',
+        '.markdown': 'markdown',
+
+        // 其他
+        '.log': 'plaintext',
+        '.txt': 'plaintext'
+      }
+
+      // 查找匹配的扩展名
+      for (const [extension, language] of Object.entries(languageMap)) {
+        if (ext.endsWith(extension)) {
+          return language
+        }
+      }
+
+      // 特殊文件名处理
+      const specialFiles = {
+        'dockerfile': 'dockerfile',
+        'makefile': 'makefile',
+        'readme': 'markdown',
+        'license': 'plaintext',
+        'changelog': 'markdown'
+      }
+
+      const baseName = filename.toLowerCase()
+      if (specialFiles[baseName]) {
+        return specialFiles[baseName]
+      }
+
+      // 默认返回纯文本
+      return 'plaintext'
     },
     // 预览文件
     async handlePreview(file) {
@@ -1632,13 +2011,7 @@ export default {
         reader.onload = (e) => {
           this.editContent = e.target.result || ''
           // 根据文件类型设置编辑器语言
-          if (file.name.endsWith('.yml') || file.name.endsWith('.yaml')) {
-            this.editorOptions.language = 'yaml'
-          } else if (file.name.endsWith('.toml')) {
-            this.editorOptions.language = 'toml'
-          } else {
-            this.editorOptions.language = 'properties'
-          }
+          this.editorOptions.language = this.getEditorLanguage(file.name)
           this.editContentLoading = false
           // 确保编辑器能够正确渲染
           this.$nextTick(() => {
@@ -1691,7 +2064,8 @@ export default {
         for (let i = 0; i < lines.length; i++) {
           const trimmed = lines[i].trim()
           if (trimmed && !trimmed.startsWith('#')) {
-            const match = trimmed.match(/^([^=:#]+)[=:](.+)$/)
+            // 修改正则表达式，允许空值
+            const match = trimmed.match(/^([^=:#]+)[=:](.*)$/)
             if (match && match[1].trim() === row.key) {
               // 保持原有的分隔符（= 或 :）
               const separator = lines[i].includes('=') ? '=' : ':'
@@ -1733,6 +2107,432 @@ export default {
       } finally {
         this.saveLoading = false
       }
+    },
+    // 打开文件浏览独立对话框
+    openFileDialog() {
+      this.fileDialogVisible = true
+    },
+    // 刷新文件列表
+    refreshFiles() {
+      if (this.currentPath) {
+        this.loadFiles(this.currentPath)
+      } else if (this.instanceInfo && this.instanceInfo.serverPath) {
+        this.loadFiles(this.instanceInfo.serverPath)
+      }
+    },
+    // 下载文件
+    async handleDownloadFile(file) {
+      if (!file || !this.instanceInfo || file.isDir) return
+
+      try {
+        this.$message.info('正在准备下载...')
+
+        // 调用下载API
+        const response = await downloadFile(this.instanceInfo.nodeId, file.fullPath)
+
+        // 创建下载链接
+        const blob = new Blob([response])
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = file.name
+
+        // 触发下载
+        document.body.appendChild(link)
+        link.click()
+
+        // 清理
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+
+        this.$message.success('文件下载成功')
+      } catch (error) {
+        console.error('下载文件失败:', error)
+        this.$message.error('下载文件失败: ' + (error.message || '未知错误'))
+      }
+    },
+    // 删除文件
+    async handleDeleteFile(file) {
+      if (!file || !this.instanceInfo) return
+
+      const fileType = file.isDir ? '目录' : '文件'
+      const confirmMessage = `确定要删除${fileType} "${file.name}" 吗？${file.isDir ? '此操作将删除目录及其所有内容，' : ''}此操作不可恢复！`
+
+      try {
+        await this.$confirm(confirmMessage, '删除确认', {
+          confirmButtonText: '确定删除',
+          cancelButtonText: '取消',
+          type: 'warning',
+          dangerouslyUseHTMLString: false
+        })
+
+        const response = await deleteFile({
+          id: this.instanceInfo.nodeId,
+          path: file.fullPath
+        })
+
+        if (response.code === 200) {
+          this.$message.success(`${fileType}删除成功`)
+          // 刷新文件列表
+          this.refreshFiles()
+        } else {
+          this.$message.error(response.msg || `删除${fileType}失败`)
+        }
+      } catch (error) {
+        if (error !== 'cancel') {
+          this.$message.error(`删除${fileType}失败: ` + (error.message || '未知错误'))
+        }
+      }
+    },
+
+    // ========== 玩家管理相关方法 ==========
+
+    // 刷新玩家列表
+    async refreshPlayers() {
+      if (!this.instanceInfo) return;
+
+      this.playersLoading = true;
+      try {
+        const response = await getServerPlayers(this.instanceInfo.nodeId, this.serverId);
+
+        if (response.code === 200 && response.data && response.data.success) {
+          this.playersData = response.data;
+        } else {
+          this.playersData = null;
+          console.warn('获取玩家信息失败:', response.data ? response.data.error : '未知错误');
+        }
+      } catch (error) {
+        console.error('获取玩家信息失败:', error);
+        this.playersData = null;
+      } finally {
+        this.playersLoading = false;
+      }
+    },
+
+    // 切换自动刷新玩家列表
+    toggleAutoRefresh() {
+      this.autoRefreshPlayers = !this.autoRefreshPlayers;
+
+      if (this.autoRefreshPlayers) {
+        // 立即刷新一次
+        this.refreshPlayers();
+        // 启动定时器，每30秒刷新一次
+        this.playersTimer = setInterval(() => {
+          this.refreshPlayers();
+        }, 30000);
+        this.$message.success('已启用玩家列表自动刷新');
+      } else {
+        // 停止定时器
+        if (this.playersTimer) {
+          clearInterval(this.playersTimer);
+          this.playersTimer = null;
+        }
+        this.$message.info('已关闭玩家列表自动刷新');
+      }
+    },
+
+    // 对玩家执行操作
+    async handlePlayerAction(playerName, action) {
+      if (!this.instanceInfo || !playerName) return;
+
+      // 构建操作描述
+      const actionDescriptions = {
+        'kick': '踢出',
+        'ban': '封禁',
+        'ban-ip': 'IP封禁',
+        'pardon': '解封',
+        'pardon-ip': 'IP解封',
+        'op': '设为管理员',
+        'deop': '取消管理员',
+        'whitelist-add': '加入白名单',
+        'whitelist-remove': '移出白名单',
+        'gamemode-creative': '设为创造模式',
+        'gamemode-survival': '设为生存模式',
+        'gamemode-adventure': '设为冒险模式',
+        'gamemode-spectator': '设为观察者模式',
+        'tp-to-spawn': '传送到出生点'
+      };
+
+      const actionDesc = actionDescriptions[action] || action;
+
+      // 对于需要原因的操作，弹出输入框
+      let reason = '';
+      if (['kick', 'ban', 'ban-ip'].includes(action)) {
+        try {
+          const {value} = await this.$prompt(`请输入${actionDesc}原因（可选）:`, `${actionDesc}玩家`, {
+            confirmButtonText: '确定',
+            cancelButtonText: '取消',
+            inputPlaceholder: '输入原因...'
+          });
+          reason = value || '';
+        } catch {
+          return; // 用户取消
+        }
+      }
+
+      // 确认操作
+      try {
+        await this.$confirm(`确定要对玩家 ${playerName} 执行"${actionDesc}"操作吗？`, '确认操作', {
+          confirmButtonText: '确定',
+          cancelButtonText: '取消',
+          type: 'warning'
+        });
+      } catch {
+        return; // 用户取消
+      }
+
+      try {
+        const response = await playerAction(
+          this.instanceInfo.nodeId,
+          this.serverId,
+          playerName,
+          {
+            action: action,
+            reason: reason
+          }
+        );
+
+        if (response.code === 200 && response.data && response.data.success) {
+          this.$message.success(`成功对玩家 ${playerName} 执行${actionDesc}操作`);
+          // 刷新玩家列表
+          setTimeout(() => {
+            this.refreshPlayers();
+          }, 1000);
+        } else {
+          this.$message.error(`操作失败: ${response.data ? response.data.error : '未知错误'}`);
+        }
+      } catch (error) {
+        console.error('玩家操作失败:', error);
+        this.$message.error(`操作失败: ${error.message || '网络错误'}`);
+      }
+    },
+
+    // 格式化玩家在线时间
+    formatPlayerTime(joinTime) {
+      if (!joinTime) return '';
+
+      const now = new Date().getTime();
+      const join = new Date(joinTime).getTime();
+      const diff = Math.floor((now - join) / 1000); // 秒
+
+      if (diff < 60) {
+        return `${diff}秒前加入`;
+      } else if (diff < 3600) {
+        return `${Math.floor(diff / 60)}分钟前加入`;
+      } else if (diff < 86400) {
+        return `${Math.floor(diff / 3600)}小时前加入`;
+      } else {
+        return `${Math.floor(diff / 86400)}天前加入`;
+      }
+    },
+
+    // 处理头像加载错误
+    handleAvatarError(event) {
+      // 使用默认头像
+      event.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzIiIGhlaWdodD0iMzIiIHZpZXdCb3g9IjAgMCAzMiAzMiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHJlY3Qgd2lkdGg9IjMyIiBoZWlnaHQ9IjMyIiBmaWxsPSIjNDA5RUZGIi8+CjxwYXRoIGQ9Ik0xNiA4QzEzLjc5IDggMTIgOS43OSAxMiAxMkMxMiAxNC4yMSAxMy43OSAxNiAxNiAxNkMxOC4yMSAxNiAyMCAxNC4yMSAyMCAxMkMyMCA5Ljc5IDE4LjIxIDggMTYgOFpNMTYgMjJDMTIuNjcgMjIgNiAyMy4zNCA2IDI2LjY3VjI4SDE2SDI2VjI2LjY3QzI2IDIzLjM0IDE5LjMzIDIyIDE6IDIyWiIgZmlsbD0id2hpdGUiLz4KPC9zdmc+';
+    },
+
+    // 运行Query诊断
+    async runQueryDiagnostic() {
+      if (!this.instanceInfo) return;
+
+      this.diagnosticLoading = true;
+      try {
+        const response = await queryDiagnostic(this.instanceInfo.nodeId, this.serverId);
+
+        if (response.code === 200 && response.data) {
+          this.showDiagnosticResults(response.data);
+        } else {
+          this.$message.error('诊断失败: ' + (response.msg || '未知错误'));
+        }
+      } catch (error) {
+        console.error('Query诊断失败:', error);
+        this.$message.error('诊断失败: ' + (error.message || '网络错误'));
+      } finally {
+        this.diagnosticLoading = false;
+      }
+    },
+
+    // 格式化单行日志（处理日志级别颜色）
+    formatLogLine(line) {
+      if (!line) return ''
+
+      // 使用正则匹配日志前缀格式：[时间 级别]: 内容
+      const logPattern = /^(\[[\d:]+\s+(INFO|WARN|WARNING|ERROR|SEVERE|DEBUG|TRACE)\]:\s*)(.*)/i
+      const match = line.match(logPattern)
+
+      if (match) {
+        const prefix = match[1]  // [13:52:30 INFO]:
+        const level = match[2].toUpperCase()  // INFO, WARN, ERROR等
+        const content = match[3]  // 实际日志内容
+
+        // 根据日志级别设置颜色
+        let levelColor = '#FFF'  // 默认白色
+        switch (level) {
+          case 'INFO':
+            levelColor = '#67c23a'  // 绿色
+            break
+          case 'WARN':
+          case 'WARNING':
+            levelColor = '#e6a23c'  // 黄色
+            break
+          case 'ERROR':
+          case 'SEVERE':
+            levelColor = '#f56c6c'  // 红色
+            break
+          case 'DEBUG':
+            levelColor = '#909399'  // 灰色
+            break
+          case 'TRACE':
+            levelColor = '#c0c4cc'  // 浅灰色
+            break
+        }
+
+        // 构建带颜色的HTML
+        const coloredPrefix = `<span style="color: ${levelColor};">${this.escapeHtml(prefix)}</span>`
+        const processedContent = this.ansiConverter.toHtml(content)
+
+        return coloredPrefix + processedContent
+      } else {
+        // 如果不匹配日志格式，直接使用ANSI转换
+        return this.ansiConverter.toHtml(line)
+      }
+    },
+
+    // HTML转义函数
+    escapeHtml(text) {
+      const div = document.createElement('div')
+      div.textContent = text
+      return div.innerHTML
+    },
+
+    // 刷新WebSocket连接
+    async refreshWebSocket() {
+      if (this.wsRefreshLoading) return;
+
+      this.wsRefreshLoading = true;
+      try {
+        this.$message.info('正在刷新终端连接...');
+
+        // 断开当前WebSocket连接
+        this.disconnectWs();
+
+        // 等待一小段时间确保连接完全断开
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // 重新获取WebSocket信息并连接
+        await this.fetchConsoleWsInfo();
+        this.connectWs();
+
+        this.$message.success('终端连接已刷新');
+      } catch (error) {
+        console.error('刷新WebSocket连接失败:', error);
+        this.$message.error('刷新终端连接失败: ' + (error.message || '未知错误'));
+      } finally {
+        this.wsRefreshLoading = false;
+      }
+    },
+
+    // 显示诊断结果
+    showDiagnosticResults(diagnostic) {
+      const h = this.$createElement;
+
+      // 构建诊断结果内容
+      const content = [];
+
+      // 基本信息
+      content.push(h('h4', '基本信息'));
+      content.push(h('p', [
+        h('strong', '服务器ID: '), diagnostic.serverId, h('br'),
+        h('strong', '游戏端口: '), diagnostic.gamePort, h('br'),
+        h('strong', 'Query端口: '), diagnostic.queryPort, h('br'),
+        h('strong', '服务器运行: '), diagnostic.serverRunning ? '是' : '否'
+      ]));
+
+      // server.properties配置
+      content.push(h('h4', 'server.properties配置'));
+      const props = diagnostic.serverProperties;
+      if (props.exists) {
+        content.push(h('p', [
+          h('strong', 'enable-query: '), props['enable-query'] || '未设置', h('br'),
+          h('strong', 'query.port: '), props['query.port'] || '未设置', h('br'),
+          h('strong', 'server-port: '), props['server-port'] || '未设置'
+        ]));
+      } else {
+        content.push(h('p', {style: 'color: #f56c6c;'}, 'server.properties文件不存在'));
+      }
+
+      // 连接测试结果
+      content.push(h('h4', '连接测试结果'));
+      const tests = diagnostic.connectionTests;
+      Object.keys(tests).forEach(host => {
+        const test = tests[host];
+
+        // 创建测试步骤显示
+        const steps = [];
+
+        // Socket创建
+        if (test.socketCreated === true) {
+          steps.push(h('span', {style: 'color: #67c23a;'}, '✓ Socket创建'));
+        } else {
+          steps.push(h('span', {style: 'color: #f56c6c;'}, '✗ Socket创建失败'));
+        }
+
+        // 握手测试
+        if (test.handshakeSuccess === true) {
+          steps.push(h('span', {style: 'color: #67c23a;'}, '✓ 握手成功'));
+        } else if (test.handshakeSuccess === false) {
+          steps.push(h('span', {style: 'color: #f56c6c;'}, '✗ 握手失败'));
+        }
+
+        // 状态获取
+        if (test.statusSuccess === true) {
+          steps.push(h('span', {style: 'color: #67c23a;'}, `✓ 状态获取成功 (${test.onlinePlayers}/${test.maxPlayers})`));
+        } else if (test.statusSuccess === false) {
+          steps.push(h('span', {style: 'color: #f56c6c;'}, '✗ 状态获取失败'));
+        }
+
+        content.push(h('div', {style: 'margin-bottom: 10px;'}, [
+          h('strong', `${host}:${test.port}`),
+          h('br'),
+          ...steps.map(step => h('div', {style: 'margin-left: 20px;'}, step))
+        ]));
+
+        // 显示错误信息
+        if (test.error) {
+          content.push(h('div', {
+            style: 'color: #f56c6c; margin-left: 20px; font-size: 12px;'
+          }, `错误: ${test.error}`));
+        }
+        if (test.handshakeError) {
+          content.push(h('div', {
+            style: 'color: #f56c6c; margin-left: 20px; font-size: 12px;'
+          }, `握手错误: ${test.handshakeError}`));
+        }
+        if (test.statusError) {
+          content.push(h('div', {
+            style: 'color: #f56c6c; margin-left: 20px; font-size: 12px;'
+          }, `状态错误: ${test.statusError}`));
+        }
+      });
+
+      // 修复建议
+      if (diagnostic.suggestions && diagnostic.suggestions.length > 0) {
+        content.push(h('h4', '修复建议'));
+        const suggestions = diagnostic.suggestions.map(suggestion =>
+          h('li', {style: 'margin-bottom: 5px;'}, suggestion)
+        );
+        content.push(h('ul', {style: 'margin: 0; padding-left: 20px;'}, suggestions));
+      }
+
+      // 显示对话框
+      this.$msgbox({
+        title: 'Query连接诊断结果',
+        message: h('div', {style: 'max-height: 400px; overflow-y: auto;'}, content),
+        showCancelButton: false,
+        confirmButtonText: '关闭',
+        dangerouslyUseHTMLString: false
+      });
     }
   }
 }

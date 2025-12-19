@@ -31,6 +31,7 @@ public class ApiUtil {
     public static final String FILE_DOWNLOAD = "/api/files/download";
     public static final String FILE_DOWNLOAD_FROM_URL = "/api/files/download-from-url";
     public static final String FILE_UPLOAD = "/api/files/upload";
+    public static final String FILE_DELETE = "/api/files/delete";
 
     // Java环境相关
     public static final String JAVA_ENV_VERIFY = "/api/java-env/verify";
@@ -51,6 +52,9 @@ public class ApiUtil {
     public static final String CONSOLE_HISTORY_INSTANCE = "/api/servers/%d/console/history";
     public static final String COMMAND_INSTANCE = "/api/servers/%d/command";
     public static final String STATUS_INSTANCE = "/api/servers/%d/status";
+    public static final String PLAYERS_INSTANCE = "/api/servers/%d/players";
+    public static final String PLAYER_ACTION_INSTANCE = "/api/servers/%d/players/%s/action";
+    public static final String QUERY_DIAGNOSTIC_INSTANCE = "/api/servers/%d/query-diagnostic";
 
     // WebSocket相关
     public static final String WEBSOCKET_ENDPOINT = "/ws";
@@ -125,6 +129,10 @@ public class ApiUtil {
         return buildUrl(nodeServer, FILE_DOWNLOAD_FROM_URL);
     }
 
+    public static String getFileDeleteApi(NodeServer nodeServer) {
+        return buildUrl(nodeServer, FILE_DELETE);
+    }
+
     // Java环境API
     public static String getJavaEnvVerifyApi(NodeServer nodeServer) {
         return buildUrl(nodeServer, JAVA_ENV_VERIFY);
@@ -181,6 +189,18 @@ public class ApiUtil {
 
     public static String getStatusInstanceApi(NodeServer nodeServer, int serverId) {
         return buildUrl(nodeServer, STATUS_INSTANCE, serverId);
+    }
+
+    public static String getServerPlayersApi(NodeServer nodeServer, int serverId) {
+        return buildUrl(nodeServer, PLAYERS_INSTANCE, serverId);
+    }
+
+    public static String getPlayerActionApi(NodeServer nodeServer, int serverId, String playerName) {
+        return getBaseUrl(nodeServer) + format(PLAYER_ACTION_INSTANCE, serverId, playerName);
+    }
+
+    public static String getQueryDiagnosticApi(NodeServer nodeServer, int serverId) {
+        return buildUrl(nodeServer, QUERY_DIAGNOSTIC_INSTANCE, serverId);
     }
 
     // WebSocket API

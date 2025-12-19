@@ -223,3 +223,12 @@ export function getNodeInstanceConsoleHistory(params) {
     params: params
   })
 }
+
+// 删除文件
+export function deleteFile(data) {
+  return request({
+    url: '/node/server/deleteFile',
+    method: 'delete',
+    data: data
+  })
+}

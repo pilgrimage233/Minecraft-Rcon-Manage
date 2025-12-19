@@ -119,6 +119,14 @@ public interface INodeServerService {
     public AjaxResult getHeartbeat(Long id);
 
     /**
+     * 删除节点服务器文件
+     *
+     * @param params 参数
+     * @return 结果
+     */
+    public AjaxResult deleteFile(Map<String, Object> params);
+
+    /**
      * 测试节点服务器连接
      *
      * @param nodeServer 节点服务器信息

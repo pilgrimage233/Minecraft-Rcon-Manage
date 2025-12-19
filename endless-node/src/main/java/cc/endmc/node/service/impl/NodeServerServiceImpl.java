@@ -568,6 +568,51 @@ public class NodeServerServiceImpl implements INodeServerService {
     }
 
     /**
+     * 删除节点服务器文件
+     *
+     * @param params 参数
+     * @return 结果
+     */
+    @Override
+    public AjaxResult deleteFile(Map<String, Object> params) {
+        if (!params.containsKey("id") || !params.containsKey("path")) {
+            return AjaxResult.error("缺少必要参数");
+        }
+
+        final Integer id = (Integer) params.get("id");
+        final String path = (String) params.get("path");
+
+        NodeServer nodeServer = getNode(id.longValue());
+        if (nodeServer == null) {
+            return AjaxResult.error("节点服务器不存在");
+        }
+
+        try {
+            Map<String, Object> param = new HashMap<>();
+            param.put("path", path);
+
+            // 发送删除请求
+            HttpResponse httpResponse = NodeHttpUtil.createDelete(nodeServer, ApiUtil.getFileDeleteApi(nodeServer))
+                    .form(param)
+                    .execute();
+
+            if (!httpResponse.isOk()) {
+                return AjaxResult.error("删除文件失败: " + httpResponse.body());
+            }
+
+            JSONObject jsonObject = JSONObject.parseObject(httpResponse.body());
+            if (Boolean.TRUE.equals(jsonObject.getBoolean("success"))) {
+                return AjaxResult.success("删除成功");
+            } else {
+                return AjaxResult.error(jsonObject.getString("error"));
+            }
+        } catch (Exception e) {
+            log.error("删除文件失败", e);
+            return AjaxResult.error("删除文件失败: " + e.getMessage());
+        }
+    }
+
+    /**
      * 测试节点服务器连接
      *
      * @param nodeServer 节点服务器信息

@@ -42,3 +42,28 @@ export function delMcs(id) {
     method: 'delete'
   })
 }
+
+// 获取服务器在线玩家
+export function getServerPlayers(nodeId, serverId) {
+  return request({
+    url: `/node/mcs/${nodeId}/servers/${serverId}/players`,
+    method: 'get'
+  })
+}
+
+// 对玩家执行操作
+export function playerAction(nodeId, serverId, playerName, data) {
+  return request({
+    url: `/node/mcs/${nodeId}/servers/${serverId}/players/${playerName}/action`,
+    method: 'post',
+    data: data
+  })
+}
+
+// Query连接诊断
+export function queryDiagnostic(nodeId, serverId) {
+  return request({
+    url: `/node/mcs/${nodeId}/servers/${serverId}/query-diagnostic`,
+    method: 'get'
+  })
+}

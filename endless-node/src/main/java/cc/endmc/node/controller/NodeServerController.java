@@ -178,6 +178,16 @@ public class NodeServerController extends BaseController {
     }
 
     /**
+     * 删除文件
+     */
+    @PreAuthorize("@ss.hasPermi('node:server:edit')")
+    @NodeLog(operationType = OperationType.DELETE_NODE, operationTarget = OperationTarget.NODE_SERVER, operationName = "删除节点服务器文件")
+    @DeleteMapping("/deleteFile")
+    public AjaxResult deleteFile(@RequestBody Map<String, Object> params) {
+        return nodeServerService.deleteFile(params);
+    }
+
+    /**
      * 测试节点服务器连接
      */
     @PreAuthorize("@ss.hasPermi('node:server:list')")

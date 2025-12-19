@@ -223,4 +223,45 @@ public class NodeMinecraftServerController extends BaseController {
         map.put("serverId", serverId);
         return nodeMinecraftServerService.getStatus(map);
     }
+
+    /**
+     * 获取服务器在线玩家
+     */
+    @PreAuthorize("@ss.hasPermi('node:mcs:list')")
+    @GetMapping("/{nodeId}/servers/{serverId}/players")
+    public AjaxResult getServerPlayers(@PathVariable Long nodeId, @PathVariable Integer serverId) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", nodeId.intValue());
+        map.put("serverId", serverId);
+        return nodeMinecraftServerService.getServerPlayers(map);
+    }
+
+    /**
+     * 对玩家执行操作
+     */
+    @PreAuthorize("@ss.hasPermi('node:mcs:edit')")
+    @Log(title = "实例管理", businessType = BusinessType.UPDATE)
+    @NodeLog(operationType = OperationType.UPDATE_GAME_SERVER, operationTarget = OperationTarget.GAME_SERVER, operationName = "执行玩家操作")
+    @PostMapping("/{nodeId}/servers/{serverId}/players/{playerName}/action")
+    public AjaxResult playerAction(@PathVariable Long nodeId,
+                                   @PathVariable Integer serverId,
+                                   @PathVariable String playerName,
+                                   @RequestBody Map<String, Object> params) {
+        params.put("id", nodeId.intValue());
+        params.put("serverId", serverId);
+        params.put("playerName", playerName);
+        return nodeMinecraftServerService.playerAction(params);
+    }
+
+    /**
+     * Query连接诊断
+     */
+    @PreAuthorize("@ss.hasPermi('node:mcs:list')")
+    @GetMapping("/{nodeId}/servers/{serverId}/query-diagnostic")
+    public AjaxResult queryDiagnostic(@PathVariable Long nodeId, @PathVariable Integer serverId) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", nodeId.intValue());
+        map.put("serverId", serverId);
+        return nodeMinecraftServerService.queryDiagnostic(map);
+    }
 }

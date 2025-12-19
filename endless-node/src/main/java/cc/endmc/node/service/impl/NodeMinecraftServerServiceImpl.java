@@ -745,6 +745,115 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
         }
     }
 
+    @Override
+    public AjaxResult getServerPlayers(Map<String, Object> params) {
+        if (!params.containsKey("id") || !params.containsKey("serverId")) {
+            return AjaxResult.error("缺少必要参数");
+        }
+        Integer id = (Integer) params.get("id");
+        Integer serverId = (Integer) params.get("serverId");
+
+        final NodeMinecraftServer nodeMinecraftServer = selectNodeMinecraftServerById(serverId.longValue());
+        if (nodeMinecraftServer == null) {
+            return AjaxResult.error("服务器实例不存在");
+        }
+
+        NodeServer nodeServer = getNode(id.longValue());
+        if (nodeServer == null) {
+            return AjaxResult.error("节点服务器不存在");
+        }
+
+        try {
+            HttpResponse execute = NodeHttpUtil.createGet(nodeServer,
+                            ApiUtil.getServerPlayersApi(nodeServer, nodeMinecraftServer.getNodeInstancesId()))
+                    .execute();
+            if (!execute.isOk()) {
+                return AjaxResult.error("获取玩家信息失败: " + execute.body());
+            }
+            JSONObject json = JSONObject.parseObject(execute.body());
+            if (Boolean.TRUE.equals(json.getBoolean("success"))) {
+                return AjaxResult.success(json);
+            }
+            return AjaxResult.error(json.getString("error") != null ? json.getString("error") : json.getString("message"));
+        } catch (Exception e) {
+            return AjaxResult.error("获取玩家信息失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public AjaxResult playerAction(Map<String, Object> params) {
+        if (!params.containsKey("id") || !params.containsKey("serverId") || !params.containsKey("playerName")) {
+            return AjaxResult.error("缺少必要参数");
+        }
+        Integer id = (Integer) params.get("id");
+        Integer serverId = (Integer) params.get("serverId");
+        String playerName = (String) params.get("playerName");
+
+        final NodeMinecraftServer nodeMinecraftServer = selectNodeMinecraftServerById(serverId.longValue());
+        if (nodeMinecraftServer == null) {
+            return AjaxResult.error("服务器实例不存在");
+        }
+
+        NodeServer nodeServer = getNode(id.longValue());
+        if (nodeServer == null) {
+            return AjaxResult.error("节点服务器不存在");
+        }
+
+        try {
+            // 构建请求体
+            JSONObject requestBody = new JSONObject();
+            requestBody.put("action", params.get("action"));
+            requestBody.put("reason", params.get("reason"));
+
+            HttpResponse execute = NodeHttpUtil.createPost(nodeServer,
+                            ApiUtil.getPlayerActionApi(nodeServer, nodeMinecraftServer.getNodeInstancesId(), playerName))
+                    .body(requestBody.toJSONString())
+                    .execute();
+            if (!execute.isOk()) {
+                return AjaxResult.error("执行玩家操作失败: " + execute.body());
+            }
+            JSONObject json = JSONObject.parseObject(execute.body());
+            if (Boolean.TRUE.equals(json.getBoolean("success"))) {
+                return AjaxResult.success(json);
+            }
+            return AjaxResult.error(json.getString("error") != null ? json.getString("error") : json.getString("message"));
+        } catch (Exception e) {
+            return AjaxResult.error("执行玩家操作失败: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public AjaxResult queryDiagnostic(Map<String, Object> params) {
+        if (!params.containsKey("id") || !params.containsKey("serverId")) {
+            return AjaxResult.error("缺少必要参数");
+        }
+        Integer id = (Integer) params.get("id");
+        Integer serverId = (Integer) params.get("serverId");
+
+        final NodeMinecraftServer nodeMinecraftServer = selectNodeMinecraftServerById(serverId.longValue());
+        if (nodeMinecraftServer == null) {
+            return AjaxResult.error("服务器实例不存在");
+        }
+
+        NodeServer nodeServer = getNode(id.longValue());
+        if (nodeServer == null) {
+            return AjaxResult.error("节点服务器不存在");
+        }
+
+        try {
+            HttpResponse execute = NodeHttpUtil.createGet(nodeServer,
+                            ApiUtil.getQueryDiagnosticApi(nodeServer, nodeMinecraftServer.getNodeInstancesId()))
+                    .execute();
+            if (!execute.isOk()) {
+                return AjaxResult.error("Query诊断失败: " + execute.body());
+            }
+            JSONObject json = JSONObject.parseObject(execute.body());
+            return AjaxResult.success(json);
+        } catch (Exception e) {
+            return AjaxResult.error("Query诊断失败: " + e.getMessage());
+        }
+    }
+
     /**
      * 仅更新服务器状态（不触发节点API同步）
      * 用于定时任务同步状态
