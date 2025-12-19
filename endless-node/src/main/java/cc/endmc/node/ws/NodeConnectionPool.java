@@ -199,9 +199,12 @@ public class NodeConnectionPool {
     @Data
     public class NodeConnection {
         private static final int MAX_RECONNECT_ATTEMPTS = 5;
+        private static final int CONNECT_TIMEOUT_SECONDS = 15;
         private final long nodeId;
         private final NodeServer nodeServer;
         private final Map<Integer, StompSession.Subscription> serverSubscriptions = new ConcurrentHashMap<>();
+        // 待订阅队列：连接建立前的订阅请求会被缓存到这里
+        private final Set<Integer> pendingSubscriptions = ConcurrentHashMap.newKeySet();
         private WebSocketStompClient stompClient;
         private StompSession stompSession;
         private ThreadPoolTaskScheduler taskScheduler;
@@ -282,8 +285,8 @@ public class NodeConnectionPool {
                         connecting = false;
                         reconnectAttempts = 0;
 
-                        // 重新订阅所有服务器
-                        resubscribeAll();
+                        // 处理待订阅队列和重新订阅
+                        processPendingAndResubscribe();
                     }
 
                     @Override
@@ -303,7 +306,16 @@ public class NodeConnectionPool {
 
                 log.debug("开始异步连接节点: nodeId={}", nodeId);
 
-                stompClient.connect(wsUrl, sessionHandler);
+                stompClient.connect(wsUrl, sessionHandler).completable().join();
+
+                // 设置连接超时检测
+                reconnectExecutor.schedule(() -> {
+                    if (connecting && !connected) {
+                        log.error("连接节点超时: nodeId={}", nodeId);
+                        connecting = false;
+                        scheduleReconnect();
+                    }
+                }, CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
             } catch (Exception e) {
                 log.error("连接节点失败: nodeId={}", nodeId, e);
                 connected = false;
@@ -316,13 +328,28 @@ public class NodeConnectionPool {
          * 订阅服务器控制台
          */
         public void subscribeServer(int serverId) {
-            if (!connected || stompSession == null) {
-                log.warn("节点未连接，无法订阅: nodeId={}, serverId={}", nodeId, serverId);
+            if (serverSubscriptions.containsKey(serverId)) {
+                log.debug("服务器已订阅: nodeId={}, serverId={}", nodeId, serverId);
                 return;
             }
 
+            if (!connected || stompSession == null) {
+                log.info("节点连接中，将订阅加入待处理队列: nodeId={}, serverId={}", nodeId, serverId);
+                pendingSubscriptions.add(serverId);
+                if (!connecting) {
+                    connect();
+                }
+                return;
+            }
+
+            doSubscribeServer(serverId);
+        }
+
+        /**
+         * 订阅
+         */
+        private void doSubscribeServer(int serverId) {
             if (serverSubscriptions.containsKey(serverId)) {
-                log.debug("服务器已订阅: nodeId={}, serverId={}", nodeId, serverId);
                 return;
             }
 
@@ -364,6 +391,8 @@ public class NodeConnectionPool {
                 log.info("订阅服务器控制台成功: nodeId={}, serverId={}", nodeId, serverId);
             } catch (Exception e) {
                 log.error("订阅服务器控制台失败: nodeId={}, serverId={}", nodeId, serverId, e);
+                // 订阅失败，重新加入待订阅队列，稍后重试
+                pendingSubscriptions.add(serverId);
             }
         }
 
@@ -383,14 +412,36 @@ public class NodeConnectionPool {
         }
 
         /**
-         * 重新订阅所有服务器
+         * 处理待订阅队列和重新订阅已有的服务器
          */
-        private void resubscribeAll() {
-            Set<Integer> serverIds = new HashSet<>(serverSubscriptions.keySet());
+        private void processPendingAndResubscribe() {
+            Set<Integer> allServerIds = new HashSet<>();
+
+            // 1. 添加待订阅队列中的
+            allServerIds.addAll(pendingSubscriptions);
+            pendingSubscriptions.clear();
+
+            // 2. 添加之前已订阅的（重连场景）
+            allServerIds.addAll(serverSubscriptions.keySet());
             serverSubscriptions.clear();
 
-            for (Integer serverId : serverIds) {
-                subscribeServer(serverId);
+            // 3. 从外层subscriptions中恢复该节点的所有订阅
+            String prefix = nodeId + ":";
+            subscriptions.keySet().stream()
+                    .filter(key -> key.startsWith(prefix))
+                    .forEach(key -> {
+                        try {
+                            int serverId = Integer.parseInt(key.substring(prefix.length()));
+                            allServerIds.add(serverId);
+                        } catch (NumberFormatException e) {
+                            log.warn("解析serverId失败: {}", key);
+                        }
+                    });
+
+            log.info("节点连接成功，开始订阅 {} 个服务器: nodeId={}", allServerIds.size(), nodeId);
+
+            for (Integer serverId : allServerIds) {
+                doSubscribeServer(serverId);
             }
         }
 
