@@ -212,6 +212,7 @@
         <template slot-scope="scope">
           <el-button
             :disabled="scope.row.status === '1'"
+            :loading="actionLoading['agree_' + scope.row.id]"
             icon="el-icon-check"
             size="mini"
             type="text"
@@ -220,6 +221,7 @@
           </el-button>
           <el-button
             :disabled="scope.row.status === '2'"
+            :loading="actionLoading['refuse_' + scope.row.id]"
             icon="el-icon-close"
             size="mini"
             type="text"
@@ -260,7 +262,8 @@
 
     <!-- 添加或修改白名单对话框 -->
     <el-dialog :title="title" :visible.sync="open" append-to-body width="500px">
-      <el-form ref="form" :model="form" :rules="rules" label-width="100px" size="medium">
+      <div v-loading="formLoading">
+        <el-form ref="form" :model="form" :rules="rules" label-width="100px" size="medium">
         <el-form-item label="游戏名称" prop="userName">
           <el-input v-model="form.userName" :style="{width: '100%'}" clearable placeholder="请输入游戏名称">
           </el-input>
@@ -325,16 +328,18 @@
           <el-input v-model="form.bannedReason" :style="{width: '100%'}" clearable placeholder="请输入封禁原因">
           </el-input>
         </el-form-item>
-      </el-form>
+        </el-form>
+      </div>
       <div slot="footer" class="dialog-footer">
-        <el-button type="primary" @click="submitForm">确 定</el-button>
+        <el-button :loading="formLoading" type="primary" @click="submitForm">确 定</el-button>
         <el-button @click="cancel">取 消</el-button>
       </div>
     </el-dialog>
 
     <!-- 批量申请对话框 -->
     <el-dialog :visible.sync="batchApplyOpen" append-to-body title="批量申请白名单" width="500px">
-      <el-form ref="batchForm" :model="batchForm" label-width="100px">
+      <div v-loading="batchLoading">
+        <el-form ref="batchForm" :model="batchForm" label-width="100px">
         <el-form-item label="上传模板">
           <el-upload
             ref="upload"
@@ -356,9 +361,10 @@
         <el-form-item>
           <el-button type="primary" @click="downloadTemplate">下载模板</el-button>
         </el-form-item>
-      </el-form>
+        </el-form>
+      </div>
       <div slot="footer" class="dialog-footer">
-        <el-button type="primary" @click="submitBatchForm">确 定</el-button>
+        <el-button :loading="batchLoading" type="primary" @click="submitBatchForm">确 定</el-button>
         <el-button @click="cancelBatch">取 消</el-button>
       </div>
     </el-dialog>
@@ -407,6 +413,12 @@ export default {
       // 是否显示弹出层
       open: false,
       addState: false,
+      // 表单提交loading
+      formLoading: false,
+      // 批量申请loading
+      batchLoading: false,
+      // 操作按钮loading状态
+      actionLoading: {},
       // 查询参数
       queryParams: {
         pageNum: 1,
@@ -546,6 +558,9 @@ export default {
     },
     /*同意按钮操作*/
     handleAgree(row) {
+      const loadingKey = 'agree_' + row.id;
+      this.$set(this.actionLoading, loadingKey, true);
+
       row.status = '1';
       // 默认同意全部服务器
       row.servers = "all";
@@ -553,16 +568,27 @@ export default {
         updateWhitelist(row).then(response => {
           this.$modal.msgSuccess("修改成功");
           this.getList();
+        }).catch(() => {
+          // 处理错误
+        }).finally(() => {
+          this.$set(this.actionLoading, loadingKey, false);
         });
       }
     },
     /*拒绝按钮操作*/
     handleRefuse(row) {
+      const loadingKey = 'refuse_' + row.id;
+      this.$set(this.actionLoading, loadingKey, true);
+
       row.status = '2';
       if (row.id != null) {
         updateWhitelist(row).then(response => {
           this.$modal.msgSuccess("修改成功");
           this.getList();
+        }).catch(() => {
+          // 处理错误
+        }).finally(() => {
+          this.$set(this.actionLoading, loadingKey, false);
         });
       }
     },
@@ -605,6 +631,7 @@ export default {
     submitForm() {
       this.$refs["form"].validate(valid => {
         if (valid) {
+          this.formLoading = true;
           // 白名单服务器列表
           if (this.serverList.includes("all")) {
             this.form.servers = this.serverOptions.map(item => item.value).join(",");
@@ -619,6 +646,10 @@ export default {
               this.$modal.msgSuccess("修改成功");
               this.open = false;
               this.getList();
+            }).catch(() => {
+              // 处理错误
+            }).finally(() => {
+              this.formLoading = false;
             });
           } else {
             // 添加二次确认
@@ -628,8 +659,13 @@ export default {
                 this.$modal.msgSuccess("新增成功");
                 this.open = false;
                 this.getList();
+              }).catch(() => {
+                // 处理错误
+              }).finally(() => {
+                this.formLoading = false;
               });
             }).catch(() => {
+              this.formLoading = false;
             });
           }
         }
@@ -672,9 +708,11 @@ export default {
     },
     handleFileUploadProgress(event, file) {
       this.upload.isUploading = true;
+      this.batchLoading = true;
     },
     handleFileSuccess(response, file) {
       this.upload.isUploading = false;
+      this.batchLoading = false;
       this.$refs.upload.clearFiles();
       if (response.code === 200) {
         this.$modal.msgSuccess(response.msg);
@@ -702,6 +740,11 @@ export default {
       });
     },
     submitBatchForm() {
+      if (this.$refs.upload.uploadFiles.length === 0) {
+        this.$modal.msgWarning("请先选择文件");
+        return;
+      }
+      this.batchLoading = true;
       this.$refs.upload.submit();
     },
     cancelBatch() {
@@ -718,6 +761,7 @@ export default {
       if (!val) {
         this.reset();
         this.addState = false;
+        this.formLoading = false;
       }
     },
     dialogVisible(newVal) {
@@ -726,6 +770,7 @@ export default {
     batchApplyOpen(newVal) {
       if (!newVal) {
         this.resetBatchForm();
+        this.batchLoading = false;
       }
     }
   }
