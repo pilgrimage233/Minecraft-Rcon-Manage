@@ -18,6 +18,7 @@ target/
 .project
 .settings
 .springBeans
+.vscode
 
 ### IntelliJ IDEA ###
 .idea

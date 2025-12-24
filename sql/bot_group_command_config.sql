@@ -41,6 +41,13 @@ VALUES ('default', 'help', '帮助信息', 'user', 1, '显示帮助信息'),
        ('default', '查询服务器', '查询服务器', 'user', 1, '查询服务器列表'),
        ('default', 'test', '测试连通', 'user', 1, '测试服务器连通性');
 
+-- 系统通知功能（非指令类功能）
+INSERT INTO `bot_group_command_config` (`group_id`, `command_key`, `command_name`, `command_category`, `is_enabled`,
+                                        `remark`)
+VALUES ('default', '玩家上线通知', '玩家上线通知', 'system', 1, '玩家加入游戏时发送通知'),
+       ('default', '玩家下线通知', '玩家下线通知', 'system', 1, '玩家离开游戏时发送通知');
+
+
 -- 管理员指令
 INSERT INTO `bot_group_command_config` (`group_id`, `command_key`, `command_name`, `command_category`, `is_enabled`,
                                         `remark`)
@@ -73,12 +80,6 @@ INSERT INTO `bot_group_command_config` (`group_id`, `command_key`, `command_name
 VALUES ('default', '关闭', '关闭功能', 'admin', 1, '关闭指定功能（不可被关闭）'),
        ('default', '开启', '开启功能', 'admin', 1, '开启指定功能（不可被关闭）'),
        ('default', '功能列表', '功能列表', 'user', 1, '查看所有功能及状态（不可被关闭）');
-
--- 系统通知功能（非指令类功能）
-INSERT INTO `bot_group_command_config` (`group_id`, `command_key`, `command_name`, `command_category`, `is_enabled`,
-                                        `remark`)
-VALUES ('default', '玩家上线通知', '玩家上线通知', 'system', 1, '玩家加入游戏时发送通知'),
-       ('default', '玩家下线通知', '玩家下线通知', 'system', 1, '玩家离开游戏时发送通知');
 
 
 -- 按钮父菜单ID

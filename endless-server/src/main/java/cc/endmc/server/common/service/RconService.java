@@ -14,8 +14,8 @@ import cc.endmc.server.domain.server.ServerCommandInfo;
 import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.mapper.server.ServerInfoMapper;
 import cc.endmc.server.utils.IPUtils;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -32,19 +32,17 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 @Slf4j
 @Component
+@RequiredArgsConstructor
 public class RconService {
 
     public static Map<String, ServerCommandInfo> COMMAND_INFO = new HashMap<>();
     @Value("${whitelist.email}")
     private String ADMIN_EMAIL;
-    @Autowired
-    private EmailService emailService;
-    @Autowired
-    private RedisCache redisCache;
-    @Autowired
-    private PasswordManager PasswordManager;
-    @Autowired
-    private ServerInfoMapper serverInfoMapper;
+
+    private final EmailService emailService;
+    private final RedisCache redisCache;
+    private final PasswordManager PasswordManager;
+    private final ServerInfoMapper serverInfoMapper;
 
     /**
      * 关闭Rcon

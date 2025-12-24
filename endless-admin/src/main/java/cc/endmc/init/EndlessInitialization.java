@@ -58,15 +58,11 @@ public class EndlessInitialization implements InitializingBean {
     private final Environment env;
     private final EndlessConfig endlessConfig;
 
-    // 线程池用于并发初始化任务
-    private final ExecutorService executorService = Executors.newFixedThreadPool(
-            Runtime.getRuntime().availableProcessors(),
-            r -> {
-                Thread thread = new Thread(r);
-                thread.setName("endless-init-" + thread.getId());
-                thread.setDaemon(true);
-                return thread;
-            }
+    // 虚拟线程执行器用于并发初始化任务
+    private final ExecutorService executorService = Executors.newThreadPerTaskExecutor(
+            Thread.ofVirtual()
+                    .name("endless-init-", 0)
+                    .factory()
     );
 
     @Override
@@ -225,21 +221,21 @@ public class EndlessInitialization implements InitializingBean {
             }
 
             // 并发初始化 Rcon 连接
-
-            // 等待所有 Rcon 连接完成
-            CompletableFuture.allOf(activeServers.stream()
-                            .map(serverInfo -> CompletableFuture.runAsync(
-                                    () -> {
-                                        try {
-                                            rconService.init(serverInfo);
-                                        } catch (Exception e) {
-                                            log.error("❌ 服务器 [{}] Rcon 连接初始化失败: {}",
-                                                    serverInfo.getId(), e.getMessage());
-                                        }
-                                    },
-                                    executorService
-                            )).toArray(CompletableFuture[]::new))
-                    .get(20, TimeUnit.SECONDS);
+            try (ExecutorService virtualExecutor = Executors.newVirtualThreadPerTaskExecutor()) {
+                CompletableFuture.allOf(activeServers.stream()
+                                .map(serverInfo -> CompletableFuture.runAsync(
+                                        () -> {
+                                            try {
+                                                rconService.init(serverInfo);
+                                            } catch (Exception e) {
+                                                log.error("❌ 服务器 [{}] Rcon 连接初始化失败: {}",
+                                                        serverInfo.getId(), e.getMessage());
+                                            }
+                                        },
+                                        virtualExecutor
+                                )).toArray(CompletableFuture[]::new))
+                        .get(20, TimeUnit.SECONDS);
+            }
 
             log.info("✓ Rcon 连接初始化完成，共 {} 个服务器", RconCache.size());
 
