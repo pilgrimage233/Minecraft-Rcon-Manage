@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.statistics.PlayerActivityStatsMapper">
+    
+    <resultMap type="PlayerActivityStats" id="PlayerActivityStatsResult">
+        <result property="id"    column="id"    />
+        <result property="statsDate"    column="stats_date"    />
+        <result property="statsType"    column="stats_type"    />
+        <result property="activePlayerCount"    column="active_player_count"    />
+        <result property="newPlayerCount"    column="new_player_count"    />
+        <result property="totalOnlineMinutes"    column="total_online_minutes"    />
+        <result property="avgOnlineMinutes"    column="avg_online_minutes"    />
+        <result property="peakOnlineCount"    column="peak_online_count"    />
+        <result property="peakOnlineTime"    column="peak_online_time"    />
+        <result property="activePlayerList"    column="active_player_list"    />
+        <result property="newPlayerList"    column="new_player_list"    />
+        <result property="periodStart"    column="period_start"    />
+        <result property="periodEnd"    column="period_end"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+        <result property="remark"    column="remark"    />
+    </resultMap>
+
+    <sql id="selectPlayerActivityStatsVo">
+        select id, stats_date, stats_type, active_player_count, new_player_count, total_online_minutes, avg_online_minutes, peak_online_count, peak_online_time, active_player_list, new_player_list, period_start, period_end, create_time, update_time, remark from player_activity_stats
+    </sql>
+
+    <select id="selectPlayerActivityStatsList" parameterType="PlayerActivityStats" resultMap="PlayerActivityStatsResult">
+        <include refid="selectPlayerActivityStatsVo"/>
+        <where>  
+            <if test="statsDate != null "> and stats_date = #{statsDate}</if>
+            <if test="statsType != null  and statsType != ''"> and stats_type = #{statsType}</if>
+            <if test="activePlayerCount != null "> and active_player_count = #{activePlayerCount}</if>
+            <if test="newPlayerCount != null "> and new_player_count = #{newPlayerCount}</if>
+            <if test="totalOnlineMinutes != null "> and total_online_minutes = #{totalOnlineMinutes}</if>
+            <if test="avgOnlineMinutes != null "> and avg_online_minutes = #{avgOnlineMinutes}</if>
+            <if test="peakOnlineCount != null "> and peak_online_count = #{peakOnlineCount}</if>
+            <if test="peakOnlineTime != null "> and peak_online_time = #{peakOnlineTime}</if>
+            <if test="periodStart != null "> and period_start &gt;= #{periodStart}</if>
+            <if test="periodEnd != null "> and period_end &lt;= #{periodEnd}</if>
+        </where>
+        order by stats_date desc, stats_type
+    </select>
+    
+    <select id="selectPlayerActivityStatsById" parameterType="Long" resultMap="PlayerActivityStatsResult">
+        <include refid="selectPlayerActivityStatsVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectByDateAndType" resultMap="PlayerActivityStatsResult">
+        <include refid="selectPlayerActivityStatsVo"/>
+        where DATE(stats_date) = DATE(#{statsDate}) and stats_type = #{statsType}
+    </select>
+
+    <select id="selectByDateRange" resultMap="PlayerActivityStatsResult">
+        <include refid="selectPlayerActivityStatsVo"/>
+        where DATE(stats_date) between DATE(#{startDate}) and DATE(#{endDate})
+        <if test="statsType != null and statsType != ''">
+            and stats_type = #{statsType}
+        </if>
+        order by stats_date asc
+    </select>
+        
+    <insert id="insertPlayerActivityStats" parameterType="PlayerActivityStats" useGeneratedKeys="true" keyProperty="id">
+        insert into player_activity_stats
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="statsDate != null">stats_date,</if>
+            <if test="statsType != null and statsType != ''">stats_type,</if>
+            <if test="activePlayerCount != null">active_player_count,</if>
+            <if test="newPlayerCount != null">new_player_count,</if>
+            <if test="totalOnlineMinutes != null">total_online_minutes,</if>
+            <if test="avgOnlineMinutes != null">avg_online_minutes,</if>
+            <if test="peakOnlineCount != null">peak_online_count,</if>
+            <if test="peakOnlineTime != null">peak_online_time,</if>
+            <if test="activePlayerList != null">active_player_list,</if>
+            <if test="newPlayerList != null">new_player_list,</if>
+            <if test="periodStart != null">period_start,</if>
+            <if test="periodEnd != null">period_end,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="statsDate != null">#{statsDate},</if>
+            <if test="statsType != null and statsType != ''">#{statsType},</if>
+            <if test="activePlayerCount != null">#{activePlayerCount},</if>
+            <if test="newPlayerCount != null">#{newPlayerCount},</if>
+            <if test="totalOnlineMinutes != null">#{totalOnlineMinutes},</if>
+            <if test="avgOnlineMinutes != null">#{avgOnlineMinutes},</if>
+            <if test="peakOnlineCount != null">#{peakOnlineCount},</if>
+            <if test="peakOnlineTime != null">#{peakOnlineTime},</if>
+            <if test="activePlayerList != null">#{activePlayerList},</if>
+            <if test="newPlayerList != null">#{newPlayerList},</if>
+            <if test="periodStart != null">#{periodStart},</if>
+            <if test="periodEnd != null">#{periodEnd},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+         </trim>
+    </insert>
+
+    <update id="updatePlayerActivityStats" parameterType="PlayerActivityStats">
+        update player_activity_stats
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="statsDate != null">stats_date = #{statsDate},</if>
+            <if test="statsType != null and statsType != ''">stats_type = #{statsType},</if>
+            <if test="activePlayerCount != null">active_player_count = #{activePlayerCount},</if>
+            <if test="newPlayerCount != null">new_player_count = #{newPlayerCount},</if>
+            <if test="totalOnlineMinutes != null">total_online_minutes = #{totalOnlineMinutes},</if>
+            <if test="avgOnlineMinutes != null">avg_online_minutes = #{avgOnlineMinutes},</if>
+            <if test="peakOnlineCount != null">peak_online_count = #{peakOnlineCount},</if>
+            <if test="peakOnlineTime != null">peak_online_time = #{peakOnlineTime},</if>
+            <if test="activePlayerList != null">active_player_list = #{activePlayerList},</if>
+            <if test="newPlayerList != null">new_player_list = #{newPlayerList},</if>
+            <if test="periodStart != null">period_start = #{periodStart},</if>
+            <if test="periodEnd != null">period_end = #{periodEnd},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deletePlayerActivityStatsById" parameterType="Long">
+        delete from player_activity_stats where id = #{id}
+    </delete>
+
+    <delete id="deletePlayerActivityStatsByIds" parameterType="String">
+        delete from player_activity_stats where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <insert id="insertOrUpdatePlayerActivityStats" parameterType="PlayerActivityStats">
+        insert into player_activity_stats (
+            stats_date, stats_type, active_player_count, new_player_count, 
+            total_online_minutes, avg_online_minutes, peak_online_count, peak_online_time,
+            active_player_list, new_player_list, period_start, period_end, 
+            create_time, update_time, remark
+        ) values (
+            #{statsDate}, #{statsType}, #{activePlayerCount}, #{newPlayerCount},
+            #{totalOnlineMinutes}, #{avgOnlineMinutes}, #{peakOnlineCount}, #{peakOnlineTime},
+            #{activePlayerList}, #{newPlayerList}, #{periodStart}, #{periodEnd},
+            #{createTime}, #{updateTime}, #{remark}
+        ) on duplicate key update
+            active_player_count = values(active_player_count),
+            new_player_count = values(new_player_count),
+            total_online_minutes = values(total_online_minutes),
+            avg_online_minutes = values(avg_online_minutes),
+            peak_online_count = values(peak_online_count),
+            peak_online_time = values(peak_online_time),
+            active_player_list = values(active_player_list),
+            new_player_list = values(new_player_list),
+            period_start = values(period_start),
+            period_end = values(period_end),
+            update_time = values(update_time),
+            remark = values(remark)
+    </insert>
+
+</mapper>

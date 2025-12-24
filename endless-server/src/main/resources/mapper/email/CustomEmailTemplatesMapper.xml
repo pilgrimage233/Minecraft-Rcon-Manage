@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.email.CustomEmailTemplatesMapper">
+
+    <resultMap type="CustomEmailTemplates" id="CustomEmailTemplatesResult">
+        <result property="id" column="id"/>
+        <result property="createTime" column="create_time"/>
+        <result property="createBy" column="create_by"/>
+        <result property="serverId" column="server_id"/>
+        <result property="reviewTemp" column="review_temp"/>
+        <result property="pendingTemp" column="pending_temp"/>
+        <result property="passTemp" column="pass_temp"/>
+        <result property="refuseTemp" column="refuse_temp"/>
+        <result property="removeTemp" column="remove_temp"/>
+        <result property="banTemp" column="ban_temp"/>
+        <result property="pardonTemp" column="pardon_temp"/>
+        <result property="verifyTemp" column="verify_temp"/>
+        <result property="warningTemp" column="warning_temp"/>
+        <result property="status" column="status"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectCustomEmailTemplatesVo">
+        select id,
+               create_time,
+               create_by,
+               server_id,
+               review_temp,
+               pending_temp,
+               pass_temp,
+               refuse_temp,
+               remove_temp,
+               ban_temp,
+               pardon_temp,
+               verify_temp,
+               warning_temp,
+               status,
+               update_time,
+               update_by,
+               remark
+        from custom_email_templates
+    </sql>
+
+    <select id="selectCustomEmailTemplatesList" parameterType="CustomEmailTemplates"
+            resultMap="CustomEmailTemplatesResult">
+        <include refid="selectCustomEmailTemplatesVo"/>
+        <where>
+        </where>
+    </select>
+
+    <select id="selectCustomEmailTemplatesById" parameterType="Long"
+            resultMap="CustomEmailTemplatesResult">
+        <include refid="selectCustomEmailTemplatesVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertCustomEmailTemplates" parameterType="CustomEmailTemplates" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into custom_email_templates
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="createTime != null">create_time,
+            </if>
+            <if test="createBy != null">create_by,
+            </if>
+            <if test="serverId != null">server_id,
+            </if>
+            <if test="reviewTemp != null">review_temp,
+            </if>
+            <if test="pendingTemp != null">pending_temp,
+            </if>
+            <if test="passTemp != null">pass_temp,
+            </if>
+            <if test="refuseTemp != null">refuse_temp,
+            </if>
+            <if test="removeTemp != null">remove_temp,
+            </if>
+            <if test="banTemp != null">ban_temp,
+            </if>
+            <if test="pardonTemp != null">pardon_temp,
+            </if>
+            <if test="verifyTemp != null">verify_temp,
+            </if>
+            <if test="warningTemp != null">warning_temp,
+            </if>
+            <if test="status != null">status,
+            </if>
+            <if test="updateTime != null">update_time,
+            </if>
+            <if test="updateBy != null">update_by,
+            </if>
+            <if test="remark != null">remark,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="createTime != null">#{createTime},
+            </if>
+            <if test="createBy != null">#{createBy},
+            </if>
+            <if test="serverId != null">#{serverId},
+            </if>
+            <if test="reviewTemp != null">#{reviewTemp},
+            </if>
+            <if test="pendingTemp != null">#{pendingTemp},
+            </if>
+            <if test="passTemp != null">#{passTemp},
+            </if>
+            <if test="refuseTemp != null">#{refuseTemp},
+            </if>
+            <if test="removeTemp != null">#{removeTemp},
+            </if>
+            <if test="banTemp != null">#{banTemp},
+            </if>
+            <if test="pardonTemp != null">#{pardonTemp},
+            </if>
+            <if test="verifyTemp != null">#{verifyTemp},
+            </if>
+            <if test="warningTemp != null">#{warningTemp},
+            </if>
+            <if test="status != null">#{status},
+            </if>
+            <if test="updateTime != null">#{updateTime},
+            </if>
+            <if test="updateBy != null">#{updateBy},
+            </if>
+            <if test="remark != null">#{remark},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateCustomEmailTemplates" parameterType="CustomEmailTemplates">
+        update custom_email_templates
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="createTime != null">create_time =
+                #{createTime},
+            </if>
+            <if test="createBy != null">create_by =
+                #{createBy},
+            </if>
+            <if test="serverId != null">server_id =
+                #{serverId},
+            </if>
+            <if test="reviewTemp != null">review_temp =
+                #{reviewTemp},
+            </if>
+            <if test="pendingTemp != null">pending_temp =
+                #{pendingTemp},
+            </if>
+            <if test="passTemp != null">pass_temp =
+                #{passTemp},
+            </if>
+            <if test="refuseTemp != null">refuse_temp =
+                #{refuseTemp},
+            </if>
+            <if test="removeTemp != null">remove_temp =
+                #{removeTemp},
+            </if>
+            <if test="banTemp != null">ban_temp =
+                #{banTemp},
+            </if>
+            <if test="pardonTemp != null">pardon_temp =
+                #{pardonTemp},
+            </if>
+            <if test="verifyTemp != null">verify_temp =
+                #{verifyTemp},
+            </if>
+            <if test="status != null">status =
+                #{status},
+            </if>
+            <if test="warningTemp != null">warning_temp =
+                #{warningTemp},
+            </if>
+            <if test="updateTime != null">update_time =
+                #{updateTime},
+            </if>
+            <if test="updateBy != null">update_by =
+                #{updateBy},
+            </if>
+            <if test="remark != null">remark =
+                #{remark},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteCustomEmailTemplatesById" parameterType="Long">
+        delete
+        from custom_email_templates
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteCustomEmailTemplatesByIds" parameterType="String">
+        delete from custom_email_templates where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

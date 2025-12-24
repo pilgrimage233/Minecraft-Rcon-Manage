@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.permission.mapper.SysUserMcInstanceMapper">
+
+    <resultMap type="cc.endmc.permission.domain.SysUserMcInstance" id="SysUserMcInstanceResult">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="userName" column="user_name"/>
+        <result property="instanceId" column="instance_id"/>
+        <result property="instanceName" column="instance_name"/>
+        <result property="nodeId" column="node_id"/>
+        <result property="nodeName" column="node_name"/>
+        <result property="permissionType" column="permission_type"/>
+        <result property="canView" column="can_view"/>
+        <result property="canStart" column="can_start"/>
+        <result property="canStop" column="can_stop"/>
+        <result property="canRestart" column="can_restart"/>
+        <result property="canConsole" column="can_console"/>
+        <result property="canFile" column="can_file"/>
+        <result property="canConfig" column="can_config"/>
+        <result property="canDelete" column="can_delete"/>
+        <result property="consoleCmdWhitelist" column="console_cmd_whitelist"/>
+        <result property="consoleCmdBlacklist" column="console_cmd_blacklist"/>
+        <result property="filePathWhitelist" column="file_path_whitelist"/>
+        <result property="filePathBlacklist" column="file_path_blacklist"/>
+        <result property="expireTime" column="expire_time"/>
+        <result property="status" column="status"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectVo">
+        select p.id, p.user_id, u.user_name, p.instance_id, i.name as instance_name, p.node_id, n.name as node_name,
+               p.permission_type, p.can_view, p.can_start, p.can_stop, p.can_restart, p.can_console, p.can_file, p.can_config, p.can_delete,
+               p.console_cmd_whitelist, p.console_cmd_blacklist, p.file_path_whitelist, p.file_path_blacklist,
+               p.expire_time, p.status, p.create_by, p.create_time, p.update_by, p.update_time, p.remark
+        from sys_user_mc_instance p
+        left join sys_user u on p.user_id = u.user_id
+        left join node_minecraft_server i on p.instance_id = i.id
+        left join node_server n on p.node_id = n.id
+    </sql>
+
+    <select id="selectById" resultMap="SysUserMcInstanceResult">
+        <include refid="selectVo"/> where p.id = #{id}
+    </select>
+
+    <select id="selectByUserAndInstance" resultMap="SysUserMcInstanceResult">
+        <include refid="selectVo"/> where p.user_id = #{userId} and p.instance_id = #{instanceId}
+    </select>
+
+    <select id="selectList" resultMap="SysUserMcInstanceResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="userId != null">and p.user_id = #{userId}</if>
+            <if test="instanceId != null">and p.instance_id = #{instanceId}</if>
+            <if test="nodeId != null">and p.node_id = #{nodeId}</if>
+            <if test="permissionType != null and permissionType != ''">and p.permission_type = #{permissionType}</if>
+            <if test="status != null and status != ''">and p.status = #{status}</if>
+        </where>
+        order by p.create_time desc
+    </select>
+
+    <select id="selectInstanceIdsByUserId" resultType="Long">
+        select distinct instance_id from sys_user_mc_instance
+        where user_id = #{userId} and status = '0' and (expire_time is null or expire_time > now())
+    </select>
+
+    <select id="selectInstanceIdsByUserAndNode" resultType="Long">
+        select distinct instance_id from sys_user_mc_instance
+        where user_id = #{userId} and node_id = #{nodeId} and status = '0' and (expire_time is null or expire_time > now())
+    </select>
+
+    <select id="checkPermission" resultType="int">
+        select count(*) from sys_user_mc_instance
+        where user_id = #{userId} and instance_id = #{instanceId} and status = '0'
+          and (expire_time is null or expire_time > now())
+          and (
+            (#{permission} = 'view' and can_view = 1) or
+            (#{permission} = 'start' and can_start = 1) or
+            (#{permission} = 'stop' and can_stop = 1) or
+            (#{permission} = 'restart' and can_restart = 1) or
+            (#{permission} = 'console' and can_console = 1) or
+            (#{permission} = 'file' and can_file = 1) or
+            (#{permission} = 'config' and can_config = 1) or
+            (#{permission} = 'delete' and can_delete = 1) or
+            (#{permission} = 'admin' and permission_type = 'admin')
+          )
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into sys_user_mc_instance (
+            user_id, instance_id, node_id, permission_type, can_view, can_start, can_stop, can_restart,
+            can_console, can_file, can_config, can_delete, console_cmd_whitelist, console_cmd_blacklist,
+            file_path_whitelist, file_path_blacklist, expire_time, status, create_by, create_time, remark
+        ) values (
+            #{userId}, #{instanceId}, #{nodeId}, #{permissionType}, #{canView}, #{canStart}, #{canStop}, #{canRestart},
+            #{canConsole}, #{canFile}, #{canConfig}, #{canDelete}, #{consoleCmdWhitelist}, #{consoleCmdBlacklist},
+            #{filePathWhitelist}, #{filePathBlacklist}, #{expireTime}, #{status}, #{createBy}, #{createTime}, #{remark}
+        )
+    </insert>
+
+    <update id="update">
+        update sys_user_mc_instance
+        <set>
+            <if test="permissionType != null">permission_type = #{permissionType},</if>
+            <if test="canView != null">can_view = #{canView},</if>
+            <if test="canStart != null">can_start = #{canStart},</if>
+            <if test="canStop != null">can_stop = #{canStop},</if>
+            <if test="canRestart != null">can_restart = #{canRestart},</if>
+            <if test="canConsole != null">can_console = #{canConsole},</if>
+            <if test="canFile != null">can_file = #{canFile},</if>
+            <if test="canConfig != null">can_config = #{canConfig},</if>
+            <if test="canDelete != null">can_delete = #{canDelete},</if>
+            <if test="consoleCmdWhitelist != null">console_cmd_whitelist = #{consoleCmdWhitelist},</if>
+            <if test="consoleCmdBlacklist != null">console_cmd_blacklist = #{consoleCmdBlacklist},</if>
+            <if test="filePathWhitelist != null">file_path_whitelist = #{filePathWhitelist},</if>
+            <if test="filePathBlacklist != null">file_path_blacklist = #{filePathBlacklist},</if>
+            <if test="expireTime != null">expire_time = #{expireTime},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">delete from sys_user_mc_instance where id = #{id}</delete>
+    <delete id="deleteByIds">delete from sys_user_mc_instance where id in <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach></delete>
+    <delete id="deleteByUserId">delete from sys_user_mc_instance where user_id = #{userId}</delete>
+    <delete id="deleteByInstanceId">delete from sys_user_mc_instance where instance_id = #{instanceId}</delete>
+    <delete id="deleteByNodeId">delete from sys_user_mc_instance where node_id = #{nodeId}</delete>
+</mapper>

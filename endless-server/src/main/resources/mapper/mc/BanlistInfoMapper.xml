@@ -1,0 +1,149 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.permission.BanlistInfoMapper">
+
+    <resultMap type="BanlistInfo" id="BanlistInfoResult">
+        <result property="id" column="id"/>
+        <result property="whiteId" column="white_id"/>
+        <result property="userName" column="user_name"/>
+        <result property="state" column="state"/>
+        <result property="reason" column="reason"/>
+        <result property="remark" column="remark"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="createBy" column="create_by"/>
+        <result property="updateBy" column="update_by"/>
+    </resultMap>
+
+    <sql id="selectBanlistInfoVo">
+        select id,
+               white_id,
+               user_name,
+               state,
+               reason,
+               remark,
+               create_time,
+               update_time,
+               create_by,
+               update_by
+        from banlist_info
+    </sql>
+
+    <select id="selectBanlistInfoList" parameterType="BanlistInfo" resultMap="BanlistInfoResult">
+        <include refid="selectBanlistInfoVo"/>
+        <where>
+            <if test="whiteId != null ">
+                and white_id = #{whiteId}
+            </if>
+            <if test="userName != null  and userName != ''">
+                and user_name like concat('%', #{userName}, '%')
+            </if>
+            <if test="state != null ">
+                and state = #{state}
+            </if>
+            <if test="reason != null  and reason != ''">
+                and reason = #{reason}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectBanlistInfoById" parameterType="Long"
+            resultMap="BanlistInfoResult">
+        <include refid="selectBanlistInfoVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertBanlistInfo" parameterType="BanlistInfo" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into banlist_info
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="whiteId != null">white_id,
+            </if>
+            <if test="userName != null">user_name,
+            </if>
+            <if test="state != null">state,
+            </if>
+            <if test="reason != null">reason,
+            </if>
+            <if test="remark != null">remark,
+            </if>
+            <if test="createTime != null">create_time,
+            </if>
+            <if test="updateTime != null">update_time,
+            </if>
+            <if test="createBy != null">create_by,
+            </if>
+            <if test="updateBy != null">update_by,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="whiteId != null">#{whiteId},
+            </if>
+            <if test="userName != null">#{userName},
+            </if>
+            <if test="state != null">#{state},
+            </if>
+            <if test="reason != null">#{reason},
+            </if>
+            <if test="remark != null">#{remark},
+            </if>
+            <if test="createTime != null">#{createTime},
+            </if>
+            <if test="updateTime != null">#{updateTime},
+            </if>
+            <if test="createBy != null">#{createBy},
+            </if>
+            <if test="updateBy != null">#{updateBy},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateBanlistInfo" parameterType="BanlistInfo">
+        update banlist_info
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="whiteId != null">white_id =
+                #{whiteId},
+            </if>
+            <if test="userName != null">user_name =
+                #{userName},
+            </if>
+            <if test="state != null">state =
+                #{state},
+            </if>
+            <if test="reason != null">reason =
+                #{reason},
+            </if>
+            <if test="remark != null">remark =
+                #{remark},
+            </if>
+            <if test="createTime != null">create_time =
+                #{createTime},
+            </if>
+            <if test="updateTime != null">update_time =
+                #{updateTime},
+            </if>
+            <if test="createBy != null">create_by =
+                #{createBy},
+            </if>
+            <if test="updateBy != null">update_by =
+                #{updateBy},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteBanlistInfoById" parameterType="Long">
+        delete
+        from banlist_info
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteBanlistInfoByIds" parameterType="String">
+        delete from banlist_info where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

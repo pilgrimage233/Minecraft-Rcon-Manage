@@ -1,0 +1,95 @@
+package cc.endmc.node.service;
+
+import cc.endmc.common.core.domain.AjaxResult;
+import cc.endmc.node.domain.NodeEnv;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import java.util.List;
+
+/**
+ * 节点Java多版本环境管理Service接口
+ *
+ * @author Memory
+ * @date 2025-11-25
+ */
+public interface INodeEnvService {
+    /**
+     * 查询节点Java多版本环境管理
+     *
+     * @param id 节点Java多版本环境管理主键
+     * @return 节点Java多版本环境管理
+     */
+    public NodeEnv selectNodeEnvById(Long id);
+
+    /**
+     * 查询节点Java多版本环境管理列表
+     *
+     * @param nodeEnv 节点Java多版本环境管理
+     * @return 节点Java多版本环境管理集合
+     */
+    public List<NodeEnv> selectNodeEnvList(NodeEnv nodeEnv);
+
+    /**
+     * 新增节点Java多版本环境管理
+     *
+     * @param nodeEnv 节点Java多版本环境管理
+     * @return 结果
+     */
+    public int insertNodeEnv(NodeEnv nodeEnv);
+
+    /**
+     * 修改节点Java多版本环境管理
+     *
+     * @param nodeEnv 节点Java多版本环境管理
+     * @return 结果
+     */
+    public int updateNodeEnv(NodeEnv nodeEnv);
+
+    /**
+     * 批量删除节点Java多版本环境管理
+     *
+     * @param ids 需要删除的节点Java多版本环境管理主键集合
+     * @return 结果
+     */
+    public int deleteNodeEnvByIds(Long[] ids);
+
+    /**
+     * 删除节点Java多版本环境管理信息
+     *
+     * @param id 节点Java多版本环境管理主键
+     * @return 结果
+     */
+    public int deleteNodeEnvById(Long id);
+
+    /**
+     * 验证Java环境
+     *
+     * @param nodeEnv 节点Java环境信息
+     * @return 验证结果
+     */
+    public AjaxResult verifyEnvironment(NodeEnv nodeEnv);
+
+    /**
+     * 扫描节点上的Java环境
+     *
+     * @param nodeId 节点ID
+     * @return 扫描结果
+     */
+    public AjaxResult scanEnvironments(Long nodeId);
+
+    /**
+     * 一键安装Java环境（流式响应）
+     *
+     * @param params 安装参数（nodeId, version, installPath, vendor）
+     * @return SSE发射器
+     */
+    public SseEmitter installJavaWithProgress(java.util.Map<String, Object> params);
+
+    /**
+     * 取消Java安装任务
+     *
+     * @param params 参数（nodeId, taskId）
+     * @return 取消结果
+     */
+    public AjaxResult cancelInstall(java.util.Map<String, Object> params);
+}

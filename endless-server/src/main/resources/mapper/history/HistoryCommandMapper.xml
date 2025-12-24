@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.other.HistoryCommandMapper">
+
+    <resultMap type="HistoryCommand" id="HistoryCommandResult">
+        <result property="id" column="id"/>
+        <result property="serverId" column="server_id"/>
+        <result property="user" column="user"/>
+        <result property="command" column="command"/>
+        <result property="executeTime" column="execute_time"/>
+        <result property="response" column="response"/>
+        <result property="status" column="status"/>
+        <result property="runTime" column="run_time"/>
+    </resultMap>
+
+    <sql id="selectHistoryCommandVo">
+        select id,
+               server_id,
+               user,
+               command,
+               execute_time,
+               response,
+               status,
+               run_time
+        from history_command
+    </sql>
+
+    <select id="selectHistoryCommandList" parameterType="HistoryCommand" resultMap="HistoryCommandResult">
+        <include refid="selectHistoryCommandVo"/>
+        <where>
+            <if test="serverId != null ">
+                and server_id = #{serverId}
+            </if>
+            <if test="user != null  and user != ''">
+                and user = #{user}
+            </if>
+            <if test="command != null  and command != ''">
+                and command = #{command}
+            </if>
+            <if test="executeTime != null ">
+                and execute_time = #{executeTime}
+            </if>
+            <if test="response != null  and response != ''">
+                and response = #{response}
+            </if>
+            <if test="status != null  and status != ''">
+                and status = #{status}
+            </if>
+            <if test="runTime != null  and runTime != ''">
+                and run_time = #{runTime}
+            </if>
+        </where>
+        order by execute_time desc
+    </select>
+
+    <select id="selectHistoryCommandById" parameterType="Long"
+            resultMap="HistoryCommandResult">
+        <include refid="selectHistoryCommandVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertHistoryCommand" parameterType="HistoryCommand" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into history_command
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="serverId != null">server_id,
+            </if>
+            <if test="user != null and user != ''">user,
+            </if>
+            <if test="command != null and command != ''">command,
+            </if>
+            <if test="executeTime != null">execute_time,
+            </if>
+            <if test="response != null">response,
+            </if>
+            <if test="status != null">status,
+            </if>
+            <if test="runTime != null">run_time,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="serverId != null">#{serverId},
+            </if>
+            <if test="user != null and user != ''">#{user},
+            </if>
+            <if test="command != null and command != ''">#{command},
+            </if>
+            <if test="executeTime != null">#{executeTime},
+            </if>
+            <if test="response != null">#{response},
+            </if>
+            <if test="status != null">#{status},
+            </if>
+            <if test="runTime != null">#{runTime},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateHistoryCommand" parameterType="HistoryCommand">
+        update history_command
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="serverId != null">server_id =
+                #{serverId},
+            </if>
+            <if test="user != null and user != ''">user =
+                #{user},
+            </if>
+            <if test="command != null and command != ''">command =
+                #{command},
+            </if>
+            <if test="executeTime != null">execute_time =
+                #{executeTime},
+            </if>
+            <if test="response != null">response =
+                #{response},
+            </if>
+            <if test="status != null">status =
+                #{status},
+            </if>
+            <if test="runTime != null">run_time =
+                #{runTime},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteHistoryCommandById" parameterType="Long">
+        delete
+        from history_command
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteHistoryCommandByIds" parameterType="String">
+        delete from history_command where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

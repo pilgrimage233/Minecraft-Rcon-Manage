@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.permission.mapper.SysUserRconServerMapper">
+
+    <resultMap type="cc.endmc.permission.domain.SysUserRconServer" id="SysUserRconServerResult">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="userName" column="user_name"/>
+        <result property="serverId" column="server_id"/>
+        <result property="serverName" column="server_name"/>
+        <result property="permissionType" column="permission_type"/>
+        <result property="canExecuteCmd" column="can_execute_cmd"/>
+        <result property="canViewLog" column="can_view_log"/>
+        <result property="canManage" column="can_manage"/>
+        <result property="cmdWhitelist" column="cmd_whitelist"/>
+        <result property="cmdBlacklist" column="cmd_blacklist"/>
+        <result property="expireTime" column="expire_time"/>
+        <result property="status" column="status"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectVo">
+        select p.id, p.user_id, u.user_name, p.server_id, s.name_tag as server_name,
+               p.permission_type, p.can_execute_cmd, p.can_view_log, p.can_manage,
+               p.cmd_whitelist, p.cmd_blacklist, p.expire_time, p.status,
+               p.create_by, p.create_time, p.update_by, p.update_time, p.remark
+        from sys_user_rcon_server p
+        left join sys_user u on p.user_id = u.user_id
+        left join server_info s on p.server_id = s.id
+    </sql>
+
+    <select id="selectById" resultMap="SysUserRconServerResult">
+        <include refid="selectVo"/>
+        where p.id = #{id}
+    </select>
+
+    <select id="selectByUserAndServer" resultMap="SysUserRconServerResult">
+        <include refid="selectVo"/>
+        where p.user_id = #{userId} and p.server_id = #{serverId}
+    </select>
+
+    <select id="selectList" resultMap="SysUserRconServerResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="userId != null">and p.user_id = #{userId}</if>
+            <if test="serverId != null">and p.server_id = #{serverId}</if>
+            <if test="permissionType != null and permissionType != ''">and p.permission_type = #{permissionType}</if>
+            <if test="status != null and status != ''">and p.status = #{status}</if>
+        </where>
+        order by p.create_time desc
+    </select>
+
+    <select id="selectServerIdsByUserId" resultType="Long">
+        select distinct server_id from sys_user_rcon_server
+        where user_id = #{userId} and status = '0'
+          and (expire_time is null or expire_time > now())
+    </select>
+
+    <select id="checkPermission" resultType="int">
+        select count(*) from sys_user_rcon_server
+        where user_id = #{userId} and server_id = #{serverId} and status = '0'
+          and (expire_time is null or expire_time > now())
+          and (
+            (#{permission} = 'view' and can_view_log = 1) or
+            (#{permission} = 'command' and can_execute_cmd = 1) or
+            (#{permission} = 'manage' and can_manage = 1) or
+            (#{permission} = 'admin' and permission_type = 'admin')
+          )
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into sys_user_rcon_server (
+            user_id, server_id, permission_type, can_execute_cmd, can_view_log, can_manage,
+            cmd_whitelist, cmd_blacklist, expire_time, status, create_by, create_time, remark
+        ) values (
+            #{userId}, #{serverId}, #{permissionType}, #{canExecuteCmd}, #{canViewLog}, #{canManage},
+            #{cmdWhitelist}, #{cmdBlacklist}, #{expireTime}, #{status}, #{createBy}, #{createTime}, #{remark}
+        )
+    </insert>
+
+    <update id="update">
+        update sys_user_rcon_server
+        <set>
+            <if test="permissionType != null">permission_type = #{permissionType},</if>
+            <if test="canExecuteCmd != null">can_execute_cmd = #{canExecuteCmd},</if>
+            <if test="canViewLog != null">can_view_log = #{canViewLog},</if>
+            <if test="canManage != null">can_manage = #{canManage},</if>
+            <if test="cmdWhitelist != null">cmd_whitelist = #{cmdWhitelist},</if>
+            <if test="cmdBlacklist != null">cmd_blacklist = #{cmdBlacklist},</if>
+            <if test="expireTime != null">expire_time = #{expireTime},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete from sys_user_rcon_server where id = #{id}
+    </delete>
+
+    <delete id="deleteByIds">
+        delete from sys_user_rcon_server where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <delete id="deleteByUserId">
+        delete from sys_user_rcon_server where user_id = #{userId}
+    </delete>
+
+    <delete id="deleteByServerId">
+        delete from sys_user_rcon_server where server_id = #{serverId}
+    </delete>
+</mapper>

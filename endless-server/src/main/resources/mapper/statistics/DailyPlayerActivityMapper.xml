@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.statistics.DailyPlayerActivityMapper">
+    
+    <resultMap type="DailyPlayerActivity" id="DailyPlayerActivityResult">
+        <result property="id"    column="id"    />
+        <result property="playerName"    column="player_name"    />
+        <result property="playerId"    column="player_id"    />
+        <result property="activityDate"    column="activity_date"    />
+        <result property="onlineMinutes"    column="online_minutes"    />
+        <result property="loginCount"    column="login_count"    />
+        <result property="firstLoginTime"    column="first_login_time"    />
+        <result property="lastLoginTime"    column="last_login_time"    />
+        <result property="lastLogoutTime"    column="last_logout_time"    />
+        <result property="isNewPlayer"    column="is_new_player"    />
+        <result property="activityScore"    column="activity_score"    />
+        <result property="createTime"    column="create_time"    />
+        <result property="updateTime"    column="update_time"    />
+    </resultMap>
+
+    <sql id="selectDailyPlayerActivityVo">
+        select id, player_name, player_id, activity_date, online_minutes, login_count, first_login_time, last_login_time, last_logout_time, is_new_player, activity_score, create_time, update_time from daily_player_activity
+    </sql>
+
+    <select id="selectDailyPlayerActivityList" parameterType="DailyPlayerActivity" resultMap="DailyPlayerActivityResult">
+        <include refid="selectDailyPlayerActivityVo"/>
+        <where>  
+            <if test="playerName != null  and playerName != ''"> and player_name like concat('%', #{playerName}, '%')</if>
+            <if test="playerId != null "> and player_id = #{playerId}</if>
+            <if test="activityDate != null "> and activity_date = #{activityDate}</if>
+            <if test="onlineMinutes != null "> and online_minutes = #{onlineMinutes}</if>
+            <if test="loginCount != null "> and login_count = #{loginCount}</if>
+            <if test="isNewPlayer != null "> and is_new_player = #{isNewPlayer}</if>
+        </where>
+        order by activity_date desc, activity_score desc
+    </select>
+    
+    <select id="selectDailyPlayerActivityById" parameterType="Long" resultMap="DailyPlayerActivityResult">
+        <include refid="selectDailyPlayerActivityVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectByPlayerAndDate" resultMap="DailyPlayerActivityResult">
+        <include refid="selectDailyPlayerActivityVo"/>
+        where player_name = #{playerName} and DATE(activity_date) = DATE(#{activityDate})
+    </select>
+
+    <select id="selectByDate" resultMap="DailyPlayerActivityResult">
+        <include refid="selectDailyPlayerActivityVo"/>
+        where activity_date &gt;= #{activityDate}
+        and activity_date &lt; DATE_ADD(#{activityDate}, INTERVAL 1 DAY)
+        order by activity_score desc
+    </select>
+
+    <select id="selectPlayerRanking" resultType="map">
+        select 
+            player_name as playerName,
+            sum(online_minutes) as totalOnlineMinutes,
+            sum(login_count) as totalLoginCount,
+            avg(online_minutes) as avgOnlineMinutes,
+            max(activity_score) as maxActivityScore,
+            count(*) as activeDays
+        from daily_player_activity 
+        where DATE(activity_date) between DATE(#{startDate}) and DATE(#{endDate})
+        group by player_name
+        order by totalOnlineMinutes desc
+        <if test="limit != null and limit > 0">
+            limit #{limit}
+        </if>
+    </select>
+
+    <select id="selectActivitySummary" resultType="map">
+        select 
+            count(distinct player_name) as totalActivePlayers,
+            sum(case when is_new_player = 1 then 1 else 0 end) as totalNewPlayers,
+            sum(online_minutes) as totalOnlineMinutes,
+            avg(online_minutes) as avgOnlineMinutes,
+            sum(login_count) as totalLoginCount,
+            max(activity_score) as maxActivityScore
+        from daily_player_activity 
+        where DATE(activity_date) between DATE(#{startDate}) and DATE(#{endDate})
+    </select>
+        
+    <insert id="insertDailyPlayerActivity" parameterType="DailyPlayerActivity" useGeneratedKeys="true" keyProperty="id">
+        insert into daily_player_activity
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="playerName != null and playerName != ''">player_name,</if>
+            <if test="playerId != null">player_id,</if>
+            <if test="activityDate != null">activity_date,</if>
+            <if test="onlineMinutes != null">online_minutes,</if>
+            <if test="loginCount != null">login_count,</if>
+            <if test="firstLoginTime != null">first_login_time,</if>
+            <if test="lastLoginTime != null">last_login_time,</if>
+            <if test="lastLogoutTime != null">last_logout_time,</if>
+            <if test="isNewPlayer != null">is_new_player,</if>
+            <if test="activityScore != null">activity_score,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+         </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="playerName != null and playerName != ''">#{playerName},</if>
+            <if test="playerId != null">#{playerId},</if>
+            <if test="activityDate != null">#{activityDate},</if>
+            <if test="onlineMinutes != null">#{onlineMinutes},</if>
+            <if test="loginCount != null">#{loginCount},</if>
+            <if test="firstLoginTime != null">#{firstLoginTime},</if>
+            <if test="lastLoginTime != null">#{lastLoginTime},</if>
+            <if test="lastLogoutTime != null">#{lastLogoutTime},</if>
+            <if test="isNewPlayer != null">#{isNewPlayer},</if>
+            <if test="activityScore != null">#{activityScore},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+         </trim>
+    </insert>
+
+    <update id="updateDailyPlayerActivity" parameterType="DailyPlayerActivity">
+        update daily_player_activity
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="playerName != null and playerName != ''">player_name = #{playerName},</if>
+            <if test="playerId != null">player_id = #{playerId},</if>
+            <if test="activityDate != null">activity_date = #{activityDate},</if>
+            <if test="onlineMinutes != null">online_minutes = #{onlineMinutes},</if>
+            <if test="loginCount != null">login_count = #{loginCount},</if>
+            <if test="firstLoginTime != null">first_login_time = #{firstLoginTime},</if>
+            <if test="lastLoginTime != null">last_login_time = #{lastLoginTime},</if>
+            <if test="lastLogoutTime != null">last_logout_time = #{lastLogoutTime},</if>
+            <if test="isNewPlayer != null">is_new_player = #{isNewPlayer},</if>
+            <if test="activityScore != null">activity_score = #{activityScore},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteDailyPlayerActivityById" parameterType="Long">
+        delete from daily_player_activity where id = #{id}
+    </delete>
+
+    <delete id="deleteDailyPlayerActivityByIds" parameterType="String">
+        delete from daily_player_activity where id in 
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <insert id="insertOrUpdateDailyPlayerActivity" parameterType="DailyPlayerActivity">
+        insert into daily_player_activity (
+            player_name, player_id, activity_date, online_minutes, login_count,
+            first_login_time, last_login_time, last_logout_time, is_new_player,
+            activity_score, create_time, update_time
+        ) values (
+            #{playerName}, #{playerId}, #{activityDate}, #{onlineMinutes}, #{loginCount},
+            #{firstLoginTime}, #{lastLoginTime}, #{lastLogoutTime}, #{isNewPlayer},
+            #{activityScore}, #{createTime}, #{updateTime}
+        ) on duplicate key update
+            online_minutes = online_minutes + values(online_minutes),
+            login_count = login_count + values(login_count),
+            last_login_time = values(last_login_time),
+            last_logout_time = values(last_logout_time),
+            activity_score = values(activity_score),
+            update_time = values(update_time)
+    </insert>
+
+    <insert id="batchInsertDailyPlayerActivity" parameterType="list">
+        insert into daily_player_activity (
+            player_name, player_id, activity_date, online_minutes, login_count,
+            first_login_time, last_login_time, last_logout_time, is_new_player,
+            activity_score, create_time, update_time
+        ) values
+        <foreach collection="activities" item="activity" separator=",">
+            (
+                #{activity.playerName}, #{activity.playerId}, #{activity.activityDate}, 
+                #{activity.onlineMinutes}, #{activity.loginCount}, #{activity.firstLoginTime}, 
+                #{activity.lastLoginTime}, #{activity.lastLogoutTime}, #{activity.isNewPlayer},
+                #{activity.activityScore}, #{activity.createTime}, #{activity.updateTime}
+            )
+        </foreach>
+        on duplicate key update
+            online_minutes = online_minutes + values(online_minutes),
+            login_count = login_count + values(login_count),
+            last_login_time = values(last_login_time),
+            last_logout_time = values(last_logout_time),
+            activity_score = values(activity_score),
+            update_time = values(update_time)
+    </insert>
+
+</mapper>

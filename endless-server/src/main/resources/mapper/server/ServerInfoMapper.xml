@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.server.ServerInfoMapper">
+
+    <resultMap type="ServerInfo" id="ServerInfoResult">
+        <result property="id" column="id"/>
+        <result property="uuid" column="uuid"/>
+        <result property="nameTag" column="name_tag"/>
+        <result property="playAddress" column="play_address"/>
+        <result property="playAddressPort" column="play_address_port"/>
+        <result property="serverVersion" column="server_version"/>
+        <result property="serverCore" column="server_core"/>
+        <result property="ip" column="ip"/>
+        <result property="rconPort" column="rcon_port"/>
+        <result property="rconPassword" column="rcon_password"/>
+        <result property="createTime" column="create_time"/>
+        <result property="createBy" column="create_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="status" column="status"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectServerInfoVo">
+        select id,
+               uuid,
+               name_tag,
+               play_address,
+               play_address_port,
+               server_version,
+               server_core,
+               ip,
+               rcon_port,
+               rcon_password,
+               create_time,
+               create_by,
+               update_time,
+               update_by,
+               status,
+               remark
+        from server_info
+    </sql>
+
+    <select id="selectServerInfoList" parameterType="ServerInfo" resultMap="ServerInfoResult">
+        <include refid="selectServerInfoVo"/>
+        <where>
+            <if test="uuid != null  and uuid != ''">and uuid = #{uuid}</if>
+            <if test="nameTag != null  and nameTag != ''">and name_tag = #{nameTag}</if>
+            <if test="playAddress != null  and playAddress != ''">and play_address = #{playAddress}</if>
+            <if test="playAddressPort != null">and play_address_port = #{playAddressPort}</if>
+            <if test="serverVersion != null  and serverVersion != ''">and server_version = #{serverVersion}</if>
+            <if test="serverCore != null  and serverCore != ''">and server_core = #{serverCore}</if>
+            <if test="ip != null  and ip != ''">and ip = #{ip}</if>
+            <if test="createTime != null ">and create_time = #{createTime}</if>
+            <if test="createBy != null ">and create_by = #{createBy}</if>
+            <if test="rconPort != null ">and rcon_port = #{rconPort}</if>
+            <if test="rconPassword != null  and rconPassword != ''">and rcon_password = #{rconPassword}</if>
+            <if test="status != null ">and status = #{status}</if>
+        </where>
+    </select>
+
+    <select id="selectServerInfoById" parameterType="Long" resultMap="ServerInfoResult">
+        <include refid="selectServerInfoVo"/>
+        where id = #{id}
+    </select>
+
+    <!--根据多ID查询-->
+    <select id="selectServerInfoByIds" parameterType="java.util.List" resultMap="ServerInfoResult">
+        <include refid="selectServerInfoVo"/>
+        where id in
+        <foreach item="id" collection="list" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <select id="selectServerNameByIds" resultType="java.lang.String">
+        select name_tag from server_info where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </select>
+
+    <insert id="insertServerInfo" parameterType="ServerInfo" useGeneratedKeys="true" keyProperty="id">
+        insert into server_info
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="uuid != null and uuid != ''">uuid,</if>
+            <if test="nameTag != null and nameTag != ''">name_tag,</if>
+            <if test="playAddress != null and playAddress != ''">play_address,</if>
+            <if test="playAddressPort != null">play_address_port,</if>
+            <if test="serverVersion != null and serverVersion != ''">server_version,</if>
+            <if test="serverCore != null and serverCore != ''">server_core,</if>
+            <if test="ip != null and ip != ''">ip,</if>
+            <if test="rconPort != null">rcon_port,</if>
+            <if test="rconPassword != null and rconPassword != ''">rcon_password,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="status != null">status,</if>
+            <if test="remark != null">remark,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="uuid != null and uuid != ''">#{uuid},</if>
+            <if test="nameTag != null and nameTag != ''">#{nameTag},</if>
+            <if test="playAddress != null and playAddress != ''">#{playAddress},</if>
+            <if test="playAddressPort != null">#{playAddressPort},</if>
+            <if test="serverVersion != null and serverVersion != ''">#{serverVersion},</if>
+            <if test="serverCore != null and serverCore != ''">#{serverCore},</if>
+            <if test="ip != null and ip != ''">#{ip},</if>
+            <if test="rconPort != null">#{rconPort},</if>
+            <if test="rconPassword != null and rconPassword != ''">#{rconPassword},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="status != null">#{status},</if>
+            <if test="remark != null">#{remark},</if>
+        </trim>
+    </insert>
+
+    <update id="updateServerInfo" parameterType="ServerInfo">
+        update server_info
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="uuid != null and uuid != ''">uuid = #{uuid},</if>
+            <if test="nameTag != null and nameTag != ''">name_tag = #{nameTag},</if>
+            <if test="playAddress != null and playAddress != ''">play_address = #{playAddress},</if>
+            <if test="playAddressPort != null">play_address_port = #{playAddressPort},</if>
+            <if test="serverVersion != null and serverVersion != ''">server_version = #{serverVersion},</if>
+            <if test="serverCore != null and serverCore != ''">server_core = #{serverCore},</if>
+            <if test="ip != null and ip != ''">ip = #{ip},</if>
+            <if test="rconPort != null">rcon_port = #{rconPort},</if>
+            <if test="rconPassword != null and rconPassword != ''">rcon_password = #{rconPassword},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteServerInfoById" parameterType="Long">
+        delete
+        from server_info
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteServerInfoByIds" parameterType="String">
+        delete from server_info where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

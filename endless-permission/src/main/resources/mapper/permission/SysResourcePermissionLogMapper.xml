@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.permission.mapper.SysResourcePermissionLogMapper">
+
+    <resultMap type="cc.endmc.permission.domain.SysResourcePermissionLog" id="SysResourcePermissionLogResult">
+        <id property="id" column="id"/>
+        <result property="userId" column="user_id"/>
+        <result property="userName" column="user_name"/>
+        <result property="resourceType" column="resource_type"/>
+        <result property="resourceId" column="resource_id"/>
+        <result property="resourceName" column="resource_name"/>
+        <result property="actionType" column="action_type"/>
+        <result property="targetType" column="target_type"/>
+        <result property="targetId" column="target_id"/>
+        <result property="targetName" column="target_name"/>
+        <result property="permissionDetail" column="permission_detail"/>
+        <result property="ipAddress" column="ip_address"/>
+        <result property="status" column="status"/>
+        <result property="errorMsg" column="error_msg"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <sql id="selectVo">
+        select id, user_id, user_name, resource_type, resource_id, resource_name, action_type,
+               target_type, target_id, target_name, permission_detail, ip_address, status, error_msg, create_time
+        from sys_resource_permission_log
+    </sql>
+
+    <select id="selectById" resultMap="SysResourcePermissionLogResult">
+        <include refid="selectVo"/> where id = #{id}
+    </select>
+
+    <select id="selectList" resultMap="SysResourcePermissionLogResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="userId != null">and user_id = #{userId}</if>
+            <if test="userName != null and userName != ''">
+                and user_name like concat('%', #{userName}, '%')
+            </if>
+            <if test="resourceType != null and resourceType != ''">and resource_type = #{resourceType}</if>
+            <if test="resourceId != null">and resource_id = #{resourceId}</if>
+            <if test="resourceName != null and resourceName != ''">
+                and resource_name like concat('%', #{resourceName}, '%')
+            </if>
+            <if test="actionType != null and actionType != ''">and action_type = #{actionType}</if>
+            <if test="targetType != null and targetType != ''">and target_type = #{targetType}</if>
+            <if test="targetId != null">and target_id = #{targetId}</if>
+            <if test="status != null and status != ''">and status = #{status}</if>
+            <if test="params != null and params.beginTime != null and params.beginTime != ''">
+                and create_time &gt;= #{params.beginTime}
+            </if>
+            <if test="params != null and params.endTime != null and params.endTime != ''">
+                and create_time &lt;= #{params.endTime}
+            </if>
+        </where>
+        order by create_time desc
+    </select>
+
+    <select id="selectByResource" resultMap="SysResourcePermissionLogResult">
+        <include refid="selectVo"/>
+        where resource_type = #{resourceType} and resource_id = #{resourceId}
+        order by create_time desc
+    </select>
+
+    <select id="selectByTarget" resultMap="SysResourcePermissionLogResult">
+        <include refid="selectVo"/>
+        where target_type = #{targetType} and target_id = #{targetId}
+        order by create_time desc
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into sys_resource_permission_log (
+            user_id, user_name, resource_type, resource_id, resource_name, action_type,
+            target_type, target_id, target_name, permission_detail, ip_address, status, error_msg, create_time
+        ) values (
+            #{userId}, #{userName}, #{resourceType}, #{resourceId}, #{resourceName}, #{actionType},
+            #{targetType}, #{targetId}, #{targetName}, #{permissionDetail}, #{ipAddress}, #{status}, #{errorMsg}, #{createTime}
+        )
+    </insert>
+
+    <delete id="deleteById">delete from sys_resource_permission_log where id = #{id}</delete>
+    <delete id="deleteByIds">
+        delete from sys_resource_permission_log where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <!-- 清理指定天数之前的日志 -->
+    <delete id="cleanLogBeforeDays">
+        delete from sys_resource_permission_log where create_time &lt; date_sub(now(), interval #{days} day)
+    </delete>
+</mapper>

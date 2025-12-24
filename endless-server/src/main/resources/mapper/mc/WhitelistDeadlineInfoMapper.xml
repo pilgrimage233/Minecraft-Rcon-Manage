@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.permission.WhitelistDeadlineInfoMapper">
+
+    <resultMap type="WhitelistDeadlineInfo" id="WhitelistDeadlineInfoResult">
+        <result property="id" column="id"/>
+        <result property="whitelistId" column="whitelist_id"/>
+        <result property="userName" column="user_name"/>
+        <result property="startTime" column="start_time"/>
+        <result property="endTime" column="end_time"/>
+        <result property="delFlag" column="del_flag"/>
+        <result property="createBy" column="create_by"/>
+        <result property="updateBv" column="update_bv"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectWhitelistDeadlineInfoVo">
+        select id,
+               whitelist_id,
+               user_name,
+               start_time,
+               end_time,
+               del_flag,
+               create_by,
+               update_bv,
+               create_time,
+               update_time,
+               remark
+        from whitelist_deadline_info
+    </sql>
+
+    <select id="selectWhitelistDeadlineInfoList" parameterType="WhitelistDeadlineInfo"
+            resultMap="WhitelistDeadlineInfoResult">
+        <include refid="selectWhitelistDeadlineInfoVo"/>
+        <where>
+            <if test="whitelistId != null ">
+                and whitelist_id = #{whitelistId}
+            </if>
+            <if test="userName != null  and userName != ''">
+                and user_name like concat('%', #{userName}, '%')
+            </if>
+            <if test="startTime != null ">
+                and start_time = #{startTime}
+            </if>
+            <if test="endTime != null ">
+                and end_time = #{endTime}
+            </if>
+            <if test="delFlag != null ">
+                and del_flag = #{delFlag}
+            </if>
+            <if test="updateBv != null  and updateBv != ''">
+                and update_bv = #{updateBv}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectWhitelistDeadlineInfoById" parameterType="Long"
+            resultMap="WhitelistDeadlineInfoResult">
+        <include refid="selectWhitelistDeadlineInfoVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertWhitelistDeadlineInfo" parameterType="WhitelistDeadlineInfo" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into whitelist_deadline_info
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="whitelistId != null">whitelist_id,
+            </if>
+            <if test="userName != null">user_name,
+            </if>
+            <if test="startTime != null">start_time,
+            </if>
+            <if test="endTime != null">end_time,
+            </if>
+            <if test="delFlag != null">del_flag,
+            </if>
+            <if test="createBy != null">create_by,
+            </if>
+            <if test="updateBv != null">update_bv,
+            </if>
+            <if test="createTime != null">create_time,
+            </if>
+            <if test="updateTime != null">update_time,
+            </if>
+            <if test="remark != null">remark,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="whitelistId != null">#{whitelistId},
+            </if>
+            <if test="userName != null">#{userName},
+            </if>
+            <if test="startTime != null">#{startTime},
+            </if>
+            <if test="endTime != null">#{endTime},
+            </if>
+            <if test="delFlag != null">#{delFlag},
+            </if>
+            <if test="createBy != null">#{createBy},
+            </if>
+            <if test="updateBv != null">#{updateBv},
+            </if>
+            <if test="createTime != null">#{createTime},
+            </if>
+            <if test="updateTime != null">#{updateTime},
+            </if>
+            <if test="remark != null">#{remark},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateWhitelistDeadlineInfo" parameterType="WhitelistDeadlineInfo">
+        update whitelist_deadline_info
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="whitelistId != null">whitelist_id =
+                #{whitelistId},
+            </if>
+            <if test="userName != null">user_name =
+                #{userName},
+            </if>
+            <if test="startTime != null">start_time =
+                #{startTime},
+            </if>
+            <if test="endTime != null">end_time =
+                #{endTime},
+            </if>
+            <if test="delFlag != null">del_flag =
+                #{delFlag},
+            </if>
+            <if test="createBy != null">create_by =
+                #{createBy},
+            </if>
+            <if test="updateBv != null">update_bv =
+                #{updateBv},
+            </if>
+            <if test="createTime != null">create_time =
+                #{createTime},
+            </if>
+            <if test="updateTime != null">update_time =
+                #{updateTime},
+            </if>
+            <if test="remark != null">remark =
+                #{remark},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteWhitelistDeadlineInfoById" parameterType="Long">
+        delete
+        from whitelist_deadline_info
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteWhitelistDeadlineInfoByIds" parameterType="String">
+        delete from whitelist_deadline_info where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <select id="selectExpiredWhitelistDeadlineInfoList" resultMap="WhitelistDeadlineInfoResult">
+        <include refid="selectWhitelistDeadlineInfoVo"/>
+        where end_time <![CDATA[ < ]]> NOW()
+        and del_flag != 1
+    </select>
+</mapper>

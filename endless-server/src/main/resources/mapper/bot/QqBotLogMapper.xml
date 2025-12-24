@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.bot.QqBotLogMapper">
+
+    <resultMap type="QqBotLog" id="QqBotLogResult">
+        <result property="id" column="id"/>
+        <result property="botId" column="bot_id"/>
+        <result property="logType" column="log_type"/>
+        <result property="messageId" column="message_id"/>
+        <result property="senderId" column="sender_id"/>
+        <result property="senderType" column="sender_type"/>
+        <result property="receiverId" column="receiver_id"/>
+        <result property="receiverType" column="receiver_type"/>
+        <result property="messageContent" column="message_content"/>
+        <result property="messageType" column="message_type"/>
+        <result property="methodName" column="method_name"/>
+        <result property="methodParams" column="method_params"/>
+        <result property="methodResult" column="method_result"/>
+        <result property="executionTime" column="execution_time"/>
+        <result property="errorMessage" column="error_message"/>
+        <result property="stackTrace" column="stack_trace"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <sql id="selectQqBotLogVo">
+        select id,
+               bot_id,
+               log_type,
+               message_id,
+               sender_id,
+               sender_type,
+               receiver_id,
+               receiver_type,
+               message_content,
+               message_type,
+               method_name,
+               method_params,
+               method_result,
+               execution_time,
+               error_message,
+               stack_trace,
+               create_time
+        from qq_bot_log
+    </sql>
+
+    <select id="selectQqBotLogList" parameterType="QqBotLog" resultMap="QqBotLogResult">
+        <include refid="selectQqBotLogVo"/>
+        <where>
+            <if test="botId != null ">
+                and bot_id = #{botId}
+            </if>
+            <if test="logType != null ">
+                and log_type = #{logType}
+            </if>
+            <if test="messageId != null  and messageId != ''">
+                and message_id = #{messageId}
+            </if>
+            <if test="senderId != null  and senderId != ''">
+                and sender_id = #{senderId}
+            </if>
+            <if test="senderType != null  and senderType != ''">
+                and sender_type = #{senderType}
+            </if>
+            <if test="receiverId != null  and receiverId != ''">
+                and receiver_id = #{receiverId}
+            </if>
+            <if test="receiverType != null  and receiverType != ''">
+                and receiver_type = #{receiverType}
+            </if>
+            <if test="messageContent != null  and messageContent != ''">
+                and message_content = #{messageContent}
+            </if>
+            <if test="messageType != null  and messageType != ''">
+                and message_type = #{messageType}
+            </if>
+            <if test="methodName != null  and methodName != ''">
+                and method_name like concat('%', #{methodName}, '%')
+            </if>
+            <if test="methodParams != null  and methodParams != ''">
+                and method_params = #{methodParams}
+            </if>
+            <if test="methodResult != null  and methodResult != ''">
+                and method_result = #{methodResult}
+            </if>
+            <if test="executionTime != null ">
+                and execution_time = #{executionTime}
+            </if>
+            <if test="errorMessage != null  and errorMessage != ''">
+                and error_message = #{errorMessage}
+            </if>
+            <if test="stackTrace != null  and stackTrace != ''">
+                and stack_trace = #{stackTrace}
+            </if>
+            <if test="params != null">
+                <if test="params.beginTime != null and params.beginTime != ''">
+                    and DATE_FORMAT(create_time,'%Y-%m-%d') &gt;= DATE_FORMAT(#{params.beginTime},'%Y-%m-%d')
+                </if>
+                <if test="params.endTime != null and params.endTime != ''">
+                    and DATE_FORMAT(create_time,'%Y-%m-%d') &lt;= DATE_FORMAT(#{params.endTime},'%Y-%m-%d')
+                </if>
+            </if>
+        </where>
+        ORDER BY create_time DESC
+    </select>
+
+    <select id="selectQqBotLogById" parameterType="Long"
+            resultMap="QqBotLogResult">
+        <include refid="selectQqBotLogVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertQqBotLog" parameterType="QqBotLog" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into qq_bot_log
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="botId != null">bot_id,
+            </if>
+            <if test="logType != null">log_type,
+            </if>
+            <if test="messageId != null">message_id,
+            </if>
+            <if test="senderId != null">sender_id,
+            </if>
+            <if test="senderType != null">sender_type,
+            </if>
+            <if test="receiverId != null">receiver_id,
+            </if>
+            <if test="receiverType != null">receiver_type,
+            </if>
+            <if test="messageContent != null">message_content,
+            </if>
+            <if test="messageType != null">message_type,
+            </if>
+            <if test="methodName != null">method_name,
+            </if>
+            <if test="methodParams != null">method_params,
+            </if>
+            <if test="methodResult != null">method_result,
+            </if>
+            <if test="executionTime != null">execution_time,
+            </if>
+            <if test="errorMessage != null">error_message,
+            </if>
+            <if test="stackTrace != null">stack_trace,
+            </if>
+            <if test="createTime != null">create_time,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="botId != null">#{botId},
+            </if>
+            <if test="logType != null">#{logType},
+            </if>
+            <if test="messageId != null">#{messageId},
+            </if>
+            <if test="senderId != null">#{senderId},
+            </if>
+            <if test="senderType != null">#{senderType},
+            </if>
+            <if test="receiverId != null">#{receiverId},
+            </if>
+            <if test="receiverType != null">#{receiverType},
+            </if>
+            <if test="messageContent != null">#{messageContent},
+            </if>
+            <if test="messageType != null">#{messageType},
+            </if>
+            <if test="methodName != null">#{methodName},
+            </if>
+            <if test="methodParams != null">#{methodParams},
+            </if>
+            <if test="methodResult != null">#{methodResult},
+            </if>
+            <if test="executionTime != null">#{executionTime},
+            </if>
+            <if test="errorMessage != null">#{errorMessage},
+            </if>
+            <if test="stackTrace != null">#{stackTrace},
+            </if>
+            <if test="createTime != null">#{createTime},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateQqBotLog" parameterType="QqBotLog">
+        update qq_bot_log
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="botId != null">bot_id =
+                #{botId},
+            </if>
+            <if test="logType != null">log_type =
+                #{logType},
+            </if>
+            <if test="messageId != null">message_id =
+                #{messageId},
+            </if>
+            <if test="senderId != null">sender_id =
+                #{senderId},
+            </if>
+            <if test="senderType != null">sender_type =
+                #{senderType},
+            </if>
+            <if test="receiverId != null">receiver_id =
+                #{receiverId},
+            </if>
+            <if test="receiverType != null">receiver_type =
+                #{receiverType},
+            </if>
+            <if test="messageContent != null">message_content =
+                #{messageContent},
+            </if>
+            <if test="messageType != null">message_type =
+                #{messageType},
+            </if>
+            <if test="methodName != null">method_name =
+                #{methodName},
+            </if>
+            <if test="methodParams != null">method_params =
+                #{methodParams},
+            </if>
+            <if test="methodResult != null">method_result =
+                #{methodResult},
+            </if>
+            <if test="executionTime != null">execution_time =
+                #{executionTime},
+            </if>
+            <if test="errorMessage != null">error_message =
+                #{errorMessage},
+            </if>
+            <if test="stackTrace != null">stack_trace =
+                #{stackTrace},
+            </if>
+            <if test="createTime != null">create_time =
+                #{createTime},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteQqBotLogById" parameterType="Long">
+        delete
+        from qq_bot_log
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteQqBotLogByIds" parameterType="String">
+        delete from qq_bot_log where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

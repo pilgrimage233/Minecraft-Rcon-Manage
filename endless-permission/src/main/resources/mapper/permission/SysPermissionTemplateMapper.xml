@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.permission.mapper.SysPermissionTemplateMapper">
+
+    <resultMap type="cc.endmc.permission.domain.SysPermissionTemplate" id="SysPermissionTemplateResult">
+        <id property="id" column="id"/>
+        <result property="templateName" column="template_name"/>
+        <result property="templateKey" column="template_key"/>
+        <result property="resourceType" column="resource_type"/>
+        <result property="permissionConfig" column="permission_config"/>
+        <result property="description" column="description"/>
+        <result property="isSystem" column="is_system"/>
+        <result property="status" column="status"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectVo">
+        select id, template_name, template_key, resource_type, permission_config, description,
+               is_system, status, create_by, create_time, update_by, update_time, remark
+        from sys_permission_template
+    </sql>
+
+    <select id="selectById" resultMap="SysPermissionTemplateResult">
+        <include refid="selectVo"/> where id = #{id}
+    </select>
+
+    <select id="selectByKey" resultMap="SysPermissionTemplateResult">
+        <include refid="selectVo"/> where template_key = #{templateKey}
+    </select>
+
+    <select id="selectList" resultMap="SysPermissionTemplateResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="templateName != null and templateName != ''">
+                and template_name like concat('%', #{templateName}, '%')
+            </if>
+            <if test="templateKey != null and templateKey != ''">
+                and template_key = #{templateKey}
+            </if>
+            <if test="resourceType != null and resourceType != ''">
+                and resource_type = #{resourceType}
+            </if>
+            <if test="status != null and status != ''">and status = #{status}</if>
+        </where>
+        order by is_system desc, create_time desc
+    </select>
+
+    <select id="selectByResourceType" resultMap="SysPermissionTemplateResult">
+        <include refid="selectVo"/>
+        where resource_type = #{resourceType} and status = '0'
+        order by is_system desc, create_time desc
+    </select>
+
+    <select id="checkTemplateKeyUnique" resultType="int">
+        select count(*) from sys_permission_template where template_key = #{templateKey}
+        <if test="id != null">and id != #{id}</if>
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into sys_permission_template (
+            template_name, template_key, resource_type, permission_config, description,
+            is_system, status, create_by, create_time, remark
+        ) values (
+            #{templateName}, #{templateKey}, #{resourceType}, #{permissionConfig}, #{description},
+            #{isSystem}, #{status}, #{createBy}, #{createTime}, #{remark}
+        )
+    </insert>
+
+    <update id="update">
+        update sys_permission_template
+        <set>
+            <if test="templateName != null">template_name = #{templateName},</if>
+            <if test="templateKey != null">template_key = #{templateKey},</if>
+            <if test="resourceType != null">resource_type = #{resourceType},</if>
+            <if test="permissionConfig != null">permission_config = #{permissionConfig},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="isSystem != null">is_system = #{isSystem},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">delete from sys_permission_template where id = #{id} and is_system = 0</delete>
+    <delete id="deleteByIds">
+        delete from sys_permission_template where is_system = 0 and id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+</mapper>

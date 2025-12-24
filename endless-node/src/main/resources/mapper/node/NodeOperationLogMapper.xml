@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.node.mapper.NodeOperationLogMapper">
+
+    <resultMap type="NodeOperationLog" id="NodeOperationLogResult">
+        <result property="id" column="id"/>
+        <result property="nodeId" column="node_id"/>
+        <result property="operationType" column="operation_type"/>
+        <result property="operationTarget" column="operation_target"/>
+        <result property="nodeObjId" column="node_obj_id"/>
+        <result property="gameServerObjId" column="game_server_obj_id"/>
+        <result property="operationName" column="operation_name"/>
+        <result property="methodName" column="method_name"/>
+        <result property="operationParam" column="operation_param"/>
+        <result property="operationResult" column="operation_result"/>
+        <result property="executionTime" column="execution_time"/>
+        <result property="operationIp" column="operation_ip"/>
+        <result property="status" column="status"/>
+        <result property="errorMsg" column="error_msg"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+        <result property="delFlag" column="del_flag"/>
+    </resultMap>
+
+    <sql id="selectNodeOperationLogVo">
+        select id,
+               node_id,
+               operation_type,
+               operation_target,
+               node_obj_id,
+               game_server_obj_id,
+               operation_name,
+               method_name,
+               operation_param,
+               operation_result,
+               execution_time,
+               operation_ip,
+               status,
+               error_msg,
+               create_by,
+               create_time,
+               update_by,
+               update_time,
+               remark,
+               del_flag
+        from node_operation_log
+    </sql>
+
+    <select id="selectNodeOperationLogList" parameterType="NodeOperationLog" resultMap="NodeOperationLogResult">
+        <include refid="selectNodeOperationLogVo"/>
+        <where>
+            <if test="nodeId != null ">
+                and node_id = #{nodeId}
+            </if>
+            <if test="operationType != null  and operationType != ''">
+                and operation_type = #{operationType}
+            </if>
+            <if test="operationTarget != null  and operationTarget != ''">
+                and operation_target = #{operationTarget}
+            </if>
+            <if test="nodeObjId != null ">
+                and node_obj_id = #{nodeObjId}
+            </if>
+            <if test="gameServerObjId != null ">
+                and game_server_obj_id = #{gameServerObjId}
+            </if>
+            <if test="operationName != null  and operationName != ''">
+                and operation_name like concat('%', #{operationName}, '%')
+            </if>
+            <if test="methodName != null  and methodName != ''">
+                and method_name like concat('%', #{methodName}, '%')
+            </if>
+            <if test="operationParam != null  and operationParam != ''">
+                and operation_param = #{operationParam}
+            </if>
+            <if test="operationResult != null  and operationResult != ''">
+                and operation_result = #{operationResult}
+            </if>
+            <if test="executionTime != null ">
+                and execution_time = #{executionTime}
+            </if>
+            <if test="operationIp != null  and operationIp != ''">
+                and operation_ip = #{operationIp}
+            </if>
+            <if test="status != null  and status != ''">
+                and status = #{status}
+            </if>
+            <if test="errorMsg != null  and errorMsg != ''">
+                and error_msg = #{errorMsg}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectNodeOperationLogById" parameterType="Long"
+            resultMap="NodeOperationLogResult">
+        <include refid="selectNodeOperationLogVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertNodeOperationLog" parameterType="NodeOperationLog" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into node_operation_log
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="nodeId != null">node_id,
+            </if>
+            <if test="operationType != null and operationType != ''">operation_type,
+            </if>
+            <if test="operationTarget != null and operationTarget != ''">operation_target,
+            </if>
+            <if test="nodeObjId != null">node_obj_id,
+            </if>
+            <if test="gameServerObjId != null">game_server_obj_id,
+            </if>
+            <if test="operationName != null and operationName != ''">operation_name,
+            </if>
+            <if test="methodName != null and methodName != ''">method_name,
+            </if>
+            <if test="operationParam != null">operation_param,
+            </if>
+            <if test="operationResult != null">operation_result,
+            </if>
+            <if test="executionTime != null">execution_time,
+            </if>
+            <if test="operationIp != null">operation_ip,
+            </if>
+            <if test="status != null">status,
+            </if>
+            <if test="errorMsg != null">error_msg,
+            </if>
+            <if test="createBy != null">create_by,
+            </if>
+            <if test="createTime != null">create_time,
+            </if>
+            <if test="updateBy != null">update_by,
+            </if>
+            <if test="updateTime != null">update_time,
+            </if>
+            <if test="remark != null">remark,
+            </if>
+            <if test="delFlag != null">del_flag,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="nodeId != null">#{nodeId},
+            </if>
+            <if test="operationType != null and operationType != ''">#{operationType},
+            </if>
+            <if test="operationTarget != null and operationTarget != ''">#{operationTarget},
+            </if>
+            <if test="nodeObjId != null">#{nodeObjId},
+            </if>
+            <if test="gameServerObjId != null">#{gameServerObjId},
+            </if>
+            <if test="operationName != null and operationName != ''">#{operationName},
+            </if>
+            <if test="methodName != null and methodName != ''">#{methodName},
+            </if>
+            <if test="operationParam != null">#{operationParam},
+            </if>
+            <if test="operationResult != null">#{operationResult},
+            </if>
+            <if test="executionTime != null">#{executionTime},
+            </if>
+            <if test="operationIp != null">#{operationIp},
+            </if>
+            <if test="status != null">#{status},
+            </if>
+            <if test="errorMsg != null">#{errorMsg},
+            </if>
+            <if test="createBy != null">#{createBy},
+            </if>
+            <if test="createTime != null">#{createTime},
+            </if>
+            <if test="updateBy != null">#{updateBy},
+            </if>
+            <if test="updateTime != null">#{updateTime},
+            </if>
+            <if test="remark != null">#{remark},
+            </if>
+            <if test="delFlag != null">#{delFlag},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateNodeOperationLog" parameterType="NodeOperationLog">
+        update node_operation_log
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="nodeId != null">node_id =
+                #{nodeId},
+            </if>
+            <if test="operationType != null and operationType != ''">operation_type =
+                #{operationType},
+            </if>
+            <if test="operationTarget != null and operationTarget != ''">operation_target =
+                #{operationTarget},
+            </if>
+            <if test="nodeObjId != null">node_obj_id =
+                #{nodeObjId},
+            </if>
+            <if test="gameServerObjId != null">game_server_obj_id =
+                #{gameServerObjId},
+            </if>
+            <if test="operationName != null and operationName != ''">operation_name =
+                #{operationName},
+            </if>
+            <if test="methodName != null and methodName != ''">method_name =
+                #{methodName},
+            </if>
+            <if test="operationParam != null">operation_param =
+                #{operationParam},
+            </if>
+            <if test="operationResult != null">operation_result =
+                #{operationResult},
+            </if>
+            <if test="executionTime != null">execution_time =
+                #{executionTime},
+            </if>
+            <if test="operationIp != null">operation_ip =
+                #{operationIp},
+            </if>
+            <if test="status != null">status =
+                #{status},
+            </if>
+            <if test="errorMsg != null">error_msg =
+                #{errorMsg},
+            </if>
+            <if test="createBy != null">create_by =
+                #{createBy},
+            </if>
+            <if test="createTime != null">create_time =
+                #{createTime},
+            </if>
+            <if test="updateBy != null">update_by =
+                #{updateBy},
+            </if>
+            <if test="updateTime != null">update_time =
+                #{updateTime},
+            </if>
+            <if test="remark != null">remark =
+                #{remark},
+            </if>
+            <if test="delFlag != null">del_flag =
+                #{delFlag},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteNodeOperationLogById" parameterType="Long">
+        delete
+        from node_operation_log
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteNodeOperationLogByIds" parameterType="String">
+        delete from node_operation_log where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

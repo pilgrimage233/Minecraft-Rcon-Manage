@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title id="page-title">加载中...</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-light: #f5f5f7;
+            --bg-dark: #1d1d1f;
+            --card-light: rgba(255, 255, 255, 0.7);
+            --card-dark: rgba(30, 30, 30, 0.7);
+            --text-light: #1d1d1f;
+            --text-dark: #f5f5f7;
+            --accent: #0071e3;
+            --accent-hover: #0077ed;
+            --shadow-light: rgba(0, 0, 0, 0.1);
+            --shadow-dark: rgba(0, 0, 0, 0.3);
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg-light);
+            color: var(--text-light);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            transition: background 0.3s ease, color 0.3s ease;
+            overflow-x: hidden;
+        }
+
+        body.dark {
+            background: var(--bg-dark);
+            color: var(--text-dark);
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle at 30% 50%, rgba(0, 113, 227, 0.1) 0%, transparent 50%),
+                        radial-gradient(circle at 70% 50%, rgba(175, 82, 222, 0.1) 0%, transparent 50%);
+            animation: float 20s ease-in-out infinite;
+            z-index: 0;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            33% { transform: translate(30px, -30px) rotate(120deg); }
+            66% { transform: translate(-20px, 20px) rotate(240deg); }
+        }
+
+        .container {
+            position: relative;
+            max-width: 750px;
+            width: 100%;
+            background: var(--card-light);
+            backdrop-filter: blur(40px) saturate(180%);
+            -webkit-backdrop-filter: blur(40px) saturate(180%);
+            border-radius: 24px;
+            padding: 48px 40px;
+            box-shadow: 0 20px 60px var(--shadow-light);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+            z-index: 1;
+            animation: slideUp 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        body.dark .container {
+            background: var(--card-dark);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 20px 60px var(--shadow-dark);
+        }
+
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 40px;
+        }
+
+        .theme-toggle {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            border: none;
+            background: rgba(0, 0, 0, 0.04);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        body.dark .theme-toggle {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .theme-toggle:hover {
+            background: rgba(0, 0, 0, 0.08);
+            transform: scale(1.05);
+        }
+
+        body.dark .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .theme-toggle i {
+            font-size: 18px;
+            color: var(--text-light);
+            transition: transform 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+        }
+
+        body.dark .theme-toggle i {
+            color: var(--text-dark);
+        }
+
+        .theme-toggle.rotating i {
+            transform: rotate(360deg);
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 36px;
+        }
+
+        .logo {
+            width: 80px;
+            height: 80px;
+            margin: 0 auto 20px;
+            background: linear-gradient(135deg, var(--accent) 0%, #af52de 100%);
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 10px 30px rgba(0, 113, 227, 0.3);
+            animation: pulse 3s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        .logo i {
+            font-size: 38px;
+            color: white;
+        }
+
+        h1 {
+            font-size: 36px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--text-light) 0%, var(--text-light) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        body.dark h1 {
+            background: linear-gradient(135deg, var(--text-dark) 0%, var(--text-dark) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 17px;
+            color: #86868b;
+            font-weight: 400;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .info-card {
+            background: rgba(0, 0, 0, 0.02);
+            border-radius: 16px;
+            padding: 20px;
+            display: flex;
+            align-items: flex-start;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            border: 1px solid rgba(0, 0, 0, 0.04);
+        }
+
+        body.dark .info-card {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .info-card:hover {
+            transform: translateY(-2px);
+            background: rgba(0, 0, 0, 0.04);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
+        }
+
+        body.dark .info-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .info-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent) 0%, #af52de 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 16px;
+            flex-shrink: 0;
+        }
+
+        .info-icon.green {
+            background: linear-gradient(135deg, #34c759 0%, #30d158 100%);
+        }
+
+        .info-icon.orange {
+            background: linear-gradient(135deg, #ff9500 0%, #ff9f0a 100%);
+        }
+
+        .info-icon.purple {
+            background: linear-gradient(135deg, #af52de 0%, #bf5af2 100%);
+        }
+
+        .info-icon.red {
+            background: linear-gradient(135deg, #ff3b30 0%, #ff453a 100%);
+        }
+
+        .info-icon i {
+            font-size: 16px;
+            color: white;
+        }
+
+        .info-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .info-title {
+            font-size: 14px;
+            color: #86868b;
+            margin-bottom: 4px;
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-size: 17px;
+            font-weight: 600;
+            color: var(--text-light);
+            word-break: break-word;
+        }
+
+        body.dark .info-value {
+            color: var(--text-dark);
+        }
+
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 8px 16px;
+            background: var(--accent);
+            color: white;
+            border-radius: 100px;
+            font-size: 14px;
+            font-weight: 600;
+            gap: 8px;
+        }
+
+        .badge i {
+            font-size: 12px;
+        }
+
+        .memory-bar {
+            width: 100%;
+            height: 6px;
+            background: rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+
+        body.dark .memory-bar {
+            background: rgba(255, 255, 255, 0.1);
+        }
+
+        .memory-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #34c759 0%, #30d158 100%);
+            border-radius: 10px;
+            transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .memory-bar-fill.warning {
+            background: linear-gradient(90deg, #ff9500 0%, #ff9f0a 100%);
+        }
+
+        .memory-bar-fill.danger {
+            background: linear-gradient(90deg, #ff3b30 0%, #ff453a 100%);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-top: 24px;
+            padding: 20px;
+            background: rgba(52, 199, 89, 0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(52, 199, 89, 0.2);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #34c759;
+            animation: blink 2s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .status-text {
+            font-size: 15px;
+            font-weight: 500;
+            color: #34c759;
+        }
+
+        .system-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(0, 0, 0, 0.06);
+        }
+
+        body.dark .system-section {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: #86868b;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 16px;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 40px 30px;
+            }
+
+            h1 {
+                font-size: 32px;
+            }
+
+            .subtitle {
+                font-size: 15px;
+            }
+
+            .logo {
+                width: 80px;
+                height: 80px;
+            }
+
+            .logo i {
+                font-size: 36px;
+            }
+
+            .info-card {
+                padding: 20px;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @supports not ((-webkit-backdrop-filter: none) or (backdrop-filter: none)) {
+            .container {
+                background: rgba(255, 255, 255, 0.95);
+            }
+
+            body.dark .container {
+                background: rgba(30, 30, 30, 0.95);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div></div>
+            <button class="theme-toggle" aria-label="切换主题">
+                <i class="fas fa-moon"></i>
+            </button>
+        </div>
+
+        <div class="logo-section">
+            <div class="logo">
+                <i class="fas fa-shield-alt"></i>
+            </div>
+            <h1 id="sys-name">系统首页</h1>
+            <p class="subtitle">API Service</p>
+        </div>
+
+        <div class="info-grid">
+            <div class="info-card">
+                <div class="info-icon">
+                    <i class="fas fa-server"></i>
+                </div>
+                <div class="info-content">
+                    <div class="info-title">系统名称</div>
+                    <div class="info-value" id="sys-name-value">加载中...</div>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-icon purple">
+                    <i class="fas fa-code-branch"></i>
+                </div>
+                <div class="info-content">
+                    <div class="info-title">系统版本</div>
+                    <div class="info-value">
+                        <span class="badge">
+                            <i class="fas fa-tag"></i>
+                            <span id="version-text">v0.0.0</span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-icon green">
+                    <i class="fas fa-memory"></i>
+                </div>
+                <div class="info-content">
+                    <div class="info-title">JVM 内存</div>
+                    <div class="info-value" id="memory-text">加载中...</div>
+                    <div class="memory-bar">
+                        <div class="memory-bar-fill" id="memory-bar" style="width: 0%"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-icon orange">
+                    <i class="fas fa-clock"></i>
+                </div>
+                <div class="info-content">
+                    <div class="info-title">运行时间</div>
+                    <div class="info-value" id="uptime-text">加载中...</div>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-icon red">
+                    <i class="fas fa-microchip"></i>
+                </div>
+                <div class="info-content">
+                    <div class="info-title">CPU 核心</div>
+                    <div class="info-value" id="cpu-text">加载中...</div>
+                </div>
+            </div>
+
+            <div class="info-card">
+                <div class="info-icon">
+                    <i class="fab fa-java"></i>
+                </div>
+                <div class="info-content">
+                    <div class="info-title">Java 版本</div>
+                    <div class="info-value" id="java-text">加载中...</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="system-section">
+            <div class="section-title">操作系统</div>
+            <div class="info-grid">
+                <div class="info-card">
+                    <div class="info-icon purple">
+                        <i class="fas fa-desktop"></i>
+                    </div>
+                    <div class="info-content">
+                        <div class="info-title">系统信息</div>
+                        <div class="info-value" id="os-text">加载中...</div>
+                    </div>
+                </div>
+
+                <div class="info-card">
+                    <div class="info-icon green">
+                        <i class="fas fa-calendar-alt"></i>
+                    </div>
+                    <div class="info-content">
+                        <div class="info-title">服务器时间</div>
+                        <div class="info-value" id="server-time">加载中...</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-indicator">
+            <div class="status-dot"></div>
+            <div class="status-text">系统运行正常</div>
+        </div>
+    </div>
+
+    <script>
+        // 主题切换
+        const themeToggle = document.querySelector('.theme-toggle');
+        const body = document.body;
+        const icon = themeToggle.querySelector('i');
+
+        const savedTheme = localStorage.getItem('theme');
+        if (savedTheme === 'dark') {
+            body.classList.add('dark');
+            icon.classList.remove('fa-moon');
+            icon.classList.add('fa-sun');
+        }
+
+        themeToggle.addEventListener('click', () => {
+            themeToggle.classList.add('rotating');
+
+            setTimeout(() => {
+                body.classList.toggle('dark');
+
+                if (body.classList.contains('dark')) {
+                    icon.classList.remove('fa-moon');
+                    icon.classList.add('fa-sun');
+                    localStorage.setItem('theme', 'dark');
+                } else {
+                    icon.classList.remove('fa-sun');
+                    icon.classList.add('fa-moon');
+                    localStorage.setItem('theme', 'light');
+                }
+            }, 250);
+
+            setTimeout(() => {
+                themeToggle.classList.remove('rotating');
+            }, 500);
+        });
+
+        // 格式化日期时间
+        function formatDateTime(dateStr) {
+            const date = new Date(dateStr);
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            const hours = String(date.getHours()).padStart(2, '0');
+            const minutes = String(date.getMinutes()).padStart(2, '0');
+            const seconds = String(date.getSeconds()).padStart(2, '0');
+            return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+        }
+
+        // 获取系统信息
+        function loadSystemInfo() {
+            fetch('/system/info', { credentials: 'same-origin' })
+                .then(r => r.json())
+                .then(info => {
+                    // 基础信息
+                    const systemName = info.name || '系统首页';
+                    const systemVersion = info.version || '1.0.0';
+
+                    document.getElementById('page-title').textContent = systemName;
+                    document.getElementById('sys-name').textContent = systemName;
+                    document.getElementById('sys-name-value').textContent = systemName;
+                    document.getElementById('version-text').textContent = 'v' + systemVersion;
+
+                    // 内存信息
+                    if (info.memory) {
+                        const mem = info.memory;
+                        document.getElementById('memory-text').textContent =
+                            `${mem.used} / ${mem.total} (${mem.usagePercent}%)`;
+
+                        const memBar = document.getElementById('memory-bar');
+                        memBar.style.width = mem.usagePercent + '%';
+
+                        // 根据使用率改变颜色
+                        memBar.className = 'memory-bar-fill';
+                        if (mem.usagePercent > 80) {
+                            memBar.classList.add('danger');
+                        } else if (mem.usagePercent > 60) {
+                            memBar.classList.add('warning');
+                        }
+                    }
+
+                    // 运行时间
+                    if (info.uptime) {
+                        document.getElementById('uptime-text').textContent = info.uptime;
+                    }
+
+                    // CPU 核心
+                    if (info.cpuCores) {
+                        document.getElementById('cpu-text').textContent = info.cpuCores + ' 核';
+                    }
+
+                    // Java 版本
+                    if (info.javaVersion) {
+                        document.getElementById('java-text').textContent = info.javaVersion;
+                    }
+
+                    // 操作系统
+                    if (info.osName) {
+                        const osInfo = `${info.osName} ${info.osVersion || ''} (${info.osArch || ''})`;
+                        document.getElementById('os-text').textContent = osInfo;
+                    }
+
+                    // 服务器时间
+                    if (info.serverTime) {
+                        document.getElementById('server-time').textContent = formatDateTime(info.serverTime);
+                    }
+                })
+                .catch(err => {
+                    console.error('加载系统信息失败:', err);
+                    document.getElementById('page-title').textContent = '系统首页';
+                    document.getElementById('sys-name-value').textContent = '系统首页';
+                    document.getElementById('version-text').textContent = 'v1.0.0';
+                });
+        }
+
+        // 页面加载时获取信息
+        document.addEventListener('DOMContentLoaded', loadSystemInfo);
+
+        // 每30秒刷新一次数据
+        setInterval(loadSystemInfo, 30000);
+    </script>
+</body>
+</html>

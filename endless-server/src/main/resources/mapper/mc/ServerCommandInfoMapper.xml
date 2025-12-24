@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.server.ServerCommandInfoMapper">
+
+    <resultMap type="ServerCommandInfo" id="ServerCommandInfoResult">
+        <result property="id" column="id"/>
+        <result property="serverId" column="server_id"/>
+        <result property="createTime" column="create_time"/>
+        <result property="createBy" column="create_by"/>
+        <result property="onlineAddWhitelistCommand" column="online_add_whitelist_command"/>
+        <result property="offlineAddWhitelistCommand" column="offline_add_whitelist_command"/>
+        <result property="onlineRmWhitelistCommand" column="online_rm_whitelist_command"/>
+        <result property="offlineRmWhitelistCommand" column="offline_rm_whitelist_command"/>
+        <result property="onlineAddBanCommand" column="online_add_ban_command"/>
+        <result property="offlineAddBanCommand" column="offline_add_ban_command"/>
+        <result property="onlineRmBanCommand" column="online_rm_ban_command"/>
+        <result property="offlineRmBanCommand" column="offline_rm_ban_command"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="easyauth" column="easyauth"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectServerCommandInfoVo">
+        select id,
+               server_id,
+               create_time,
+               create_by,
+               online_add_whitelist_command,
+               offline_add_whitelist_command,
+               online_rm_whitelist_command,
+               offline_rm_whitelist_command,
+               online_add_ban_command,
+               offline_add_ban_command,
+               online_rm_ban_command,
+               offline_rm_ban_command,
+               update_time,
+               update_by,
+               easyauth,
+               remark
+        from server_command_info
+    </sql>
+
+    <select id="selectServerCommandInfoList" parameterType="ServerCommandInfo" resultMap="ServerCommandInfoResult">
+        <include refid="selectServerCommandInfoVo"/>
+        <where>
+            <if test="serverId != null ">
+                and server_id = #{serverId}
+            </if>
+            <if test="onlineAddWhitelistCommand != null  and onlineAddWhitelistCommand != ''">
+                and online_add_whitelist_command = #{onlineAddWhitelistCommand}
+            </if>
+            <if test="offlineAddWhitelistCommand != null  and offlineAddWhitelistCommand != ''">
+                and offline_add_whitelist_command = #{offlineAddWhitelistCommand}
+            </if>
+            <if test="onlineRmWhitelistCommand != null  and onlineRmWhitelistCommand != ''">
+                and online_rm_whitelist_command = #{onlineRmWhitelistCommand}
+            </if>
+            <if test="offlineRmWhitelistCommand != null  and offlineRmWhitelistCommand != ''">
+                and offline_rm_whitelist_command = #{offlineRmWhitelistCommand}
+            </if>
+            <if test="onlineAddBanCommand != null  and onlineAddBanCommand != ''">
+                and online_add_ban_command = #{onlineAddBanCommand}
+            </if>
+            <if test="offlineAddBanCommand != null  and offlineAddBanCommand != ''">
+                and offline_add_ban_command = #{offlineAddBanCommand}
+            </if>
+            <if test="onlineRmBanCommand != null  and onlineRmBanCommand != ''">
+                and online_rm_ban_command = #{onlineRmBanCommand}
+            </if>
+            <if test="offlineRmBanCommand != null  and offlineRmBanCommand != ''">
+                and offline_rm_ban_command = #{offlineRmBanCommand}
+            </if>
+            <if test="easyauth != null  and easyauth != ''">
+                and easyauth = #{easyauth}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectServerCommandInfoById" parameterType="Long"
+            resultMap="ServerCommandInfoResult">
+        <include refid="selectServerCommandInfoVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertServerCommandInfo" parameterType="ServerCommandInfo" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into server_command_info
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="serverId != null">server_id,
+            </if>
+            <if test="createTime != null">create_time,
+            </if>
+            <if test="createBy != null">create_by,
+            </if>
+            <if test="onlineAddWhitelistCommand != null">online_add_whitelist_command,
+            </if>
+            <if test="offlineAddWhitelistCommand != null">offline_add_whitelist_command,
+            </if>
+            <if test="onlineRmWhitelistCommand != null">online_rm_whitelist_command,
+            </if>
+            <if test="offlineRmWhitelistCommand != null">offline_rm_whitelist_command,
+            </if>
+            <if test="onlineAddBanCommand != null">online_add_ban_command,
+            </if>
+            <if test="offlineAddBanCommand != null">offline_add_ban_command,
+            </if>
+            <if test="onlineRmBanCommand != null">online_rm_ban_command,
+            </if>
+            <if test="offlineRmBanCommand != null">offline_rm_ban_command,
+            </if>
+            <if test="updateTime != null">update_time,
+            </if>
+            <if test="easyauth != null">easyauth,
+            </if>
+            <if test="updateBy != null">update_by,
+            </if>
+            <if test="remark != null">remark,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="serverId != null">#{serverId},
+            </if>
+            <if test="createTime != null">#{createTime},
+            </if>
+            <if test="createBy != null">#{createBy},
+            </if>
+            <if test="onlineAddWhitelistCommand != null">#{onlineAddWhitelistCommand},
+            </if>
+            <if test="offlineAddWhitelistCommand != null">#{offlineAddWhitelistCommand},
+            </if>
+            <if test="onlineRmWhitelistCommand != null">#{onlineRmWhitelistCommand},
+            </if>
+            <if test="offlineRmWhitelistCommand != null">#{offlineRmWhitelistCommand},
+            </if>
+            <if test="onlineAddBanCommand != null">#{onlineAddBanCommand},
+            </if>
+            <if test="offlineAddBanCommand != null">#{offlineAddBanCommand},
+            </if>
+            <if test="onlineRmBanCommand != null">#{onlineRmBanCommand},
+            </if>
+            <if test="offlineRmBanCommand != null">#{offlineRmBanCommand},
+            </if>
+            <if test="updateTime != null">#{updateTime},
+            </if>
+            <if test="updateBy != null">#{updateBy},
+            </if>
+            <if test="easyauth != null">#{easyauth},
+            </if>
+            <if test="remark != null">#{remark},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateServerCommandInfo" parameterType="ServerCommandInfo">
+        update server_command_info
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="serverId != null">server_id =
+                #{serverId},
+            </if>
+            <if test="createTime != null">create_time =
+                #{createTime},
+            </if>
+            <if test="createBy != null">create_by =
+                #{createBy},
+            </if>
+            <if test="onlineAddWhitelistCommand != null">online_add_whitelist_command =
+                #{onlineAddWhitelistCommand},
+            </if>
+            <if test="offlineAddWhitelistCommand != null">offline_add_whitelist_command =
+                #{offlineAddWhitelistCommand},
+            </if>
+            <if test="onlineRmWhitelistCommand != null">online_rm_whitelist_command =
+                #{onlineRmWhitelistCommand},
+            </if>
+            <if test="offlineRmWhitelistCommand != null">offline_rm_whitelist_command =
+                #{offlineRmWhitelistCommand},
+            </if>
+            <if test="onlineAddBanCommand != null">online_add_ban_command =
+                #{onlineAddBanCommand},
+            </if>
+            <if test="offlineAddBanCommand != null">offline_add_ban_command =
+                #{offlineAddBanCommand},
+            </if>
+            <if test="onlineRmBanCommand != null">online_rm_ban_command =
+                #{onlineRmBanCommand},
+            </if>
+            <if test="offlineRmBanCommand != null">offline_rm_ban_command =
+                #{offlineRmBanCommand},
+            </if>
+            <if test="updateTime != null">update_time =
+                #{updateTime},
+            </if>
+            <if test="updateBy != null">update_by =
+                #{updateBy},
+            </if>
+            <if test="easyauth != null">easyauth =
+                #{easyauth},
+            </if>
+            <if test="remark != null">remark =
+                #{remark},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteServerCommandInfoById" parameterType="Long">
+        delete
+        from server_command_info
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteServerCommandInfoByIds" parameterType="String">
+        delete from server_command_info where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

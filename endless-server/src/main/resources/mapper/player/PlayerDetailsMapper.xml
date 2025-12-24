@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.player.PlayerDetailsMapper">
+
+    <resultMap type="PlayerDetails" id="PlayerDetailsResult">
+        <result property="id" column="id"/>
+        <result property="userName" column="user_name"/>
+        <result property="qq" column="qq"/>
+        <result property="identity" column="identity"/>
+        <result property="lastOnlineTime" column="last_online_time"/>
+        <result property="lastOfflineTime" column="last_offline_time"/>
+        <result property="gameTime" column="game_time"/>
+        <result property="province" column="province"/>
+        <result property="city" column="city"/>
+        <result property="whitelistId" column="whitelist_id"/>
+        <result property="banlistId" column="banlist_id"/>
+        <result property="parameters" column="parameters"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="createBy" column="create_by"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectPlayerDetailsVo">
+        select id,
+               user_name,
+               qq, identity, last_online_time, last_offline_time, game_time, province, city, whitelist_id, banlist_id, parameters, create_time, update_time, create_by, update_by, remark
+        from player_details
+    </sql>
+
+    <select id="selectPlayerDetailsList" parameterType="PlayerDetails" resultMap="PlayerDetailsResult">
+        <include refid="selectPlayerDetailsVo"/>
+        <where>
+            <if test="userName != null  and userName != ''">
+                and lower(user_name) = #{userName}
+            </if>
+            <if test="qq != null  and qq != ''">
+                and qq = #{qq}
+            </if>
+            <if test="identity != null  and identity != ''">
+                and identity = #{identity}
+            </if>
+            <if test="lastOnlineTime != null ">
+                and last_online_time = #{lastOnlineTime}
+            </if>
+            <if test="lastOfflineTime != null ">
+                and last_offline_time = #{lastOfflineTime}
+            </if>
+            <if test="gameTime != null ">
+                and game_time = #{gameTime}
+            </if>
+            <if test="province != null  and province != ''">
+                and province = #{province}
+            </if>
+            <if test="city != null  and city != ''">
+                and city = #{city}
+            </if>
+            <if test="whitelistId != null ">
+                and whitelist_id = #{whitelistId}
+            </if>
+        </where>
+        order by last_online_time desc
+    </select>
+
+    <select id="selectPlayerDetailsById" parameterType="Long"
+            resultMap="PlayerDetailsResult">
+        <include refid="selectPlayerDetailsVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertPlayerDetails" parameterType="PlayerDetails" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into player_details
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="userName != null and userName != ''">user_name,
+            </if>
+            <if test="qq != null">qq,
+            </if>
+            <if test="identity != null and identity != ''">identity,
+            </if>
+            <if test="lastOnlineTime != null">last_online_time,
+            </if>
+            <if test="lastOfflineTime != null">last_offline_time,
+            </if>
+            <if test="gameTime != null">game_time,
+            </if>
+            <if test="province != null">province,
+            </if>
+            <if test="city != null">city,
+            </if>
+            <if test="whitelistId != null">whitelist_id,
+            </if>
+            <if test="banlistId != null">banlist_id,
+            </if>
+            <if test="parameters != null">parameters,
+            </if>
+            <if test="createTime != null">create_time,
+            </if>
+            <if test="updateTime != null">update_time,
+            </if>
+            <if test="createBy != null and createBy != ''">create_by,
+            </if>
+            <if test="updateBy != null">update_by,
+            </if>
+            <if test="remark != null">remark,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="userName != null and userName != ''">#{userName},
+            </if>
+            <if test="qq != null">#{qq},
+            </if>
+            <if test="identity != null and identity != ''">#{identity},
+            </if>
+            <if test="lastOnlineTime != null">#{lastOnlineTime},
+            </if>
+            <if test="lastOfflineTime != null">#{lastOfflineTime},
+            </if>
+            <if test="gameTime != null">#{gameTime},
+            </if>
+            <if test="province != null">#{province},
+            </if>
+            <if test="city != null">#{city},
+            </if>
+            <if test="whitelistId != null">#{whitelistId},
+            </if>
+            <if test="banlistId != null">#{banlistId},
+            </if>
+            <if test="parameters != null">#{parameters},
+            </if>
+            <if test="createTime != null">#{createTime},
+            </if>
+            <if test="updateTime != null">#{updateTime},
+            </if>
+            <if test="createBy != null and createBy != ''">#{createBy},
+            </if>
+            <if test="updateBy != null">#{updateBy},
+            </if>
+            <if test="remark != null">#{remark},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updatePlayerDetails" parameterType="PlayerDetails">
+        update player_details
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="userName != null and userName != ''">user_name =
+                #{userName},
+            </if>
+            <if test="qq != null">qq =
+                #{qq},
+            </if>
+            <if test="identity != null and identity != ''">identity =
+                #{identity},
+            </if>
+            <if test="lastOnlineTime != null">last_online_time =
+                #{lastOnlineTime},
+            </if>
+            <if test="lastOfflineTime != null">last_offline_time =
+                #{lastOfflineTime},
+            </if>
+            <if test="gameTime != null">game_time =
+                #{gameTime},
+            </if>
+            <if test="province != null">province =
+                #{province},
+            </if>
+            <if test="city != null">city =
+                #{city},
+            </if>
+            <if test="whitelistId != null">whitelist_id =
+                #{whitelistId},
+            </if>
+            <if test="banlistId != null">banlist_id =
+                #{banlistId},
+            </if>
+            <if test="parameters != null">parameters =
+                #{parameters},
+            </if>
+            <if test="createTime != null">create_time =
+                #{createTime},
+            </if>
+            <if test="updateTime != null">update_time =
+                #{updateTime},
+            </if>
+            <if test="createBy != null and createBy != ''">create_by =
+                #{createBy},
+            </if>
+            <if test="updateBy != null">update_by =
+                #{updateBy},
+            </if>
+            <if test="remark != null">remark =
+                #{remark},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deletePlayerDetailsById" parameterType="Long">
+        delete
+        from player_details
+        where id = #{id}
+    </delete>
+
+    <delete id="deletePlayerDetailsByIds" parameterType="String">
+        delete from player_details where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+
+    <!--根据信息删除-->
+    <delete id="deletePlayerDetailsByInfo" parameterType="PlayerDetails">
+        delete from player_details
+        <where>
+            <if test="userName != null and userName != ''">
+                and lower(user_name) = #{userName}
+            </if>
+            <if test="qq != null and qq != ''">
+                and qq = #{qq}
+            </if>
+            <if test="identity != null and identity != ''">
+                and identity = #{identity}
+            </if>
+            <if test="province != null and province != ''">
+                and province = #{province}
+            </if>
+            <if test="city != null and city != ''">
+                and city = #{city}
+            </if>
+        </where>
+    </delete>
+
+    <!--根据提供的多个用户名更新最后在线时间-->
+    <update id="updateLastOnlineTimeByUserNames" parameterType="map">
+        update player_details
+        set last_online_time = #{currentTime}
+        where lower(user_name) in
+        <foreach collection="userNames" item="userName" open="(" separator="," close=")">
+            #{userName}
+        </foreach>
+    </update>
+
+    <!--根据提供的多个用户名更新最后离线时间-->
+    <update id="updateLastOfflineTimeByUserNames" parameterType="map">
+        update player_details
+        set last_offline_time = #{currentTime}
+        where lower(user_name) in
+        <foreach collection="userNames" item="userName" open="(" separator="," close=")">
+            #{userName}
+        </foreach>
+    </update>
+
+    <!--根据游戏时间查询前十名-->
+    <select id="selectTopTenByGameTime" resultMap="PlayerDetailsResult">
+        select id,
+               user_name,
+               qq, identity, last_online_time, last_offline_time, game_time, province, city, whitelist_id, banlist_id, parameters, create_time, update_time, create_by, update_by, remark
+        from player_details
+        order by game_time desc
+            limit 10
+    </select>
+</mapper>

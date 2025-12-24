@@ -1,0 +1,309 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.node.mapper.NodeMinecraftServerMapper">
+
+    <resultMap type="NodeMinecraftServer" id="NodeMinecraftServerResult">
+        <result property="id" column="id"/>
+        <result property="nodeId" column="node_id"/>
+        <result property="nodeUuid" column="node_uuid"/>
+        <result property="nodeInstancesId" column="node_instances_id"/>
+        <result property="name" column="name"/>
+        <result property="serverPath" column="server_path"/>
+        <result property="startStr" column="start_str"/>
+        <result property="javaPath" column="java_path"/>
+        <result property="javaEnvId" column="java_env_id"/>
+        <result property="jvmXmx" column="jvm_xmx"/>
+        <result property="jvmXms" column="jvm_xms"/>
+        <result property="jvmArgs" column="jvm_args"/>
+        <result property="coreType" column="core_type"/>
+        <result property="version" column="version"/>
+        <result property="status" column="status"/>
+        <result property="lastStartTime" column="last_start_time"/>
+        <result property="lastStopTime" column="last_stop_time"/>
+        <result property="description" column="description"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+        <result property="delFlag" column="del_flag"/>
+    </resultMap>
+
+    <sql id="selectNodeMinecraftServerVo">
+        select id,
+               node_id,
+               node_uuid,
+               node_instances_id,
+               name,
+               server_path,
+               start_str,
+               java_path,
+               java_env_id,
+               jvm_xmx,
+               jvm_xms,
+               jvm_args,
+               core_type,
+               version,
+               status,
+               last_start_time,
+               last_stop_time,
+               description,
+               create_by,
+               create_time,
+               update_by,
+               update_time,
+               remark,
+               del_flag
+        from node_minecraft_server
+    </sql>
+
+    <select id="selectNodeMinecraftServerList" parameterType="NodeMinecraftServer"
+            resultMap="NodeMinecraftServerResult">
+        <include refid="selectNodeMinecraftServerVo"/>
+        <where>
+            <if test="nodeId != null ">
+                and node_id = #{nodeId}
+            </if>
+            <if test="nodeUuid != null  and nodeUuid != ''">
+                and node_uuid = #{nodeUuid}
+            </if>
+            <if test="nodeInstancesId != null ">
+                and node_instances_id = #{nodeInstancesId}
+            </if>
+            <if test="name != null  and name != ''">
+                and name like concat('%', #{name}, '%')
+            </if>
+            <if test="serverPath != null  and serverPath != ''">
+                and server_path = #{serverPath}
+            </if>
+            <if test="startStr != null  and startStr != ''">
+                and start_str = #{startStr}
+            </if>
+            <if test="jvmXmx != null  and jvmXmx != ''">
+                and jvm_xmx = #{jvmXmx}
+            </if>
+            <if test="jvmXms != null  and jvmXms != ''">
+                and jvm_xms = #{jvmXms}
+            </if>
+            <if test="jvmArgs != null  and jvmArgs != ''">
+                and jvm_args = #{jvmArgs}
+            </if>
+            <if test="coreType != null  and coreType != ''">
+                and core_type = #{coreType}
+            </if>
+            <if test="version != null  and version != ''">
+                and version = #{version}
+            </if>
+            <if test="status != null  and status != ''">
+                and status = #{status}
+            </if>
+            <if test="lastStartTime != null ">
+                and last_start_time = #{lastStartTime}
+            </if>
+            <if test="lastStopTime != null ">
+                and last_stop_time = #{lastStopTime}
+            </if>
+            <if test="description != null  and description != ''">
+                and description = #{description}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectNodeMinecraftServerById" parameterType="Long"
+            resultMap="NodeMinecraftServerResult">
+        <include refid="selectNodeMinecraftServerVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertNodeMinecraftServer" parameterType="NodeMinecraftServer" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into node_minecraft_server
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="nodeId != null">node_id,
+            </if>
+            <if test="nodeUuid != null and nodeUuid != ''">node_uuid,
+            </if>
+            <if test="nodeInstancesId != null">node_instances_id,
+            </if>
+            <if test="name != null and name != ''">name,
+            </if>
+            <if test="serverPath != null and serverPath != ''">server_path,
+            </if>
+            <if test="startStr != null and startStr != ''">start_str,
+            </if>
+            <if test="javaPath != null and javaPath != ''">java_path,
+            </if>
+            <if test="javaEnvId != null">java_env_id,
+            </if>
+            <if test="jvmXmx != null and jvmXmx != ''">jvm_xmx,
+            </if>
+            <if test="jvmXms != null and jvmXms != ''">jvm_xms,
+            </if>
+            <if test="jvmArgs != null">jvm_args,
+            </if>
+            <if test="coreType != null and coreType != ''">core_type,
+            </if>
+            <if test="version != null and version != ''">version,
+            </if>
+            <if test="status != null">status,
+            </if>
+            <if test="lastStartTime != null">last_start_time,
+            </if>
+            <if test="lastStopTime != null">last_stop_time,
+            </if>
+            <if test="description != null">description,
+            </if>
+            <if test="createBy != null">create_by,
+            </if>
+            <if test="createTime != null">create_time,
+            </if>
+            <if test="updateBy != null">update_by,
+            </if>
+            <if test="updateTime != null">update_time,
+            </if>
+            <if test="remark != null">remark,
+            </if>
+            <if test="delFlag != null">del_flag,
+            </if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="nodeId != null">#{nodeId},
+            </if>
+            <if test="nodeUuid != null and nodeUuid != ''">#{nodeUuid},
+            </if>
+            <if test="nodeInstancesId != null">#{nodeInstancesId},
+            </if>
+            <if test="name != null and name != ''">#{name},
+            </if>
+            <if test="serverPath != null and serverPath != ''">#{serverPath},
+            </if>
+            <if test="startStr != null and startStr != ''">#{startStr},
+            </if>
+            <if test="javaPath != null and javaPath != ''">#{javaPath},
+            </if>
+            <if test="javaEnvId != null">#{javaEnvId},
+            </if>
+            <if test="jvmXmx != null and jvmXmx != ''">#{jvmXmx},
+            </if>
+            <if test="jvmXms != null and jvmXms != ''">#{jvmXms},
+            </if>
+            <if test="jvmArgs != null">#{jvmArgs},
+            </if>
+            <if test="coreType != null and coreType != ''">#{coreType},
+            </if>
+            <if test="version != null and version != ''">#{version},
+            </if>
+            <if test="status != null">#{status},
+            </if>
+            <if test="lastStartTime != null">#{lastStartTime},
+            </if>
+            <if test="lastStopTime != null">#{lastStopTime},
+            </if>
+            <if test="description != null">#{description},
+            </if>
+            <if test="createBy != null">#{createBy},
+            </if>
+            <if test="createTime != null">#{createTime},
+            </if>
+            <if test="updateBy != null">#{updateBy},
+            </if>
+            <if test="updateTime != null">#{updateTime},
+            </if>
+            <if test="remark != null">#{remark},
+            </if>
+            <if test="delFlag != null">#{delFlag},
+            </if>
+        </trim>
+    </insert>
+
+    <update id="updateNodeMinecraftServer" parameterType="NodeMinecraftServer">
+        update node_minecraft_server
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="nodeId != null">node_id =
+                #{nodeId},
+            </if>
+            <if test="nodeUuid != null and nodeUuid != ''">node_uuid =
+                #{nodeUuid},
+            </if>
+            <if test="nodeInstancesId != null">node_instances_id =
+                #{nodeInstancesId},
+            </if>
+            <if test="name != null and name != ''">name =
+                #{name},
+            </if>
+            <if test="serverPath != null and serverPath != ''">server_path =
+                #{serverPath},
+            </if>
+            <if test="startStr != null and startStr != ''">start_str =
+                #{startStr},
+            </if>
+            <if test="javaPath != null and javaPath != ''">java_path =
+                #{javaPath},
+            </if>
+            <if test="javaEnvId != null">java_env_id =
+                #{javaEnvId},
+            </if>
+            <if test="jvmXmx != null and jvmXmx != ''">jvm_xmx =
+                #{jvmXmx},
+            </if>
+            <if test="jvmXms != null and jvmXms != ''">jvm_xms =
+                #{jvmXms},
+            </if>
+            <if test="jvmArgs != null">jvm_args =
+                #{jvmArgs},
+            </if>
+            <if test="coreType != null and coreType != ''">core_type =
+                #{coreType},
+            </if>
+            <if test="version != null and version != ''">version =
+                #{version},
+            </if>
+            <if test="status != null">status =
+                #{status},
+            </if>
+            <if test="lastStartTime != null">last_start_time =
+                #{lastStartTime},
+            </if>
+            <if test="lastStopTime != null">last_stop_time =
+                #{lastStopTime},
+            </if>
+            <if test="description != null">description =
+                #{description},
+            </if>
+            <if test="createBy != null">create_by =
+                #{createBy},
+            </if>
+            <if test="createTime != null">create_time =
+                #{createTime},
+            </if>
+            <if test="updateBy != null">update_by =
+                #{updateBy},
+            </if>
+            <if test="updateTime != null">update_time =
+                #{updateTime},
+            </if>
+            <if test="remark != null">remark =
+                #{remark},
+            </if>
+            <if test="delFlag != null">del_flag =
+                #{delFlag},
+            </if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteNodeMinecraftServerById" parameterType="Long">
+        delete
+        from node_minecraft_server
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteNodeMinecraftServerByIds" parameterType="String">
+        delete from node_minecraft_server where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>
