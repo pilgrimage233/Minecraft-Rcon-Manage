@@ -28,7 +28,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -61,13 +60,6 @@ public class PublicInterfaceController extends BaseController {
      */
     @GetMapping("/aggregateQuery")
     public AjaxResult aggregateQuery() {
-        // 打印当前线程信息，验证是否使用虚拟线程
-        Thread currentThread = Thread.currentThread();
-        logger.info("当前线程信息: 名称={}, 是否虚拟线程={}, 线程ID={}", 
-                   currentThread.getName(), 
-                   currentThread.isVirtual(), 
-                   currentThread.getId());
-        
         final Map<String, Object> result = serverInfoService.aggregateQuery();
         if (!result.isEmpty()) {
             return success(result);

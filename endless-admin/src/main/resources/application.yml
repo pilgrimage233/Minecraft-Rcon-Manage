@@ -42,7 +42,7 @@ server:
 # 日志配置
 logging:
   level:
-    com.ruoyi: debug
+    cc.endmc: debug
     org.springframework: warn
 
 # 用户配置
@@ -80,13 +80,13 @@ spring:
     # redis 配置
     redis:
       # 地址
-      host: 10.0.0.150
+      host: 127.0.0.1
       # 端口，默认为6379
       port: 6379
       # 数据库索引
       database: 0
       # 密码
-      password: redis_x8Qzrh
+      password:
       # 连接超时时间
       timeout: 10s
       lettuce:
@@ -157,13 +157,13 @@ xss:
 # 邮件服务配置
 email:
   # 是否启用邮件服务
-  enable: true
+  enable: false
   # 邮件服务提供商类型：aliyun, qq, 163, gmail, outlook等
-  type: aliyun
+  type:
   # 发件人邮箱账号
-  account: support@mcpeach.cc
+  account:
   # 发件人邮箱密码或授权码
-  password: 85G9BUobquaJ6nNt
+  password:
   # 发件人显示名称
   senderName: "Minecraft Server"
   # 自定义SMTP服务器配置（可选）
