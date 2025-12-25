@@ -42,6 +42,12 @@
             <artifactId>endless-framework</artifactId>
         </dependency>
 
+        <!-- 系统模块-->
+        <dependency>
+            <groupId>cc.endmc</groupId>
+            <artifactId>endless-system</artifactId>
+        </dependency>
+
         <!-- 定时任务-->
         <dependency>
             <groupId>cc.endmc</groupId>
@@ -52,6 +58,24 @@
         <dependency>
             <groupId>cc.endmc</groupId>
             <artifactId>endless-generator</artifactId>
+        </dependency>
+
+        <!-- 权限管理模块-->
+        <dependency>
+            <groupId>cc.endmc</groupId>
+            <artifactId>endless-permission</artifactId>
+        </dependency>
+
+        <!-- 服务器管理模块-->
+        <dependency>
+            <groupId>cc.endmc</groupId>
+            <artifactId>endless-server</artifactId>
+        </dependency>
+
+        <!-- 节点管理模块-->
+        <dependency>
+            <groupId>cc.endmc</groupId>
+            <artifactId>endless-node</artifactId>
         </dependency>
 
     </dependencies>

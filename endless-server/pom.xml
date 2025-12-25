@@ -73,6 +73,11 @@
             <artifactId>quartz</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>cc.endmc</groupId>
+            <artifactId>endless-permission</artifactId>
+        </dependency>
+
     </dependencies>
 
 
