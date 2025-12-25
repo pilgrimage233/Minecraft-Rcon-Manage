@@ -8,9 +8,13 @@ import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.common.core.page.TableDataInfo;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.enums.BusinessType;
+import cc.endmc.common.utils.SecurityUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.common.utils.poi.ExcelUtil;
 import cc.endmc.framework.manager.AsyncManager;
+import cc.endmc.permission.annotation.RconPermission;
+import cc.endmc.permission.service.IResourcePermissionService;
+import cc.endmc.permission.utils.RconPermissionUtils;
 import cc.endmc.server.annotation.SignVerify;
 import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.CacheKey;
@@ -22,15 +26,16 @@ import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.service.other.IHistoryCommandService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
 import cc.endmc.server.service.server.IServerInfoService;
+import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.servlet.http.HttpServletResponse;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * 服务器信息Controller
@@ -40,32 +45,27 @@ import java.util.concurrent.TimeUnit;
  */
 @Slf4j
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/server/serverlist")
 public class ServerInfoController extends BaseController {
 
-    @Autowired
-    private IServerInfoService serverInfoService;
-
-    @Autowired
-    private IWhitelistInfoService whitelistInfoService;
-
-    @Autowired
-    private IHistoryCommandService historyCommandService;
-
-    @Autowired
-    private RedisCache redisCache;
-
-    @Autowired
-    private RconService rconService;
+    private final IServerInfoService serverInfoService;
+    private final IWhitelistInfoService whitelistInfoService;
+    private final IHistoryCommandService historyCommandService;
+    private final RedisCache redisCache;
+    private final RconService rconService;
+    private final IResourcePermissionService resourcePermissionService;
 
     /**
      * 查询服务器信息列表
      */
     @PreAuthorize("@ss.hasPermi('server:serverlist:list')")
+    @RconPermission(value = "view", requireServerId = false, filterData = true)
     @GetMapping("/list")
     public TableDataInfo list(ServerInfo serverInfo) {
         startPage();
-        List<ServerInfo> list = serverInfoService.selectServerInfoList(serverInfo);
+        Long userId = SecurityUtils.getUserId();
+        List<ServerInfo> list = serverInfoService.selectServerInfoListByRconPermission(serverInfo, userId, "view");
         return getDataTable(list);
     }
 
@@ -73,10 +73,12 @@ public class ServerInfoController extends BaseController {
      * 导出服务器信息列表
      */
     @PreAuthorize("@ss.hasPermi('server:serverlist:export')")
+    @RconPermission(value = "view", requireServerId = false)
     @Log(title = "服务器信息", businessType = BusinessType.EXPORT)
     @PostMapping("/export")
     public void export(HttpServletResponse response, ServerInfo serverInfo) {
-        List<ServerInfo> list = serverInfoService.selectServerInfoList(serverInfo);
+        Long userId = SecurityUtils.getUserId();
+        List<ServerInfo> list = serverInfoService.selectServerInfoListByRconPermission(serverInfo, userId, "view");
         ExcelUtil<ServerInfo> util = new ExcelUtil<ServerInfo>(ServerInfo.class);
         util.exportExcel(response, list, "服务器信息数据");
     }
@@ -86,6 +88,7 @@ public class ServerInfoController extends BaseController {
      */
     @PreAuthorize("@ss.hasPermi('server:serverlist:query')")
     @GetMapping(value = "/{id}")
+    @RconPermission(value = "view", serverIdParam = "id")
     public AjaxResult getInfo(@PathVariable("id") Long id) {
         return success(serverInfoService.selectServerInfoById(id));
     }
@@ -94,6 +97,7 @@ public class ServerInfoController extends BaseController {
      * 新增服务器信息
      */
     @PreAuthorize("@ss.hasPermi('server:serverlist:add')")
+    @RconPermission(value = "manage", requireServerId = false)
     @Log(title = "服务器信息", businessType = BusinessType.INSERT)
     @AddOrUpdateFilter(add = true)
     @PostMapping
@@ -108,6 +112,7 @@ public class ServerInfoController extends BaseController {
     @Log(title = "服务器信息", businessType = BusinessType.UPDATE)
     @AddOrUpdateFilter(edit = true)
     @PutMapping
+    @RconPermission(value = "manage", serverIdParam = "id")
     public AjaxResult edit(@RequestBody ServerInfo serverInfo) {
         return toAjax(serverInfoService.updateServerInfo(serverInfo));
     }
@@ -119,6 +124,13 @@ public class ServerInfoController extends BaseController {
     @Log(title = "服务器信息", businessType = BusinessType.DELETE)
     @DeleteMapping("/{ids}")
     public AjaxResult remove(@PathVariable Long[] ids) {
+        // 检查每个服务器的管理权限
+        Long userId = SecurityUtils.getUserId();
+        for (Long id : ids) {
+            if (!resourcePermissionService.hasRconPermission(userId, id, "manage")) {
+                return error("您没有权限删除服务器ID为 " + id + " 的服务器");
+            }
+        }
         return toAjax(serverInfoService.deleteServerInfoByIds(ids));
     }
 
@@ -126,15 +138,23 @@ public class ServerInfoController extends BaseController {
      * 从Redis缓存获取服务器列表
      */
     @PreAuthorize("@ss.hasPermi('server:serverlist:query')")
+    @RconPermission(value = "view", requireServerId = false)
     @GetMapping("/getServerList")
     public AjaxResult getServerList() {
+        Long userId = SecurityUtils.getUserId();
+        
         // 判断Redis是否存在缓存
         if (redisCache.hasKey(CacheKey.SERVER_INFO_KEY)) {
-            return success((List<ServerInfo>) redisCache.getCacheObject(CacheKey.SERVER_INFO_KEY));
+            List<ServerInfo> allServers = (List<ServerInfo>) redisCache.getCacheObject(CacheKey.SERVER_INFO_KEY);
+            // 根据用户权限过滤服务器列表
+            List<ServerInfo> filteredServers = filterServersByPermission(allServers, userId, "view");
+            return success(filteredServers);
         } else {
             // 不存在则走数据库并缓存
-            List<ServerInfo> list = serverInfoService.selectServerInfoList(new ServerInfo());
-            redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, list, 1, TimeUnit.DAYS);
+            List<ServerInfo> list = serverInfoService.selectServerInfoListByRconPermission(new ServerInfo(), userId, "view");
+            // 缓存所有服务器信息（管理员用）
+            List<ServerInfo> allServers = serverInfoService.selectServerInfoList(new ServerInfo());
+            redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, allServers, 1, TimeUnit.DAYS);
             return success(list);
         }
     }
@@ -172,6 +192,7 @@ public class ServerInfoController extends BaseController {
      * @param key
      * @return AjaxResult
      */
+    @RconPermission(value = "command", serverIdParam = "key")
     @GetMapping("/sendCommand")
     public AjaxResult sendCommand(@RequestParam String command, @RequestParam String key) {
         if (command == null || command.isEmpty()) {
@@ -180,6 +201,15 @@ public class ServerInfoController extends BaseController {
         if (key == null || key.isEmpty()) {
             return error("服务器标识不能为空");
         }
+
+        // 额外的权限检查和命令验证
+        if (!key.equals("all")) {
+            Long serverId = Long.parseLong(key);
+            RconPermissionUtils.validateServerId(serverId);
+            RconPermissionUtils.validateCommand(command);
+            RconPermissionUtils.checkCommandPermission(serverId, command);
+        }
+
         Map<String, String> data = new HashMap<>();
 
         if (!key.equals("all")) {
@@ -219,6 +249,7 @@ public class ServerInfoController extends BaseController {
      * @param id
      * @return AjaxResult
      */
+    @RconPermission(value = "view", serverIdParam = "id")
     @PostMapping("/rcon/connect/{id}")
     public AjaxResult connect(@PathVariable String id) {
         // 尝试在缓存中获取RconClient
@@ -267,6 +298,7 @@ public class ServerInfoController extends BaseController {
      * @param id
      * @return AjaxResult
      */
+    @RconPermission(value = "command", serverIdParam = "id")
     @PostMapping("/rcon/execute/{id}")
     public AjaxResult execute(@PathVariable String id, @RequestBody Map<String, String> request) {
         // 获取登录用户
@@ -289,6 +321,13 @@ public class ServerInfoController extends BaseController {
         }
 
         final String command = request.get("command");
+
+        // 额外的权限检查和命令验证
+        Long serverId = Long.parseLong(id);
+        RconPermissionUtils.validateServerId(serverId);
+        RconPermissionUtils.validateCommand(command);
+        RconPermissionUtils.checkCommandPermission(serverId, command);
+
         log.info("执行指令->id: {}, command: {}", id, command);
 
         final HistoryCommand historyCommand = new HistoryCommand();
@@ -392,6 +431,27 @@ public class ServerInfoController extends BaseController {
             result.add(data);
         }
         return success(result);
+    }
+
+    /**
+     * 根据用户权限过滤服务器列表
+     */
+    private List<ServerInfo> filterServersByPermission(List<ServerInfo> servers, Long userId, String permission) {
+        // 如果是管理员，返回所有服务器
+        if (resourcePermissionService.isAdmin(userId)) {
+            return servers;
+        }
+
+        // 获取用户有权限的服务器ID列表
+        List<Long> userServerIds = resourcePermissionService.getUserRconServerIds(userId);
+        if (userServerIds == null || userServerIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 过滤出用户有权限的服务器
+        return servers.stream()
+                .filter(server -> userServerIds.contains(server.getId()))
+                .collect(Collectors.toList());
     }
 
 }

@@ -2,7 +2,6 @@ package cc.endmc.permission.service.impl;
 
 import cc.endmc.common.core.domain.entity.SysUser;
 import cc.endmc.common.core.redis.RedisCache;
-import cc.endmc.common.utils.SecurityUtils;
 import cc.endmc.permission.domain.SysUserMcInstance;
 import cc.endmc.permission.domain.SysUserNodeServer;
 import cc.endmc.permission.domain.SysUserRconServer;
@@ -16,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -80,6 +80,35 @@ public class ResourcePermissionServiceImpl implements IResourcePermissionService
             return false;
         }
         return checkCommandAgainstLists(command, permission.getCmdWhitelist(), permission.getCmdBlacklist());
+    }
+
+    /**
+     * 解析命令列表（支持JSON数组和逗号分隔）
+     */
+    private List<String> parseCommandList(String commandList) {
+        List<String> commands = new ArrayList<>();
+        if (commandList == null || commandList.trim().isEmpty()) {
+            return commands;
+        }
+
+        try {
+            // 尝试解析为JSON数组
+            List<String> jsonList = JSON.parseArray(commandList, String.class);
+            if (jsonList != null) {
+                commands.addAll(jsonList);
+            }
+        } catch (Exception e) {
+            // 如果不是JSON格式，按逗号分割
+            String[] parts = commandList.split(",");
+            for (String part : parts) {
+                String trimmed = part.trim();
+                if (!trimmed.isEmpty()) {
+                    commands.add(trimmed);
+                }
+            }
+        }
+
+        return commands;
     }
 
     @Override

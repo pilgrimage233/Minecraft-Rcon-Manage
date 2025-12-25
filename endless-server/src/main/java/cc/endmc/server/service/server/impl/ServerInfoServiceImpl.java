@@ -6,6 +6,7 @@ import cc.endmc.common.utils.StringUtils;
 import cc.endmc.framework.manager.AsyncManager;
 import cc.endmc.node.domain.NodeServer;
 import cc.endmc.node.service.INodeServerService;
+import cc.endmc.permission.service.IResourcePermissionService;
 import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.PasswordManager;
 import cc.endmc.server.common.constant.CacheKey;
@@ -58,6 +59,7 @@ public class ServerInfoServiceImpl implements IServerInfoService {
     private final PasswordManager PasswordManager;
     private final INodeServerService nodeServerService;
     private final IServerCommandInfoService serverCommandInfo;
+    private final IResourcePermissionService resourcePermissionService;
 
     /**
      * 查询服务器信息
@@ -505,6 +507,28 @@ public class ServerInfoServiceImpl implements IServerInfoService {
             }
             log.info("同步黑名单成功：" + names);
         }
+    }
+
+    @Override
+    public List<ServerInfo> selectServerInfoListByRconPermission(ServerInfo serverInfo, Long userId, String permission) {
+        // 如果是管理员，返回所有服务器
+        if (resourcePermissionService.isAdmin(userId)) {
+            return selectServerInfoList(serverInfo);
+        }
+
+        // 获取用户有权限的服务器ID列表
+        List<Long> userServerIds = resourcePermissionService.getUserRconServerIds(userId);
+        if (userServerIds == null || userServerIds.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 查询所有服务器
+        List<ServerInfo> allServers = selectServerInfoList(serverInfo);
+
+        // 过滤出用户有权限的服务器
+        return allServers.stream()
+                .filter(server -> userServerIds.contains(server.getId()))
+                .collect(Collectors.toList());
     }
 
 }

@@ -2,17 +2,14 @@ package cc.endmc.server.ws;
 
 import cc.endmc.server.domain.bot.QqBotConfig;
 import cc.endmc.server.mapper.bot.QqBotConfigMapper;
-import cc.endmc.server.service.bot.IQqBotConfigService;
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationContext;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
-
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 
 import java.util.Date;
 import java.util.List;
@@ -114,16 +111,15 @@ public class BotManager {
 
         // 处理所有配置中的机器人
         configs.forEach(config -> {
-            Long botId = config.getId();
-            BotClient client = botClients.get(botId);
+            BotClient client = botClients.get(config.getBotQq());
 
             if (client == null) {
                 // 如果是新机器人，启动它
-                log.info("启动新增的机器人: {}", botId);
+                log.info("启动新增的机器人: {}", config.getBotQq());
                 startBot(config);
             } else {
                 // 如果是现有机器人，只更新配置
-                log.info("更新机器人配置: {}", botId);
+                log.info("更新机器人配置: {}", config.getBotQq());
                 client.init(config);
             }
         });
@@ -150,23 +146,23 @@ public class BotManager {
     public void startBot(QqBotConfig config) {
         try {
             if (botClients.containsKey(config.getId())) {
-                log.warn("机器人 {} 已经在运行中", config.getId());
+                log.warn("机器人 {} 已经在运行中", config.getBotQq());
                 return;
             }
 
             // 从Spring容器获取BotClient实例，确保依赖注入正确
             BotClient client = applicationContext.getBean(BotClient.class);
-            log.info("成功从Spring容器获取BotClient实例");
+            // log.info("成功从Spring容器获取BotClient实例");
 
             // 初始化客户端
             client.init(config);
             log.info("机器人客户端初始化完成，配置ID: {}", config.getId());
 
             // 更新最后登录时间
-            updateLastLoginTime(config.getId());
+            updateLastLoginTime(config);
 
             // 初始化心跳时间
-            updateHeartbeat(config.getId());
+            updateHeartbeat(config);
 
             // 存储客户端实例
             botClients.put(config.getId(), client);
@@ -179,54 +175,50 @@ public class BotManager {
     /**
      * 更新机器人最后登录时间
      *
-     * @param botId 机器人ID
+     * @param config 机器人配置
      */
-    private void updateLastLoginTime(Long botId) {
+    private void updateLastLoginTime(QqBotConfig config) {
         try {
-            QqBotConfig config = new QqBotConfig();
-            config.setId(botId);
-            config.setLastLoginTime(new Date());
             int result = qqBotConfigMapper.updateQqBotConfig(config);
             if (result > 0) {
-                log.info("机器人 {} 最后登录时间更新成功", botId);
+                log.info("机器人 {} 最后登录时间更新成功", config.getBotQq());
             } else {
-                log.warn("机器人 {} 最后登录时间更新失败", botId);
+                log.warn("机器人 {} 最后登录时间更新失败", config.getBotQq());
             }
         } catch (Exception e) {
-            log.error("更新机器人 {} 最后登录时间失败: {}", botId, e.getMessage());
+            log.error("更新机器人 {} 最后登录时间失败: {}", config.getBotQq(), e.getMessage());
         }
     }
 
     /**
      * 更新机器人心跳时间
      *
-     * @param botId 机器人ID
+     * @param config 机器人配置
      */
-    public void updateHeartbeat(Long botId) {
+    public void updateHeartbeat(QqBotConfig config) {
         Date now = new Date();
-        lastHeartbeatTimes.put(botId, now);
-        log.debug("机器人 {} 心跳更新: {}", botId, now);
+        lastHeartbeatTimes.put(config.getId(), now);
+        log.debug("机器人 {} 心跳更新: {}", config.getBotQq(), now);
     }
 
     /**
      * 更新机器人最后心跳时间到数据库
      *
-     * @param botId         机器人ID
+     * @param config         机器人配置
      * @param lastHeartbeat 最后心跳时间
      */
-    private void updateLastHeartbeatTime(Long botId, Date lastHeartbeat) {
+    private void updateLastHeartbeatTime(QqBotConfig config, Date lastHeartbeat) {
         try {
-            QqBotConfig config = new QqBotConfig();
-            config.setId(botId);
+            config.setId(config.getId());
             config.setLastHeartbeatTime(lastHeartbeat);
             int result = qqBotConfigMapper.updateQqBotConfig(config);
             if (result > 0) {
-                log.info("机器人 {} 最后心跳时间更新成功: {}", botId, lastHeartbeat);
+                log.info("机器人 {} 最后心跳时间更新成功: {}", config.getBotQq(), lastHeartbeat);
             } else {
-                log.warn("机器人 {} 最后心跳时间更新失败", botId);
+                log.warn("机器人 {} 最后心跳时间更新失败", config.getBotQq());
             }
         } catch (Exception e) {
-            log.error("更新机器人 {} 最后心跳时间失败: {}", botId, e.getMessage());
+            log.error("更新机器人 {} 最后心跳时间失败: {}", config.getBotQq(), e.getMessage());
         }
     }
 
@@ -249,21 +241,21 @@ public class BotManager {
 
                 if (isConnected) {
                     // 如果连接正常，更新内存中的心跳时间
-                    updateHeartbeat(botId);
+                    updateHeartbeat(client.getConfig());
                 } else {
                     // 如果连接断开，记录最后心跳时间到数据库
                     Date lastHeartbeat = lastHeartbeatTimes.get(botId);
                     if (lastHeartbeat != null) {
-                        updateLastHeartbeatTime(botId, lastHeartbeat);
-                        log.warn("机器人 {} WebSocket连接已断开，最后心跳时间: {}", botId, lastHeartbeat);
+                        updateLastHeartbeatTime(client.getConfig(), lastHeartbeat);
+                        log.warn("机器人 {} WebSocket连接已断开，最后心跳时间: {}", client.getConfig().getBotQq(), lastHeartbeat);
                     }
 
                     // 尝试重新连接
-                    log.info("尝试重新连接机器人 {}", botId);
+                    log.info("尝试重新连接机器人 {}", client.getConfig().getBotQq());
                     reconnectBot(botId);
                 }
             } catch (Exception e) {
-                log.error("检查机器人 {} 心跳时发生错误: {}", botId, e.getMessage());
+                log.error("检查机器人 {} 心跳时发生错误: {}", client.getConfig().getBotQq(), e.getMessage());
             }
         }
     }
@@ -279,7 +271,7 @@ public class BotManager {
             // 记录最后心跳时间到数据库
             Date lastHeartbeat = lastHeartbeatTimes.remove(botId);
             if (lastHeartbeat != null) {
-                updateLastHeartbeatTime(botId, lastHeartbeat);
+                updateLastHeartbeatTime(client.getConfig(), lastHeartbeat);
             }
 
             client.destroy();

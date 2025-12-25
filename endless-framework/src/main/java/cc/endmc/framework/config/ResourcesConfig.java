@@ -1,6 +1,8 @@
 package cc.endmc.framework.config;
 
-import java.util.concurrent.TimeUnit;
+import cc.endmc.common.config.EndlessConfig;
+import cc.endmc.common.constant.Constants;
+import cc.endmc.framework.interceptor.RepeatSubmitInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -9,11 +11,11 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
+import org.springframework.web.servlet.config.annotation.PathMatchConfigurer;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
-import cc.endmc.common.config.EndlessConfig;
-import cc.endmc.common.constant.Constants;
-import cc.endmc.framework.interceptor.RepeatSubmitInterceptor;
+
+import java.util.concurrent.TimeUnit;
 
 /**
  * 通用配置
@@ -37,6 +39,16 @@ public class ResourcesConfig implements WebMvcConfigurer
         registry.addResourceHandler("/swagger-ui/**")
                 .addResourceLocations("classpath:/META-INF/resources/webjars/springfox-swagger-ui/")
                 .setCacheControl(CacheControl.maxAge(5, TimeUnit.HOURS).cachePublic());
+    }
+
+    /**
+     * 配置路径匹配，确保控制器映射优先于静态资源处理
+     */
+    @Override
+    public void configurePathMatch(PathMatchConfigurer configurer) {
+        // 设置使用后缀模式匹配为false，避免静态资源处理器干扰API端点
+        configurer.setUseRegisteredSuffixPatternMatch(false);
+        configurer.setUseTrailingSlashMatch(false);
     }
 
     /**

@@ -81,4 +81,14 @@ public interface IServerInfoService {
      * @return 聚合结果
      */
     Map<String, Object> aggregateQuery();
+
+    /**
+     * 根据用户RCON权限查询服务器信息列表
+     *
+     * @param serverInfo 服务器信息查询条件
+     * @param userId     用户ID
+     * @param permission 需要的权限类型
+     * @return 用户有权限的服务器信息集合
+     */
+    List<ServerInfo> selectServerInfoListByRconPermission(ServerInfo serverInfo, Long userId, String permission);
 }

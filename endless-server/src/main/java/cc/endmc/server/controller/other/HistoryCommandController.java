@@ -6,13 +6,14 @@ import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.common.core.page.TableDataInfo;
 import cc.endmc.common.enums.BusinessType;
 import cc.endmc.common.utils.poi.ExcelUtil;
+import cc.endmc.permission.annotation.RconPermission;
 import cc.endmc.server.domain.other.HistoryCommand;
 import cc.endmc.server.service.other.IHistoryCommandService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 
 /**
@@ -30,7 +31,7 @@ public class HistoryCommandController extends BaseController {
     /**
      * 查询历史命令列表
      */
-    //  @PreAuthorize("@ss.hasPermi('history:command:list')")
+    @RconPermission(value = "view", serverIdParam = "serverId")
     @GetMapping("/list")
     public TableDataInfo list(HistoryCommand historyCommand) {
         startPage();
