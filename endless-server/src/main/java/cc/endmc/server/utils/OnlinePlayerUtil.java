@@ -7,7 +7,6 @@ import cc.endmc.server.domain.server.ServerInfo;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 /**
  * 在线玩家工具类
@@ -37,22 +36,11 @@ public class OnlinePlayerUtil {
 
         try {
             // 根据服务器核心类型选择不同的处理方式
-            switch (serverCore.toLowerCase()) {
-                case "velocity":
-                    return getVelocityOnlinePlayers(rconClient);
-                case "bungeecord":
-                case "waterfall":
-                    return getBungeeOnlinePlayers(rconClient);
-                case "paper":
-                case "spigot":
-                case "bukkit":
-                case "purpur":
-                case "fabric":
-                case "forge":
-                case "vanilla":
-                default:
-                    return getStandardOnlinePlayers(rconClient);
-            }
+            return switch (serverCore.toLowerCase()) {
+                case "velocity" -> getVelocityOnlinePlayers(rconClient);
+                case "bungeecord", "waterfall" -> getBungeeOnlinePlayers(rconClient);
+                default -> getStandardOnlinePlayers(rconClient);
+            };
         } catch (Exception e) {
             log.error("获取服务器 {} 在线玩家失败: {}", serverId, e.getMessage());
             return new ArrayList<>();
@@ -125,7 +113,7 @@ public class OnlinePlayerUtil {
                         playerList.addAll(Arrays.stream(players)
                                 .filter(StringUtils::isNotEmpty)
                                 .map(String::trim)
-                                .collect(Collectors.toList()));
+                                .toList());
                     }
                 }
             }
@@ -155,7 +143,7 @@ public class OnlinePlayerUtil {
                         playerList.addAll(Arrays.stream(players)
                                 .filter(StringUtils::isNotEmpty)
                                 .map(String::trim)
-                                .collect(Collectors.toList()));
+                                .toList());
                     }
                 }
             }
@@ -190,6 +178,8 @@ public class OnlinePlayerUtil {
     private static List<String> parsePlayerListFromResponse(String response) {
         List<String> playerList = new ArrayList<>();
 
+        // log.debug("原始响应: {}", response);
+
         // 处理多种可能的响应格式
         String[] patterns = {
                 ":",  // 标准格式: "There are 3 of a max of 20 players online: player1, player2, player3"
@@ -203,17 +193,25 @@ public class OnlinePlayerUtil {
                 String[] parts = response.split(pattern, 2);
                 if (parts.length > 1) {
                     String playersStr = parts[1].trim();
+                    // log.debug("使用模式 '{}' 提取的玩家字符串: '{}'", pattern, playersStr);
+                    
                     if (StringUtils.isNotEmpty(playersStr)) {
-                        // 移除可能的额外信息
+                        // 移除可能的额外信息（只取第一行）
                         playersStr = playersStr.split("\n")[0].trim();
+                        // log.debug("处理后的玩家字符串: '{}'", playersStr);
 
                         if (!playersStr.isEmpty() && !playersStr.equals("无") && !playersStr.equals("none")) {
                             String[] players = playersStr.split(",\\s*");
-                            playerList.addAll(Arrays.stream(players)
+                            // log.debug("分割后的玩家数组: {}", Arrays.toString(players));
+
+                            List<String> validPlayers = Arrays.stream(players)
                                     .filter(StringUtils::isNotEmpty)
                                     .map(String::trim)
-                                    .filter(player -> !player.matches(".*\\d+.*")) // 过滤掉包含数字的非玩家名
-                                    .collect(Collectors.toList()));
+                                    .filter(OnlinePlayerUtil::isValidPlayerName) // 使用更严格的验证方法
+                                    .toList();
+
+                            // log.debug("验证后的有效玩家: {}", validPlayers);
+                            playerList.addAll(validPlayers);
                         }
                         break;
                     }
@@ -226,17 +224,25 @@ public class OnlinePlayerUtil {
             String[] parts = response.split(":", 2);
             if (parts.length > 1) {
                 String playersStr = parts[1].trim();
+                // log.debug("特殊格式提取的玩家字符串: '{}'", playersStr);
+                
                 if (StringUtils.isNotEmpty(playersStr) && !playersStr.equals("无") && !playersStr.equals("none")) {
                     String[] players = playersStr.split(",\\s*");
-                    playerList.addAll(Arrays.stream(players)
+                    // log.debug("特殊格式分割后的玩家数组: {}", Arrays.toString(players));
+
+                    List<String> validPlayers = Arrays.stream(players)
                             .filter(StringUtils::isNotEmpty)
                             .map(String::trim)
-                            .filter(player -> !player.matches(".*\\d+.*"))
-                            .collect(Collectors.toList()));
+                            .filter(OnlinePlayerUtil::isValidPlayerName)
+                            .toList();
+
+                    // log.debug("特殊格式验证后的有效玩家: {}", validPlayers);
+                    playerList.addAll(validPlayers);
                 }
             }
         }
 
+        // log.info("最终解析的玩家列表: {}", playerList);
         return playerList;
     }
 
