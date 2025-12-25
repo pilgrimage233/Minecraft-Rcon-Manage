@@ -1,0 +1,322 @@
+/**
+ * 现代化字体配置
+ * 使用高质量开源字体，支持高分辨率显示
+ */
+
+// 引入 Google Fonts - Inter (现代无衬线英文字体)
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+// 引入 Google Fonts - Noto Sans SC (思源黑体简体中文)
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700;900&display=swap');
+
+// 引入 JetBrains Mono (等宽代码字体)
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+// 字体变量定义
+:root {
+  // 主字体栈 - 优先使用现代字体
+  --font-family-base: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI',
+  'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue',
+  Helvetica, Arial, sans-serif;
+
+  // 代码字体栈
+  --font-family-code: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+
+  // 数字字体 (使用等宽数字以保持对齐)
+  --font-family-number: 'Inter', 'SF Mono', 'Roboto Mono', monospace;
+
+  // 字重
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  // 字号
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 20px;
+  --font-size-3xl: 24px;
+
+  // 行高
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  // 字间距
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.02em;
+}
+
+// 全局字体优化
+* {
+  // 高质量字体渲染
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+
+  // 字体特性设置
+  font-feature-settings: 'kern' 1, 'liga' 1, 'calt' 1;
+
+  // 使用系统原生字体渲染
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
+// 应用主字体
+body,
+html {
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  font-weight: var(--font-weight-normal);
+  letter-spacing: var(--letter-spacing-normal);
+}
+
+// 标题字体优化
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family-base);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-tight);
+  line-height: var(--line-height-tight);
+}
+
+h1 {
+  font-size: var(--font-size-3xl);
+}
+
+h2 {
+  font-size: var(--font-size-2xl);
+}
+
+h3 {
+  font-size: var(--font-size-xl);
+}
+
+h4 {
+  font-size: var(--font-size-lg);
+}
+
+h5 {
+  font-size: var(--font-size-base);
+}
+
+h6 {
+  font-size: var(--font-size-sm);
+}
+
+// 代码字体
+code,
+pre,
+kbd,
+samp,
+.code-font {
+  font-family: var(--font-family-code);
+  font-feature-settings: 'liga' 1, 'calt' 1;
+}
+
+// 数字字体 (表格、统计数据等)
+.number-font,
+.el-table td,
+.el-table th,
+.el-input-number,
+.el-statistic {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+// Element UI 组件字体优化
+.el-button,
+.el-input,
+.el-input__inner,
+.el-textarea,
+.el-textarea__inner,
+.el-select,
+.el-select-dropdown,
+.el-date-picker,
+.el-form-item__label,
+.el-table,
+.el-dialog,
+.el-menu,
+.el-tabs,
+.el-card {
+  font-family: var(--font-family-base) !important;
+}
+
+// 确保所有输入框使用统一字体
+input,
+textarea,
+select,
+button {
+  font-family: var(--font-family-base) !important;
+}
+
+// Element UI 输入框内部元素
+.el-input__inner,
+.el-textarea__inner,
+.el-select .el-input__inner,
+.el-autocomplete-suggestion li,
+.el-select-dropdown__item {
+  font-family: var(--font-family-base) !important;
+  font-weight: var(--font-weight-normal);
+}
+
+// Placeholder 文本字体
+input::placeholder,
+textarea::placeholder,
+.el-input__inner::placeholder,
+.el-textarea__inner::placeholder {
+  font-family: var(--font-family-base) !important;
+  font-weight: var(--font-weight-normal);
+  opacity: 0.6;
+}
+
+// 下拉选项字体
+.el-select-dropdown__item,
+.el-option,
+.el-cascader-menu__item,
+.el-autocomplete-suggestion__list li {
+  font-family: var(--font-family-base) !important;
+  font-weight: var(--font-weight-normal);
+}
+
+// 日期选择器字体
+.el-date-picker,
+.el-time-picker,
+.el-picker-panel {
+  font-family: var(--font-family-base) !important;
+}
+
+// 确保所有弹出层使用统一字体
+.el-popper,
+.el-message,
+.el-notification,
+.el-tooltip__popper {
+  font-family: var(--font-family-base) !important;
+}
+
+// 按钮字重优化
+.el-button {
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.01em;
+}
+
+// 表格字体优化
+.el-table {
+  font-size: var(--font-size-sm);
+
+  th {
+    font-weight: var(--font-weight-semibold);
+  }
+
+  td {
+    font-weight: var(--font-weight-normal);
+  }
+}
+
+// 表单标签字重
+.el-form-item__label {
+  font-weight: var(--font-weight-medium);
+}
+
+// 对话框标题
+.el-dialog__title {
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+// 菜单字体
+.el-menu-item,
+.el-submenu__title {
+  font-weight: var(--font-weight-normal);
+
+  &.is-active {
+    font-weight: var(--font-weight-medium);
+  }
+}
+
+// 标签字体
+.el-tag {
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-xs);
+}
+
+// 面包屑
+.el-breadcrumb {
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-normal);
+}
+
+// 工具类
+.font-light {
+  font-weight: var(--font-weight-light);
+}
+
+.font-normal {
+  font-weight: var(--font-weight-normal);
+}
+
+.font-medium {
+  font-weight: var(--font-weight-medium);
+}
+
+.font-semibold {
+  font-weight: var(--font-weight-semibold);
+}
+
+.font-bold {
+  font-weight: var(--font-weight-bold);
+}
+
+.text-xs {
+  font-size: var(--font-size-xs);
+}
+
+.text-sm {
+  font-size: var(--font-size-sm);
+}
+
+.text-base {
+  font-size: var(--font-size-base);
+}
+
+.text-lg {
+  font-size: var(--font-size-lg);
+}
+
+.text-xl {
+  font-size: var(--font-size-xl);
+}
+
+.text-2xl {
+  font-size: var(--font-size-2xl);
+}
+
+.text-3xl {
+  font-size: var(--font-size-3xl);
+}
+
+// 高分辨率屏幕优化
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  body {
+    // 在高分辨率屏幕上使用更细的字重
+    font-weight: 400;
+  }
+
+  .el-button {
+    font-weight: 500;
+  }
+}
+
+// 暗色模式字体优化 (如果需要)
+@media (prefers-color-scheme: dark) {
+  * {
+    // 暗色模式下使用稍粗的字重以提高可读性
+    font-weight: inherit;
+    -webkit-font-smoothing: subpixel-antialiased;
+  }
+}

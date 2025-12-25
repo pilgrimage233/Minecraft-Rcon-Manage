@@ -1,0 +1,63 @@
+// base color - 现代化配色
+$blue: #4f46e5;
+$light-blue: #6366f1;
+$red: #ef4444;
+$pink: #ec4899;
+$green: #10b981;
+$tiffany: #14b8a6;
+$yellow: #f59e0b;
+$panGreen: #10b981;
+
+// 主题色
+$primary-color: #6366f1;
+$primary-light: #818cf8;
+$primary-dark: #4f46e5;
+
+// 默认菜单主题风格 - 深色渐变
+$base-menu-color: rgba(255, 255, 255, 0.75);
+$base-menu-color-active: #ffffff;
+$base-menu-background: linear-gradient(180deg, #1e1b4b 0%, #312e81 100%);
+$base-menu-bg-solid: #1e1b4b;
+$base-logo-title-color: #ffffff;
+
+// 浅色主题
+$base-menu-light-color: #64748b;
+$base-menu-light-background: #ffffff;
+$base-logo-light-title-color: #1e293b;
+
+$base-sub-menu-background: rgba(0, 0, 0, 0.15);
+$base-sub-menu-hover: rgba(99, 102, 241, 0.15);
+
+// 布局尺寸
+$base-sidebar-width: 220px;
+$navbar-height: 56px;
+$tags-height: 38px;
+
+// 圆角
+$border-radius-sm: 6px;
+$border-radius-md: 10px;
+$border-radius-lg: 16px;
+
+// 阴影
+$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+$shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+$shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+
+// the :export directive is the magic sauce for webpack
+// https://www.bluematador.com/blog/how-to-share-variables-between-js-and-sass
+:export {
+  menuColor: $base-menu-color;
+  menuLightColor: $base-menu-light-color;
+  menuColorActive: $base-menu-color-active;
+  menuBackground: $base-menu-bg-solid;
+  menuLightBackground: $base-menu-light-background;
+  subMenuBackground: $base-sub-menu-background;
+  subMenuHover: $base-sub-menu-hover;
+  sideBarWidth: $base-sidebar-width;
+  logoTitleColor: $base-logo-title-color;
+  logoLightTitleColor: $base-logo-light-title-color;
+  primaryColor: $primary-color;
+  navbarHeight: $navbar-height;
+  tagsHeight: $tags-height
+}

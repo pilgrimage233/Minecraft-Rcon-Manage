@@ -1,0 +1,226 @@
+/**
+ * 本地字体配置（备用方案）
+ * 如果不想使用 Google Fonts CDN，可以使用此配置
+ * 使用方法：在 index.scss 中将 @import './fonts.scss' 改为 @import './fonts-local.scss'
+ */
+
+// 字体变量定义
+:root {
+  // 主字体栈 - 使用系统原生字体
+  --font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto',
+  'PingFang SC', 'Noto Sans CJK SC', 'Microsoft YaHei UI', 'Microsoft YaHei',
+  'Hiragino Sans GB', 'Source Han Sans SC', 'WenQuanYi Micro Hei',
+  'Helvetica Neue', Helvetica, Arial, sans-serif;
+
+  // 代码字体栈
+  --font-family-code: 'SF Mono', 'Monaco', 'Cascadia Code', 'Consolas', 'Courier New', monospace;
+
+  // 数字字体
+  --font-family-number: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', monospace;
+
+  // 字重
+  --font-weight-light: 300;
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  // 字号
+  --font-size-xs: 12px;
+  --font-size-sm: 13px;
+  --font-size-base: 14px;
+  --font-size-lg: 16px;
+  --font-size-xl: 18px;
+  --font-size-2xl: 20px;
+  --font-size-3xl: 24px;
+
+  // 行高
+  --line-height-tight: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.75;
+
+  // 字间距
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.02em;
+}
+
+// 全局字体优化
+* {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: 'kern' 1;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+}
+
+body,
+html {
+  font-family: var(--font-family-base);
+  font-size: var(--font-size-base);
+  line-height: var(--line-height-normal);
+  font-weight: var(--font-weight-normal);
+  letter-spacing: var(--letter-spacing-normal);
+}
+
+// 标题字体优化
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-family-base);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-tight);
+  line-height: var(--line-height-tight);
+}
+
+h1 {
+  font-size: var(--font-size-3xl);
+}
+
+h2 {
+  font-size: var(--font-size-2xl);
+}
+
+h3 {
+  font-size: var(--font-size-xl);
+}
+
+h4 {
+  font-size: var(--font-size-lg);
+}
+
+h5 {
+  font-size: var(--font-size-base);
+}
+
+h6 {
+  font-size: var(--font-size-sm);
+}
+
+// 代码字体
+code,
+pre,
+kbd,
+samp,
+.code-font {
+  font-family: var(--font-family-code);
+}
+
+// 数字字体
+.number-font,
+.el-table td,
+.el-table th,
+.el-input-number,
+.el-statistic {
+  font-variant-numeric: tabular-nums;
+}
+
+// Element UI 组件字体优化
+.el-button,
+.el-input,
+.el-textarea,
+.el-select,
+.el-date-picker,
+.el-form-item__label,
+.el-table,
+.el-dialog,
+.el-menu,
+.el-tabs,
+.el-card {
+  font-family: var(--font-family-base);
+}
+
+.el-button {
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.01em;
+}
+
+.el-table {
+  font-size: var(--font-size-sm);
+
+  th {
+    font-weight: var(--font-weight-semibold);
+  }
+}
+
+.el-form-item__label {
+  font-weight: var(--font-weight-medium);
+}
+
+.el-dialog__title {
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-tight);
+}
+
+.el-menu-item,
+.el-submenu__title {
+  font-weight: var(--font-weight-normal);
+
+  &.is-active {
+    font-weight: var(--font-weight-medium);
+  }
+}
+
+.el-tag {
+  font-weight: var(--font-weight-medium);
+  font-size: var(--font-size-xs);
+}
+
+// 工具类
+.font-light {
+  font-weight: var(--font-weight-light);
+}
+
+.font-normal {
+  font-weight: var(--font-weight-normal);
+}
+
+.font-medium {
+  font-weight: var(--font-weight-medium);
+}
+
+.font-semibold {
+  font-weight: var(--font-weight-semibold);
+}
+
+.font-bold {
+  font-weight: var(--font-weight-bold);
+}
+
+.text-xs {
+  font-size: var(--font-size-xs);
+}
+
+.text-sm {
+  font-size: var(--font-size-sm);
+}
+
+.text-base {
+  font-size: var(--font-size-base);
+}
+
+.text-lg {
+  font-size: var(--font-size-lg);
+}
+
+.text-xl {
+  font-size: var(--font-size-xl);
+}
+
+.text-2xl {
+  font-size: var(--font-size-2xl);
+}
+
+.text-3xl {
+  font-size: var(--font-size-3xl);
+}
+
+// 高分辨率屏幕优化
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  body {
+    font-weight: 400;
+  }
+
+  .el-button {
+    font-weight: 500;
+  }
+}

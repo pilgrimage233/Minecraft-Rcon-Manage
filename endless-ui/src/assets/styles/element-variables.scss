@@ -1,0 +1,52 @@
+/**
+* 现代化主题配色
+* 基于 Indigo 色系，更加现代和专业
+**/
+
+/* theme color - 主色调 */
+$--color-primary: #6366f1;
+$--color-success: #10b981;
+$--color-warning: #f59e0b;
+$--color-danger: #ef4444;
+$--color-info: #64748b;
+
+/* 文字颜色 */
+$--color-text-primary: #1e293b;
+$--color-text-regular: #475569;
+$--color-text-secondary: #64748b;
+$--color-text-placeholder: #94a3b8;
+
+$--button-font-weight: 500;
+
+/* 边框颜色 */
+$--border-color-base: #e2e8f0;
+$--border-color-light: #e2e8f0;
+$--border-color-lighter: #f1f5f9;
+$--border-color-extra-light: #f8fafc;
+
+/* 背景色 */
+$--background-color-base: #f8fafc;
+
+/* 边框圆角 */
+$--border-radius-base: 8px;
+$--border-radius-small: 6px;
+
+/* 表格 */
+$--table-border: 1px solid #e2e8f0;
+$--table-header-background-color: #f8fafc;
+
+/* 输入框 */
+$--input-border-radius: 8px;
+
+/* 按钮 */
+$--button-border-radius: 8px;
+
+/* icon font path, required */
+$--font-path: '~element-ui/lib/theme-chalk/fonts';
+
+@import "~element-ui/packages/theme-chalk/src/index";
+
+// the :export directive is the magic sauce for webpack
+:export {
+  theme: $--color-primary;
+}
