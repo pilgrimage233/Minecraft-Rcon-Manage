@@ -12,11 +12,11 @@ import cc.endmc.node.common.constant.OperationTarget;
 import cc.endmc.node.common.constant.OperationType;
 import cc.endmc.node.domain.NodeMinecraftServer;
 import cc.endmc.node.service.INodeMinecraftServerService;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.servlet.http.HttpServletResponse;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -108,6 +108,18 @@ public class NodeMinecraftServerController extends BaseController {
     @GetMapping("/{nodeId}/instances")
     public AjaxResult listInstances(@PathVariable Long nodeId) {
         return nodeMinecraftServerService.listInstances(nodeId);
+    }
+
+    /**
+     * 根据节点ID查询实例列表
+     */
+    @PreAuthorize("@ss.hasPermi('node:mcs:list')")
+    @GetMapping("/listByNode/{nodeId}")
+    public AjaxResult listByNode(@PathVariable Long nodeId) {
+        NodeMinecraftServer query = new NodeMinecraftServer();
+        query.setNodeId(nodeId);
+        List<NodeMinecraftServer> list = nodeMinecraftServerService.selectNodeMinecraftServerList(query);
+        return success(list);
     }
 
     /**

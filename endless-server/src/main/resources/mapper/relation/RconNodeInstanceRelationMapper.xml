@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.relation.RconNodeInstanceRelationMapper">
+
+    <resultMap type="cc.endmc.server.domain.relation.RconNodeInstanceRelation" id="RconNodeInstanceRelationResult">
+        <id property="id" column="id"/>
+        <result property="rconServerId" column="rcon_server_id"/>
+        <result property="rconServerName" column="rcon_server_name"/>
+        <result property="nodeId" column="node_id"/>
+        <result property="nodeName" column="node_name"/>
+        <result property="instanceId" column="instance_id"/>
+        <result property="instanceName" column="instance_name"/>
+        <result property="status" column="status"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectVo">
+        select r.id,
+               r.rcon_server_id,
+               s.name_tag as rcon_server_name,
+               r.node_id,
+               n.name     as node_name,
+               r.instance_id,
+               i.name     as instance_name,
+               r.status,
+               r.create_by,
+               r.create_time,
+               r.update_by,
+               r.update_time,
+               r.remark
+        from rcon_node_instance_relation r
+                 left join server_info s on r.rcon_server_id = s.id
+                 left join node_server n on r.node_id = n.id
+                 left join node_minecraft_server i on r.instance_id = i.id
+    </sql>
+
+    <select id="selectById" resultMap="RconNodeInstanceRelationResult">
+        <include refid="selectVo"/>
+        where r.id = #{id}
+    </select>
+
+    <select id="selectByRconAndInstance" resultMap="RconNodeInstanceRelationResult">
+        <include refid="selectVo"/>
+        where r.rcon_server_id = #{rconServerId} and r.instance_id = #{instanceId}
+    </select>
+
+    <select id="selectList" resultMap="RconNodeInstanceRelationResult">
+        <include refid="selectVo"/>
+        <where>
+            <if test="rconServerId != null">and r.rcon_server_id = #{rconServerId}</if>
+            <if test="nodeId != null">and r.node_id = #{nodeId}</if>
+            <if test="instanceId != null">and r.instance_id = #{instanceId}</if>
+            <if test="status != null and status != ''">and r.status = #{status}</if>
+        </where>
+        order by r.create_time desc
+    </select>
+
+    <select id="selectInstanceIdsByRconServerId" resultType="Long">
+        select distinct instance_id
+        from rcon_node_instance_relation
+        where rcon_server_id = #{rconServerId}
+          and status = '0'
+    </select>
+
+    <select id="selectRconServerIdsByInstanceId" resultType="Long">
+        select distinct rcon_server_id
+        from rcon_node_instance_relation
+        where instance_id = #{instanceId}
+          and status = '0'
+    </select>
+
+    <select id="selectByNodeId" resultMap="RconNodeInstanceRelationResult">
+        <include refid="selectVo"/>
+        where r.node_id = #{nodeId}
+        order by r.create_time desc
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        insert into rcon_node_instance_relation (rcon_server_id, node_id, instance_id, status, create_by, create_time,
+                                                 remark)
+        values (#{rconServerId}, #{nodeId}, #{instanceId}, #{status}, #{createBy}, #{createTime}, #{remark})
+    </insert>
+
+    <update id="update">
+        update rcon_node_instance_relation
+        <set>
+            <if test="status != null">status = #{status},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </set>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        delete
+        from rcon_node_instance_relation
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteByIds">
+        delete from rcon_node_instance_relation where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">#{id}</foreach>
+    </delete>
+
+    <delete id="deleteByRconServerId">
+        delete
+        from rcon_node_instance_relation
+        where rcon_server_id = #{rconServerId}
+    </delete>
+
+    <delete id="deleteByInstanceId">
+        delete
+        from rcon_node_instance_relation
+        where instance_id = #{instanceId}
+    </delete>
+
+    <delete id="deleteByNodeId">
+        delete
+        from rcon_node_instance_relation
+        where node_id = #{nodeId}
+    </delete>
+</mapper>

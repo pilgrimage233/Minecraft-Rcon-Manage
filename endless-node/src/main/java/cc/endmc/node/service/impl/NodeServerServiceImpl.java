@@ -12,14 +12,14 @@ import cc.endmc.node.utils.NodeHttpUtil;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
 import com.alibaba.fastjson2.JSONObject;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.constraints.NotNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.validation.constraints.NotNull;
 import java.io.File;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -407,6 +407,51 @@ public class NodeServerServiceImpl implements INodeServerService {
             }
         } catch (Exception e) {
             log.error("下载文件失败", e);
+        }
+    }
+
+    /**
+     * 获取文件内容
+     *
+     * @param params 参数（包含id和path）
+     * @return 文件内容
+     */
+    @Override
+    public String getFileContent(Map<String, Object> params) {
+        if (!params.containsKey("id") || !params.containsKey("path")) {
+            log.error("缺少参数: id 或 path");
+            return null;
+        }
+
+        final Integer id = (Integer) params.get("id");
+        final String path = (String) params.get("path");
+
+        NodeServer nodeServer = getNode(id.longValue());
+        if (nodeServer == null) {
+            log.error("节点服务器不存在: {}", id);
+            return null;
+        }
+
+        try {
+            Map<String, Object> param = new HashMap<>();
+            param.put("path", path);
+
+            // 发送请求获取文件内容
+            HttpResponse httpResponse = NodeHttpUtil.createGet(nodeServer, ApiUtil.getFileDownloadApi(nodeServer))
+                    .form(param)
+                    .execute();
+
+            if (!httpResponse.isOk()) {
+                log.error("获取文件内容失败: {}", httpResponse.body());
+                return null;
+            }
+
+            // 直接返回文件内容字符串
+            return httpResponse.body();
+
+        } catch (Exception e) {
+            log.error("获取文件内容失败", e);
+            return null;
         }
     }
 

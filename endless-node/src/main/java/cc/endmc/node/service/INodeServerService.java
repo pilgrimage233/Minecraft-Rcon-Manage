@@ -2,8 +2,8 @@ package cc.endmc.node.service;
 
 import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.node.domain.NodeServer;
-
 import jakarta.servlet.http.HttpServletResponse;
+
 import java.util.List;
 import java.util.Map;
 
@@ -93,6 +93,14 @@ public interface INodeServerService {
      * @return 结果
      */
     public void download(HttpServletResponse response, Map<String, Object> params);
+
+    /**
+     * 获取文件内容
+     *
+     * @param params 参数（包含id和path）
+     * @return 文件内容
+     */
+    public String getFileContent(Map<String, Object> params);
 
     /**
      * 上传文件到节点服务器

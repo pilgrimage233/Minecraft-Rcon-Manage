@@ -134,7 +134,7 @@
         </template>
       </el-table-column>
       <el-table-column align="center" label="描述" prop="remark"/>
-      <el-table-column align="center" class-name="small-padding fixed-width" label="操作" width="200">
+      <el-table-column align="center" class-name="small-padding fixed-width" label="操作" width="300">
         <template slot-scope="scope">
           <el-button
             v-hasPermi="['server:serverlist:edit']"
@@ -158,6 +158,21 @@
             type="text"
             @click="openConsole(scope.row)"
           >终端
+          </el-button>
+          <el-button
+            v-hasPermi="['server:relation:list']"
+            icon="el-icon-link"
+            size="mini"
+            type="text"
+            @click="handleRelation(scope.row)"
+          >关联
+          </el-button>
+          <el-button
+            icon="el-icon-refresh"
+            size="mini"
+            type="text"
+            @click="handleSync(scope.row)"
+          >同步
           </el-button>
         </template>
       </el-table-column>
@@ -401,6 +416,96 @@
         @pagination="getHistoryList"
       />
     </el-dialog>
+
+    <!-- 关联管理对话框 -->
+    <el-dialog
+      :title="'关联管理 - ' + currentServer.nameTag"
+      :visible.sync="relationVisible"
+      append-to-body
+      width="600px"
+    >
+      <div class="relation-container">
+        <!-- 当前关联信息 -->
+        <div v-if="currentRelation" class="current-relation-section">
+          <el-alert
+            :closable="false"
+            :description="currentRelation.status === '0' ? '关联正常' : '关联已停用'"
+            :title="`当前关联: ${currentRelation.nodeName} - ${currentRelation.instanceName}`"
+            :type="currentRelation.status === '0' ? 'success' : 'warning'"
+            show-icon
+          />
+          <div class="relation-actions" style="margin-top: 10px;">
+            <el-button
+              v-hasPermi="['server:relation:edit']"
+              :type="currentRelation.status === '0' ? 'warning' : 'success'"
+              size="small"
+              @click="toggleCurrentRelationStatus"
+            >
+              {{ currentRelation.status === '0' ? '停用关联' : '启用关联' }}
+            </el-button>
+            <el-button
+              v-hasPermi="['server:relation:remove']"
+              size="small"
+              type="danger"
+              @click="removeCurrentRelation"
+            >
+              删除关联
+            </el-button>
+          </div>
+        </div>
+
+        <!-- 添加关联 -->
+        <div v-if="!currentRelation" class="add-relation-section">
+          <el-alert
+            :closable="false"
+            description="请选择一个节点实例进行关联，用于文件级别操作"
+            show-icon
+            title="该RCON服务器尚未关联实例"
+            type="info"
+          />
+          <el-form :inline="true" size="small" style="margin-top: 15px;">
+            <el-form-item label="选择节点">
+              <el-select
+                v-model="selectedNodeId"
+                placeholder="请选择节点"
+                @change="handleNodeChange"
+              >
+                <el-option
+                  v-for="node in nodeList"
+                  :key="node.id"
+                  :label="node.name"
+                  :value="node.id"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="选择实例">
+              <el-select
+                v-model="selectedInstanceId"
+                :disabled="!selectedNodeId"
+                placeholder="请选择实例"
+              >
+                <el-option
+                  v-for="instance in instanceList"
+                  :key="instance.id"
+                  :label="instance.name"
+                  :value="instance.id"
+                />
+              </el-select>
+            </el-form-item>
+            <el-form-item>
+              <el-button
+                :disabled="!selectedNodeId || !selectedInstanceId"
+                size="small"
+                type="primary"
+                @click="addRelation"
+              >
+                创建关联
+              </el-button>
+            </el-form-item>
+          </el-form>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -419,6 +524,10 @@ import {WebLinksAddon} from 'xterm-addon-web-links';
 import 'xterm/css/xterm.css';
 import {highlightMinecraftSyntax, MINECRAFT_KEYWORDS} from '@/utils/minecraftSyntax';
 import {connectRcon, executeCommand, getCommandHistory} from "@/api/server/rcon";
+import {addRelation as addRelationApi, delRelation, getByRconServer, updateRelation} from "@/api/server/relation";
+import {listNodeServer} from "@/api/node/server";
+import {listInstanceByNodeId} from "@/api/node/instance";
+import {syncServerData} from "@/api/quartz/sync";
 
 export default {
   inheritAttrs: false,
@@ -536,6 +645,14 @@ export default {
         serverId: undefined
       },
       recentCommands: [], // 添加存储最近命令的数组
+      // 关联管理相关
+      relationVisible: false,
+      relationLoading: false,
+      currentRelation: null, // 当前关联（一对一）
+      nodeList: [],
+      instanceList: [],
+      selectedNodeId: null,
+      selectedInstanceId: null,
     };
   },
   created() {
@@ -874,6 +991,126 @@ export default {
       this.$nextTick(() => {
         this.$refs.commandInput.$refs.input.focus();
       });
+    },
+    /** 打开关联管理 */
+    handleRelation(row) {
+      this.currentServer = row;
+      this.relationVisible = true;
+      this.loadNodeList();
+      this.loadCurrentRelation();
+    },
+    /** 加载节点列表 */
+    async loadNodeList() {
+      try {
+        const response = await listNodeServer({});
+        this.nodeList = response.rows || [];
+      } catch (error) {
+        this.$modal.msgError("获取节点列表失败");
+      }
+    },
+    /** 节点变化时加载实例列表 */
+    async handleNodeChange(nodeId) {
+      this.selectedInstanceId = null;
+      this.instanceList = [];
+      if (nodeId) {
+        try {
+          const response = await listInstanceByNodeId(nodeId);
+          this.instanceList = response.data || [];
+        } catch (error) {
+          this.$modal.msgError("获取实例列表失败");
+        }
+      }
+    },
+    /** 加载当前关联 */
+    async loadCurrentRelation() {
+      this.relationLoading = true;
+      try {
+        const response = await getByRconServer(this.currentServer.id);
+        this.currentRelation = response.data;
+      } catch (error) {
+        this.currentRelation = null;
+      }
+      this.relationLoading = false;
+    },
+    /** 添加关联 */
+    async addRelation() {
+      if (!this.selectedNodeId || !this.selectedInstanceId) {
+        this.$modal.msgWarning("请选择节点和实例");
+        return;
+      }
+
+      try {
+        const data = {
+          rconServerId: this.currentServer.id,
+          nodeId: this.selectedNodeId,
+          instanceId: this.selectedInstanceId,
+          status: '0'
+        };
+        await addRelationApi(data);
+        this.$modal.msgSuccess("创建关联成功");
+        this.selectedNodeId = null;
+        this.selectedInstanceId = null;
+        this.instanceList = [];
+        this.loadCurrentRelation();
+      } catch (error) {
+        if (error.response && error.response.data && error.response.data.msg) {
+          this.$modal.msgError(error.response.data.msg);
+        } else {
+          this.$modal.msgError("创建关联失败，可能该实例已被其他RCON服务器关联");
+        }
+      }
+    },
+    /** 切换当前关联状态 */
+    async toggleCurrentRelationStatus() {
+      if (!this.currentRelation) return;
+
+      const newStatus = this.currentRelation.status === '0' ? '1' : '0';
+      const statusText = newStatus === '0' ? '启用' : '停用';
+
+      try {
+        await this.$modal.confirm(`确认${statusText}该关联吗？`);
+        const data = {
+          id: this.currentRelation.id,
+          status: newStatus
+        };
+        await updateRelation(data);
+        this.$modal.msgSuccess(`${statusText}成功`);
+        this.loadCurrentRelation();
+      } catch (error) {
+        if (error !== 'cancel') {
+          this.$modal.msgError(`${statusText}失败`);
+        }
+      }
+    },
+    /** 删除当前关联 */
+    async removeCurrentRelation() {
+      if (!this.currentRelation) return;
+
+      try {
+        await this.$modal.confirm('确认删除该关联吗？删除后将无法进行文件级别操作。');
+        await delRelation(this.currentRelation.id);
+        this.$modal.msgSuccess("删除成功");
+        this.currentRelation = null;
+      } catch (error) {
+        if (error !== 'cancel') {
+          this.$modal.msgError("删除失败");
+        }
+      }
+    },
+    /** 手动同步服务器数据 */
+    async handleSync(row) {
+      try {
+        await this.$modal.confirm('确认同步该服务器的OP和封禁名单吗？');
+        this.$modal.loading("正在同步中...");
+        await syncServerData(row.id);
+        this.$modal.closeLoading();
+        this.$modal.msgSuccess("同步成功");
+      } catch (error) {
+        this.$modal.closeLoading();
+        if (error !== 'cancel') {
+          this.$modal.msgError("同步失败: " + (error.response?.data?.msg || error.message));
+        }
+      }
     }
   }
 };
@@ -1095,5 +1332,21 @@ export default {
 
 .command-item:hover {
   background-color: rgba(255, 255, 255, 0.1);
+}
+
+.relation-container {
+  .current-relation-section {
+    margin-bottom: 20px;
+  }
+
+  .add-relation-section {
+    padding: 16px;
+    background: #f5f7fa;
+    border-radius: 4px;
+  }
+
+  .relation-actions {
+    text-align: right;
+  }
 }
 </style>
