@@ -3,7 +3,7 @@ endless:
   # 名称
   name: EndlessManager
   # 版本
-  version: 3.3.1-java21
+  version: 3.4
   # 版权年份
   copyrightYear: 2025
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
@@ -12,6 +12,12 @@ endless:
   addressEnabled: false
   # 验证码类型 math 数字计算 char 字符验证
   captchaType: math
+  # 数据库相关配置
+  database:
+    # 备份配置
+    backup:
+      enabled: true  # 是否启用自动备份
+      path: ./backup  # 备份文件存储路径
 # 接口地址
 app-url: http://localhost:5173/
 

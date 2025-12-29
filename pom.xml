@@ -13,7 +13,7 @@
     <description>Endless-Manager</description>
 
     <properties>
-        <endless.version>3.3.1-java21</endless.version>
+        <endless.version>3.4</endless.version>
         <ruoyi.version>3.9.1</ruoyi.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
@@ -250,14 +250,6 @@
     </build>
 
     <repositories>
-        <!--        <repository>
-                    <id>public</id>
-                    <name>aliyun nexus</name>
-                    <url>https://maven.aliyun.com/repository/public</url>
-                    <releases>
-                        <enabled>true</enabled>
-                    </releases>
-                </repository>-->
         <repository>
             <id>central</id>
             <name>Maven Central Repository</name>
@@ -267,19 +259,5 @@
             </releases>
         </repository>
     </repositories>
-
-    <!--    <pluginRepositories>
-            <pluginRepository>
-                <id>public</id>
-                <name>aliyun nexus</name>
-                <url>https://maven.aliyun.com/repository/public</url>
-                <releases>
-                    <enabled>true</enabled>
-                </releases>
-                <snapshots>
-                    <enabled>false</enabled>
-                </snapshots>
-            </pluginRepository>
-        </pluginRepositories>-->
 
 </project>
