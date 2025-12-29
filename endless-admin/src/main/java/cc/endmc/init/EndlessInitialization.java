@@ -4,6 +4,7 @@ import cc.endmc.common.config.EndlessConfig;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.ip.IpUtils;
+import cc.endmc.framework.database.service.DatabaseMigrationService;
 import cc.endmc.node.common.NodeCache;
 import cc.endmc.node.domain.NodeServer;
 import cc.endmc.node.service.INodeServerService;
@@ -57,6 +58,7 @@ public class EndlessInitialization implements InitializingBean {
     private final RconConfig rconConfig;
     private final Environment env;
     private final EndlessConfig endlessConfig;
+    private final DatabaseMigrationService migrationService;
 
     // 虚拟线程执行器用于并发初始化任务
     private final ExecutorService executorService = Executors.newThreadPerTaskExecutor(
@@ -74,10 +76,13 @@ public class EndlessInitialization implements InitializingBean {
             // 1. 验证必要配置
             validateRequiredConfigs();
 
-            // 2. 初始化 Rcon 配置
+            // 2. 执行数据库迁移
+            executeDatabaseMigration();
+
+            // 3. 初始化 Rcon 配置
             rconConfig.init();
 
-            // 3. 并发执行各项初始化任务
+            // 4. 并发执行各项初始化任务
             CompletableFuture<Void> serverInfoFuture = CompletableFuture.runAsync(this::initServerInfo, executorService);
             CompletableFuture<Void> commandFuture = CompletableFuture.runAsync(this::initCommandInfo, executorService);
             CompletableFuture<Void> nodeFuture = CompletableFuture.runAsync(this::initNodeServers, executorService);
@@ -87,13 +92,13 @@ public class EndlessInitialization implements InitializingBean {
             CompletableFuture.allOf(serverInfoFuture, commandFuture, nodeFuture, emailFuture)
                     .get(30, TimeUnit.SECONDS);
 
-            // 4. 初始化 Rcon 连接（依赖服务器信息）
+            // 5. 初始化 Rcon 连接（依赖服务器信息）
             initRconConnections();
 
-            // 5. 更新节点控制端信息
+            // 6. 更新节点控制端信息
             updateNodeMasterInfo();
 
-            // 6. 发送初始化完成广播
+            // 7. 发送初始化完成广播
             sendInitBroadcast();
 
             long elapsedTime = System.currentTimeMillis() - startTime;
@@ -107,6 +112,32 @@ public class EndlessInitialization implements InitializingBean {
             throw new RuntimeException("系统初始化失败", e);
         } finally {
             executorService.shutdown();
+        }
+    }
+
+    /**
+     * 执行数据库迁移
+     */
+    private void executeDatabaseMigration() {
+        try {
+            log.info("🔄 开始数据库迁移检查...");
+
+            DatabaseMigrationService.MigrationResult result = migrationService.migrate();
+
+            if (result.isSuccess()) {
+                if (result.getExecutedCount() > 0) {
+                    log.info("✅ 数据库迁移完成: {}", result.getMessage());
+                } else {
+                    log.debug("📋 {}", result.getMessage());
+                }
+            } else {
+                log.error("❌ 数据库迁移失败: {}", result.getMessage());
+                throw new RuntimeException("数据库迁移失败: " + result.getMessage(), result.getError());
+            }
+
+        } catch (Exception e) {
+            log.error("❌ 数据库迁移异常", e);
+            throw new RuntimeException("数据库迁移异常", e);
         }
     }
 

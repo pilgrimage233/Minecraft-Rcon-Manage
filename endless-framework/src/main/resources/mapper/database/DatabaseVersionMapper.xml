@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.framework.database.mapper.DatabaseVersionMapper">
+
+    <resultMap type="cc.endmc.framework.database.domain.DatabaseVersion" id="DatabaseVersionResult">
+        <result property="id" column="id"/>
+        <result property="appVersion" column="app_version"/>
+        <result property="scriptType" column="script_type"/>
+        <result property="scriptName" column="script_name"/>
+        <result property="fileName" column="file_name"/>
+        <result property="description" column="description"/>
+        <result property="checksum" column="checksum"/>
+        <result property="executionTime" column="execution_time"/>
+        <result property="success" column="success"/>
+        <result property="errorMessage" column="error_message"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <!-- 执行动态SQL脚本 -->
+    <update id="executeSql">
+        ${sql}
+    </update>
+
+</mapper>
