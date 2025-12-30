@@ -143,7 +143,7 @@ public class OnlineTask {
             Set<String> currentOnlinePlayers = OnlinePlayerUtil.getAllOnlinePlayers();
 
             // 清理无效的玩家名
-            currentOnlinePlayers = playerMonitorUtil.cleanPlayerNames(currentOnlinePlayers);
+            // currentOnlinePlayers = playerMonitorUtil.cleanPlayerNames(currentOnlinePlayers);
 
             // 检测玩家变化
             PlayerMonitorUtil.PlayerChangeInfo changeInfo = playerMonitorUtil.detectPlayerChanges(currentOnlinePlayers);

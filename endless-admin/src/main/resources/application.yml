@@ -3,7 +3,7 @@ endless:
   # 名称
   name: EndlessManager
   # 版本
-  version: 3.4
+  version: 3.4.1
   # 版权年份
   copyrightYear: 2025
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）

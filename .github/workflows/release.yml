@@ -36,6 +36,28 @@ jobs:
           mvn -B clean package -DskipTests
           cp endless-admin/target/endless-manager.jar endless-admin/target/endless-manager-springboot3-${{ steps.get-version.outputs.version }}.jar
 
+      # 设置 Node.js 环境（用于前端）
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 16
+
+      # 安装前端依赖
+      - name: Install Frontend Dependencies
+        run: npm install
+        working-directory: ./endless-ui
+
+      # 构建前端项目
+      - name: Build Frontend
+        run: npm run build:prod
+        working-directory: ./endless-ui
+
+      # 压缩前端产物
+      - name: Compress Frontend Dist
+        run: |
+          cd endless-ui
+          zip -r dist.zip dist
+
       # 创建 Release
       - name: Create Release
         id: create-release
@@ -57,3 +79,13 @@ jobs:
           asset_name: endless-manager-${{ steps.get-version.outputs.version }}.jar
           asset_content_type: application/java-archive
 
+      # 上传前端压缩包
+      - name: Upload Frontend Zip
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create-release.outputs.upload_url }}
+          asset_path: ./endless-ui/dist.zip
+          asset_name: endless-ui.zip
+          asset_content_type: application/zip

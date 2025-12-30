@@ -183,11 +183,11 @@ public class DatabaseMigrationService {
      * @return 迁移脚本列表
      */
     private List<MigrationScript> loadAllMigrationScripts() {
-        List<MigrationScript> scripts = new ArrayList<>();
+        List<MigrationScript> scripts;
 
         try {
             // 加载migration脚本
-            scripts.addAll(loadScriptsByPattern(MIGRATION_PATH_PATTERN));
+            scripts = new ArrayList<>(loadScriptsByPattern(MIGRATION_PATH_PATTERN));
 
             // 排序：按版本、执行顺序
             scripts.sort(MigrationScript::compareTo);
@@ -208,23 +208,29 @@ public class DatabaseMigrationService {
      */
     private List<MigrationScript> loadScriptsByPattern(String pathPattern) throws Exception {
         List<MigrationScript> scripts = new ArrayList<>();
-        Resource[] resources = resourceResolver.getResources(pathPattern);
 
-        for (Resource resource : resources) {
-            if (resource.exists() && resource.isReadable()) {
-                try {
-                    String resourcePath = resource.getURI().toString();
-                    // 提取相对路径
-                    String relativePath = extractRelativePath(resourcePath);
-                    String content = readResourceContent(resource);
+        try {
+            Resource[] resources = resourceResolver.getResources(pathPattern);
 
-                    MigrationScript script = new MigrationScript(relativePath, content);
-                    scripts.add(script);
-                    log.debug("📄 加载迁移脚本: {}", script);
-                } catch (Exception e) {
-                    log.warn("⚠️ 跳过无效的迁移脚本文件: {} - {}", resource.getFilename(), e.getMessage());
+            for (Resource resource : resources) {
+                if (resource.exists() && resource.isReadable()) {
+                    try {
+                        String resourcePath = resource.getURI().toString();
+                        // 提取相对路径
+                        String relativePath = extractRelativePath(resourcePath);
+                        String content = readResourceContent(resource);
+
+                        MigrationScript script = new MigrationScript(relativePath, content);
+                        scripts.add(script);
+                        log.debug("📄 加载迁移脚本: {}", script);
+                    } catch (Exception e) {
+                        log.warn("⚠️ 跳过无效的迁移脚本文件: {} - {}", resource.getFilename(), e.getMessage());
+                    }
                 }
             }
+        } catch (java.io.FileNotFoundException e) {
+            // db/migration/ 目录不存在，这是正常情况，返回空列表
+            log.debug("📋 迁移脚本目录不存在: {}", pathPattern);
         }
 
         return scripts;

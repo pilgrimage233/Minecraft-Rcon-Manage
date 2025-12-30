@@ -13,7 +13,7 @@
     <description>Endless-Manager</description>
 
     <properties>
-        <endless.version>3.4</endless.version>
+        <endless.version>3.4.1</endless.version>
         <ruoyi.version>3.9.1</ruoyi.version>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
