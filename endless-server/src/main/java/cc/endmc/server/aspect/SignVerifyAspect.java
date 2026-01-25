@@ -6,26 +6,35 @@ import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.ServletUtils;
 import cc.endmc.server.annotation.SignVerify;
 import com.alibaba.fastjson2.JSON;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
+import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 /**
  * 签名验证AOP切面
  * 通过注解方式实现签名验证
+ *
+ * 支持方法级别和类级别的签名验证：
+ * 1. 方法级别注解优先级最高
+ * 2. 类级别注解作用于所有公开方法，但可通过excludeMethods排除特定方法
+ * 3. 方法级别的enabled=false可以覆盖类级别的验证
  *
  * @author Memory
  */
@@ -43,12 +52,46 @@ public class SignVerifyAspect {
     private RedisCache redisCache;
 
     /**
-     * 环绕通知，处理签名验证
+     * 环绕通知，处理方法级别的签名验证
      */
     @Around("@annotation(signVerify)")
     public Object around(ProceedingJoinPoint joinPoint, SignVerify signVerify) throws Throwable {
+        return processSignVerify(joinPoint, signVerify);
+    }
+
+    /**
+     * 环绕通知，处理类级别的签名验证
+     */
+    @Around("@within(signVerify) && execution(public * *(..))")
+    public Object aroundClass(ProceedingJoinPoint joinPoint, SignVerify signVerify) throws Throwable {
+        MethodSignature signature = (MethodSignature) joinPoint.getSignature();
+        Method method = signature.getMethod();
+        String methodName = method.getName();
+
+        // 检查方法是否在排除列表中
+        if (Arrays.asList(signVerify.excludeMethods()).contains(methodName)) {
+            log.debug("方法 {} 在排除列表中，跳过签名验证", methodName);
+            return joinPoint.proceed();
+        }
+
+        // 检查方法级别是否有SignVerify注解，如果有则优先使用方法级别的配置
+        SignVerify methodAnnotation = AnnotationUtils.findAnnotation(method, SignVerify.class);
+        if (methodAnnotation != null) {
+            log.debug("方法 {} 有方法级别的SignVerify注解，使用方法级别配置", methodName);
+            return processSignVerify(joinPoint, methodAnnotation);
+        }
+
+        // 使用类级别的配置
+        return processSignVerify(joinPoint, signVerify);
+    }
+
+    /**
+     * 处理签名验证的核心逻辑
+     */
+    private Object processSignVerify(ProceedingJoinPoint joinPoint, SignVerify signVerify) throws Throwable {
         // 如果注解禁用，直接执行原方法
         if (!signVerify.enabled()) {
+            log.debug("签名验证已禁用，跳过验证");
             return joinPoint.proceed();
         }
 
@@ -79,14 +122,6 @@ public class SignVerifyAspect {
             }
             return null;
         }
-    }
-
-    /**
-     * 类级别注解的环绕通知
-     */
-    @Around("@within(signVerify)")
-    public Object aroundClass(ProceedingJoinPoint joinPoint, SignVerify signVerify) throws Throwable {
-        return around(joinPoint, signVerify);
     }
 
     /**
