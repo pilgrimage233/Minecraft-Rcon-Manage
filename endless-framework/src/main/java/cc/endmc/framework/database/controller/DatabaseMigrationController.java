@@ -4,6 +4,7 @@ import cc.endmc.common.core.controller.BaseController;
 import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.common.core.page.TableDataInfo;
 import cc.endmc.framework.database.domain.DatabaseVersion;
+import cc.endmc.framework.database.service.DatabaseBackupService;
 import cc.endmc.framework.database.service.DatabaseMigrationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,6 +29,7 @@ import java.util.List;
 public class DatabaseMigrationController extends BaseController {
 
     private final DatabaseMigrationService migrationService;
+    private final DatabaseBackupService backupService;
 
     /**
      * 获取数据库版本历史
@@ -112,11 +114,14 @@ public class DatabaseMigrationController extends BaseController {
         try {
             log.info("🗄️ 管理员手动触发数据库备份");
 
-            // 这里需要注入 DatabaseBackupService
-            // DatabaseBackupService.BackupResult result = backupService.backup("manual");
-
-            // 暂时返回成功信息
-            return success("手动备份功能需要注入 DatabaseBackupService");
+            DatabaseBackupService.BackupResult result = backupService.backup("manual");
+            if (result.isSuccess()) {
+                return success("数据库备份成功")
+                        .put("backupPath", result.getBackupPath())
+                        .put("backedupTables", result.getBackedupTables().size());
+            } else {
+                return error("数据库备份失败: " + result.getMessage());
+            }
 
         } catch (Exception e) {
             log.error("❌ 手动数据库备份失败", e);
