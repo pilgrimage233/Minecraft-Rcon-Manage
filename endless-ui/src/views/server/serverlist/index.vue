@@ -525,7 +525,7 @@ import 'xterm/css/xterm.css';
 import {highlightMinecraftSyntax, MINECRAFT_KEYWORDS} from '@/utils/minecraftSyntax';
 import {connectRcon, executeCommand, getCommandHistory} from "@/api/server/rcon";
 import {addRelation as addRelationApi, delRelation, getByRconServer, updateRelation} from "@/api/server/relation";
-import {listNodeServer} from "@/api/node/server";
+import {listServer} from "@/api/node/server";
 import {listInstanceByNodeId} from "@/api/node/instance";
 import {syncServerData} from "@/api/quartz/sync";
 
@@ -1002,7 +1002,7 @@ export default {
     /** 加载节点列表 */
     async loadNodeList() {
       try {
-        const response = await listNodeServer({});
+        const response = await listServer({});
         this.nodeList = response.rows || [];
       } catch (error) {
         this.$modal.msgError("获取节点列表失败");

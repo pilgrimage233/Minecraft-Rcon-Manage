@@ -4,7 +4,12 @@ import java.lang.annotation.*;
 
 /**
  * 签名验证注解
- * 用于标记需要进行签名验证的方法
+ * 用于标记需要进行签名验证的方法或控制器
+ *
+ * 使用说明：
+ * 1. 方法级别：在具体方法上使用，仅对该方法进行签名验证
+ * 2. 控制器级别：在Controller类上使用，对该控制器的所有公开方法进行签名验证
+ * 3. 方法级别的注解会覆盖类级别的配置
  *
  * @author Memory
  */
@@ -16,6 +21,8 @@ public @interface SignVerify {
     /**
      * 是否启用签名验证
      * 默认为true
+     *
+     * 当在类级别使用时，可以通过在特定方法上设置enabled=false来跳过验证
      */
     boolean enabled() default true;
 
@@ -42,4 +49,11 @@ public @interface SignVerify {
      * 默认60秒
      */
     long rateLimitWindow() default 60L;
+
+    /**
+     * 排除的方法名称
+     * 当在类级别使用时，可以指定不需要签名验证的方法名
+     * 仅在类级别注解时生效
+     */
+    String[] excludeMethods() default {};
 }

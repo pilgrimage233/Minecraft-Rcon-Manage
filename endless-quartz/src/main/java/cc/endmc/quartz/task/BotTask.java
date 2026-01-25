@@ -547,4 +547,220 @@ public class BotTask {
         if (str.length() <= maxLength) return str;
         return str.substring(0, maxLength) + "...";
     }
+
+    /**
+     * 同步群成员ID
+     * 将通过白名单的用户群名片修改为【id】+ 原有昵称
+     */
+    public void synchronizeGroupMembersId() {
+        log.info("开始同步群成员ID...");
+
+        try {
+            // 获取所有通过审核且未被移除的白名单用户
+            WhitelistInfo queryCondition = new WhitelistInfo();
+            queryCondition.setStatus("1"); // 审核通过
+            final List<WhitelistInfo> whitelistInfos = whitelistInfoService.selectWhitelistInfoList(queryCondition);
+
+            if (whitelistInfos.isEmpty()) {
+                log.info("没有需要同步的白名单用户");
+                return;
+            }
+
+            // 获取所有活跃的机器人客户端
+            Map<Long, BotClient> activeBots = botManager.getAllBots();
+            if (activeBots.isEmpty()) {
+                log.warn("没有活跃的机器人客户端，无法同步群成员ID");
+                return;
+            }
+
+            // 获取所有需要监控的群ID列表
+            Set<Long> allGroupIds = new HashSet<>();
+            for (BotClient bot : activeBots.values()) {
+                try {
+                    if (bot == null || bot.getConfig() == null) {
+                        continue;
+                    }
+                } catch (Exception e) {
+                    log.error("获取机器人配置失败: {}", e.getMessage());
+                    continue;
+                }
+
+                QqBotConfig config = bot.getConfig();
+                if (config.getGroupIds() != null) {
+                    allGroupIds.addAll(Arrays.stream(config.getGroupIds().split(","))
+                            .map(Long::parseLong)
+                            .collect(Collectors.toSet()));
+                }
+            }
+
+            if (allGroupIds.isEmpty()) {
+                log.warn("没有配置任何群组，无法同步群成员ID");
+                return;
+            }
+
+            int successCount = 0;
+            int failCount = 0;
+
+            // 遍历所有群组
+            for (Long groupId : allGroupIds) {
+                // 找到负责该群的机器人
+                BotClient responsibleBot = findResponsibleBot(activeBots, groupId);
+                if (responsibleBot == null) {
+                    log.warn("群 {} 没有对应的机器人客户端", groupId);
+                    continue;
+                }
+
+                // 获取群成员列表
+                JSONObject request = new JSONObject();
+                request.put("group_id", String.valueOf(groupId));
+                request.put("no_cache", false);
+
+                String botUrl = responsibleBot.getConfig().getHttpUrl();
+                HttpResponse response = null;
+                try {
+                    response = HttpUtil
+                            .createPost(botUrl + BotApi.GET_GROUP_MEMBER_LIST)
+                            .header("Authorization", "Bearer " + responsibleBot.getConfig().getToken())
+                            .body(request.toJSONString())
+                            .timeout(8000)
+                            .execute();
+                } catch (Exception e) {
+                    log.error("群 {} 获取成员列表失败: {}", groupId, e.getMessage());
+                    continue;
+                }
+
+                if (response == null || !response.isOk()) {
+                    log.warn("群 {} 获取成员列表失败", groupId);
+                    continue;
+                }
+
+                final JSONObject jsonObject = JSONObject.parseObject(response.body());
+                if ((jsonObject.containsKey("retcode") && jsonObject.getInteger("retcode") != 0) || jsonObject.getJSONArray("data") == null) {
+                    log.warn("群 {} 获取成员列表失败: {}", groupId, jsonObject);
+                    continue;
+                }
+
+                final List<JSONObject> members = jsonObject.getJSONArray("data").toJavaList(JSONObject.class);
+                if (members.isEmpty()) {
+                    log.warn("群 {} 成员列表为空", groupId);
+                    continue;
+                }
+
+                log.debug("群 {} 成员列表获取成功，数量: {}", groupId, members.size());
+
+                // 遍历白名单用户，检查是否在当前群中
+                for (WhitelistInfo whitelist : whitelistInfos) {
+                    try {
+                        Long userId = Long.parseLong(whitelist.getQqNum());
+                        String gameName = whitelist.getUserName();
+
+                        // 查找该用户是否在当前群中
+                        JSONObject targetMember = members.stream()
+                                .filter(member -> userId.equals(member.getLong("user_id")))
+                                .findFirst()
+                                .orElse(null);
+
+                        if (targetMember != null) {
+                            // 用户在群中，检查并更新群名片
+                            String currentCard = targetMember.getString("card");
+                            String currentNickname = targetMember.getString("nickname");
+
+                            // 获取用户原本的昵称（优先使用群名片，如果没有则使用QQ昵称）
+                            String originalName = (currentCard != null && !currentCard.trim().isEmpty())
+                                    ? currentCard : currentNickname;
+
+                            // 检查当前群名片是否已经包含白名单标识
+                            String whitelistTag = "【" + gameName + "】";
+                            String newCard;
+
+                            if (originalName.startsWith("【") && originalName.contains("】")) {
+                                // 如果已经有标识，替换为新的白名单标识
+                                int endIndex = originalName.indexOf("】") + 1;
+                                String nameWithoutTag = originalName.substring(endIndex).trim();
+                                newCard = whitelistTag + nameWithoutTag;
+                            } else {
+                                // 如果没有标识，直接添加白名单标识
+                                newCard = whitelistTag + originalName;
+                            }
+
+                            // 如果当前群名片已经是目标格式，跳过更新
+                            if (newCard.equals(currentCard)) {
+                                log.debug("用户 {} 在群 {} 的群名片已经是正确格式，跳过更新", userId, groupId);
+                                continue;
+                            }
+
+                            // 更新群名片
+                            boolean updateSuccess = updateGroupCard(responsibleBot, groupId, userId, newCard);
+                            if (updateSuccess) {
+                                successCount++;
+                                log.info("成功更新用户 {} 在群 {} 的群名片: {} -> {}",
+                                        userId, groupId, originalName, newCard);
+
+                                // 避免更新过快，添加延迟
+                                Thread.sleep(500);
+                            } else {
+                                failCount++;
+                                log.error("更新用户 {} 在群 {} 的群名片失败", userId, groupId);
+                            }
+                        }
+                    } catch (NumberFormatException e) {
+                        log.error("白名单用户 {} 的QQ号格式错误: {}", whitelist.getUserName(), whitelist.getQqNum());
+                    } catch (Exception e) {
+                        log.error("处理白名单用户 {} 时发生错误: {}", whitelist.getUserName(), e.getMessage());
+                        failCount++;
+                    }
+                }
+            }
+
+            log.info("群成员ID同步完成，成功: {} 个，失败: {} 个", successCount, failCount);
+
+        } catch (Exception e) {
+            log.error("同步群成员ID失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 更新群成员名片
+     *
+     * @param bot     机器人客户端
+     * @param groupId 群号
+     * @param userId  用户QQ号
+     * @param newCard 新的群名片
+     * @return 是否更新成功
+     */
+    private boolean updateGroupCard(BotClient bot, Long groupId, Long userId, String newCard) {
+        try {
+            // 构建请求参数
+            JSONObject request = new JSONObject();
+            request.put("group_id", String.valueOf(groupId));
+            request.put("user_id", String.valueOf(userId));
+            request.put("card", newCard);
+
+            // 发送更新群名片请求
+            HttpResponse response = HttpUtil
+                    .createPost(bot.getConfig().getHttpUrl() + BotApi.SET_GROUP_CARD)
+                    .header("Authorization", "Bearer " + bot.getConfig().getToken())
+                    .body(request.toJSONString())
+                    .timeout(8000)
+                    .execute();
+
+            if (response == null || !response.isOk()) {
+                log.error("更新群名片请求失败，HTTP状态: {}", response != null ? response.getStatus() : "null");
+                return false;
+            }
+
+            JSONObject result = JSONObject.parseObject(response.body());
+            if (result.containsKey("retcode") && result.getInteger("retcode") == 0) {
+                return true;
+            } else {
+                log.error("更新群名片失败，返回码: {}, 消息: {}",
+                        result.getInteger("retcode"), result.getString("msg"));
+                return false;
+            }
+
+        } catch (Exception e) {
+            log.error("更新群名片时发生异常: {}", e.getMessage());
+            return false;
+        }
+    }
 }

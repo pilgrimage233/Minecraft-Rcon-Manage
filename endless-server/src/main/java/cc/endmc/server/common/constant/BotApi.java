@@ -22,4 +22,7 @@ public class BotApi {
 
     // /get_group_member_list 获取群成员列表
     public static final String GET_GROUP_MEMBER_LIST = "/get_group_member_list";
+
+    // /set_group_card 设置群名片
+    public static final String SET_GROUP_CARD = "/set_group_card";
 }

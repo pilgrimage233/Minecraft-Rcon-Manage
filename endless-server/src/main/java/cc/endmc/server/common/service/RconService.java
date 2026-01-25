@@ -12,6 +12,7 @@ import cc.endmc.server.common.constant.RconMsg;
 import cc.endmc.server.common.rconclient.RconClient;
 import cc.endmc.server.domain.server.ServerCommandInfo;
 import cc.endmc.server.domain.server.ServerInfo;
+import cc.endmc.server.mapper.server.ServerCommandInfoMapper;
 import cc.endmc.server.mapper.server.ServerInfoMapper;
 import cc.endmc.server.utils.IPUtils;
 import lombok.RequiredArgsConstructor;
@@ -20,11 +21,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.*;
+import java.util.stream.Collectors;
 
 /**
  * Rcon发送命令工具类
@@ -35,14 +33,19 @@ import java.util.concurrent.atomic.AtomicReference;
 @RequiredArgsConstructor
 public class RconService {
 
-    public static Map<String, ServerCommandInfo> COMMAND_INFO = new HashMap<>();
-    @Value("${whitelist.email}")
-    private String ADMIN_EMAIL;
+    private static final int MAX_RETRIES = 3;
+    private static final long RETRY_DELAY_BASE_MS = 1000L;
+    private static final int CONNECTION_TIMEOUT_SECONDS = 10;
+    private static final int ERROR_EMAIL_THRESHOLD = 10;
+    public static Map<String, ServerCommandInfo> COMMAND_INFO = new ConcurrentHashMap<>();
+    private final PasswordManager passwordManager;
 
     private final EmailService emailService;
     private final RedisCache redisCache;
-    private final PasswordManager PasswordManager;
+    private final ServerCommandInfoMapper serverCommandInfoMapper;
     private final ServerInfoMapper serverInfoMapper;
+    @Value("${whitelist.email}")
+    private String adminEmail;
 
     /**
      * 关闭Rcon
@@ -72,7 +75,7 @@ public class RconService {
      * @param command 命令
      */
     public String sendCommand(String key, String command) {
-        return this.sendCommand(key, command, false);
+        return this.sendCommand(key, command, false, null);
     }
 
     /**
@@ -83,70 +86,31 @@ public class RconService {
      * @param onlineFlag 是否在线
      */
     public String sendCommand(String key, String command, boolean onlineFlag) {
-        int maxRetries = 3;
-        int retryCount = 0;
+        return this.sendCommand(key, command, onlineFlag, null);
+    }
+
+    /**
+     * 发送Rcon命令
+     *
+     * @param key        服务器ID
+     * @param command    命令
+     * @param onlineFlag 是否在线
+     * @param reason     封禁原因
+     */
+    public String sendCommand(String key, String command, boolean onlineFlag, String reason) {
         StringBuilder result = new StringBuilder();
 
-        while (retryCount < maxRetries) {
+        for (int retryCount = 0; retryCount < MAX_RETRIES; retryCount++) {
             try {
                 if (key.contains("all")) {
-                    // 使用 CompletableFuture.allOf 等待所有命令执行完成
-                    List<CompletableFuture<String>> futures = new ArrayList<>();
-
-                    RconCache.getMap().forEach((k, client) -> {
-                        final String replaced = replaceCommand(k, command, onlineFlag);
-                        CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
-                            try {
-                                return stripMinecraftColorCodes(client.sendCommand(replaced));
-                            } catch (Exception e) {
-                                log.error("发送命令失败: {}", e.getMessage());
-                                return "Error: " + e.getMessage();
-                            }
-                        });
-                        futures.add(future);
-                    });
-
-                    // 等待所有命令执行完成
-                    CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-
-                    // 收集所有结果
-                    for (CompletableFuture<String> future : futures) {
-                        result.append(future.get()).append("\n");
-                    }
+                    return sendCommandToAllServers(command, onlineFlag, reason);
                 } else {
-                    if (RconCache.get(key) == null) {
-                        throw new RuntimeException("RconClient not found for key: " + key);
-                    }
-
-                    final String replaced = replaceCommand(key, command, onlineFlag);
-                    final RconClient client = RconCache.get(key);
-
-                    // 同步执行命令
-                    result.append(stripMinecraftColorCodes(client.sendCommand(replaced)));
+                    return sendCommandToSingleServer(key, command, onlineFlag, reason);
                 }
-                log.debug("发送命令成功: {}", command);
-                return result.toString();
-
             } catch (Exception e) {
-                retryCount++;
-                log.warn("发送命令失败，第{}次重试: {}", retryCount, e.getMessage());
-
-                if (retryCount >= maxRetries) {
-                    log.error("发送命令最终失败: {}", e.getMessage());
-                    // 重连并回调
-                    if (reconnect(key)) {
-                        log.debug("重连成功，重新发送命令: {}", command);
-                        return this.sendCommand(key, command, onlineFlag);
-                    } else {
-                        log.error("重连失败，无法发送命令: {}", command);
-                        handleCommandError(key, command);
-                    }
-                }
-
-                try {
-                    Thread.sleep(1000L * retryCount);
-                } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
+                if (handleRetryLogic(retryCount, key, command, onlineFlag, reason, e)) {
+                    continue;
+                } else {
                     break;
                 }
             }
@@ -154,241 +118,346 @@ public class RconService {
         return null;
     }
 
-    // 处理命令错误的辅助方法
-    private void handleCommandError(String key, String command) {
-        Map<String, Object> cache = new HashMap<>();
-        // 命令缓存
-        if (redisCache.hasKey(CacheKey.ERROR_COMMAND_CACHE_KEY)) {
-            cache = redisCache.getCacheObject(CacheKey.ERROR_COMMAND_CACHE_KEY);
-            if (cache.containsKey(key)) {
-                Set<String> set = (Set<String>) cache.get(key);
-                set.add(command);
-                cache.put(key, set);
-            } else {
-                Set<String> set = new HashSet<>();
-                set.add(command);
-                cache.put(key, set);
-            }
-        } else {
-            Set<String> set = new HashSet<>();
-            set.add(command);
-            cache.put(key, set);
+    private String sendCommandToAllServers(String command, boolean onlineFlag, String reason) throws ExecutionException, InterruptedException {
+        List<CompletableFuture<String>> futures = new ArrayList<>();
+        StringBuilder result = new StringBuilder();
+
+        RconCache.getMap().forEach((k, client) -> {
+            final String replaced = replaceCommand(k, command, onlineFlag, reason);
+            CompletableFuture<String> future = CompletableFuture.supplyAsync(() -> {
+                try {
+                    return stripMinecraftColorCodes(client.sendCommand(replaced));
+                } catch (Exception e) {
+                    log.error("发送命令失败到服务器 {}: {}", k, e.getMessage());
+                    return "Error: " + e.getMessage();
+                }
+            });
+            futures.add(future);
+        });
+
+        // 等待所有命令执行完成
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+
+        // 收集所有结果
+        for (CompletableFuture<String> future : futures) {
+            result.append(future.get()).append("\n");
         }
+
+        log.debug("发送命令成功到所有服务器: {}", command);
+        return result.toString();
+    }
+
+    private String sendCommandToSingleServer(String key, String command, boolean onlineFlag, String reason) {
+        RconClient client = RconCache.get(key);
+        if (client == null) {
+            throw new RuntimeException("RconClient not found for key: " + key);
+        }
+
+        final String replaced = replaceCommand(key, command, onlineFlag, reason);
+        String result = stripMinecraftColorCodes(client.sendCommand(replaced));
+
+        log.debug("发送命令成功到服务器 {}: {}", key, command);
+        return result;
+    }
+
+    private boolean handleRetryLogic(int retryCount, String key, String command, boolean onlineFlag, String reason, Exception e) {
+        log.warn("发送命令失败，第{}次重试: {}", retryCount + 1, e.getMessage());
+
+        if (retryCount >= MAX_RETRIES - 1) {
+            log.error("发送命令最终失败: {}", e.getMessage());
+            // 重连并回调
+            if (reconnect(key)) {
+                log.debug("重连成功，重新发送命令: {}", command);
+                sendCommand(key, command, onlineFlag, reason);
+                return false; // 不需要继续重试
+            } else {
+                log.error("重连失败，无法发送命令: {}", command);
+                handleCommandError(key, command);
+                return false;
+            }
+        }
+
+        try {
+            Thread.sleep(RETRY_DELAY_BASE_MS * (retryCount + 1));
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            return false;
+        }
+
+        return true; // 继续重试
+    }
+
+    /**
+     * 处理命令错误，记录到缓存
+     *
+     * @param key     服务器ID
+     * @param command 命令
+     */
+    private void handleCommandError(String key, String command) {
+        Map<String, Object> cache = redisCache.hasKey(CacheKey.ERROR_COMMAND_CACHE_KEY)
+                ? redisCache.getCacheObject(CacheKey.ERROR_COMMAND_CACHE_KEY)
+                : new ConcurrentHashMap<>();
+
+        cache.computeIfAbsent(key, k -> new HashSet<>());
+        ((Set<String>) cache.get(key)).add(command);
+        
         redisCache.setCacheObject(CacheKey.ERROR_COMMAND_CACHE_KEY, cache);
     }
 
     /**
      * 初始化Rcon连接
      *
-     * @param info
+     * @param info 服务器信息
+     * @return 连接是否成功
      */
     public boolean init(ServerInfo info) {
-
         if (info == null) {
             log.error(RconMsg.MAIN_INFO_EMPTY);
             return false;
         }
 
-        if ((!RconCache.isEmpty()) && RconCache.containsKey(info.getId().toString())) {
-            RconCache.get(info.getId().toString()).close();
-        }
-
-        final String ERROR_COUNT_KEY = CacheKey.ERROR_COUNT_KEY;
-        AtomicReference<RconClient> client = new AtomicReference<>();
+        // 关闭已存在的连接
+        closeExistingConnection(info.getId().toString());
 
         try {
-            String decryptedPassword;
-            try {
-                try {
-                    decryptedPassword = PasswordManager.decrypt(info.getRconPassword());
-                    log.debug("密码解密成功: {}", info.getNameTag());
-                } catch (NullPointerException e) {
-                    // 环境变量未初始化，使用原始密码
-                    log.warn("环境变量未初始化，使用原始密码: {}", info.getNameTag());
-                    decryptedPassword = info.getRconPassword();
-                }
-            } catch (Exception e) {
-                log.error("密码解密失败: {} - {}", info.getNameTag(), e.getMessage());
-                // 尝试使用原始密码
-                log.warn("尝试使用原始密码连接: {}", info.getNameTag());
-                decryptedPassword = info.getRconPassword();
-            }
+            String decryptedPassword = decryptPassword(info);
+            RconClient client = createRconConnection(info, decryptedPassword);
 
-            // 使用异步线程初始化Rcon连接，超时时间为5秒
-            String finalDecryptedPassword = decryptedPassword;
-            String serverIp = IPUtils.domainToIp(info.getIp());
-            int port = info.getRconPort().intValue();
-
-            log.info("正在连接RCON服务器: {}:{} (解析IP: {})", info.getIp(), port, serverIp);
-
-            CompletableFuture<RconClient> rconFuture = CompletableFuture.supplyAsync(() -> {
-                return RconClient.open(serverIp, port, finalDecryptedPassword);
-            });
-
-            try {
-                // 等待连接完成，设置超时
-                client.set(rconFuture.get(10, TimeUnit.SECONDS));
-            } catch (TimeoutException e) {
-                log.error("连接超时: {} ({}:{})", info.getNameTag(), serverIp, port);
-            }
-
-            if (client.get() == null) {
-                log.error("RCON连接失败: {} ({}:{})", info.getNameTag(), serverIp, port);
-            }
-
-            if (client.get().isSocketChannelOpen()) {
-                RconCache.put(info.getId().toString(), client.get());
-
+            if (client != null && client.isSocketChannelOpen()) {
+                COMMAND_INFO.put(info.getId().toString(), createServerCommandInfo(info));
+                RconCache.put(info.getId().toString(), client);
+                clearErrorCount();
                 log.debug(RconMsg.CONNECT_SUCCESS + "{}", info.getNameTag());
-
-                // 清除错误次数
-                if (redisCache.hasKey(ERROR_COUNT_KEY)) {
-                    redisCache.deleteObject(ERROR_COUNT_KEY);
-                }
                 return true;
             } else {
-                log.error("RCON连接失败，Socket通道未打开: {} ({}:{})", info.getNameTag(), serverIp, port);
+                log.error("RCON连接失败，Socket通道未打开: {} ({}:{})",
+                        info.getNameTag(), info.getIp(), info.getRconPort());
                 return false;
             }
 
         } catch (Exception e) {
-            // 记录错误次数
-            if (redisCache.hasKey(ERROR_COUNT_KEY)) {
-                final Integer errorCount = redisCache.getCacheObject(ERROR_COUNT_KEY);
-                redisCache.setCacheObject(ERROR_COUNT_KEY, errorCount + 1);
-            } else {
-                redisCache.setCacheObject(ERROR_COUNT_KEY, 1);
-            }
-
-            // 获取当前错误次数
-            Integer currentErrorCount = (Integer) redisCache.getCacheObject(ERROR_COUNT_KEY);
-
-            // 每10次错误发送一次告警邮件
-            if (currentErrorCount >= 10 && currentErrorCount % 10 == 0) {
-                try {
-                    String errorType;
-
-                    // 区分异常类型
-                    if (e.getMessage().contains("Authentication")) {
-                        errorType = "认证失败";
-                    } else {
-                        errorType = "连接异常";
-                    }
-
-                    // 使用新的告警邮件模板
-                    String emailContent = EmailTemplates.getAlertNotification(
-                            DateUtils.getTime(),           // 异常时间
-                            currentErrorCount,             // 异常次数
-                            errorType,                     // 异常类型
-                            info.getNameTag(),             // 服务器名称
-                            info.getIp() + ":" + info.getRconPort()  // 服务器地址
-                    );
-
-                    emailService.push(ADMIN_EMAIL, EmailTemplates.ALERT_TITLE, emailContent);
-                } catch (ExecutionException | InterruptedException ex) {
-                    log.error("邮件发送失败: {}", ex.getMessage());
-                }
-            }
-
-            log.error("连接失败:{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), "******");
-            log.error("连接失败详细信息: ", e);
+            handleConnectionError(info, e);
             return false;
+        }
+    }
+
+    private void closeExistingConnection(String serverId) {
+        if (!RconCache.isEmpty() && RconCache.containsKey(serverId)) {
+            RconCache.get(serverId).close();
+        }
+    }
+
+    private String decryptPassword(ServerInfo info) {
+        try {
+            return passwordManager.decrypt(info.getRconPassword());
+        } catch (NullPointerException e) {
+            log.warn("环境变量未初始化，使用原始密码: {}", info.getNameTag());
+            return info.getRconPassword();
+        } catch (Exception e) {
+            log.error("密码解密失败: {} - {}", info.getNameTag(), e.getMessage());
+            log.warn("尝试使用原始密码连接: {}", info.getNameTag());
+            return info.getRconPassword();
+        }
+    }
+
+    private RconClient createRconConnection(ServerInfo info, String password) {
+        String serverIp = IPUtils.domainToIp(info.getIp());
+        int port = info.getRconPort().intValue();
+
+        log.info("正在连接RCON服务器: {}:{} (解析IP: {})", info.getIp(), port, serverIp);
+
+        CompletableFuture<RconClient> rconFuture = CompletableFuture.supplyAsync(() ->
+                RconClient.open(serverIp, port, password));
+
+        try {
+            return rconFuture.get(CONNECTION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            log.error("连接超时: {} ({}:{})", info.getNameTag(), serverIp, port);
+            return null;
+        } catch (Exception e) {
+            log.error("连接异常: {} ({}:{})", info.getNameTag(), serverIp, port, e);
+            return null;
+        }
+    }
+
+    private ServerCommandInfo createServerCommandInfo(ServerInfo info) {
+        final ServerCommandInfo query = new ServerCommandInfo();
+        query.setServerId(String.valueOf(info.getId()));
+        ServerCommandInfo commandInfo = serverCommandInfoMapper.selectServerCommandInfoList(query).getFirst();
+        if (commandInfo != null) {
+            return commandInfo;
+        }
+        return new ServerCommandInfo();
+    }
+
+    private void clearErrorCount() {
+        String errorCountKey = CacheKey.ERROR_COUNT_KEY;
+        if (redisCache.hasKey(errorCountKey)) {
+            redisCache.deleteObject(errorCountKey);
+        }
+    }
+
+    private void handleConnectionError(ServerInfo info, Exception e) {
+        incrementErrorCount();
+        Integer currentErrorCount = redisCache.getCacheObject(CacheKey.ERROR_COUNT_KEY);
+
+        if (currentErrorCount >= ERROR_EMAIL_THRESHOLD && currentErrorCount % ERROR_EMAIL_THRESHOLD == 0) {
+            sendErrorNotificationEmail(info, e, currentErrorCount);
+        }
+
+        log.error("连接失败:{} {} {} {}", info.getNameTag(), info.getIp(), info.getRconPort(), "******");
+        log.error("连接失败详细信息: ", e);
+    }
+
+    private void incrementErrorCount() {
+        String errorCountKey = CacheKey.ERROR_COUNT_KEY;
+        Integer errorCount = redisCache.hasKey(errorCountKey)
+                ? redisCache.getCacheObject(errorCountKey)
+                : 0;
+        redisCache.setCacheObject(errorCountKey, errorCount + 1);
+    }
+
+    private void sendErrorNotificationEmail(ServerInfo info, Exception e, Integer errorCount) {
+        try {
+            String errorType = e.getMessage().contains("Authentication") ? "认证失败" : "连接异常";
+            String emailContent = EmailTemplates.getAlertNotification(
+                    DateUtils.getTime(),
+                    errorCount,
+                    errorType,
+                    info.getNameTag(),
+                    info.getIp() + ":" + info.getRconPort()
+            );
+            emailService.push(adminEmail, EmailTemplates.ALERT_TITLE, emailContent);
+        } catch (Exception ex) {
+            log.error("邮件发送失败: {}", ex.getMessage());
         }
     }
 
     /**
      * 重连Rcon
      *
-     * @param key
+     * @param key 服务器ID
+     * @return 重连是否成功
      */
     public boolean reconnect(String key) {
-        if (key == null) {
+        if (StringUtils.isEmpty(key)) {
             log.error(RconMsg.CONNECT_ERROR);
             return false;
         }
-        List<ServerInfo> serverInfo = null;
 
         try {
-            // 从Redis缓存读取服务器信息
-            serverInfo = redisCache.getCacheObject(CacheKey.SERVER_INFO_KEY);
+            List<ServerInfo> serverInfos = redisCache.getCacheObject(CacheKey.SERVER_INFO_KEY);
+            if (serverInfos == null || serverInfos.isEmpty()) {
+                log.error("服务器信息缓存为空，无法重连");
+                return false;
+            }
+
+            return serverInfos.stream()
+                    .filter(info -> info.getId().toString().equals(key))
+                    .findFirst()
+                    .map(info -> {
+                        close(key);
+                        log.debug(RconMsg.TRY_RECONNECT + "{}", key);
+                        return init(info);
+                    })
+                    .orElse(false);
+
         } catch (Exception e) {
             log.error(RconMsg.ERROR_MSG + "{}", e.getMessage());
             return false;
         }
-
-        // 重连Rcon
-        for (ServerInfo info : serverInfo) {
-            if (info.getId().toString().equals(key)) {
-                close(key);
-                log.debug(RconMsg.TRY_RECONNECT + "{}", key);
-                if (init(info)) {
-                    return true;
-                }
-                break;
-            }
-        }
-        return false;
     }
 
     /**
      * 替换Rcon命令
      *
-     * @param key
-     * @param command
-     * @param onlineFlag
+     * @param key        服务器ID
+     * @param command    命令
+     * @param onlineFlag 是否在线
      * @return 替换后的Rcon命令
      */
     public String replaceCommand(String key, String command, boolean onlineFlag) {
+        return replaceCommand(key, command, onlineFlag, null);
+    }
+
+    /**
+     * 替换Rcon命令
+     *
+     * @param key        服务器ID
+     * @param command    命令
+     * @param onlineFlag 是否在线
+     * @param reason     封禁原因
+     * @return 替换后的Rcon命令
+     */
+    public String replaceCommand(String key, String command, boolean onlineFlag, String reason) {
         if (StringUtils.isEmpty(command)) {
             log.error("替换命令失败：command为空");
-            return key;
+            return command;
         }
 
-        // 未匹配直接返回
-        boolean isMatch = false;
-        String[] matchCommand = Command.MATCH_COMMAND;
-        for (String s : matchCommand) {
-            if (command.startsWith(s)) {
-                isMatch = true;
-                break;
-            }
+        // 检查命令是否匹配
+        if (!isCommandMatched(command)) {
+            return command;
         }
-        if (!isMatch) return command;
 
         ServerCommandInfo info = COMMAND_INFO.get(key);
         if (info == null) {
-            log.error("替换命令失败：指令信息为空");
+            log.error("替换命令失败：指令信息为空，服务器ID: {}", key);
             throw new RuntimeException("指令信息为空");
         }
 
-        // 使用 Map 存储命令映射关系
-        Map<String, CommandReplacer> commandMap = new HashMap<>();
-        commandMap.put(Command.WHITELIST_ADD_COMMAND,
-                (cmd) -> onlineFlag ? info.getOnlineAddWhitelistCommand() : info.getOfflineAddWhitelistCommand());
-        commandMap.put(Command.WHITELIST_REMOVE_COMMAND,
-                (cmd) -> onlineFlag ? info.getOnlineRmWhitelistCommand() : info.getOfflineRmWhitelistCommand());
-        commandMap.put(Command.BAN_ADD_COMMAND,
-                (cmd) -> onlineFlag ? info.getOnlineAddBanCommand() : info.getOfflineRmBanCommand());
-        commandMap.put(Command.BAN_REMOVE_COMMAND,
-                (cmd) -> onlineFlag ? info.getOnlineRmBanCommand() : info.getOfflineRmBanCommand());
+        return processCommandReplacement(command, info, onlineFlag, reason, key);
+    }
 
-        isMatch = false;
+    private boolean isCommandMatched(String command) {
+        return Arrays.stream(Command.MATCH_COMMAND)
+                .anyMatch(command::startsWith);
+    }
+
+    /**
+     * 处理命令替换逻辑
+     *
+     * @param command    原始命令
+     * @param info       服务器指令信息
+     * @param onlineFlag 是否在线
+     * @param reason     封禁原因
+     * @param key        服务器ID
+     * @return 替换后的命令
+     */
+    private String processCommandReplacement(String command, ServerCommandInfo info, boolean onlineFlag, String reason, String key) {
+        Map<String, CommandReplacer> commandMap = createCommandMap(info, onlineFlag);
+
         for (Map.Entry<String, CommandReplacer> entry : commandMap.entrySet()) {
             if (command.startsWith(entry.getKey())) {
-                isMatch = true;
                 String player = command.substring(entry.getKey().length()).trim();
                 String template = entry.getValue().replace(command);
-                command = template.replace("{player}", player);
-                log.info("替换命令成功：{} -> {}", key, command);
-                break;
+                String replacedCommand = template.replace("{player}", player);
+
+                // 替换封禁原因
+                if (reason != null && replacedCommand.contains("{reason}")) {
+                    replacedCommand = replacedCommand.replace("{reason}", reason);
+                }
+
+                log.info("替换命令成功：{} -> {}", key, replacedCommand);
+                return replacedCommand;
             }
         }
 
-        if (!isMatch) {
-            log.info("替换命令失败，未匹配模板：{} -> {}", key, command);
-        }
-
+        log.info("替换命令失败，未匹配模板：{} -> {}", key, command);
         return command;
+    }
+
+    private Map<String, CommandReplacer> createCommandMap(ServerCommandInfo info, boolean onlineFlag) {
+        Map<String, CommandReplacer> commandMap = new HashMap<>();
+        commandMap.put(Command.WHITELIST_ADD_COMMAND,
+                cmd -> onlineFlag ? info.getOnlineAddWhitelistCommand() : info.getOfflineAddWhitelistCommand());
+        commandMap.put(Command.WHITELIST_REMOVE_COMMAND,
+                cmd -> onlineFlag ? info.getOnlineRmWhitelistCommand() : info.getOfflineRmWhitelistCommand());
+        commandMap.put(Command.BAN_ADD_COMMAND,
+                cmd -> onlineFlag ? info.getOnlineAddBanCommand() : info.getOfflineAddBanCommand());
+        commandMap.put(Command.BAN_REMOVE_COMMAND,
+                cmd -> onlineFlag ? info.getOnlineRmBanCommand() : info.getOfflineRmBanCommand());
+        return commandMap;
     }
 
     /**
@@ -411,24 +480,31 @@ public class RconService {
      * 服务器信息缓存
      */
     public void reBuildCache() {
-        // 服务器信息缓存
-        final List<ServerInfo> serverInfos = serverInfoMapper.selectServerInfoList(new ServerInfo());
-        if (serverInfos == null || serverInfos.isEmpty()) {
-            log.error(RconMsg.SERVER_EMPTY);
-        }
-        Map<String, ServerInfo> map = new HashMap<>();
-        if (serverInfos != null) {
-            for (ServerInfo serverInfo : serverInfos) {
-                map.put(serverInfo.getId().toString(), serverInfo);
+        try {
+            List<ServerInfo> serverInfos = serverInfoMapper.selectServerInfoList(new ServerInfo());
+
+            if (serverInfos == null || serverInfos.isEmpty()) {
+                log.error(RconMsg.SERVER_EMPTY);
+                return;
             }
+
+            // 构建服务器信息映射
+            Map<String, ServerInfo> serverInfoMap = serverInfos.stream()
+                    .collect(Collectors.toMap(
+                            info -> info.getId().toString(),
+                            info -> info
+                    ));
+
+            // 更新缓存
+            redisCache.setCacheObject(CacheKey.SERVER_INFO_MAP_KEY, serverInfoMap);
+            redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, serverInfos, 3, TimeUnit.DAYS);
+            redisCache.setCacheObject(CacheKey.SERVER_INFO_UPDATE_TIME_KEY, DateUtils.getNowDate());
+
+            log.info("服务器信息缓存重建完成，共{}个服务器", serverInfos.size());
+
+        } catch (Exception e) {
+            log.error("重建缓存失败: {}", e.getMessage(), e);
         }
-
-        redisCache.setCacheObject(CacheKey.SERVER_INFO_MAP_KEY, map);
-
-        redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, serverInfos, 3, TimeUnit.DAYS);
-
-        // 服务器信息缓存更新时间
-        redisCache.setCacheObject(CacheKey.SERVER_INFO_UPDATE_TIME_KEY, DateUtils.getNowDate());
     }
 
     @FunctionalInterface

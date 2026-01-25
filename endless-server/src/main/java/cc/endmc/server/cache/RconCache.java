@@ -6,7 +6,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /*
- * Map缓存
+ * RCON客户端缓存
  * 作者：Memory
  */
 public class RconCache {
@@ -18,7 +18,12 @@ public class RconCache {
     }
 
     public static RconClient get(String key) {
-        return map.get(key);
+        if (containsKey(key)) {
+            if (map.get(key).isSocketChannelOpen()) {
+                return map.get(key);
+            }
+        }
+        throw new RuntimeException("RconClient不存在或连接已关闭");
     }
 
     public static void remove(String key) {

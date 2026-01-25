@@ -9,14 +9,6 @@
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
-      <el-form-item label="配置描述" prop="description">
-        <el-input
-          v-model="queryParams.description"
-          clearable
-          placeholder="请输入配置描述"
-          @keyup.enter.native="handleQuery"
-        />
-      </el-form-item>
       <el-form-item>
         <el-button icon="el-icon-search" size="mini" type="primary" @click="handleQuery">搜索</el-button>
         <el-button icon="el-icon-refresh" size="mini" @click="resetQuery">重置</el-button>
@@ -120,10 +112,20 @@
           </el-select>
         </el-form-item>
         <el-form-item label="配置值" prop="configValue">
-          <el-input v-model="form.configValue" placeholder="请输入内容" type="textarea"/>
+          <!-- 布尔值配置使用选择器 -->
+          <el-select v-if="isBooleanConfig(form.configKey)" v-model="form.configValue" placeholder="请选择"
+                     style="width: 100%">
+            <el-option label="是" value="true"/>
+            <el-option label="否" value="false"/>
+          </el-select>
+          <!-- 数值配置使用数字输入框 -->
+          <el-input-number v-else-if="isNumberConfig(form.configKey)" v-model="form.configValue" :min="0"
+                           placeholder="请输入数值" style="width: 100%"/>
+          <!-- 其他配置使用文本输入 -->
+          <el-input v-else v-model="form.configValue" placeholder="请输入内容" type="textarea"/>
         </el-form-item>
         <el-form-item label="配置描述" prop="description">
-          <el-input v-model="form.description" placeholder="请输入配置描述"/>
+          <el-input v-model="form.description" disabled placeholder="请输入配置描述"/>
         </el-form-item>
         <el-form-item label="备注" prop="remark">
           <el-input v-model="form.remark" placeholder="请输入内容" type="textarea"/>
@@ -174,21 +176,29 @@ export default {
       form: {},
       // 配置键选项
       configKeyOptions: [
-        {key: 'pass_score', label: 'pass_score - 通过分数线', defaultValue: '60', description: '通过分数线'},
+        {
+          key: 'pass_score',
+          label: 'pass_score - 通过分数线',
+          defaultValue: '60',
+          description: '通过分数线',
+          type: 'number'
+        },
         {
           key: 'question_count',
           label: 'question_count - 每次答题的题目数量',
           defaultValue: '0',
-          description: '每次答题的题目数量'
+          description: '每次答题的题目数量',
+          type: 'number'
         },
-        {key: 'random', label: 'random - 随机答题', defaultValue: 'false', description: '随机答题'},
-        {key: 'status', label: 'status - 答题功能', defaultValue: 'true', description: '答题功能'},
+        {key: 'random', label: 'random - 随机答题', defaultValue: 'false', description: '随机答题', type: 'boolean'},
+        {key: 'status', label: 'status - 答题功能', defaultValue: 'true', description: '答题功能', type: 'boolean'},
         {
           key: 'auto_passed',
           label: 'auto_passed - 自动审核',
           defaultValue: 'true',
           description: '自动审核',
-          remark: '该选项打开即合格分数线自动通过审核无需管理员复审'
+          remark: '该选项打开即合格分数线自动通过审核无需管理员复审',
+          type: 'boolean'
         }
       ],
       // 表单校验
@@ -244,6 +254,16 @@ export default {
         this.form.description = selectedOption.description || '';
         this.form.remark = selectedOption.remark || '';
       }
+    },
+    /** 判断是否为布尔值配置 */
+    isBooleanConfig(configKey) {
+      const option = this.configKeyOptions.find(item => item.key === configKey);
+      return option && option.type === 'boolean';
+    },
+    /** 判断是否为数值配置 */
+    isNumberConfig(configKey) {
+      const option = this.configKeyOptions.find(item => item.key === configKey);
+      return option && option.type === 'number';
     },
     /** 搜索按钮操作 */
     handleQuery() {

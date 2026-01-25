@@ -47,10 +47,13 @@ public class DatabaseBackupService {
     @Value("${endless.database.backup.path:./backup}")
     private String backupPath;
     /**
-     * 数据库名称
+     * 数据库URL - 支持多种配置方式
      */
-    @Value("${spring.datasource.url:}")
+    @Value("${spring.datasource.url:#{null}}")
     private String datasourceUrl;
+
+    @Value("${spring.datasource.druid.master.url:#{null}}")
+    private String druidMasterUrl;
 
     /**
      * 执行数据库备份
@@ -154,14 +157,17 @@ public class DatabaseBackupService {
      * @return 数据库名称
      */
     private String extractDatabaseName() {
-        if (datasourceUrl == null || datasourceUrl.isEmpty()) {
-            throw new IllegalStateException("数据源URL未配置");
+        // 优先使用 Druid 主库配置，然后是标准配置
+        String url = druidMasterUrl != null && !druidMasterUrl.isEmpty() ? druidMasterUrl : datasourceUrl;
+
+        if (url == null || url.isEmpty()) {
+            throw new IllegalStateException("数据源URL未配置，请检查 spring.datasource.url 或 spring.datasource.druid.master.url 配置");
         }
 
         // 从 jdbc:mysql://localhost:3306/database_name 中提取 database_name
-        String[] parts = datasourceUrl.split("/");
+        String[] parts = url.split("/");
         if (parts.length < 4) {
-            throw new IllegalArgumentException("无效的数据源URL格式: " + datasourceUrl);
+            throw new IllegalArgumentException("无效的数据源URL格式: " + url);
         }
 
         String dbNameWithParams = parts[parts.length - 1];
