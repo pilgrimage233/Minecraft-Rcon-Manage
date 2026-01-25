@@ -398,10 +398,10 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         whitelistInfo.setRemoveReason(whitelistInfo.getBannedReason()); // 全局封禁原因
 
         try {
-            sendCommand(whitelistInfo, String.format(Command.BAN_ADD, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
+            sendCommand(whitelistInfo, String.format(Command.BAN_ADD, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1, whitelistInfo.getBannedReason());
             sendCommand(whitelistInfo, String.format(Command.WHITELIST_REMOVE, whitelistInfo.getUserName()), whitelistInfo.getOnlineFlag() == 1);
             // 全局广播，使用英文
-            rconService.sendCommand("all", "broadcast &c" + whitelistInfo.getUserName() + " &7has been banned by &c" + name + "&7, reason: &c" + whitelistInfo.getBannedReason(), false);
+            rconService.sendCommand("all", "say " + whitelistInfo.getUserName() + " has been banned by " + name + ", reason: " + whitelistInfo.getBannedReason(), false);
 
             asyncManager.execute(new TimerTask() {
                 @SneakyThrows
@@ -854,6 +854,16 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
      * @param command
      */
     private void sendCommand(WhitelistInfo info, String command, boolean onlineFlag) {
+        sendCommand(info, command, onlineFlag, null);
+    }
+
+    /**
+     * 发送Rcon命令
+     *
+     * @param command
+     * @param reason  封禁原因
+     */
+    private void sendCommand(WhitelistInfo info, String command, boolean onlineFlag, String reason) {
 
         if (info.getServers() == null) {
             return;
@@ -862,10 +872,10 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         // 包含all则发送给所有服务器
         if (info.getServers().contains("all")) {
             // 发送Rcon命令给所有服务器
-            rconService.sendCommand("all", command, onlineFlag);
+            rconService.sendCommand("all", command, onlineFlag, reason);
         } else { // 发送给指定服务器
             for (String key : info.getServers().split(",")) {
-                rconService.sendCommand(key, command, onlineFlag);
+                rconService.sendCommand(key, command, onlineFlag, reason);
             }
         }
     }

@@ -30,7 +30,7 @@ public class Command {
     public static final String WHITELIST_LIST_COMMAND = "whitelist list";
 
     // ban
-    public static final String BAN_ADD = "ban %s";
+    public static final String BAN_ADD = "ban %s {reason}";
 
     public static final String BAN_REMOVE = "pardon %s";
 
