@@ -6,7 +6,7 @@ import cc.endmc.server.domain.quiz.WhitelistQuizSubmission;
 import cc.endmc.server.domain.quiz.WhitelistQuizSubmissionDetail;
 import cc.endmc.server.mapper.quiz.WhitelistQuizSubmissionMapper;
 import cc.endmc.server.service.quiz.IWhitelistQuizSubmissionService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,9 +20,10 @@ import java.util.List;
  * @date 2025-03-20
  */
 @Service
+@RequiredArgsConstructor
 public class WhitelistQuizSubmissionServiceImpl implements IWhitelistQuizSubmissionService {
-    @Autowired
-    private WhitelistQuizSubmissionMapper whitelistQuizSubmissionMapper;
+
+    private final WhitelistQuizSubmissionMapper whitelistQuizSubmissionMapper;
 
     /**
      * 查询答题记录
@@ -117,7 +118,7 @@ public class WhitelistQuizSubmissionServiceImpl implements IWhitelistQuizSubmiss
                 whitelistQuizSubmissionDetail.setSubmissionId(id);
                 list.add(whitelistQuizSubmissionDetail);
             }
-            if (list.size() > 0) {
+            if (!list.isEmpty()) {
                 whitelistQuizSubmissionMapper.batchWhitelistQuizSubmissionDetail(list);
             }
         }

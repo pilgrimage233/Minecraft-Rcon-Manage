@@ -76,13 +76,6 @@ public interface IServerInfoService {
     Map<String, Object> getOnlinePlayer(boolean cache);
 
     /**
-     * 聚合查询
-     *
-     * @return 聚合结果
-     */
-    Map<String, Object> aggregateQuery();
-
-    /**
      * 根据用户RCON权限查询服务器信息列表
      *
      * @param serverInfo 服务器信息查询条件

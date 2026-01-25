@@ -4,8 +4,6 @@ import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.framework.manager.AsyncManager;
-import cc.endmc.node.domain.NodeServer;
-import cc.endmc.node.service.INodeServerService;
 import cc.endmc.permission.service.IResourcePermissionService;
 import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.PasswordManager;
@@ -14,24 +12,18 @@ import cc.endmc.server.common.constant.Command;
 import cc.endmc.server.common.constant.RconMsg;
 import cc.endmc.server.common.service.RconService;
 import cc.endmc.server.domain.permission.BanlistInfo;
-import cc.endmc.server.domain.permission.OperatorList;
 import cc.endmc.server.domain.permission.WhitelistInfo;
-import cc.endmc.server.domain.player.PlayerDetails;
-import cc.endmc.server.domain.player.vo.PlayerDetailsVo;
 import cc.endmc.server.domain.server.ServerCommandInfo;
 import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.mapper.permission.WhitelistInfoMapper;
-import cc.endmc.server.mapper.player.PlayerDetailsMapper;
 import cc.endmc.server.mapper.server.ServerInfoMapper;
 import cc.endmc.server.service.permission.IBanlistInfoService;
-import cc.endmc.server.service.permission.IOperatorListService;
 import cc.endmc.server.service.server.IServerCommandInfoService;
 import cc.endmc.server.service.server.IServerInfoService;
 import cc.endmc.server.utils.OnlinePlayerUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
@@ -53,11 +45,8 @@ public class ServerInfoServiceImpl implements IServerInfoService {
     private final RedisCache redisCache;
     private final RconService rconService;
     private final WhitelistInfoMapper whitelistInfoMapper;
-    private final PlayerDetailsMapper playerDetailsMapper;
-    private final IOperatorListService operatorListService;
     private final IBanlistInfoService banlistInfoService;
     private final PasswordManager PasswordManager;
-    private final INodeServerService nodeServerService;
     private final IServerCommandInfoService serverCommandInfo;
     private final IResourcePermissionService resourcePermissionService;
 
@@ -350,90 +339,6 @@ public class ServerInfoServiceImpl implements IServerInfoService {
                 message.contains("timeout") ||
                 message.contains("refused") ||
                 message.contains("reset");
-    }
-
-    @Override
-    public Map<String, Object> aggregateQuery() {
-        Map<String, Object> result = new HashMap<>();
-
-        // 在线玩家
-        Map<String, Object> onlinePlayer = getOnlinePlayer(false);
-        result.put("onlinePlayer", onlinePlayer);
-
-        // 申请数量
-        List<WhitelistInfo> whitelistInfos = whitelistInfoMapper.selectWhitelistInfoList(new WhitelistInfo());
-        result.put("applyCount", whitelistInfos.size());
-
-        // 白名单数量
-        int index = (int) whitelistInfos.stream().filter(whitelistInfo -> whitelistInfo.getStatus().equals("1")).count();
-        result.put("whiteListCount", index);
-
-        // 未通过数量
-        index = (int) whitelistInfos.stream().filter(whitelistInfo -> whitelistInfo.getStatus().equals("0")).count();
-        result.put("notPassCount", index);
-
-        // OP数量
-        final OperatorList op = new OperatorList();
-        op.setStatus(1L);
-        final List<OperatorList> operatorLists = operatorListService.selectOperatorListList(op);
-        result.put("opCount", operatorLists.size());
-
-        // 封禁数量
-        final BanlistInfo banlistInfo = new BanlistInfo();
-        banlistInfo.setState(1L);
-        int banCount = banlistInfoService.selectBanlistInfoList(banlistInfo).size();
-        result.put("banCount", banCount);
-
-        // 在线前十
-        final List<PlayerDetails> playerDetails = playerDetailsMapper.selectTopTenByGameTime();
-        final List<PlayerDetailsVo> playerDetailsVos = new ArrayList<>();
-        playerDetails.forEach(o -> {
-            final PlayerDetailsVo vo = new PlayerDetailsVo();
-            BeanUtils.copyProperties(o, vo);
-            playerDetailsVos.add(vo);
-        });
-        result.put("topTen", playerDetailsVos);
-
-        // 服务器数量
-        List<ServerInfo> serverInfo = serverInfoMapper.selectServerInfoList(new ServerInfo());
-        result.put("serverCount", serverInfo.size());
-
-        // 节点统计
-        try {
-            List<NodeServer> nodeServers = nodeServerService.selectNodeServerList(new NodeServer());
-            result.put("nodeCount", nodeServers.size());
-            // 在线节点数量
-            long onlineNodeCount = nodeServers.stream()
-                    .filter(node -> "0".equals(node.getStatus()))
-                    .count();
-            result.put("onlineNodeCount", onlineNodeCount);
-            // 离线节点数量
-            long offlineNodeCount = nodeServers.stream()
-                    .filter(node -> "1".equals(node.getStatus()))
-                    .count();
-            result.put("offlineNodeCount", offlineNodeCount);
-            // 节点列表简要信息
-            List<Map<String, Object>> nodeList = new ArrayList<>();
-            for (NodeServer node : nodeServers) {
-                Map<String, Object> nodeInfo = new HashMap<>();
-                nodeInfo.put("id", node.getId());
-                nodeInfo.put("name", node.getName());
-                nodeInfo.put("status", node.getStatus());
-                nodeInfo.put("version", node.getVersion());
-                nodeInfo.put("osType", node.getOsType());
-                nodeInfo.put("lastHeartbeat", node.getLastHeartbeat());
-                nodeList.add(nodeInfo);
-            }
-            result.put("nodeList", nodeList);
-        } catch (Exception e) {
-            log.error("获取节点统计信息失败", e);
-            result.put("nodeCount", 0);
-            result.put("onlineNodeCount", 0);
-            result.put("offlineNodeCount", 0);
-            result.put("nodeList", new ArrayList<>());
-        }
-
-        return result;
     }
 
     public void rebuildCache() {
