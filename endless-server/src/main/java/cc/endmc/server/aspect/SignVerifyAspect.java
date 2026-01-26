@@ -18,7 +18,6 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -67,8 +66,9 @@ public class SignVerifyAspect {
 
     /**
      * 环绕通知，处理类级别的签名验证
+     * 只有当方法没有 @SignVerify 注解时才会执行，避免重复验证
      */
-    @Around("@within(signVerify) && execution(public * *(..))")
+    @Around("@within(signVerify) && execution(public * *(..)) && !@annotation(cc.endmc.server.annotation.SignVerify)")
     public Object aroundClass(ProceedingJoinPoint joinPoint, SignVerify signVerify) throws Throwable {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         Method method = signature.getMethod();
@@ -80,14 +80,8 @@ public class SignVerifyAspect {
             return joinPoint.proceed();
         }
 
-        // 检查方法级别是否有SignVerify注解，如果有则优先使用方法级别的配置
-        SignVerify methodAnnotation = AnnotationUtils.findAnnotation(method, SignVerify.class);
-        if (methodAnnotation != null) {
-            log.debug("方法 {} 有方法级别的SignVerify注解，使用方法级别配置", methodName);
-            return processSignVerify(joinPoint, methodAnnotation);
-        }
-
         // 使用类级别的配置
+        log.debug("使用类级别的SignVerify配置验证方法: {}", methodName);
         return processSignVerify(joinPoint, signVerify);
     }
 
