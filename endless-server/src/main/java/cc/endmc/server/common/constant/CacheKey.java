@@ -52,4 +52,9 @@ public class CacheKey {
     public static final String MINECRAFT_SERVER_INFO = "minecraft_server_info:"; // 玩家信息前缀
 
     public static final String LAST_USED_SERVER_KEY = "last_used_server:"; // 最后使用的服务器前缀
+
+    // 消息推送相关缓存
+    public static final String WHITELIST_CACHE_KEY = "server_manager:whitelist_cache"; // 白名单缓存前缀
+
+    public static final String BOT_CONFIG_CACHE_KEY = "server_manager:bot_config_cache"; // 机器人配置缓存前缀
 }

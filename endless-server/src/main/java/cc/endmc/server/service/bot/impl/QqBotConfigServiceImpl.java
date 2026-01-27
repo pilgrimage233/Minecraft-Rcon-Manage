@@ -1,7 +1,9 @@
 package cc.endmc.server.service.bot.impl;
 
 import cc.endmc.common.constant.Constants;
+import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
+import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.domain.bot.QqBotConfig;
 import cc.endmc.server.mapper.bot.QqBotConfigMapper;
 import cc.endmc.server.mapper.bot.QqBotManagerMapper;
@@ -10,7 +12,6 @@ import cc.endmc.server.ws.BotManager;
 import cn.hutool.http.HttpUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,6 +31,7 @@ public class QqBotConfigServiceImpl implements IQqBotConfigService {
     private final QqBotConfigMapper qqBotConfigMapper;
     private final QqBotManagerMapper qqBotManagerMapper;
     private final BotManager botManager;
+    private final RedisCache redisCache;
 
     /**
      * 查询QQ机器人配置
@@ -74,6 +76,8 @@ public class QqBotConfigServiceImpl implements IQqBotConfigService {
         if (i > 0) {
             log.info("insert QqBotConfig : {}", qqBotConfig);
             botManager.loadBotConfigs();
+            // 清理机器人配置缓存
+            clearBotConfigCache();
         }
         return i;
     }
@@ -91,6 +95,8 @@ public class QqBotConfigServiceImpl implements IQqBotConfigService {
         if (i > 0) {
             log.info("update QqBotConfig : {}", qqBotConfig);
             botManager.loadBotConfigs();
+            // 清理机器人配置缓存
+            clearBotConfigCache();
         }
         return i;
     }
@@ -133,7 +139,24 @@ public class QqBotConfigServiceImpl implements IQqBotConfigService {
             log.info("delete QqBotConfig : {}", id);
             // 更新配置
             botManager.loadBotConfigs();
+            // 清理机器人配置缓存
+            clearBotConfigCache();
         }
         return i;
+    }
+
+    /**
+     * 清理机器人配置缓存
+     * 当机器人配置发生变更时调用此方法清理缓存
+     */
+    private void clearBotConfigCache() {
+        try {
+            if (redisCache.hasKey(CacheKey.BOT_CONFIG_CACHE_KEY)) {
+                redisCache.deleteObject(CacheKey.BOT_CONFIG_CACHE_KEY);
+                log.info("机器人配置缓存已清理");
+            }
+        } catch (Exception e) {
+            log.error("清理机器人配置缓存失败", e);
+        }
     }
 }
