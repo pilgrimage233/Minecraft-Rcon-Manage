@@ -6,6 +6,7 @@
 
     <resultMap type="WhitelistQuizSubmission" id="WhitelistQuizSubmissionResult">
         <result property="id" column="id"/>
+        <result property="whitelistId" column="whitelist_id"/>
         <result property="playerUuid" column="player_uuid"/>
         <result property="playerName" column="player_name"/>
         <result property="totalScore" column="total_score"/>
@@ -47,6 +48,7 @@
 
     <sql id="selectWhitelistQuizSubmissionVo">
         select id,
+               whitelist_id,
                player_uuid,
                player_name,
                total_score,
@@ -68,6 +70,9 @@
             resultMap="WhitelistQuizSubmissionResult">
         <include refid="selectWhitelistQuizSubmissionVo"/>
         <where>
+            <if test="whitelistId != null">
+                and whitelist_id = #{whitelistId}
+            </if>
             <if test="playerUuid != null  and playerUuid != ''">
                 and player_uuid = #{playerUuid}
             </if>
@@ -93,6 +98,7 @@
     <select id="selectWhitelistQuizSubmissionById" parameterType="Long"
             resultMap="WhitelistQuizSubmissionWhitelistQuizSubmissionDetailResult">
         select a.id,
+               a.whitelist_id,
                a.player_uuid,
                a.player_name,
                a.total_score,
@@ -127,6 +133,7 @@
                  left join whitelist_quiz_answer d on FIND_IN_SET(d.id, b.player_answer) > 0
         where a.id = #{id}
         group by a.id,
+                 a.whitelist_id,
                  a.player_uuid,
                  a.player_name,
                  a.total_score,
@@ -160,6 +167,8 @@
             keyProperty="id">
         insert into whitelist_quiz_submission
         <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="whitelistId != null">whitelist_id,
+            </if>
             <if test="playerUuid != null and playerUuid != ''">player_uuid,
             </if>
             <if test="playerName != null and playerName != ''">player_name,
@@ -190,6 +199,8 @@
             </if>
         </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="whitelistId != null">#{whitelistId},
+            </if>
             <if test="playerUuid != null and playerUuid != ''">#{playerUuid},
             </if>
             <if test="playerName != null and playerName != ''">#{playerName},
@@ -224,6 +235,9 @@
     <update id="updateWhitelistQuizSubmission" parameterType="WhitelistQuizSubmission">
         update whitelist_quiz_submission
         <trim prefix="SET" suffixOverrides=",">
+            <if test="whitelistId != null">whitelist_id =
+                #{whitelistId},
+            </if>
             <if test="playerUuid != null and playerUuid != ''">player_uuid =
                 #{playerUuid},
             </if>

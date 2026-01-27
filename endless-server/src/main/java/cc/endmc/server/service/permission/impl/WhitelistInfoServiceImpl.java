@@ -157,6 +157,11 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         // 先插入数据获取ID
         int result = whitelistInfoMapper.insertWhitelistInfo(whitelistInfo);
 
+        // 插入成功后，更新对应的答题记录的白名单ID
+        if (result > 0) {
+            updateQuizSubmissionWhitelistId(whitelistInfo);
+        }
+
         // 如果状态为1（已审核通过），调用添加白名单的逻辑
         if (result > 0 && "1".equals(whitelistInfo.getStatus())) {
             try {
@@ -179,6 +184,11 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 // 抛出异常并回滚事务
                 throw (RuntimeException) e;
             }
+        }
+
+        // 清理白名单缓存
+        if (result > 0) {
+            clearWhitelistCache();
         }
 
         return result;
@@ -243,7 +253,20 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 handleWhitelistFailure(whitelistInfo, name, old);
                 break;
         }
-        return whitelistInfoMapper.updateWhitelistInfo(whitelistInfo);
+
+        int result = whitelistInfoMapper.updateWhitelistInfo(whitelistInfo);
+
+        // 更新成功后，更新对应的答题记录的白名单ID
+        if (result > 0) {
+            updateQuizSubmissionWhitelistId(whitelistInfo);
+        }
+
+        // 清理白名单缓存
+        if (result > 0) {
+            clearWhitelistCache();
+        }
+
+        return result;
     }
 
     /**
@@ -877,6 +900,63 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             for (String key : info.getServers().split(",")) {
                 rconService.sendCommand(key, command, onlineFlag, reason);
             }
+        }
+    }
+
+    /**
+     * 清理白名单缓存
+     * 当白名单信息发生变更时调用此方法清理缓存
+     */
+    private void clearWhitelistCache() {
+        try {
+            if (redisCache.hasKey(CacheKey.WHITELIST_CACHE_KEY)) {
+                redisCache.deleteObject(CacheKey.WHITELIST_CACHE_KEY);
+                log.info("白名单缓存已清理");
+            }
+        } catch (Exception e) {
+            log.error("清理白名单缓存失败", e);
+        }
+    }
+
+    /**
+     * 更新答题记录的白名单ID
+     * 当白名单信息新增或更新时，同步更新对应的答题记录
+     *
+     * @param whitelistInfo 白名单信息
+     */
+    private void updateQuizSubmissionWhitelistId(WhitelistInfo whitelistInfo) {
+        try {
+            if (whitelistInfo.getId() == null) {
+                log.warn("白名单ID为空，无法更新答题记录");
+                return;
+            }
+
+            // 查询该用户的答题记录
+            WhitelistQuizSubmission querySubmission = new WhitelistQuizSubmission();
+
+            // 优先通过UUID匹配
+            if (StringUtils.isNotEmpty(whitelistInfo.getUserUuid())) {
+                querySubmission.setPlayerUuid(whitelistInfo.getUserUuid());
+            } else {
+                // 如果UUID为空，通过用户名匹配
+                querySubmission.setPlayerName(whitelistInfo.getUserName());
+            }
+
+            List<WhitelistQuizSubmission> submissions = quizSubmissionService.selectWhitelistQuizSubmissionList(querySubmission);
+
+            if (!submissions.isEmpty()) {
+                for (WhitelistQuizSubmission submission : submissions) {
+                    // 只更新还没有关联白名单ID的记录
+                    if (submission.getWhitelistId() == null) {
+                        submission.setWhitelistId(whitelistInfo.getId());
+                        quizSubmissionService.updateWhitelistQuizSubmission(submission);
+                        log.info("已更新答题记录[{}]的白名单ID为[{}]", submission.getId(), whitelistInfo.getId());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("更新答题记录的白名单ID失败：用户名[{}]，错误信息[{}]",
+                    whitelistInfo.getUserName(), e.getMessage(), e);
         }
     }
 }

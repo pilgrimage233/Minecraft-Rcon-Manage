@@ -28,6 +28,12 @@ public class WhitelistQuizSubmission extends BaseEntity {
     private Long id;
 
     /**
+     * 白名单ID
+     */
+    @Excel(name = "白名单ID")
+    private Long whitelistId;
+
+    /**
      * 玩家UUID
      */
     @Excel(name = "玩家UUID")
@@ -91,6 +97,7 @@ public class WhitelistQuizSubmission extends BaseEntity {
     public String toString() {
         return new ToStringBuilder(this, ToStringStyle.MULTI_LINE_STYLE)
                 .append("id", getId())
+                .append("whitelistId", getWhitelistId())
                 .append("playerUuid", getPlayerUuid())
                 .append("playerName", getPlayerName())
                 .append("totalScore", getTotalScore())
