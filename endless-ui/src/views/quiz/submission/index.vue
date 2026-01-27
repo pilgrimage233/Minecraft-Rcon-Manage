@@ -17,6 +17,14 @@
           @keyup.enter.native="handleQuery"
         />
       </el-form-item>
+      <el-form-item label="白名单ID" prop="whitelistId">
+        <el-input
+          v-model="queryParams.whitelistId"
+          clearable
+          placeholder="请输入白名单ID"
+          @keyup.enter.native="handleQuery"
+        />
+      </el-form-item>
       <el-form-item label="总得分" prop="totalScore">
         <el-input
           v-model="queryParams.totalScore"
@@ -77,6 +85,7 @@
     <el-table v-loading="loading" :data="submissionList" @selection-change="handleSelectionChange">
       <el-table-column align="center" type="selection" width="55"/>
       <el-table-column align="center" label="ID" prop="id"/>
+      <el-table-column align="center" label="白名单ID" prop="whitelistId"/>
       <el-table-column align="center" label="玩家名称" prop="playerName" show-overflow-tooltip/>
       <el-table-column align="center" label="玩家UUID" prop="playerUuid" show-overflow-tooltip/>
       <el-table-column align="center" label="总得分" prop="totalScore"/>
@@ -132,10 +141,17 @@
       <el-form ref="form" :model="form" :rules="rules" label-width="100px">
         <el-row>
           <el-col :span="12">
+            <el-form-item label="白名单ID" prop="whitelistId">
+              <el-input v-model="form.whitelistId" disabled placeholder="白名单ID"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
             <el-form-item label="玩家UUID" prop="playerUuid">
               <el-input v-model="form.playerUuid" disabled placeholder="请输入玩家UUID"/>
             </el-form-item>
           </el-col>
+        </el-row>
+        <el-row>
           <el-col :span="12">
             <el-form-item label="玩家名称" prop="playerName">
               <el-input v-model="form.playerName" disabled placeholder="请输入玩家名称"/>
@@ -257,6 +273,7 @@ export default {
       queryParams: {
         pageNum: 1,
         pageSize: 10,
+        whitelistId: null,
         playerUuid: null,
         playerName: null,
         totalScore: null,
@@ -299,6 +316,7 @@ export default {
     reset() {
       this.form = {
         id: null,
+        whitelistId: null,
         playerUuid: null,
         playerName: null,
         totalScore: null,
