@@ -1,15 +1,5 @@
 package cc.endmc.web.controller.system;
 
-import java.util.Map;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
-import org.springframework.web.multipart.MultipartFile;
 import cc.endmc.common.annotation.Log;
 import cc.endmc.common.config.EndlessConfig;
 import cc.endmc.common.core.controller.BaseController;
@@ -17,7 +7,6 @@ import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.common.core.domain.entity.SysUser;
 import cc.endmc.common.core.domain.model.LoginUser;
 import cc.endmc.common.enums.BusinessType;
-import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.SecurityUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.common.utils.file.FileUploadUtils;
@@ -25,10 +14,13 @@ import cc.endmc.common.utils.file.FileUtils;
 import cc.endmc.common.utils.file.MimeTypeUtils;
 import cc.endmc.framework.web.service.TokenService;
 import cc.endmc.system.service.ISysUserService;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 /**
  * 个人信息 业务处理
- * 
+ *
  * @author ruoyi
  */
 @RestController
@@ -90,10 +82,11 @@ public class SysProfileController extends BaseController
      */
     @Log(title = "个人信息", businessType = BusinessType.UPDATE)
     @PutMapping("/updatePwd")
-    public AjaxResult updatePwd(@RequestBody Map<String, String> params)
+    public AjaxResult updatePwd(@RequestParam String oldPassword, @RequestParam String newPassword)
     {
-        String oldPassword = params.get("oldPassword");
-        String newPassword = params.get("newPassword");
+        if (oldPassword.isEmpty() || newPassword.isEmpty()) {
+            return error("参数不能为空");
+        }
         LoginUser loginUser = getLoginUser();
         Long userId = loginUser.getUserId();
         SysUser user = userService.selectUserById(userId);
