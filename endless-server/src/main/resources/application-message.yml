@@ -1,0 +1,16 @@
+# 消息推送配置
+message:
+  push:
+    # 消费者线程数量
+    consumer:
+      threads: 5
+    # 队列配置
+    queue:
+      # 队列最大容量
+      maxSize: 10000
+    # 重试配置
+    retry:
+      # 最大重试次数
+      maxCount: 3
+      # 重试间隔(毫秒)
+      interval: 1000
