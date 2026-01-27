@@ -25,4 +25,7 @@ public class QuestionConfig {
     // auto_passed 自动通过
     public static final String AUTO_PASSED = "auto_passed";
 
+    // auto_remove_from_group_after_inactive_days 自动移出群组（不活跃天数）
+    public static final String AUTO_REMOVE_FROM_GROUP_AFTER_INACTIVE_DAYS = "auto_remove_from_group_after_inactive_days";
+
 }

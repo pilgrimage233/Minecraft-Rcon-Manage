@@ -3,10 +3,15 @@ package cc.endmc.quartz.task;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.server.common.constant.BotApi;
 import cc.endmc.server.common.constant.CacheKey;
+import cc.endmc.server.config.QuestionConfig;
 import cc.endmc.server.domain.bot.QqBotConfig;
 import cc.endmc.server.domain.permission.WhitelistInfo;
+import cc.endmc.server.domain.quiz.WhitelistQuizConfig;
+import cc.endmc.server.domain.quiz.WhitelistQuizSubmission;
 import cc.endmc.server.service.bot.IQqBotConfigService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
+import cc.endmc.server.service.quiz.IWhitelistQuizConfigService;
+import cc.endmc.server.service.quiz.IWhitelistQuizSubmissionService;
 import cc.endmc.server.utils.BotUtil;
 import cc.endmc.server.ws.BotClient;
 import cc.endmc.server.ws.BotManager;
@@ -36,6 +41,8 @@ public class BotTask {
     private final IWhitelistInfoService whitelistInfoService;
     private final BotManager botManager;
     private final IQqBotConfigService qqBotConfigService;
+    private final IWhitelistQuizConfigService quizConfigService;
+    private final IWhitelistQuizSubmissionService quizSubmissionService;
     private final RedisCache redisCache;
     private final Environment env;
 
@@ -549,12 +556,294 @@ public class BotTask {
     }
 
     /**
+     * 检测长时间未答卷自动踢出群
+     * 获取群成员，检查白名单状态和答题情况，踢出不符合条件的成员
+     * 每天凌晨2点执行一次
+     */
+    @Scheduled(cron = "0 0 2 * * ?")
+    public void checkInactiveUsersAndKick() {
+        checkInactiveUsersAndKickInternal();
+    }
+
+    /**
+     * 手动触发检测长时间未答卷用户（用于测试）
+     */
+    public void manualCheckInactiveUsers() {
+        log.info("手动触发检测长时间未答卷用户");
+        checkInactiveUsersAndKickInternal();
+    }
+
+    /**
+     * 检测长时间未答卷用户的内部实现
+     */
+    private void checkInactiveUsersAndKickInternal() {
+        log.info("开始检测长时间未答卷用户...");
+
+        try {
+            // 获取配置项
+            WhitelistQuizConfig config = new WhitelistQuizConfig();
+            config.setConfigKey(QuestionConfig.AUTO_REMOVE_FROM_GROUP_AFTER_INACTIVE_DAYS);
+            List<WhitelistQuizConfig> configs = quizConfigService.selectWhitelistQuizConfigList(config);
+
+            if (configs.isEmpty()) {
+                log.info("未找到自动踢出配置，跳过检测");
+                return;
+            }
+
+            int inactiveDays = Integer.parseInt(configs.getFirst().getConfigValue());
+            if (inactiveDays <= 0) {
+                log.info("自动踢出功能已禁用 (配置值: {})", inactiveDays);
+                return;
+            }
+
+            log.info("自动踢出配置: {} 天未答卷将被踢出群", inactiveDays);
+
+            // 获取所有活跃的机器人客户端
+            Map<Long, BotClient> activeBots = botManager.getAllBots();
+            if (activeBots.isEmpty()) {
+                log.warn("没有活跃的机器人客户端，无法执行踢出操作");
+                return;
+            }
+
+            // 获取所有需要监控的群ID列表
+            Set<Long> allGroupIds = new HashSet<>();
+            for (BotClient bot : activeBots.values()) {
+                try {
+                    if (bot == null || bot.getConfig() == null) {
+                        continue;
+                    }
+                } catch (Exception e) {
+                    log.error("获取机器人配置失败: {}", e.getMessage());
+                    continue;
+                }
+
+                QqBotConfig botConfig = bot.getConfig();
+                if (botConfig.getGroupIds() != null) {
+                    allGroupIds.addAll(Arrays.stream(botConfig.getGroupIds().split(","))
+                            .map(Long::parseLong)
+                            .collect(Collectors.toSet()));
+                }
+            }
+
+            if (allGroupIds.isEmpty()) {
+                log.warn("没有配置任何群组，无法执行踢出操作");
+                return;
+            }
+
+            // 获取所有通过审核的白名单用户
+            WhitelistInfo whitelistQuery = new WhitelistInfo();
+            whitelistQuery.setStatus("1"); // 审核通过
+            List<WhitelistInfo> whitelistUsers = whitelistInfoService.selectWhitelistInfoList(whitelistQuery);
+
+            // 创建白名单用户QQ号集合，用于快速查找
+            Set<Long> whitelistQqNums = whitelistUsers.stream()
+                    .map(w -> Long.parseLong(w.getQqNum()))
+                    .collect(Collectors.toSet());
+
+            // 计算截止时间（当前时间减去配置的天数）
+            long cutoffTime = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(inactiveDays);
+
+            int totalKicked = 0;
+            int totalChecked = 0;
+
+            for (Long groupId : allGroupIds) {
+                log.info("开始检查群 {} 的成员", groupId);
+
+                BotClient responsibleBot = findResponsibleBot(activeBots, groupId);
+                if (responsibleBot == null) {
+                    log.warn("群 {} 没有对应的机器人客户端", groupId);
+                    continue;
+                }
+
+                // 获取群成员列表
+                JSONObject request = new JSONObject();
+                request.put("group_id", String.valueOf(groupId));
+                request.put("no_cache", true);  // 防止获取到旧数据缓存重复更新
+
+                String botUrl = responsibleBot.getConfig().getHttpUrl();
+                HttpResponse response = null;
+                try {
+                    response = HttpUtil
+                            .createPost(botUrl + BotApi.GET_GROUP_MEMBER_LIST)
+                            .header("Authorization", "Bearer " + responsibleBot.getConfig().getToken())
+                            .body(request.toJSONString())
+                            .timeout(8000)
+                            .execute();
+                } catch (Exception e) {
+                    log.error("群 {} 获取成员列表失败: {}", groupId, e.getMessage());
+                    continue;
+                }
+
+                if (response == null || !response.isOk()) {
+                    log.warn("群 {} 获取成员列表失败", groupId);
+                    continue;
+                }
+
+                final JSONObject jsonObject = JSONObject.parseObject(response.body());
+                if ((jsonObject.containsKey("retcode") && jsonObject.getInteger("retcode") != 0) || jsonObject.getJSONArray("data") == null) {
+                    log.warn("群 {} 获取成员列表失败: {}", groupId, jsonObject);
+                    continue;
+                }
+
+                final List<JSONObject> members = jsonObject.getJSONArray("data").toJavaList(JSONObject.class);
+                if (members.isEmpty()) {
+                    log.warn("群 {} 成员列表为空", groupId);
+                    continue;
+                }
+
+                log.info("群 {} 共有 {} 名成员", groupId, members.size());
+
+                List<Long> toKickUsers = new ArrayList<>();
+
+                for (JSONObject member : members) {
+                    try {
+                        Long userId = member.getLong("user_id");
+                        String role = member.getString("role");
+
+                        totalChecked++;
+
+                        // 跳过管理员和群主
+                        if ("admin".equals(role) || "owner".equals(role)) {
+                            log.debug("跳过管理员/群主: {}", userId);
+                            continue;
+                        }
+
+                        // 检查用户状态
+                        boolean shouldKick = false;
+                        String kickReason = "";
+
+                        if (whitelistQqNums.contains(userId)) {
+                            // 用户在白名单中，先找到对应的白名单记录
+                            WhitelistInfo userWhitelist = whitelistUsers.stream()
+                                    .filter(w -> Long.parseLong(w.getQqNum()) == userId)
+                                    .findFirst()
+                                    .orElse(null);
+
+                            if (userWhitelist != null) {
+                                // 检查答题情况
+                                WhitelistQuizSubmission submissionQuery = new WhitelistQuizSubmission();
+                                submissionQuery.setWhitelistId(userWhitelist.getId());
+                                List<WhitelistQuizSubmission> submissions = quizSubmissionService.selectWhitelistQuizSubmissionList(submissionQuery);
+
+                                if (submissions.isEmpty()) {
+                                    // 白名单用户但从未答题
+                                    shouldKick = true;
+                                    kickReason = "白名单用户但从未答题";
+                                } else {
+                                    // 检查最后答题时间
+                                    long lastSubmissionTime = submissions.stream()
+                                            .mapToLong(s -> s.getCreateTime().getTime())
+                                            .max()
+                                            .orElse(0);
+
+                                    if (lastSubmissionTime < cutoffTime) {
+                                        shouldKick = true;
+                                        kickReason = String.format("白名单用户但超过%d天未答题", inactiveDays);
+                                    }
+                                }
+                            } else {
+                                // 理论上不应该发生，但为了安全起见
+                                shouldKick = true;
+                                kickReason = "白名单记录异常";
+                            }
+                        } else {
+                            // 用户不在白名单中
+                            shouldKick = true;
+                            kickReason = "不在白名单中";
+                        }
+
+                        if (shouldKick) {
+                            toKickUsers.add(userId);
+                            log.info("标记踢出用户 {} (群: {}): {}", userId, groupId, kickReason);
+                        }
+
+                    } catch (Exception e) {
+                        log.error("处理群成员 {} 时发生错误: {}", member.getLong("user_id"), e.getMessage());
+                    }
+                }
+
+                // 执行踢出操作
+                if (!toKickUsers.isEmpty()) {
+                    log.info("群 {} 准备踢出 {} 名用户", groupId, toKickUsers.size());
+
+                    for (Long userId : toKickUsers) {
+                        try {
+                            boolean kickSuccess = kickGroupMember(responsibleBot, groupId, userId);
+                            if (kickSuccess) {
+                                totalKicked++;
+                                log.info("成功踢出用户 {} (群: {})", userId, groupId);
+
+                                Thread.sleep(1000);
+                            } else {
+                                log.error("踢出用户 {} (群: {}) 失败", userId, groupId);
+                            }
+                        } catch (Exception e) {
+                            log.error("踢出用户 {} (群: {}) 时发生异常: {}", userId, groupId, e.getMessage());
+                        }
+                    }
+                } else {
+                    log.info("群 {} 没有需要踢出的用户", groupId);
+                }
+            }
+
+            log.info("长时间未答卷用户检测完成，共检查 {} 名用户，踢出 {} 名用户", totalChecked, totalKicked);
+
+        } catch (Exception e) {
+            log.error("检测长时间未答卷用户失败: {}", e.getMessage(), e);
+        }
+    }
+
+    /**
+     * 踢出群成员
+     *
+     * @param bot     机器人客户端
+     * @param groupId 群号
+     * @param userId  用户QQ号
+     * @return 是否踢出成功
+     */
+    private boolean kickGroupMember(BotClient bot, Long groupId, Long userId) {
+        try {
+            // 构建请求参数
+            JSONObject request = new JSONObject();
+            request.put("group_id", String.valueOf(groupId));
+            request.put("user_id", String.valueOf(userId));
+            request.put("reject_add_request", false); // 不拒绝此人的加群请求
+
+            // 发送踢出群成员请求
+            HttpResponse response = HttpUtil
+                    .createPost(bot.getConfig().getHttpUrl() + BotApi.SET_GROUP_KICK)
+                    .header("Authorization", "Bearer " + bot.getConfig().getToken())
+                    .body(request.toJSONString())
+                    .timeout(8000)
+                    .execute();
+
+            if (response == null || !response.isOk()) {
+                log.error("踢出群成员请求失败，HTTP状态: {}", response != null ? response.getStatus() : "null");
+                return false;
+            }
+
+            JSONObject result = JSONObject.parseObject(response.body());
+            if (result.containsKey("retcode") && result.getInteger("retcode") == 0) {
+                return true;
+            } else {
+                log.error("踢出群成员失败，返回码: {}, 消息: {}",
+                        result.getInteger("retcode"), result.getString("msg"));
+                return false;
+            }
+
+        } catch (Exception e) {
+            log.error("踢出群成员时发生异常: {}", e.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * 同步群成员ID
      * 将通过白名单的用户群名片修改为【id】+ 原有昵称
      */
     public void synchronizeGroupMembersId() {
         log.info("开始同步群成员ID...");
-        
+
         try {
             // 获取所有通过审核且未被移除的白名单用户
             WhitelistInfo queryCondition = new WhitelistInfo();
@@ -601,9 +890,10 @@ public class BotTask {
             int successCount = 0;
             int failCount = 0;
 
-            // 遍历所有群组
+            // 记录本次已更新的用户（用户ID_群ID），避免在同一次同步中重复更新
+            Set<String> updatedInThisRun = new HashSet<>();
+
             for (Long groupId : allGroupIds) {
-                // 找到负责该群的机器人
                 BotClient responsibleBot = findResponsibleBot(activeBots, groupId);
                 if (responsibleBot == null) {
                     log.warn("群 {} 没有对应的机器人客户端", groupId);
@@ -613,7 +903,7 @@ public class BotTask {
                 // 获取群成员列表
                 JSONObject request = new JSONObject();
                 request.put("group_id", String.valueOf(groupId));
-                request.put("no_cache", false);
+                request.put("no_cache", true); // 防止获取到旧数据缓存重复更新
 
                 String botUrl = responsibleBot.getConfig().getHttpUrl();
                 HttpResponse response = null;
@@ -648,7 +938,6 @@ public class BotTask {
 
                 log.debug("群 {} 成员列表获取成功，数量: {}", groupId, members.size());
 
-                // 遍历白名单用户，检查是否在当前群中
                 for (WhitelistInfo whitelist : whitelistInfos) {
                     try {
                         Long userId = Long.parseLong(whitelist.getQqNum());
@@ -661,42 +950,56 @@ public class BotTask {
                                 .orElse(null);
 
                         if (targetMember != null) {
-                            // 用户在群中，检查并更新群名片
                             String currentCard = targetMember.getString("card");
                             String currentNickname = targetMember.getString("nickname");
-                            
-                            // 获取用户原本的昵称（优先使用群名片，如果没有则使用QQ昵称）
-                            String originalName = (currentCard != null && !currentCard.trim().isEmpty()) 
-                                    ? currentCard : currentNickname;
-                            
-                            // 检查当前群名片是否已经包含白名单标识
-                            String whitelistTag = "【" + gameName + "】";
-                            String newCard;
-                            
-                            if (originalName.startsWith("【") && originalName.contains("】")) {
-                                // 如果已经有标识，替换为新的白名单标识
-                                int endIndex = originalName.indexOf("】") + 1;
-                                String nameWithoutTag = originalName.substring(endIndex).trim();
-                                newCard = whitelistTag + nameWithoutTag;
-                            } else {
-                                // 如果没有标识，直接添加白名单标识
-                                newCard = whitelistTag + originalName;
-                            }
-                            
-                            // 如果当前群名片已经是目标格式，跳过更新
-                            if (newCard.equals(currentCard)) {
-                                log.debug("用户 {} 在群 {} 的群名片已经是正确格式，跳过更新", userId, groupId);
+
+                            // 生成用户在群中的唯一标识
+                            String userGroupKey = userId + "_" + groupId;
+
+                            // 如果本次运行中已经更新过这个用户，跳过
+                            if (updatedInThisRun.contains(userGroupKey)) {
+                                log.debug("用户 {} 在群 {} 本次运行中已更新过，跳过", userId, groupId);
                                 continue;
                             }
+
+                            // 检查当前群名片是否已经包含【】格式的ID
+                            if (currentCard != null && currentCard.contains("【") && currentCard.contains("】")) {
+                                int startIndex = currentCard.indexOf("【") + 1;
+                                int endIndex = currentCard.indexOf("】");
+                                if (startIndex > 0 && endIndex > startIndex) {
+                                    String cardId = currentCard.substring(startIndex, endIndex).trim();
+                                    // log.debug("用户 {} 在群 {} 当前群名片: {}, 提取的ID: {}, 白名单ID: {}",userId, groupId, currentCard, cardId, gameName);
+                                    if (cardId.equalsIgnoreCase(gameName)) {
+                                        // log.debug("用户 {} 在群 {} 的群名片已经是正确格式，跳过更新", userId, groupId);
+                                        continue;
+                                    }
+                                }
+                            }
+
+                            // 获取用户原本的昵称（优先使用群名片，如果没有则使用QQ昵称）
+                            String originalName = (currentCard != null && !currentCard.trim().isEmpty())
+                                    ? currentCard : currentNickname;
+
+                            // 构建新的群名片
+                            String newCard;
+                            if (originalName != null && originalName.contains("【") && originalName.contains("】")) {
+                                int endIdx = originalName.indexOf("】") + 1;
+                                String nameWithoutTag = originalName.substring(endIdx).trim();
+                                newCard = "【" + gameName + "】" + nameWithoutTag;
+                            } else {
+                                newCard = "【" + gameName + "】" + (originalName != null ? originalName : "");
+                            }
+
+                            log.debug("准备更新用户 {} 在群 {} 的群名片: {} -> {}", userId, groupId, currentCard, newCard);
 
                             // 更新群名片
                             boolean updateSuccess = updateGroupCard(responsibleBot, groupId, userId, newCard);
                             if (updateSuccess) {
                                 successCount++;
-                                log.info("成功更新用户 {} 在群 {} 的群名片: {} -> {}", 
+                                updatedInThisRun.add(userGroupKey);
+                                log.info("成功更新用户 {} 在群 {} 的群名片: {} -> {}",
                                         userId, groupId, originalName, newCard);
-                                
-                                // 避免更新过快，添加延迟
+
                                 Thread.sleep(500);
                             } else {
                                 failCount++;
@@ -705,6 +1008,7 @@ public class BotTask {
                         }
                     } catch (NumberFormatException e) {
                         log.error("白名单用户 {} 的QQ号格式错误: {}", whitelist.getUserName(), whitelist.getQqNum());
+                        failCount++;
                     } catch (Exception e) {
                         log.error("处理白名单用户 {} 时发生错误: {}", whitelist.getUserName(), e.getMessage());
                         failCount++;
@@ -712,7 +1016,9 @@ public class BotTask {
                 }
             }
 
-            log.info("群成员ID同步完成，成功: {} 个，失败: {} 个", successCount, failCount);
+            if (successCount > 0 || failCount > 0) {
+                log.info("群成员ID同步完成，成功: {} 个，失败: {} 个", successCount, failCount);
+            }
 
         } catch (Exception e) {
             log.error("同步群成员ID失败: {}", e.getMessage(), e);
@@ -753,7 +1059,7 @@ public class BotTask {
             if (result.containsKey("retcode") && result.getInteger("retcode") == 0) {
                 return true;
             } else {
-                log.error("更新群名片失败，返回码: {}, 消息: {}", 
+                log.error("更新群名片失败，返回码: {}, 消息: {}",
                         result.getInteger("retcode"), result.getString("msg"));
                 return false;
             }
@@ -764,3 +1070,4 @@ public class BotTask {
         }
     }
 }
+
