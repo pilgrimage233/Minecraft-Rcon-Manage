@@ -83,4 +83,20 @@ public interface IOpenApiService {
      * @return 结果
      */
     AjaxResult getConsole(Integer id, Integer lines);
+
+    /**
+     * Minecraft服务器消息推送
+     * 用于游戏内消息转发到QQ群
+     *
+     * @param param 消息参数
+     * @return 结果
+     */
+    AjaxResult pushMessage(JSONObject param);
+
+    /**
+     * 获取消息推送队列状态
+     *
+     * @return 队列状态信息
+     */
+    AjaxResult getMessageQueueStatus();
 }
