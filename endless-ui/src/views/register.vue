@@ -61,7 +61,7 @@
     </el-form>
     <!--  底部  -->
     <div class="el-register-footer">
-      <span>Copyright © 2024-2025 endmc.cc All Rights Reserved.</span>
+      <span>Copyright © 2024-2026 endmc.cc All Rights Reserved.</span>
     </div>
   </div>
 </template>
