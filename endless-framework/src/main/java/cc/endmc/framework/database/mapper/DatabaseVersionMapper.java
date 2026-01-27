@@ -141,6 +141,21 @@ public interface DatabaseVersionMapper {
     DatabaseVersion selectLatestVersion();
 
     /**
+     * 删除失败的版本记录
+     *
+     * @param appVersion 应用版本号
+     * @param scriptType 脚本类型
+     * @param scriptName 脚本名称
+     * @return 影响行数
+     */
+    @Delete("DELETE FROM database_version " +
+            "WHERE app_version = #{appVersion} AND script_type = #{scriptType} " +
+            "AND script_name = #{scriptName} AND success = 0")
+    int deleteFailedVersion(@Param("appVersion") String appVersion,
+                            @Param("scriptType") String scriptType,
+                            @Param("scriptName") String scriptName);
+
+    /**
      * 执行SQL脚本
      * 注意：这个方法用于执行动态SQL，需要特别小心SQL注入
      *

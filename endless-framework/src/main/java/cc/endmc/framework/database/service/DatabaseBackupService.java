@@ -133,17 +133,27 @@ public class DatabaseBackupService {
     private List<String> getTablesToBakcup() {
         try {
             String databaseName = extractDatabaseName();
+            log.info("📋 数据库名称: {}", databaseName);
 
             String sql = "SELECT table_name FROM information_schema.tables " +
                     "WHERE table_schema = ? AND table_type = 'BASE TABLE'";
 
             List<String> allTables = jdbcTemplate.queryForList(sql, String.class, databaseName);
+            log.info("📋 查询到 {} 个表", allTables.size());
+
+            if (!allTables.isEmpty()) {
+                log.debug("📋 所有表: {}", String.join(", ", allTables));
+            }
 
             // 过滤掉排除的表
-            return allTables.stream()
+            List<String> filteredTables = allTables.stream()
                     .filter(tableName -> !EXCLUDED_TABLES.contains(tableName.toLowerCase()))
                     .sorted()
                     .collect(Collectors.toList());
+
+            log.info("📋 过滤后剩余 {} 个表需要备份", filteredTables.size());
+
+            return filteredTables;
 
         } catch (Exception e) {
             log.error("❌ 获取表列表失败", e);
@@ -159,20 +169,28 @@ public class DatabaseBackupService {
     private String extractDatabaseName() {
         // 优先使用 Druid 主库配置，然后是标准配置
         String url = druidMasterUrl != null && !druidMasterUrl.isEmpty() ? druidMasterUrl : datasourceUrl;
+
+        log.debug("📋 数据源URL配置 - druidMasterUrl: {}, datasourceUrl: {}", druidMasterUrl, datasourceUrl);
+        log.debug("📋 使用的URL: {}", url);
         
         if (url == null || url.isEmpty()) {
             throw new IllegalStateException("数据源URL未配置，请检查 spring.datasource.url 或 spring.datasource.druid.master.url 配置");
         }
 
-        // 从 jdbc:mysql://localhost:3306/database_name 中提取 database_name
-        String[] parts = url.split("/");
+        // 从 jdbc:mysql://localhost:3306/database_name?params 中提取 database_name
+        // 先移除参数部分，避免参数中的 / 干扰解析（如 serverTimezone=Asia/Shanghai）
+        String urlWithoutParams = url.split("\\?")[0];
+
+        // 再按 / 分割
+        String[] parts = urlWithoutParams.split("/");
         if (parts.length < 4) {
             throw new IllegalArgumentException("无效的数据源URL格式: " + url);
         }
 
-        String dbNameWithParams = parts[parts.length - 1];
-        // 移除URL参数 (如 ?useSSL=false)
-        return dbNameWithParams.split("\\?")[0];
+        String databaseName = parts[parts.length - 1];
+        log.info("📋 提取的数据库名称: {}", databaseName);
+
+        return databaseName;
     }
 
     /**

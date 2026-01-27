@@ -401,6 +401,16 @@ public class DatabaseMigrationService {
         version.setChecksum(script.getChecksum());
 
         try {
+            // 删除之前失败的记录（如果存在）
+            int deletedCount = versionMapper.deleteFailedVersion(
+                    script.getAppVersion(),
+                    script.getScriptType(),
+                    script.getScriptName()
+            );
+            if (deletedCount > 0) {
+                log.info("🗑️ 删除了 {} 条失败的迁移记录", deletedCount);
+            }
+
             // 插入执行记录（标记为执行中）
             version.setSuccess(false);  // 设置为执行中状态（false表示未成功）
             version.setExecutionTime(null);  // 执行时间暂时为空
@@ -484,7 +494,7 @@ public class DatabaseMigrationService {
 
             // 跳过注释行
             if (trimmedLine.startsWith("--") || trimmedLine.startsWith("/*") ||
-                    trimmedLine.startsWith("SET") || trimmedLine.isEmpty()) {
+                    trimmedLine.isEmpty()) {
                 continue;
             }
 
