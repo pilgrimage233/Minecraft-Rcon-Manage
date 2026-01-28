@@ -6,7 +6,7 @@ on:
       branch:
         description: '构建分支'
         required: true
-        default: 'development'
+        default: 'springboot3'
         type: choice
         options:
           - development
@@ -120,8 +120,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 16
-          cache: 'npm'
-          cache-dependency-path: endless-ui/package-lock.json
+
+      # 缓存 npm 依赖
+      - name: Cache npm dependencies
+        uses: actions/cache@v4
+        with:
+          path: endless-ui/node_modules
+          key: ${{ runner.os }}-node-${{ hashFiles('endless-ui/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
 
       # 安装前端依赖
       - name: Install Frontend Dependencies
