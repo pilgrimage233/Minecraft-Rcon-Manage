@@ -6,7 +6,7 @@ on:
       branch:
         description: '构建分支'
         required: true
-        default: 'dev'
+        default: 'development'
         type: choice
         options:
           - development
@@ -235,7 +235,7 @@ jobs:
             - 此版本基于 Spring Boot 3，需要 Java 21 或更高版本
             - 首次部署请参考配置文档进行数据库初始化
             ${{ steps.build-info.outputs.is_prerelease == 'true' && '- **测试版警告**: 此版本仅供测试使用，可能存在严重 bug，请勿在生产环境部署' || '- 建议在生产环境部署前先在测试环境验证' }}
-            ${{ steps.build-info.outputs.branch == 'dev' && '- **开发分支**: 此版本来自开发分支，功能可能不稳定' || '' }}
+            ${{ steps.build-info.outputs.branch == 'development' && '- **开发分支**: 此版本来自开发分支，功能可能不稳定' || '' }}
             
             ---
             
