@@ -1,0 +1,289 @@
+name: Release Build and Publish
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: '构建分支'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - springboot3
+          - main
+      is_prerelease:
+        description: '是否为预发布版本'
+        required: true
+        default: true
+        type: boolean
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      # 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.branch }}
+          fetch-depth: 0  # 获取完整历史用于生成变更日志
+
+      # 设置 JDK 21 环境（用于后端 Spring Boot 3）
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      # 缓存 Maven 依赖
+      - name: Cache Maven dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.m2
+          key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+          restore-keys: ${{ runner.os }}-m2
+
+      # 获取构建信息
+      - name: Get Build Information
+        id: build-info
+        run: |
+          VERSION=$(mvn help:evaluate -Dexpression=endless.version -q -DforceStdout)
+          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+          BUILD_DATE=$(date '+%Y-%m-%d %H:%M:%S')
+          COMMIT_SHA=$(git rev-parse --short HEAD)
+          COMMIT_MSG=$(git log -1 --pretty=%B)
+          BRANCH="${{ github.event.inputs.branch }}"
+          IS_PRERELEASE="${{ github.event.inputs.is_prerelease }}"
+          
+          # 根据分支和预发布状态设置标签
+          if [ "$IS_PRERELEASE" = "true" ]; then
+            TAG="v${VERSION}-${BRANCH}-${TIMESTAMP}"
+            RELEASE_TYPE="⚠️ 测试版 (Pre-release)"
+          else
+            TAG="v${VERSION}"
+            RELEASE_TYPE="✅ 正式版 (Stable)"
+          fi
+          
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
+          echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
+          echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          echo "branch=$BRANCH" >> $GITHUB_OUTPUT
+          echo "is_prerelease=$IS_PRERELEASE" >> $GITHUB_OUTPUT
+          echo "release_type=$RELEASE_TYPE" >> $GITHUB_OUTPUT
+          
+          # 转义提交信息中的特殊字符
+          COMMIT_MSG_ESCAPED=$(echo "$COMMIT_MSG" | head -n 1)
+          echo "commit_msg=$COMMIT_MSG_ESCAPED" >> $GITHUB_OUTPUT
+
+      # 生成变更日志
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          # 获取最近的 tag
+          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          
+          if [ -z "$LAST_TAG" ]; then
+            # 如果没有 tag，获取所有提交
+            CHANGELOG=$(git log --pretty=format:"- %s (%h)" --no-merges -10)
+          else
+            # 获取自上次 tag 以来的提交
+            CHANGELOG=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s (%h)" --no-merges)
+          fi
+          
+          # 保存到文件
+          echo "$CHANGELOG" > changelog.txt
+          echo "Generated changelog with $(wc -l < changelog.txt) entries"
+
+      # 构建后端项目
+      - name: Build Backend Project
+        run: |
+          echo "Building Endless Manager..."
+          mvn -B clean package -DskipTests
+          
+          # 复制并重命名 JAR 文件
+          cp endless-admin/target/endless-manager.jar \
+             endless-admin/target/endless-manager-springboot3-${{ steps.build-info.outputs.version }}.jar
+          
+          # 显示构建信息
+          echo "✅ Backend build completed"
+          ls -lh endless-admin/target/*.jar
+
+      # 设置 Node.js 环境（用于前端）
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 16
+          cache: 'npm'
+          cache-dependency-path: endless-ui/package-lock.json
+
+      # 安装前端依赖
+      - name: Install Frontend Dependencies
+        run: |
+          echo "Installing frontend dependencies..."
+          npm ci
+        working-directory: ./endless-ui
+
+      # 构建前端项目
+      - name: Build Frontend Project
+        run: |
+          echo "Building frontend..."
+          npm run build:prod
+          echo "✅ Frontend build completed"
+          du -sh dist
+        working-directory: ./endless-ui
+
+      # 压缩前端产物
+      - name: Compress Frontend Dist
+        run: |
+          cd endless-ui
+          zip -r dist-${{ steps.build-info.outputs.version }}.zip dist
+          echo "✅ Frontend compressed"
+          ls -lh dist-*.zip
+
+      # 创建构建信息文件
+      - name: Create Build Info File
+        run: |
+          cat > build-info.txt << EOF
+          ====================================
+          Endless Manager 构建信息
+          ====================================
+          版本: ${{ steps.build-info.outputs.version }}
+          构建时间: ${{ steps.build-info.outputs.build_date }}
+          提交: ${{ steps.build-info.outputs.commit_sha }}
+          分支: ${{ steps.build-info.outputs.branch }}
+          发布类型: ${{ steps.build-info.outputs.release_type }}
+          Java 版本: 21
+          Node 版本: 16
+          构建者: GitHub Actions
+          ====================================
+          EOF
+          
+          cat build-info.txt
+
+      # 创建 Release（使用更现代的 action）
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.build-info.outputs.tag }}
+          name: "Endless Manager ${{ steps.build-info.outputs.version }} - ${{ steps.build-info.outputs.release_type }}"
+          body: |
+            ## ${{ steps.build-info.outputs.release_type }}
+            
+            ${{ steps.build-info.outputs.is_prerelease == 'true' && '> ⚠️ **警告**: 这是一个测试版本，可能包含未经充分测试的功能和已知问题。不建议在生产环境中使用！' || '> ✅ 这是一个稳定的正式版本，已经过充分测试，可以在生产环境中使用。' }}
+            
+            **版本**: `${{ steps.build-info.outputs.version }}`  
+            **构建时间**: ${{ steps.build-info.outputs.build_date }}  
+            **提交**: [`${{ steps.build-info.outputs.commit_sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.sha }})  
+            **分支**: `${{ steps.build-info.outputs.branch }}`  
+            **发布类型**: ${{ steps.build-info.outputs.release_type }}
+            
+            ### 📦 下载说明
+            
+            #### 后端 (Spring Boot 3)
+            - **文件**: `endless-manager-springboot3-${{ steps.build-info.outputs.version }}.jar`
+            - **要求**: Java 21+
+            - **说明**: 基于 Spring Boot 3 的后端服务
+            
+            #### 前端
+            - **文件**: `endless-ui-${{ steps.build-info.outputs.version }}.zip`
+            - **说明**: 前端静态资源，解压后部署到 Web 服务器
+            
+            ### 🔧 部署步骤
+            
+            #### 后端部署
+            ```bash
+            # 1. 下载 JAR 文件
+            # 2. 配置 application.yml
+            # 3. 启动服务（需要 Java 21）
+            java -jar endless-manager-springboot3-${{ steps.build-info.outputs.version }}.jar
+            ```
+            
+            #### 前端部署
+            ```bash
+            # 1. 下载并解压 endless-ui.zip
+            unzip endless-ui-${{ steps.build-info.outputs.version }}.zip
+            # 2. 将 dist 目录内容部署到 Nginx/Apache
+            ```
+            
+            ### 📝 最近更新
+            
+            **最新提交**: ${{ steps.build-info.outputs.commit_msg }}
+            
+            <details>
+            <summary>查看完整变更日志</summary>
+            
+            $(cat changelog.txt)
+            
+            </details>
+            
+            ### 🔗 相关链接
+            
+            - [📖 文档](https://github.com/${{ github.repository }}/blob/${{ steps.build-info.outputs.branch }}/README.md)
+            - [🐛 问题反馈](https://github.com/${{ github.repository }}/issues)
+            - [💬 讨论区](https://github.com/${{ github.repository }}/discussions)
+            - [📋 提交历史](https://github.com/${{ github.repository }}/commits/${{ steps.build-info.outputs.branch }})
+            
+            ### ⚠️ 注意事项
+            
+            - 此版本基于 Spring Boot 3，需要 Java 21 或更高版本
+            - 首次部署请参考配置文档进行数据库初始化
+            ${{ steps.build-info.outputs.is_prerelease == 'true' && '- **测试版警告**: 此版本仅供测试使用，可能存在严重 bug，请勿在生产环境部署' || '- 建议在生产环境部署前先在测试环境验证' }}
+            ${{ steps.build-info.outputs.branch == 'dev' && '- **开发分支**: 此版本来自开发分支，功能可能不稳定' || '' }}
+            
+            ---
+            
+            > 🤖 此版本由 GitHub Actions 手动触发构建和发布  
+            > 📅 构建时间: ${{ steps.build-info.outputs.build_date }}  
+            > 🏷️ 构建分支: ${{ steps.build-info.outputs.branch }}
+          files: |
+            endless-admin/target/endless-manager-springboot3-${{ steps.build-info.outputs.version }}.jar
+            endless-ui/dist-${{ steps.build-info.outputs.version }}.zip
+            build-info.txt
+          draft: false
+          prerelease: ${{ steps.build-info.outputs.is_prerelease == 'true' }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 构建成功通知
+      - name: Build Success Summary
+        if: success()
+        run: |
+          echo "## ✅ 构建成功！" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**版本**: ${{ steps.build-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Tag**: ${{ steps.build-info.outputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "**分支**: ${{ steps.build-info.outputs.branch }}" >> $GITHUB_STEP_SUMMARY
+          echo "**发布类型**: ${{ steps.build-info.outputs.release_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**构建时间**: ${{ steps.build-info.outputs.build_date }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.build-info.outputs.is_prerelease }}" = "true" ]; then
+            echo "### ⚠️ 测试版警告" >> $GITHUB_STEP_SUMMARY
+            echo "此版本标记为预发布版本，仅供测试使用！" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "### 📦 产物" >> $GITHUB_STEP_SUMMARY
+          echo "- Backend JAR: endless-manager-springboot3-${{ steps.build-info.outputs.version }}.jar" >> $GITHUB_STEP_SUMMARY
+          echo "- Frontend ZIP: endless-ui-${{ steps.build-info.outputs.version }}.zip" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "🔗 [查看 Release](https://github.com/${{ github.repository }}/releases/tag/${{ steps.build-info.outputs.tag }})" >> $GITHUB_STEP_SUMMARY
+
+      # 构建失败通知
+      - name: Build Failure Summary
+        if: failure()
+        run: |
+          echo "## ❌ 构建失败" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**版本**: ${{ steps.build-info.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "**提交**: ${{ steps.build-info.outputs.commit_sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "请检查构建日志以获取详细错误信息。" >> $GITHUB_STEP_SUMMARY
