@@ -9,9 +9,9 @@ on:
         default: 'dev'
         type: choice
         options:
-          - dev
+          - development
           - springboot3
-          - main
+          - master
       is_prerelease:
         description: '是否为预发布版本'
         required: true
