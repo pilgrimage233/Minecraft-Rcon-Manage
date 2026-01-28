@@ -122,13 +122,14 @@ public class AsyncMessagePushService {
     /**
      * 异步推送消息到队列
      *
-     * @param playerName 玩家名称
-     * @param message    消息内容
-     * @param serverId   服务器ID
+     * @param playerName   玩家名称
+     * @param message      消息内容
+     * @param serverId     服务器ID
+     * @param targetGroups 目标群组（多个群组用逗号分隔，为空则推送到所有群）
      * @return CompletableFuture<Boolean> 异步结果
      */
     @Async("virtualThreadExecutor")
-    public CompletableFuture<Boolean> pushMessageAsync(String playerName, String message, String serverId) {
+    public CompletableFuture<Boolean> pushMessageAsync(String playerName, String message, String serverId, String targetGroups) {
         try {
             // 检查队列容量
             if (queueSize.get() >= maxQueueSize) {
@@ -140,13 +141,13 @@ public class AsyncMessagePushService {
             String serverName = getServerNameFromCache(serverId);
 
             // 创建推送消息对象
-            PushMessage pushMessage = new PushMessage(playerName, message, serverId, serverName);
+            PushMessage pushMessage = new PushMessage(playerName, message, serverId, serverName, targetGroups);
 
             // 加入队列
             messageQueue.offer(pushMessage);
             queueSize.incrementAndGet();
 
-            log.debug("消息已加入队列: {}", pushMessage.getMessageId());
+            log.debug("消息已加入队列: {}, targetGroups: {}", pushMessage.getMessageId(), targetGroups);
             return CompletableFuture.completedFuture(true);
 
         } catch (Exception e) {
@@ -200,8 +201,8 @@ public class AsyncMessagePushService {
                 return;
             }
 
-            // 2. 发送消息到QQ群
-            boolean success = sendMessageToQQGroups(message.getFormattedMessage());
+            // 2. 发送消息到QQ群（支持指定目标群组）
+            boolean success = sendMessageToQQGroups(message.getFormattedMessage(), message.getTargetGroups());
 
             if (success) {
                 processedCount.incrementAndGet();
@@ -294,10 +295,11 @@ public class AsyncMessagePushService {
     /**
      * 发送消息到QQ群
      *
-     * @param message 要发送的消息
+     * @param message      要发送的消息
+     * @param targetGroups 目标群组（多个群组用逗号分隔，为空则推送到所有群）
      * @return 是否发送成功
      */
-    private boolean sendMessageToQQGroups(String message) {
+    private boolean sendMessageToQQGroups(String message, String targetGroups) {
         try {
             // 先从缓存获取机器人配置
             List<QqBotConfig> botConfigs = redisCache.getCacheObject(CacheKey.BOT_CONFIG_CACHE_KEY);
@@ -316,10 +318,16 @@ public class AsyncMessagePushService {
             for (QqBotConfig config : botConfigs) {
                 if (config.getGroupIds() != null && !config.getGroupIds().isEmpty()) {
                     try {
-                        // 使用BotUtil发送消息
-                        BotUtil.sendMessage(message, config.getGroupIds(), config);
-                        sent = true;
-                        log.debug("消息已发送到QQ群: {} -> {}", config.getGroupIds(), message);
+                        // 如果指定了目标群组，则只发送到指定群组
+                        String groupsToSend = determineTargetGroups(config.getGroupIds(), targetGroups);
+
+                        if (groupsToSend != null && !groupsToSend.isEmpty()) {
+                            BotUtil.sendMessage(message, groupsToSend, config);
+                            sent = true;
+                            log.debug("消息已发送到QQ群: {} -> {}", groupsToSend, message);
+                        } else {
+                            log.debug("机器人 {} 没有匹配的目标群组，跳过发送", config.getName());
+                        }
                     } catch (Exception e) {
                         log.error("发送消息到QQ群失败, 机器人: {}, 群组: {}", config.getName(), config.getGroupIds(), e);
                     }
@@ -332,6 +340,28 @@ public class AsyncMessagePushService {
             log.error("发送消息到QQ群异常", e);
             return false;
         }
+    }
+
+    /**
+     * 确定实际要发送的目标群组
+     *
+     * @param configGroups 机器人配置的群组列表
+     * @param targetGroups 指定的目标群组（为空则使用配置的所有群组）
+     * @return 实际要发送的群组列表（逗号分隔）
+     */
+    private String determineTargetGroups(String configGroups, String targetGroups) {
+        // 如果没有指定目标群组，则使用配置的所有群组
+        if (targetGroups == null || targetGroups.trim().isEmpty()) {
+            return configGroups;
+        }
+
+        Set<String> configGroupSet = Set.of(configGroups.split(","));
+        Set<String> targetGroupSet = Set.of(targetGroups.split(","));
+
+        // 只发送到既在配置中又在目标列表中的群组
+        return configGroupSet.stream()
+                .filter(group -> targetGroupSet.contains(group.trim()))
+                .collect(Collectors.joining(","));
     }
 
     /**

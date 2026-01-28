@@ -1150,6 +1150,7 @@ public class OpenApiServiceImpl implements IOpenApiService {
         String playerName = param.getString("playerName");
         String message = param.getString("message");
         String serverId = param.getString("serverId");
+        String targetGroups = param.getString("targetGroups");
 
         if (StringUtils.isEmpty(playerName) || StringUtils.isEmpty(message)) {
             return AjaxResult.error("玩家名称和消息内容不能为空");
@@ -1157,9 +1158,9 @@ public class OpenApiServiceImpl implements IOpenApiService {
 
         try {
             // 使用异步服务推送消息
-            CompletableFuture<Boolean> future = asyncMessagePushService.pushMessageAsync(playerName, message, serverId);
+            CompletableFuture<Boolean> future = asyncMessagePushService.pushMessageAsync(playerName, message, serverId, targetGroups);
 
-            log.debug("消息已提交到异步队列: player={}, message={}", playerName, message);
+            log.debug("消息已提交到异步队列: player={}, message={}, targetGroups={}", playerName, message, targetGroups);
             return AjaxResult.success("消息推送已提交");
 
         } catch (Exception e) {

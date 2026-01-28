@@ -52,6 +52,10 @@ public class PushMessage {
      * 重试次数
      */
     private int retryCount;
+    /**
+     * 目标群组列表（多个群组用逗号分隔）
+     */
+    private String targetGroups;
 
     /**
      * 构造方法
@@ -65,6 +69,21 @@ public class PushMessage {
         this.formattedMessage = String.format("[%s] %s: %s", serverName, playerName, message);
         this.createTime = LocalDateTime.now();
         this.retryCount = 0;
+    }
+
+    /**
+     * 构造方法（带目标群组）
+     */
+    public PushMessage(String playerName, String message, String serverId, String serverName, String targetGroups) {
+        this.messageId = generateMessageId();
+        this.playerName = playerName;
+        this.message = message;
+        this.serverId = serverId;
+        this.serverName = serverName;
+        this.formattedMessage = String.format("[%s] %s: %s", serverName, playerName, message);
+        this.createTime = LocalDateTime.now();
+        this.retryCount = 0;
+        this.targetGroups = targetGroups;
     }
 
     /**

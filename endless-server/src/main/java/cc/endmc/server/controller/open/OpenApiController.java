@@ -137,7 +137,7 @@ public class OpenApiController extends BaseController {
      * Minecraft服务器消息推送
      * 用于游戏内消息转发到QQ群
      *
-     * @param param 消息参数 {playerId: 玩家ID, playerName: 玩家名称, message: 消息内容, serverId: 服务器ID}
+     * @param param 消息参数 {playerId: 玩家ID, playerName: 玩家名称, message: 消息内容, serverId: 服务器ID, targetGroups: 目标群组（可选，多个群组用逗号分隔）}
      * @return AjaxResult
      */
     @SignVerify(rateLimitCount = 100L, timestampValidity = 60 * 1000L)
