@@ -121,20 +121,11 @@ jobs:
         with:
           node-version: 16
 
-      # 缓存 npm 依赖
-      - name: Cache npm dependencies
-        uses: actions/cache@v4
-        with:
-          path: endless-ui/node_modules
-          key: ${{ runner.os }}-node-${{ hashFiles('endless-ui/package-lock.json') }}
-          restore-keys: |
-            ${{ runner.os }}-node-
-
       # 安装前端依赖
       - name: Install Frontend Dependencies
         run: |
           echo "Installing frontend dependencies..."
-          npm ci
+          npm install
         working-directory: ./endless-ui
 
       # 构建前端项目
