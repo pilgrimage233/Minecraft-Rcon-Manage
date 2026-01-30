@@ -1,6 +1,7 @@
 package cc.endmc.server.service.bot;
 
 
+import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.server.domain.bot.QqBotConfig;
 
 import java.util.List;
@@ -59,4 +60,12 @@ public interface IQqBotConfigService {
      * @return 结果
      */
     public int deleteQqBotConfigById(Long id);
+
+    /**
+     * 重启QQ机器人
+     *
+     * @param id QQ机器人配置主键
+     * @return 结果
+     */
+    public AjaxResult restartBot(Long id);
 }

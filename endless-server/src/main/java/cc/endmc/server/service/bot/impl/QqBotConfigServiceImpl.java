@@ -1,6 +1,7 @@
 package cc.endmc.server.service.bot.impl;
 
 import cc.endmc.common.constant.Constants;
+import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.server.common.constant.CacheKey;
@@ -157,6 +158,34 @@ public class QqBotConfigServiceImpl implements IQqBotConfigService {
             }
         } catch (Exception e) {
             log.error("清理机器人配置缓存失败", e);
+        }
+    }
+
+    /**
+     * 重启QQ机器人
+     *
+     * @param id QQ机器人配置主键
+     * @return 结果
+     */
+    @Override
+    public AjaxResult restartBot(Long id) {
+        try {
+            QqBotConfig config = qqBotConfigMapper.selectQqBotConfigById(id);
+            if (config == null) {
+                return AjaxResult.error("机器人配置不存在");
+            }
+
+            if (config.getStatus() != 1L) {
+                return AjaxResult.error("机器人未启用，无法重启");
+            }
+
+            log.info("手动重启机器人: {}", config.getBotQq());
+            botManager.restartBot(config);
+
+            return AjaxResult.success("机器人重启成功");
+        } catch (Exception e) {
+            log.error("重启机器人失败: {}", e.getMessage(), e);
+            return AjaxResult.error("重启机器人失败: " + e.getMessage());
         }
     }
 }

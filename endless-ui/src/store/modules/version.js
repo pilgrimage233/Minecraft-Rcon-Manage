@@ -6,6 +6,7 @@ const state = {
   hasUpdate: false,
   releaseNotes: '',
   downloadUrl: '',
+  jarDownloadUrl: '',
   checking: false,
   lastCheckTime: null
 }
@@ -17,6 +18,7 @@ const mutations = {
     state.hasUpdate = info.hasUpdate
     state.releaseNotes = info.releaseNotes
     state.downloadUrl = info.downloadUrl
+    state.jarDownloadUrl = info.jarDownloadUrl
   },
   SET_CHECKING(state, checking) {
     state.checking = checking
@@ -47,7 +49,8 @@ const actions = {
           latestVersion: res.latestVersion || '',
           hasUpdate: Boolean(res.hasUpdate),
           releaseNotes: res.releaseNotes || '',
-          downloadUrl: res.downloadUrl || ''
+          downloadUrl: res.downloadUrl || '',
+          jarDownloadUrl: res.jarDownloadUrl || ''
         })
         commit('SET_LAST_CHECK_TIME')
       }
