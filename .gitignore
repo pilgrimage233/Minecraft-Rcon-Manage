@@ -11,6 +11,10 @@ target/
 ######################################################################
 # IDE
 
+### github ###
+.github
+.github/ISSUE_TEMPLATE
+
 ### STS ###
 .apt_generated
 .classpath
