@@ -13,6 +13,7 @@ target/
 
 ### github ###
 .github
+.github/ISSUE_TEMPLATE
 
 ### STS ###
 .apt_generated
@@ -51,3 +52,4 @@ nbdist/
 !*/build/*.java
 !*/build/*.html
 !*/build/*.xml
+/backup/
