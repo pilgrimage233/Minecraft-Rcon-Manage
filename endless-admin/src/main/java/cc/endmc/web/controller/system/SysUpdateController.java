@@ -262,13 +262,20 @@ public class SysUpdateController extends BaseController {
      */
     private String getCurrentJarPath() {
         try {
-            String path = SysUpdateController.class.getProtectionDomain()
-                    .getCodeSource()
-                    .getLocation()
-                    .toURI()
-                    .getPath();
+            // 尝试从 ProtectionDomain 获取路径
+            String path = null;
+            if (SysUpdateController.class.getProtectionDomain() != null
+                    && SysUpdateController.class.getProtectionDomain().getCodeSource() != null
+                    && SysUpdateController.class.getProtectionDomain().getCodeSource().getLocation() != null) {
+                path = SysUpdateController.class.getProtectionDomain()
+                        .getCodeSource()
+                        .getLocation()
+                        .toURI()
+                        .getPath();
+            }
 
-            if (path.endsWith(".jar")) {
+            // 检查路径是否为 JAR 文件
+            if (path != null && path.endsWith(".jar")) {
                 return path;
             }
 
@@ -280,6 +287,7 @@ public class SysUpdateController extends BaseController {
                 return jarFiles[0].getAbsolutePath();
             }
 
+            log.warn("无法定位 JAR 文件，可能在开发环境中运行");
             return null;
         } catch (Exception e) {
             log.error("获取当前 JAR 路径失败", e);

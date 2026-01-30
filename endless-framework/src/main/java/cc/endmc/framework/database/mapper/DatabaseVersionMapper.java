@@ -101,7 +101,7 @@ public interface DatabaseVersionMapper {
      * @return 最新应用版本
      */
     @Select("SELECT app_version FROM database_version WHERE success = 1 " +
-            "ORDER BY create_time DESC LIMIT 1")
+            "and app_version != '1.0.0' ORDER BY create_time DESC LIMIT 1")
     String selectLatestAppVersion();
 
     /**
