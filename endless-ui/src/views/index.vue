@@ -45,12 +45,20 @@
           </div>
           <div class="notes-body" v-html="parsedReleaseNotes"></div>
         </div>
+        <div v-if="jarDownloadUrl" class="mirror-tip">
+          <i class="el-icon-info"></i>
+          <span>支持多个镜像源自动切换，确保下载成功</span>
+        </div>
       </div>
       <span slot="footer" class="dialog-footer">
         <el-button @click="remindLater">3天后提醒</el-button>
+        <el-button v-if="jarDownloadUrl" :loading="updating" type="success" @click="oneClickUpdate">
+          <i v-if="!updating" class="el-icon-download"></i>
+          {{ updating ? '更新中...' : '一键更新' }}
+        </el-button>
         <el-button type="primary" @click="goToDownload">
-          <i class="el-icon-download"></i>
-          立即更新
+          <i class="el-icon-link"></i>
+          查看详情
         </el-button>
       </span>
     </el-dialog>
@@ -286,6 +294,7 @@
 
 <script>
 import {getBasicStats, getNodeStats, getOnlinePlayerInfo, getTopPlayers} from '@/api/dashboard'
+import {downloadUpdate} from '@/api/system/update'
 import {mapActions, mapState} from 'vuex'
 import NodeInstanceDialog from './index/NodeInstanceDialog.vue'
 import {marked} from 'marked'
@@ -325,7 +334,9 @@ export default {
         onlinePlayer: false
       },
       // 版本更新弹窗
-      updateDialogVisible: false
+      updateDialogVisible: false,
+      // 更新下载状态
+      updating: false
     }
   },
   computed: {
@@ -334,7 +345,8 @@ export default {
       'latestVersion',
       'hasUpdate',
       'releaseNotes',
-      'downloadUrl'
+      'downloadUrl',
+      'jarDownloadUrl'
     ]),
     // 解析 Markdown 格式的更新说明
     parsedReleaseNotes() {
@@ -619,6 +631,85 @@ export default {
         window.open(this.downloadUrl, '_blank')
         this.updateDialogVisible = false
       }
+    },
+    // 一键更新
+    async oneClickUpdate() {
+      if (!this.jarDownloadUrl) {
+        this.$message.error('无法获取更新文件下载地址')
+        return
+      }
+
+      this.$confirm('系统将自动下载并安装更新，会尝试多个镜像源以确保下载成功。安装完成后会自动重启。是否继续？', '确认更新', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+        dangerouslyUseHTMLString: true,
+        message: `
+          <div style="line-height: 1.8;">
+            <p>系统将自动下载并安装更新，安装完成后会自动重启。</p>
+            <p style="color: #909399; font-size: 13px; margin-top: 8px;">
+              <i class="el-icon-info"></i>
+              下载过程会自动尝试多个镜像源，请耐心等待
+            </p>
+          </div>
+        `
+      }).then(async () => {
+        this.updating = true
+
+        // 显示下载进度提示
+        const loadingInstance = this.$loading({
+          lock: true,
+          text: '正在下载更新文件，请稍候...\n系统会自动尝试多个镜像源',
+          spinner: 'el-icon-loading',
+          background: 'rgba(0, 0, 0, 0.7)'
+        })
+
+        try {
+          const res = await downloadUpdate()
+
+          loadingInstance.close()
+
+          if (res.code === 200) {
+            this.$message.success('更新已开始安装，系统将在几秒后自动重启...')
+            this.updateDialogVisible = false
+
+            // 显示倒计时提示
+            let countdown = 5
+            const countdownInterval = setInterval(() => {
+              if (countdown > 0) {
+                this.$message.info(`系统将在 ${countdown} 秒后重启...`)
+                countdown--
+              } else {
+                clearInterval(countdownInterval)
+                this.$message.info('正在重启系统，请稍候...')
+              }
+            }, 1000)
+
+            // 10秒后刷新页面（以防系统没有自动重启）
+            setTimeout(() => {
+              window.location.reload()
+            }, 10000)
+          } else {
+            this.$message.error(res.msg || '更新失败')
+            this.updating = false
+          }
+        } catch (error) {
+          loadingInstance.close()
+          console.error('更新失败:', error)
+
+          let errorMsg = '更新失败'
+          if (error.message) {
+            errorMsg += ': ' + error.message
+          } else if (error.response && error.response.data && error.response.data.msg) {
+            errorMsg += ': ' + error.response.data.msg
+          }
+
+          this.$message.error(errorMsg)
+          this.updating = false
+        }
+      }).catch(() => {
+        // 用户取消
+      })
     },
     // 解析在线玩家信息
     parseOnlineInfo(onlinePlayer) {
@@ -1547,6 +1638,24 @@ export default {
             }
           }
         }
+      }
+    }
+
+    .mirror-tip {
+      margin-top: 16px;
+      padding: 10px 16px;
+      background: #e6f7ff;
+      border: 1px solid #91d5ff;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      font-size: 13px;
+      color: #0050b3;
+
+      i {
+        margin-right: 8px;
+        font-size: 16px;
+        color: #1890ff;
       }
     }
   }
