@@ -36,6 +36,6 @@ CREATE TABLE `database_version`
 -- 插入初始版本记录
 INSERT INTO `database_version` (`app_version`, `script_type`, `script_name`, `file_name`, `description`, `checksum`,
                                 `execution_time`, `success`, `create_time`)
-VALUES ('1.0.0', 'schema', 'init', 'init.sql', '初始化数据库版本管理', 'init', 0, 1, NOW());
+VALUES ('1.0.1', 'schema', 'init', 'init.sql', '初始化数据库版本管理', 'init', 0, 1, NOW());
 
 SET FOREIGN_KEY_CHECKS = 1;
