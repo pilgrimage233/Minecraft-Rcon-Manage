@@ -34,7 +34,7 @@ public class DatabaseMigrationService {
      * 初始化脚本路径模式
      */
     private static final String INIT_PATH_PATTERN = "classpath:db/init/*.sql";
-    
+
     /**
      * 迁移脚本路径模式
      */

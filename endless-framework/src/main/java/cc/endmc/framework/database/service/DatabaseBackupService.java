@@ -51,7 +51,7 @@ public class DatabaseBackupService {
      */
     @Value("${spring.datasource.url:#{null}}")
     private String datasourceUrl;
-    
+
     @Value("${spring.datasource.druid.master.url:#{null}}")
     private String druidMasterUrl;
 
