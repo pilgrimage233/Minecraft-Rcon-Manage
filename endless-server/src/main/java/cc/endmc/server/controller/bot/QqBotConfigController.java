@@ -9,11 +9,11 @@ import cc.endmc.common.enums.BusinessType;
 import cc.endmc.common.utils.poi.ExcelUtil;
 import cc.endmc.server.domain.bot.QqBotConfig;
 import cc.endmc.server.service.bot.IQqBotConfigService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 
 /**
@@ -90,5 +90,15 @@ public class QqBotConfigController extends BaseController {
     @DeleteMapping("/{ids}")
     public AjaxResult remove(@PathVariable Long[] ids) {
         return toAjax(qqBotConfigService.deleteQqBotConfigByIds(ids));
+    }
+
+    /**
+     * 重启QQ机器人
+     */
+    @PreAuthorize("@ss.hasPermi('bot:config:edit')")
+    @Log(title = "重启QQ机器人", businessType = BusinessType.UPDATE)
+    @PostMapping("/restart/{id}")
+    public AjaxResult restart(@PathVariable Long id) {
+        return qqBotConfigService.restartBot(id);
     }
 }

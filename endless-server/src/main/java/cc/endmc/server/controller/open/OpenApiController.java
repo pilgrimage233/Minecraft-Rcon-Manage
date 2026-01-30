@@ -133,4 +133,28 @@ public class OpenApiController extends BaseController {
         return openApiService.getConsole(serverId, line);
     }
 
+    /**
+     * Minecraft服务器消息推送
+     * 用于游戏内消息转发到QQ群
+     *
+     * @param param 消息参数 {playerId: 玩家ID, playerName: 玩家名称, message: 消息内容, serverId: 服务器ID, targetGroups: 目标群组（可选，多个群组用逗号分隔）}
+     * @return AjaxResult
+     */
+    @SignVerify(rateLimitCount = 100L, timestampValidity = 60 * 1000L)
+    @PostMapping("/pushMessage")
+    public AjaxResult pushMessage(@RequestBody JSONObject param) {
+        return openApiService.pushMessage(param);
+    }
+
+    /**
+     * 获取消息推送队列状态
+     *
+     * @return AjaxResult
+     */
+    @SignVerify(rateLimitCount = 10L)
+    @GetMapping("/messageQueueStatus")
+    public AjaxResult getMessageQueueStatus() {
+        return openApiService.getMessageQueueStatus();
+    }
+
 }

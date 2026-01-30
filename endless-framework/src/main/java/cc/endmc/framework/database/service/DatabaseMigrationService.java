@@ -31,6 +31,11 @@ import java.util.stream.Collectors;
 public class DatabaseMigrationService {
 
     /**
+     * 初始化脚本路径模式
+     */
+    private static final String INIT_PATH_PATTERN = "classpath:db/init/*.sql";
+
+    /**
      * 迁移脚本路径模式
      */
     private static final String MIGRATION_PATH_PATTERN = "classpath:db/migration/**/*.sql";
@@ -68,31 +73,53 @@ public class DatabaseMigrationService {
             String dbLatestVersion = getLatestDatabaseVersion();
             log.info("📋 数据库最新版本: {}, 应用当前版本: {}", dbLatestVersion, currentAppVersion);
 
-            // 3. 加载所有迁移脚本
+            // 3. 如果是首次运行，执行初始化脚本
+            if (dbLatestVersion == null) {
+                log.info("🆕 检测到首次运行，开始执行初始化脚本...");
+                executeInitScripts(result);
+            }
+
+            // 4. 加载所有迁移脚本
             List<MigrationScript> allScripts = loadAllMigrationScripts();
             if (allScripts.isEmpty()) {
                 log.info("📋 未找到迁移脚本文件");
+                if (dbLatestVersion == null) {
+                    // 首次运行且没有迁移脚本，返回初始化结果
+                    long elapsedTime = System.currentTimeMillis() - startTime;
+                    String message = String.format("数据库初始化完成，执行了 %d 个初始化脚本，耗时 %d ms",
+                            result.getExecutedCount(), elapsedTime);
+                    log.info("✅ {}", message);
+                    return result.setSuccess(true).setMessage(message);
+                }
                 return result.setSuccess(true).setMessage("未找到迁移脚本");
             }
 
             log.info("📋 发现 {} 个迁移脚本", allScripts.size());
 
-            // 4. 确定需要执行的脚本
+            // 5. 确定需要执行的脚本
             List<MigrationScript> pendingScripts = determinePendingScripts(allScripts, dbLatestVersion);
 
             if (pendingScripts.isEmpty()) {
                 log.info("✅ 数据库已是最新版本，无需迁移");
+                if (result.getExecutedCount() > 0) {
+                    // 有初始化脚本执行过
+                    long elapsedTime = System.currentTimeMillis() - startTime;
+                    String message = String.format("数据库初始化完成，执行了 %d 个初始化脚本，耗时 %d ms",
+                            result.getExecutedCount(), elapsedTime);
+                    return result.setSuccess(true).setMessage(message);
+                }
                 return result.setSuccess(true).setMessage("数据库已是最新版本");
             }
 
             log.info("🔧 需要执行 {} 个迁移脚本", pendingScripts.size());
 
-            // 5. 执行数据库备份（如果启用且有脚本需要执行）
-            if (backupEnabled) {
+            // 6. 执行数据库备份（如果启用且有脚本需要执行）
+            if (backupEnabled && dbLatestVersion != null) {
+                // 只在非首次运行时备份
                 executeBackup(result);
             }
 
-            // 6. 执行迁移脚本
+            // 7. 执行迁移脚本
             for (MigrationScript script : pendingScripts) {
                 executeScript(script, result);
             }
@@ -141,23 +168,154 @@ public class DatabaseMigrationService {
     }
 
     /**
+     * 执行初始化脚本
+     * 首次运行时执行 db/init 目录下的所有 SQL 文件
+     *
+     * @param result 迁移结果
+     */
+    private void executeInitScripts(MigrationResult result) {
+        try {
+            log.info("📦 加载初始化脚本...");
+
+            // 加载 db/init 目录下的所有 SQL 文件
+            Resource[] resources = resourceResolver.getResources(INIT_PATH_PATTERN);
+
+            if (resources.length == 0) {
+                log.warn("⚠️ 未找到初始化脚本文件");
+                return;
+            }
+
+            // 按文件名排序，确保执行顺序
+            List<Resource> sortedResources = Arrays.stream(resources)
+                    .filter(Resource::exists)
+                    .filter(Resource::isReadable)
+                    .sorted(Comparator.comparing(r -> {
+                        try {
+                            return r.getFilename();
+                        } catch (Exception e) {
+                            return "";
+                        }
+                    }))
+                    .collect(Collectors.toList());
+
+            log.info("📋 发现 {} 个初始化脚本", sortedResources.size());
+
+            // 执行每个初始化脚本
+            for (Resource resource : sortedResources) {
+                String fileName = resource.getFilename();
+                log.info("🔧 执行初始化脚本: {}", fileName);
+
+                try {
+                    // 读取脚本内容
+                    String content = readResourceContent(resource);
+
+                    // 执行脚本
+                    long startTime = System.currentTimeMillis();
+                    executeSqlScript(content);
+                    long executionTime = System.currentTimeMillis() - startTime;
+
+                    // 记录执行结果
+                    DatabaseVersion version = new DatabaseVersion(
+                            currentAppVersion,
+                            "init",
+                            fileName.replace(".sql", ""),
+                            fileName,
+                            "初始化脚本: " + fileName
+                    );
+
+                    // 计算校验和
+                    String checksum = calculateChecksum(content);
+                    version.setChecksum(checksum);
+                    version.Success((int) executionTime);
+                    versionMapper.insertVersion(version);
+
+                    // 创建一个简单的脚本对象用于结果记录
+                    MigrationScript script = createInitScript(fileName, content);
+                    result.addExecutedScript(script);
+
+                    log.info("✅ 初始化脚本执行成功: {} (耗时 {} ms)", fileName, executionTime);
+
+                } catch (Exception e) {
+                    log.error("❌ 初始化脚本执行失败: {} - {}", fileName, e.getMessage(), e);
+                    throw new RuntimeException("初始化脚本执行失败: " + fileName, e);
+                }
+            }
+
+            log.info("✅ 所有初始化脚本执行完成");
+
+        } catch (Exception e) {
+            log.error("❌ 执行初始化脚本失败", e);
+            throw new RuntimeException("执行初始化脚本失败", e);
+        }
+    }
+
+    /**
+     * 创建初始化脚本对象
+     *
+     * @param fileName 文件名
+     * @param content  脚本内容
+     * @return 脚本对象
+     */
+    private MigrationScript createInitScript(String fileName, String content) {
+        MigrationScript script = new MigrationScript();
+        script.setAppVersion(currentAppVersion);
+        script.setScriptType("init");
+        script.setScriptName(fileName.replace(".sql", ""));
+        script.setFileName(fileName);
+        script.setContent(content);
+        script.setDescription("初始化脚本: " + fileName);
+        script.setChecksum(calculateChecksum(content));
+        script.setExecutionOrder(0);
+        script.setSortWeight(0);
+        return script;
+    }
+
+    /**
+     * 计算内容校验和
+     *
+     * @param content 内容
+     * @return MD5校验和
+     */
+    private String calculateChecksum(String content) {
+        if (content == null) {
+            return null;
+        }
+
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
+            byte[] digest = md.digest(content.getBytes("UTF-8"));
+            StringBuilder sb = new StringBuilder();
+            for (byte b : digest) {
+                sb.append(String.format("%02x", b));
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return String.valueOf(content.hashCode());
+        }
+    }
+
+    /**
      * 初始化版本管理表
      */
     private void initializeVersionTable() {
         try {
+            log.debug("📋 检查数据库版本管理表是否存在...");
+            
             // 检查版本表是否存在
             int tableExists = versionMapper.checkVersionTableExists();
 
             if (tableExists == 0) {
                 log.info("📋 创建数据库版本管理表...");
                 versionMapper.createVersionTable();
+                log.debug("✓ 版本管理表创建成功");
+                
                 versionMapper.insertInitialVersion();
-                log.info("✅ 数据库版本管理表创建成功");
+                log.info("✅ 数据库版本管理表初始化成功");
             } else {
                 log.debug("📋 数据库版本管理表已存在");
             }
         } catch (Exception e) {
-            log.error("❌ 初始化版本管理表失败", e);
+            log.error("❌ 初始化版本管理表失败: {}", e.getMessage(), e);
             throw new RuntimeException("初始化版本管理表失败", e);
         }
     }
@@ -401,6 +559,16 @@ public class DatabaseMigrationService {
         version.setChecksum(script.getChecksum());
 
         try {
+            // 删除之前失败的记录（如果存在）
+            int deletedCount = versionMapper.deleteFailedVersion(
+                    script.getAppVersion(),
+                    script.getScriptType(),
+                    script.getScriptName()
+            );
+            if (deletedCount > 0) {
+                log.info("🗑️ 删除了 {} 条失败的迁移记录", deletedCount);
+            }
+
             // 插入执行记录（标记为执行中）
             version.setSuccess(false);  // 设置为执行中状态（false表示未成功）
             version.setExecutionTime(null);  // 执行时间暂时为空
@@ -484,7 +652,7 @@ public class DatabaseMigrationService {
 
             // 跳过注释行
             if (trimmedLine.startsWith("--") || trimmedLine.startsWith("/*") ||
-                    trimmedLine.startsWith("SET") || trimmedLine.isEmpty()) {
+                    trimmedLine.isEmpty()) {
                 continue;
             }
 

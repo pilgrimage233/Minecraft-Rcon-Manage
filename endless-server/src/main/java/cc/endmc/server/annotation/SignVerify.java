@@ -10,6 +10,7 @@ import java.lang.annotation.*;
  * 1. 方法级别：在具体方法上使用，仅对该方法进行签名验证
  * 2. 控制器级别：在Controller类上使用，对该控制器的所有公开方法进行签名验证
  * 3. 方法级别的注解会覆盖类级别的配置
+ * 4. 支持JWT兼容模式：当enableJwtCompatible=true时，如果请求包含有效的JWT token，则跳过签名验证
  *
  * @author Memory
  */
@@ -25,6 +26,15 @@ public @interface SignVerify {
      * 当在类级别使用时，可以通过在特定方法上设置enabled=false来跳过验证
      */
     boolean enabled() default true;
+
+    /**
+     * 是否启用JWT兼容模式
+     * 默认为true
+     * <p>
+     * 当为true时，如果请求包含有效的JWT token，则跳过签名验证
+     * 当为false时，即使有JWT token也必须进行签名验证
+     */
+    boolean enableJwtCompatible() default true;
 
     /**
      * 自定义错误消息

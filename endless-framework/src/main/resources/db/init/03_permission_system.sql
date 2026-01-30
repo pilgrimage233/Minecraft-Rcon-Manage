@@ -360,10 +360,13 @@ INSERT INTO `sys_menu` (`menu_id`, `menu_name`, `parent_id`, `order_num`, `path`
                         `remark`)
 VALUES (3101, 'RCON权限', 3100, 1, 'rcon-permission', 'permission/rcon/index', '', 1, 0, 'C', '0', '0',
         'permission:rcon:list', 'server', 'admin', NOW(), 'RCON服务器权限管理'),
-       (3102, 'RCON权限查询', 3101, 1, '', '', '', 1, 0, 'F', '0', '0', 'permission:rcon:query', '#', 'admin', NOW(), ''),
+       (3102, 'RCON权限查询', 3101, 1, '', '', '', 1, 0, 'F', '0', '0', 'permission:rcon:query', '#', 'admin', NOW(),
+        ''),
        (3103, 'RCON权限新增', 3101, 2, '', '', '', 1, 0, 'F', '0', '0', 'permission:rcon:add', '#', 'admin', NOW(), ''),
-       (3104, 'RCON权限修改', 3101, 3, '', '', '', 1, 0, 'F', '0', '0', 'permission:rcon:edit', '#', 'admin', NOW(), ''),
-       (3105, 'RCON权限删除', 3101, 4, '', '', '', 1, 0, 'F', '0', '0', 'permission:rcon:remove', '#', 'admin', NOW(), '');
+       (3104, 'RCON权限修改', 3101, 3, '', '', '', 1, 0, 'F', '0', '0', 'permission:rcon:edit', '#', 'admin', NOW(),
+        ''),
+       (3105, 'RCON权限删除', 3101, 4, '', '', '', 1, 0, 'F', '0', '0', 'permission:rcon:remove', '#', 'admin', NOW(),
+        '');
 
 -- 节点服务器权限管理
 INSERT INTO `sys_menu` (`menu_id`, `menu_name`, `parent_id`, `order_num`, `path`, `component`, `query`, `is_frame`,
@@ -371,10 +374,13 @@ INSERT INTO `sys_menu` (`menu_id`, `menu_name`, `parent_id`, `order_num`, `path`
                         `remark`)
 VALUES (3110, '节点权限', 3100, 2, 'node-permission', 'permission/node/index', '', 1, 0, 'C', '0', '0',
         'permission:node:list', 'tree', 'admin', NOW(), '节点服务器权限管理'),
-       (3111, '节点权限查询', 3110, 1, '', '', '', 1, 0, 'F', '0', '0', 'permission:node:query', '#', 'admin', NOW(), ''),
+       (3111, '节点权限查询', 3110, 1, '', '', '', 1, 0, 'F', '0', '0', 'permission:node:query', '#', 'admin', NOW(),
+        ''),
        (3112, '节点权限新增', 3110, 2, '', '', '', 1, 0, 'F', '0', '0', 'permission:node:add', '#', 'admin', NOW(), ''),
-       (3113, '节点权限修改', 3110, 3, '', '', '', 1, 0, 'F', '0', '0', 'permission:node:edit', '#', 'admin', NOW(), ''),
-       (3114, '节点权限删除', 3110, 4, '', '', '', 1, 0, 'F', '0', '0', 'permission:node:remove', '#', 'admin', NOW(), '');
+       (3113, '节点权限修改', 3110, 3, '', '', '', 1, 0, 'F', '0', '0', 'permission:node:edit', '#', 'admin', NOW(),
+        ''),
+       (3114, '节点权限删除', 3110, 4, '', '', '', 1, 0, 'F', '0', '0', 'permission:node:remove', '#', 'admin', NOW(),
+        '');
 
 -- MC实例权限管理
 INSERT INTO `sys_menu` (`menu_id`, `menu_name`, `parent_id`, `order_num`, `path`, `component`, `query`, `is_frame`,
@@ -382,10 +388,14 @@ INSERT INTO `sys_menu` (`menu_id`, `menu_name`, `parent_id`, `order_num`, `path`
                         `remark`)
 VALUES (3120, '实例权限', 3100, 3, 'instance-permission', 'permission/instance/index', '', 1, 0, 'C', '0', '0',
         'permission:instance:list', 'component', 'admin', NOW(), 'MC实例权限管理'),
-       (3121, '实例权限查询', 3120, 1, '', '', '', 1, 0, 'F', '0', '0', 'permission:instance:query', '#', 'admin', NOW(), ''),
-       (3122, '实例权限新增', 3120, 2, '', '', '', 1, 0, 'F', '0', '0', 'permission:instance:add', '#', 'admin', NOW(), ''),
-       (3123, '实例权限修改', 3120, 3, '', '', '', 1, 0, 'F', '0', '0', 'permission:instance:edit', '#', 'admin', NOW(), ''),
-       (3124, '实例权限删除', 3120, 4, '', '', '', 1, 0, 'F', '0', '0', 'permission:instance:remove', '#', 'admin', NOW(), '');
+       (3121, '实例权限查询', 3120, 1, '', '', '', 1, 0, 'F', '0', '0', 'permission:instance:query', '#', 'admin',
+        NOW(), ''),
+       (3122, '实例权限新增', 3120, 2, '', '', '', 1, 0, 'F', '0', '0', 'permission:instance:add', '#', 'admin', NOW(),
+        ''),
+       (3123, '实例权限修改', 3120, 3, '', '', '', 1, 0, 'F', '0', '0', 'permission:instance:edit', '#', 'admin', NOW(),
+        ''),
+       (3124, '实例权限删除', 3120, 4, '', '', '', 1, 0, 'F', '0', '0', 'permission:instance:remove', '#', 'admin',
+        NOW(), '');
 
 -- 权限模板管理
 INSERT INTO `sys_menu` (`menu_id`, `menu_name`, `parent_id`, `order_num`, `path`, `component`, `query`, `is_frame`,

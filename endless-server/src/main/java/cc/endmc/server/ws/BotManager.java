@@ -111,16 +111,16 @@ public class BotManager {
 
         // 处理所有配置中的机器人
         configs.forEach(config -> {
-            BotClient client = botClients.get(config.getBotQq());
+            BotClient client = botClients.get(config.getId());
 
             if (client == null) {
                 // 如果是新机器人，启动它
                 log.info("启动新增的机器人: {}", config.getBotQq());
                 startBot(config);
             } else {
-                // 如果是现有机器人，只更新配置
-                log.info("更新机器人配置: {}", config.getBotQq());
-                client.init(config);
+                // 如果是现有机器人，重启以应用新配置
+                log.info("更新机器人配置并重启: {}", config.getBotQq());
+                restartBot(config);
             }
         });
     }

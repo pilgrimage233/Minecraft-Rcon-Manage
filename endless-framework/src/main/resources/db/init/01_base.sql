@@ -408,30 +408,6 @@ CREATE TABLE `sys_job_log`
 SET FOREIGN_KEY_CHECKS = 1;
 
 
-DROP TABLE IF EXISTS `sys_job_log`;
-CREATE TABLE `sys_job_log`
-(
-    `job_log_id`     bigint                                                        NOT NULL AUTO_INCREMENT COMMENT '任务日志ID',
-    `job_name`       varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci  NOT NULL COMMENT '任务名称',
-    `job_group`      varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci  NOT NULL COMMENT '任务组名',
-    `invoke_target`  varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '调用目标字符串',
-    `job_message`    varchar(500) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci  DEFAULT NULL COMMENT '日志信息',
-    `status`         char(1) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci       DEFAULT '0' COMMENT '执行状态（0正常 1失败）',
-    `exception_info` varchar(2000) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT '' COMMENT '异常信息',
-    `create_time`    datetime                                                       DEFAULT NULL COMMENT '创建时间',
-    PRIMARY KEY (`job_log_id`) USING BTREE,
-    KEY `idx_create_time` (`create_time`) USING BTREE,
-    KEY `idx_job_name_group` (`job_name`, `job_group`) USING BTREE,
-    KEY `idx_status_create_time` (`status`, `create_time`) USING BTREE
-) ENGINE = InnoDB
-  AUTO_INCREMENT = 898338
-  DEFAULT CHARSET = utf8mb4
-  COLLATE = utf8mb4_0900_ai_ci
-  ROW_FORMAT = DYNAMIC COMMENT ='定时任务调度日志表';
-
-SET FOREIGN_KEY_CHECKS = 1;
-
-
 create table sys_oper_log
 (
     oper_id        bigint auto_increment comment '日志主键'
@@ -1181,23 +1157,4 @@ VALUES (105, '玩家身份组', 'player_identity', '0', 'admin', '2024-12-31 04:
 INSERT INTO sys_dict_type (dict_id, dict_name, dict_type, status, create_by, create_time, update_by, update_time,
                            remark)
 VALUES (106, '管理员状态', 'op_status', '0', 'admin', '2025-01-12 10:25:05', '', null, null);
-INSERT INTO sys_dict_type (dict_id, dict_name, dict_type, status, create_by, create_time, update_by, update_time,
-                           remark)
-VALUES (107, 'RCON服务器权限类型', 'rcon_permission_type', '0', 'admin', '2025-12-20 01:40:32', '', null,
-        'RCON服务器权限类型');
-INSERT INTO sys_dict_type (dict_id, dict_name, dict_type, status, create_by, create_time, update_by, update_time,
-                           remark)
-VALUES (108, '节点服务器权限类型', 'node_permission_type', '0', 'admin', '2025-12-20 01:40:32', '', null,
-        '节点服务器权限类型');
-INSERT INTO sys_dict_type (dict_id, dict_name, dict_type, status, create_by, create_time, update_by, update_time,
-                           remark)
-VALUES (109, 'MC实例权限类型', 'instance_permission_type', '0', 'admin', '2025-12-20 01:40:32', '', null,
-        'MC实例权限类型');
-INSERT INTO sys_dict_type (dict_id, dict_name, dict_type, status, create_by, create_time, update_by, update_time,
-                           remark)
-VALUES (110, '资源类型', 'resource_type', '0', 'admin', '2025-12-20 01:40:32', '', null, '资源权限管理的资源类型');
-INSERT INTO sys_dict_type (dict_id, dict_name, dict_type, status, create_by, create_time, update_by, update_time,
-                           remark)
-VALUES (111, '权限操作类型', 'permission_action_type', '0', 'admin', '2025-12-20 01:40:32', '', null, '权限操作类型');
-
 

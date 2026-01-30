@@ -22,6 +22,7 @@ import cc.endmc.server.mapper.permission.WhitelistInfoMapper;
 import cc.endmc.server.mapper.player.PlayerDetailsMapper;
 import cc.endmc.server.mapper.server.ServerInfoMapper;
 import cc.endmc.server.model.MinecraftServerInfo;
+import cc.endmc.server.service.message.AsyncMessagePushService;
 import cc.endmc.server.service.open.IOpenApiService;
 import cc.endmc.server.service.permission.IBanlistInfoService;
 import cc.endmc.server.service.permission.IOperatorListService;
@@ -33,6 +34,7 @@ import cc.endmc.server.service.relation.IRconNodeInstanceRelationService;
 import cc.endmc.server.service.server.IServerInfoService;
 import cc.endmc.server.utils.MinecraftUUIDUtil;
 import cc.endmc.server.utils.NetWorkUtil;
+import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +43,7 @@ import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -75,6 +78,9 @@ public class OpenApiServiceImpl implements IOpenApiService {
     private final INodeServerService nodeServerService;
     private final INodeMinecraftServerService nodeMinecraftServerService;
     private final IRconNodeInstanceRelationService rconNodeInstanceRelationService;
+
+    // 异步消息推送服务
+    private final AsyncMessagePushService asyncMessagePushService;
 
     // Mapper
     private final WhitelistInfoMapper whitelistInfoMapper;
@@ -151,6 +157,21 @@ public class OpenApiServiceImpl implements IOpenApiService {
 
         // 创建提交记录
         WhitelistQuizSubmission submission = new WhitelistQuizSubmission();
+
+        // 设置白名单ID - 如果缓存中的whitelistInfo有ID则直接使用，否则尝试查找
+        if (whitelistInfo.getId() != null) {
+            submission.setWhitelistId(whitelistInfo.getId());
+        } else {
+            // 尝试通过用户名查找已存在的白名单记录
+            WhitelistInfo queryInfo = new WhitelistInfo();
+            queryInfo.setUserName(whitelistInfo.getUserName());
+            List<WhitelistInfo> existingWhitelists = whitelistInfoService.selectWhitelistInfoList(queryInfo);
+            if (!existingWhitelists.isEmpty()) {
+                submission.setWhitelistId(existingWhitelists.get(0).getId());
+            }
+            // 如果找不到对应的白名单记录，whitelistId将保持为null，后续可以通过数据库触发器或定时任务来关联
+        }
+        
         submission.setPlayerName(whitelistInfo.getUserName());
 
         // 确保playerUuid不为空
@@ -1112,4 +1133,104 @@ public class OpenApiServiceImpl implements IOpenApiService {
             return AjaxResult.error("系统异常，请稍后重试");
         }
     }
+
+    /**
+     * Minecraft服务器消息推送
+     * 用于游戏内消息转发到QQ群
+     *
+     * @param param 消息参数 {playerId: 玩家ID, playerName: 玩家名称, message: 消息内容, serverId: 服务器ID}
+     * @return 推送结果
+     */
+    @Override
+    public AjaxResult pushMessage(JSONObject param) {
+        if (param == null || param.isEmpty()) {
+            return AjaxResult.error("参数不能为空");
+        }
+
+        String playerName = param.getString("playerName");
+        String message = param.getString("message");
+        String serverId = param.getString("serverId");
+        String targetGroups = param.getString("targetGroups");
+
+        if (StringUtils.isEmpty(playerName) || StringUtils.isEmpty(message)) {
+            return AjaxResult.error("玩家名称和消息内容不能为空");
+        }
+
+        try {
+            // 使用异步服务推送消息
+            CompletableFuture<Boolean> future = asyncMessagePushService.pushMessageAsync(playerName, message, serverId, targetGroups);
+
+            log.debug("消息已提交到异步队列: player={}, message={}, targetGroups={}", playerName, message, targetGroups);
+            return AjaxResult.success("消息推送已提交");
+
+        } catch (Exception e) {
+            log.error("推送消息失败", e);
+            return AjaxResult.error("推送消息失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取消息推送队列状态
+     *
+     * @return 队列状态信息
+     */
+    @Override
+    public AjaxResult getMessageQueueStatus() {
+        try {
+            Map<String, Object> stats = asyncMessagePushService.getQueueStats();
+            return AjaxResult.success(stats);
+        } catch (Exception e) {
+            log.error("获取队列状态失败", e);
+            return AjaxResult.error("获取队列状态失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 从缓存获取服务器名称
+     *
+     * @param serverId 服务器ID
+     * @return 服务器名称
+     */
+    private String getServerNameFromCache(String serverId) {
+        if (StringUtils.isEmpty(serverId)) {
+            return "未知服务器";
+        }
+
+        try {
+            // 先从缓存获取服务器信息Map
+            Map<String, Object> serverInfoMap = redisCache.getCacheObject(CacheKey.SERVER_INFO_MAP_KEY);
+
+            if (serverInfoMap != null && serverInfoMap.containsKey(serverId)) {
+                Object serverObj = serverInfoMap.get(serverId);
+                if (serverObj != null) {
+                    ServerInfo serverInfo = null;
+
+                    if (serverObj instanceof ServerInfo) {
+                        serverInfo = (ServerInfo) serverObj;
+                    } else {
+                        try {
+                            serverInfo = JSON.parseObject(JSON.toJSONString(serverObj), ServerInfo.class);
+                        } catch (Exception e) {
+                            log.warn("服务器信息转换失败，serverId: {}, 错误: {}", serverId, e.getMessage());
+                        }
+                    }
+
+                    if (serverInfo != null && serverInfo.getNameTag() != null) {
+                        return serverInfo.getNameTag();
+                    }
+                }
+
+                log.debug("服务器ID {} 对应的服务器信息为空或无效", serverId);
+                return "未知服务器";
+            } else {
+                log.debug("服务器ID {} 在缓存中不存在，使用默认名称", serverId);
+                return "未知服务器";
+            }
+
+        } catch (Exception e) {
+            log.error("从缓存获取服务器信息失败，serverId: {}", serverId, e);
+            return "未知服务器";
+        }
+    }
+
 }

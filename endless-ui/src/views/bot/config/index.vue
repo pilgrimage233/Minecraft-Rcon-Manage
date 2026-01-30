@@ -61,6 +61,18 @@
       </el-col>
       <el-col :span="1.5">
         <el-button
+          v-hasPermi="['bot:config:edit']"
+          :disabled="single"
+          icon="el-icon-refresh-right"
+          plain
+          size="mini"
+          type="warning"
+          @click="handleRestart"
+        >重启
+        </el-button>
+      </el-col>
+      <el-col :span="1.5">
+        <el-button
           v-hasPermi="['bot:config:export']"
           icon="el-icon-download"
           plain
@@ -127,7 +139,7 @@
         </template>
       </el-table-column>
       <el-table-column align="center" label="备注" min-width="120" prop="remark" show-overflow-tooltip/>
-      <el-table-column align="center" class-name="small-padding fixed-width" label="操作" width="140">
+      <el-table-column align="center" class-name="small-padding fixed-width" label="操作" width="200">
         <template slot-scope="scope">
           <el-button
             v-hasPermi="['bot:config:edit']"
@@ -136,6 +148,15 @@
             type="text"
             @click="handleUpdate(scope.row)"
           >修改
+          </el-button>
+          <el-divider direction="vertical"/>
+          <el-button
+            v-hasPermi="['bot:config:edit']"
+            icon="el-icon-refresh-right"
+            size="mini"
+            type="text"
+            @click="handleRestartRow(scope.row)"
+          >重启
           </el-button>
           <el-divider direction="vertical"/>
           <el-button
@@ -287,7 +308,7 @@
 </template>
 
 <script>
-import {addConfig, delConfig, getConfig, listConfig, updateConfig} from "@/api/bot/config";
+import {addConfig, delConfig, getConfig, listConfig, restartBot, updateConfig} from "@/api/bot/config";
 
 export default {
   name: "Config",
@@ -333,7 +354,7 @@ export default {
         lastLoginTime: null,
         lastHeartbeatTime: null,
         errorMsg: null,
-        status: '1', // 默认启用
+        status: 1, // 默认启用
         createTime: null,
         createBy: null,
         updateTime: null,
@@ -404,7 +425,7 @@ export default {
         lastLoginTime: null,
         lastHeartbeatTime: null,
         errorMsg: null,
-        status: '1', // 默认启用
+        status: 1, // 默认启用
         createTime: null,
         createBy: null,
         updateTime: null,
@@ -515,6 +536,26 @@ export default {
         }
       });
     },
+    /** 重启按钮操作（批量） */
+    handleRestart() {
+      const id = this.ids[0];
+      const botName = this.configList.find(item => item.id === id)?.name || id;
+      this.$modal.confirm('是否确认重启机器人"' + botName + '"？').then(() => {
+        return restartBot(id);
+      }).then(() => {
+        this.$modal.msgSuccess("重启成功");
+      }).catch(() => {
+      });
+    },
+    /** 重启按钮操作（单行） */
+    handleRestartRow(row) {
+      this.$modal.confirm('是否确认重启机器人"' + row.name + '"？').then(() => {
+        return restartBot(row.id);
+      }).then(() => {
+        this.$modal.msgSuccess("重启成功");
+      }).catch(() => {
+      });
+    },
   }
 };
 </script>
@@ -566,6 +607,15 @@ export default {
 
 .el-button--text + .el-divider--vertical + .el-button--text:hover {
   background: rgba(245, 108, 108, 0.1);
+}
+
+/* 重启按钮样式 */
+.el-button--text[icon="el-icon-refresh-right"] {
+  color: #E6A23C;
+}
+
+.el-button--text[icon="el-icon-refresh-right"]:hover {
+  background: rgba(230, 162, 60, 0.1);
 }
 
 </style>

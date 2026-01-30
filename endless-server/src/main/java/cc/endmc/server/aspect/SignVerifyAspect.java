@@ -2,8 +2,10 @@ package cc.endmc.server.aspect;
 
 import cc.endmc.common.constant.HttpStatus;
 import cc.endmc.common.core.domain.AjaxResult;
+import cc.endmc.common.core.domain.model.LoginUser;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.ServletUtils;
+import cc.endmc.framework.web.service.TokenService;
 import cc.endmc.server.annotation.SignVerify;
 import com.alibaba.fastjson2.JSON;
 import jakarta.servlet.http.HttpServletRequest;
@@ -16,7 +18,6 @@ import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -35,6 +36,7 @@ import java.util.concurrent.TimeUnit;
  * 1. 方法级别注解优先级最高
  * 2. 类级别注解作用于所有公开方法，但可通过excludeMethods排除特定方法
  * 3. 方法级别的enabled=false可以覆盖类级别的验证
+ * 4. 兼容RuoYi JWT验证：如果请求包含有效的JWT token，则跳过签名验证
  *
  * @author Memory
  */
@@ -51,6 +53,9 @@ public class SignVerifyAspect {
     @Autowired
     private RedisCache redisCache;
 
+    @Autowired
+    private TokenService tokenService;
+
     /**
      * 环绕通知，处理方法级别的签名验证
      */
@@ -61,8 +66,9 @@ public class SignVerifyAspect {
 
     /**
      * 环绕通知，处理类级别的签名验证
+     * 只有当方法没有 @SignVerify 注解时才会执行，避免重复验证
      */
-    @Around("@within(signVerify) && execution(public * *(..))")
+    @Around("@within(signVerify) && execution(public * *(..)) && !@annotation(cc.endmc.server.annotation.SignVerify)")
     public Object aroundClass(ProceedingJoinPoint joinPoint, SignVerify signVerify) throws Throwable {
         MethodSignature signature = (MethodSignature) joinPoint.getSignature();
         Method method = signature.getMethod();
@@ -74,14 +80,8 @@ public class SignVerifyAspect {
             return joinPoint.proceed();
         }
 
-        // 检查方法级别是否有SignVerify注解，如果有则优先使用方法级别的配置
-        SignVerify methodAnnotation = AnnotationUtils.findAnnotation(method, SignVerify.class);
-        if (methodAnnotation != null) {
-            log.debug("方法 {} 有方法级别的SignVerify注解，使用方法级别配置", methodName);
-            return processSignVerify(joinPoint, methodAnnotation);
-        }
-
         // 使用类级别的配置
+        log.debug("使用类级别的SignVerify配置验证方法: {}", methodName);
         return processSignVerify(joinPoint, signVerify);
     }
 
@@ -105,6 +105,12 @@ public class SignVerifyAspect {
             HttpServletRequest request = attributes.getRequest();
             HttpServletResponse response = attributes.getResponse();
 
+            // 检查是否启用JWT兼容模式，如果启用且有有效的JWT token，则跳过签名验证
+            if (signVerify.enableJwtCompatible() && hasValidJwtToken(request)) {
+                log.debug("JWT兼容模式已启用且检测到有效的JWT token，跳过签名验证");
+                return joinPoint.proceed();
+            }
+
             // 执行签名验证
             if (!validateSign(request, response, signVerify)) {
                 return null; // 验证失败，直接返回
@@ -122,6 +128,25 @@ public class SignVerifyAspect {
             }
             return null;
         }
+    }
+
+    /**
+     * 检查请求是否包含有效的JWT token
+     */
+    private boolean hasValidJwtToken(HttpServletRequest request) {
+        try {
+            // 尝试从请求中获取登录用户信息
+            LoginUser loginUser = tokenService.getLoginUser(request);
+            if (loginUser != null) {
+                // 验证token是否有效
+                tokenService.verifyToken(loginUser);
+                log.debug("JWT token验证成功，用户: {}", loginUser.getUsername());
+                return true;
+            }
+        } catch (Exception e) {
+            log.debug("JWT token验证失败: {}", e.getMessage());
+        }
+        return false;
     }
 
     /**

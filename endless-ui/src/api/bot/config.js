@@ -42,3 +42,11 @@ export function delConfig(id) {
     method: 'delete'
   })
 }
+
+// 重启QQ机器人
+export function restartBot(id) {
+  return request({
+    url: '/bot/config/restart/' + id,
+    method: 'post'
+  })
+}
