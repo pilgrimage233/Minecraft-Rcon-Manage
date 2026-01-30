@@ -183,6 +183,7 @@ public class OnlinePlayerUtil {
         // 处理多种可能的响应格式
         String[] patterns = {
                 ":",  // 标准格式: "There are 3 of a max of 20 players online: player1, player2, player3"
+                "：", // 中文冒号格式: "当前共有1名玩家在线（最大玩家数为10）：XXX"
                 "在线玩家:",  // 中文格式
                 "players online:",  // 变体格式
                 "玩家在线:"
