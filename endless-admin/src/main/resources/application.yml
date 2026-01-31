@@ -3,7 +3,7 @@ endless:
   # 名称
   name: EndlessManager
   # 版本
-  version: 3.5.2
+  version: 3.5.3
   # 版权年份
   copyrightYear: 2026
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
@@ -218,6 +218,8 @@ qq:
 app:
   # 鉴权密钥 (请设置为复杂且唯一的密钥)
   secret-key:
+  # IP头名称 用于获取真实IP (多个代理头可以用逗号分隔)
+  ip-header-name: X-Real-IP,X-Forwarded-For
 
 # 日志清理配置
 cleanup:
