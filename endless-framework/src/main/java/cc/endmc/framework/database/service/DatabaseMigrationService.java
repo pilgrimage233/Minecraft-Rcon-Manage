@@ -196,7 +196,7 @@ public class DatabaseMigrationService {
                             return "";
                         }
                     }))
-                    .collect(Collectors.toList());
+                    .toList();
 
             log.info("📋 发现 {} 个初始化脚本", sortedResources.size());
 
@@ -283,7 +283,7 @@ public class DatabaseMigrationService {
 
         try {
             java.security.MessageDigest md = java.security.MessageDigest.getInstance("MD5");
-            byte[] digest = md.digest(content.getBytes("UTF-8"));
+            byte[] digest = md.digest(content.getBytes(StandardCharsets.UTF_8));
             StringBuilder sb = new StringBuilder();
             for (byte b : digest) {
                 sb.append(String.format("%02x", b));
@@ -345,7 +345,7 @@ public class DatabaseMigrationService {
 
         try {
             // 加载migration脚本
-            scripts = new ArrayList<>(loadScriptsByPattern(MIGRATION_PATH_PATTERN));
+            scripts = new ArrayList<>(loadScriptsByPattern());
 
             // 排序：按版本、执行顺序
             scripts.sort(MigrationScript::compareTo);
@@ -361,14 +361,13 @@ public class DatabaseMigrationService {
     /**
      * 按路径模式加载脚本
      *
-     * @param pathPattern 路径模式
      * @return 脚本列表
      */
-    private List<MigrationScript> loadScriptsByPattern(String pathPattern) throws Exception {
+    private List<MigrationScript> loadScriptsByPattern() throws Exception {
         List<MigrationScript> scripts = new ArrayList<>();
 
         try {
-            Resource[] resources = resourceResolver.getResources(pathPattern);
+            Resource[] resources = resourceResolver.getResources(DatabaseMigrationService.MIGRATION_PATH_PATTERN);
 
             for (Resource resource : resources) {
                 if (resource.exists() && resource.isReadable()) {
@@ -388,7 +387,7 @@ public class DatabaseMigrationService {
             }
         } catch (java.io.FileNotFoundException e) {
             // db/migration/ 目录不存在，这是正常情况，返回空列表
-            log.debug("📋 迁移脚本目录不存在: {}", pathPattern);
+            log.debug("📋 迁移脚本目录不存在: {}", DatabaseMigrationService.MIGRATION_PATH_PATTERN);
         }
 
         return scripts;
