@@ -115,7 +115,7 @@ public class DatabaseBackupService {
     private String createBackupDirectory(String appVersion) throws IOException {
         String timestamp = LocalDateTime.now().format(BACKUP_TIME_FORMAT);
         String dirName = String.format("backup_%s_%s", appVersion, timestamp);
-
+        backupPath = backupPath + File.separator + "full_backup"; // 全量备份子目录
         File backupDir = new File(backupPath, dirName);
         if (!backupDir.exists() && !backupDir.mkdirs()) {
             throw new IOException("无法创建备份目录: " + backupDir.getAbsolutePath());
@@ -319,7 +319,7 @@ public class DatabaseBackupService {
         }
 
         // 获取列名
-        Set<String> columnNames = tableData.get(0).keySet();
+        Set<String> columnNames = tableData.getFirst().keySet();
         String columns = columnNames.stream()
                 .map(col -> "`" + col + "`")
                 .collect(Collectors.joining(", "));
@@ -371,7 +371,7 @@ public class DatabaseBackupService {
         }
 
         if (value instanceof Date || value instanceof LocalDateTime) {
-            return "'" + value.toString() + "'";
+            return "'" + value + "'";
         }
 
         return value.toString();
