@@ -29,14 +29,14 @@ import cc.endmc.server.service.permission.IWhitelistInfoService;
 import cc.endmc.server.service.player.IPlayerDetailsService;
 import cc.endmc.server.service.quiz.IWhitelistQuizConfigService;
 import cc.endmc.server.service.quiz.IWhitelistQuizSubmissionService;
-import cc.endmc.server.utils.BotUtil;
-import cc.endmc.server.utils.CodeUtil;
-import cc.endmc.server.utils.MinecraftUUIDUtil;
-import cc.endmc.server.utils.WhitelistUtils;
+import cc.endmc.server.utils.*;
 import cn.hutool.core.util.RandomUtil;
 import com.alibaba.fastjson2.JSONObject;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
@@ -48,8 +48,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import jakarta.annotation.PostConstruct;
-import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
@@ -86,6 +84,8 @@ public class WhitelistInfoController extends BaseController {
     private String iplimit;
     @Value("${whitelist.email}")
     private String ADMIN_EMAIL;
+    @Value("${app.ip-header-name:X-Real-IP}")
+    private String ipHeaderName;
 
     @PostConstruct
     public void init() {
@@ -96,7 +96,7 @@ public class WhitelistInfoController extends BaseController {
     @SignVerify // 开启签名验证
     @SneakyThrows
     @PostMapping("/apply")
-    public AjaxResult apply(@RequestBody WhitelistInfo whitelistInfo, @RequestHeader Map<String, String> header) {
+    public AjaxResult apply(HttpServletRequest request, @RequestBody WhitelistInfo whitelistInfo, @RequestHeader Map<String, String> header) {
         if (whitelistInfo == null || whitelistInfo.getUserName() == null || whitelistInfo.getQqNum() == null) {
             return error("申请信息不能为空!");
         }
@@ -105,7 +105,8 @@ public class WhitelistInfoController extends BaseController {
         logger.info("header:{}", header);
 
         // 获取IP地址
-        String ip = WhitelistUtils.getIpFromHeader(header);
+        //String ip = WhitelistUtils.getIpFromHeader(header);
+        String ip = IPUtils.getClientIpAddress(request, ipHeaderName);
 
         // 获取UA头
         if (!header.containsKey("user-agent")) {
@@ -137,15 +138,14 @@ public class WhitelistInfoController extends BaseController {
 
         if (!whitelistInfoService.checkRepeat(whitelistInfo).isEmpty()) {
             List<WhitelistInfo> whitelistInfos = whitelistInfoService.checkRepeat(whitelistInfo);
-            WhitelistInfo obj = whitelistInfos.get(0);
-            switch (obj.getAddState()) {
-                case "1":
-                    return success("用户:[" + obj.getUserName() + "]的提交已于 [" + dateFormat.format(obj.getAddTime()) + "] 日通过审核,审核人:[" + obj.getReviewUsers() + "]");
-                case "2":
-                    return success("用户:[" + obj.getUserName() + "]的审核已于 [" + dateFormat.format(obj.getAddTime()) + "] 日被移除白名单,请规范游戏!如有疑问联系管理员");
-                default:
-                    return success("正在审核,请勿重复提交申请~ 如有纰漏或加急请联系管理员!");
-            }
+            WhitelistInfo obj = whitelistInfos.getFirst();
+            return switch (obj.getAddState()) {
+                case "1" ->
+                        success("用户:[" + obj.getUserName() + "]的提交已于 [" + dateFormat.format(obj.getAddTime()) + "] 日通过审核,审核人:[" + obj.getReviewUsers() + "]");
+                case "2" ->
+                        success("用户:[" + obj.getUserName() + "]的审核已于 [" + dateFormat.format(obj.getAddTime()) + "] 日被移除白名单,请规范游戏!如有疑问联系管理员");
+                default -> success("正在审核,请勿重复提交申请~ 如有纰漏或加急请联系管理员!");
+            };
         }
 
         // IP限流检查
@@ -215,14 +215,16 @@ public class WhitelistInfoController extends BaseController {
 
     /**
      * 验证白名单
-     * 此接口不受权限控制！
+     * 此接口不受权限控制!
      *
-     * @param code
-     * @return
+     * @param request 请求
+     * @param code    验证码
+     * @param header  请求头
+     * @return 结果
      */
     @SignVerify
     @GetMapping("/verify")
-    public AjaxResult verify(@RequestParam String code, @RequestHeader Map<String, String> header) {
+    public AjaxResult verify(HttpServletRequest request, @RequestParam String code, @RequestHeader Map<String, String> header) {
         if (StringUtils.isEmpty(code)) {
             return error("验证失败,请勿直接访问此链接!");
         }
@@ -288,7 +290,8 @@ public class WhitelistInfoController extends BaseController {
             }
 
             // 获取IP地址
-            String ip = WhitelistUtils.getIpFromHeader(header);
+            //String ip = WhitelistUtils.getIpFromHeader(header);
+            String ip = IPUtils.getClientIpAddress(request, ipHeaderName);
 
             // IP限流检查
             if (StringUtils.isNotEmpty(ip)) {
@@ -353,12 +356,12 @@ public class WhitelistInfoController extends BaseController {
         List<WhitelistQuizConfig> statusConfigs = quizConfigService.selectWhitelistQuizConfigList(quizStatusConfig);
 
         // 只有在答题功能开启的情况下才检查自动通过和答题记录
-        if (!statusConfigs.isEmpty() && "true".equalsIgnoreCase(statusConfigs.get(0).getConfigValue())) {
+        if (!statusConfigs.isEmpty() && "true".equalsIgnoreCase(statusConfigs.getFirst().getConfigValue())) {
             WhitelistQuizConfig autoPassedConfig = new WhitelistQuizConfig();
             autoPassedConfig.setConfigKey(QuestionConfig.AUTO_PASSED);
             List<WhitelistQuizConfig> autoPassedConfigs = quizConfigService.selectWhitelistQuizConfigList(autoPassedConfig);
 
-            if (!autoPassedConfigs.isEmpty() && "true".equalsIgnoreCase(autoPassedConfigs.get(0).getConfigValue())) {
+            if (!autoPassedConfigs.isEmpty() && "true".equalsIgnoreCase(autoPassedConfigs.getFirst().getConfigValue())) {
                 // 自动通过功能已启用，检查此玩家的答题记录
                 WhitelistQuizSubmission submission = new WhitelistQuizSubmission();
                 submission.setPlayerName(whitelistInfo.getUserName());
@@ -366,7 +369,7 @@ public class WhitelistInfoController extends BaseController {
 
                 if (submissions != null && !submissions.isEmpty()) {
                     // 找到最新的一次提交
-                    WhitelistQuizSubmission latestSubmission = submissions.get(0);
+                    WhitelistQuizSubmission latestSubmission = submissions.getFirst();
                     for (WhitelistQuizSubmission sub : submissions) {
                         if (sub.getSubmitTime() != null &&
                                 (latestSubmission.getSubmitTime() == null ||

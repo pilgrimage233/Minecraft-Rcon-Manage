@@ -7,16 +7,17 @@ import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.ServletUtils;
 import cc.endmc.framework.web.service.TokenService;
 import cc.endmc.server.annotation.SignVerify;
+import cc.endmc.server.utils.IPUtils;
 import com.alibaba.fastjson2.JSON;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.codec.digest.DigestUtils;
 import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
@@ -44,17 +45,16 @@ import java.util.concurrent.TimeUnit;
 @Aspect
 @Order(0) // 设置最高优先级，确保签名验证最先执行
 @Component
+@RequiredArgsConstructor
 @SuppressWarnings("unchecked")
 public class SignVerifyAspect {
 
     @Value("${app.secret-key:}")
     private String secretKey;
-
-    @Autowired
-    private RedisCache redisCache;
-
-    @Autowired
-    private TokenService tokenService;
+    private final RedisCache redisCache;
+    private final TokenService tokenService;
+    @Value("${app.ip-header-name:X-Real-IP}")
+    private String ipHeaderName;
 
     /**
      * 环绕通知，处理方法级别的签名验证
@@ -260,7 +260,7 @@ public class SignVerifyAspect {
      * 限流验证
      */
     private boolean validateRateLimit(HttpServletRequest request, HttpServletResponse response, SignVerify signVerify) throws Exception {
-        String ip = getClientIpAddress(request);
+        String ip = IPUtils.getClientIpAddress(request, ipHeaderName);
         String rateLimitKey = "rate:" + ip;
 
         Long count = redisCache.redisTemplate.opsForValue().increment(rateLimitKey);
@@ -275,23 +275,6 @@ public class SignVerifyAspect {
         }
 
         return true;
-    }
-
-    /**
-     * 获取客户端真实IP地址
-     */
-    private String getClientIpAddress(HttpServletRequest request) {
-        String xForwardedFor = request.getHeader("X-Forwarded-For");
-        if (StringUtils.hasText(xForwardedFor) && !"unknown".equalsIgnoreCase(xForwardedFor)) {
-            return xForwardedFor.split(",")[0].trim();
-        }
-
-        String xRealIp = request.getHeader("X-Real-IP");
-        if (StringUtils.hasText(xRealIp) && !"unknown".equalsIgnoreCase(xRealIp)) {
-            return xRealIp;
-        }
-
-        return request.getRemoteAddr();
     }
 
     /**

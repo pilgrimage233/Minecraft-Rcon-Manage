@@ -1,14 +1,17 @@
 package cc.endmc.server.utils;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import cc.endmc.common.utils.ip.IpUtils;
+import jakarta.servlet.http.HttpServletRequest;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
+@Slf4j
+@Component
 public class IPUtils {
-
-    private static final Logger log = LoggerFactory.getLogger(IPUtils.class);
 
     /**
      * 将域名转换为IP地址
@@ -53,6 +56,25 @@ public class IPUtils {
 
         // 使用正则表达式验证
         return input.matches(ipv4Pattern) || input.matches(ipv6Pattern) || input.matches(domainPattern);
+    }
+
+    /**
+     * 获取客户端真实IP地址
+     * 支持通过配置多个IP头获取真实IP
+     */
+    public static String getClientIpAddress(HttpServletRequest request, String ipHeaderName) {
+        if (ipHeaderName.contains(",")) {
+            for (String header : ipHeaderName.split(",")) {
+                String ip = request.getHeader(header.trim());
+                if (StringUtils.hasText(ip) && !"unknown".equalsIgnoreCase(ip)) {
+                    if (!IpUtils.internalIp(ip.split(",")[0].trim())) {
+                        return ip.split(",")[0].trim();
+                    }
+                }
+            }
+            return request.getRemoteAddr();
+        }
+        return request.getRemoteAddr();
     }
 
 }
