@@ -5,9 +5,9 @@ const {sideTheme, showSettings, topNav, tagsView, fixedHeader, sidebarLogo, dyna
 const storageSetting = JSON.parse(localStorage.getItem('layout-setting')) || ''
 const state = {
   title: '',
-  theme: storageSetting.theme || '#6366f1',
+  theme: storageSetting.theme || '#f59e0b',
   sideTheme: storageSetting.sideTheme || sideTheme,
-  sidebarBg: storageSetting.sidebarBg || 'linear-gradient(180deg, #1e1b4b 0%, #312e81 100%)',
+  sidebarBg: storageSetting.sidebarBg || 'linear-gradient(180deg, #78350f 0%, #92400e 100%)',
   sidebarBgLight: storageSetting.sidebarBgLight || '#ffffff',
   showSettings: showSettings,
   topNav: storageSetting.topNav === undefined ? topNav : storageSetting.topNav,
