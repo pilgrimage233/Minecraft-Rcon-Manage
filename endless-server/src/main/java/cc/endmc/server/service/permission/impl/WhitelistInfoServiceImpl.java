@@ -18,11 +18,11 @@ import cc.endmc.server.domain.quiz.WhitelistQuizSubmission;
 import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.enums.Identity;
 import cc.endmc.server.mapper.permission.WhitelistInfoMapper;
+import cc.endmc.server.mapper.quiz.WhitelistQuizSubmissionMapper;
 import cc.endmc.server.service.permission.IBanlistInfoService;
 import cc.endmc.server.service.permission.IWhitelistDeadlineInfoService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
 import cc.endmc.server.service.player.IPlayerDetailsService;
-import cc.endmc.server.service.quiz.IWhitelistQuizSubmissionService;
 import cc.endmc.server.service.server.IServerInfoService;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.RequiredArgsConstructor;
@@ -59,7 +59,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
     private final EmailService emailService;
     private final RconService rconService;
     private final IPlayerDetailsService playerDetailsService;
-    private final IWhitelistQuizSubmissionService quizSubmissionService;
+    private final WhitelistQuizSubmissionMapper quizSubmissionMapper;
     private final RedisCache redisCache;
 
     @Value("${app-url}")
@@ -91,7 +91,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         banlistInfo.setWhiteId(id);
         List<BanlistInfo> banlistInfos = banlistInfoService.selectBanlistInfoList(banlistInfo);
         if (!banlistInfos.isEmpty()) {
-            banlistInfo = banlistInfos.get(0);
+            banlistInfo = banlistInfos.getFirst();
             if (banlistInfo.getState() == 1) {
                 whitelistInfo.setBanFlag("true");
                 whitelistInfo.setBannedReason(banlistInfo.getReason());
@@ -105,8 +105,8 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         final List<WhitelistDeadlineInfo> noExpired = deadlineInfoService.selectWhitelistDeadlineInfoList(deadlineInfo);
 
         if (!noExpired.isEmpty()) {
-            whitelistInfo.setStartTime(noExpired.get(0).getStartTime());
-            whitelistInfo.setEndTime(noExpired.get(0).getEndTime());
+            whitelistInfo.setStartTime(noExpired.getFirst().getStartTime());
+            whitelistInfo.setEndTime(noExpired.getFirst().getEndTime());
         }
 
         return whitelistInfo;
@@ -224,7 +224,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         old.setUserName(whitelistInfo.getUserName());
         final List<WhitelistInfo> whitelistInfos = selectWhitelistInfoListWithBan(old);
         if (!whitelistInfos.isEmpty()) {
-            old = whitelistInfos.get(0);
+            old = whitelistInfos.getFirst();
             if (old.getStatus().equals("1") && whitelistInfo.getStatus().equals("1")) {
                 flag = false;
             }
@@ -476,7 +476,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         banlistInfo.setWhiteId(whitelistInfo.getId());
         List<BanlistInfo> banlistInfos = banlistInfoService.selectBanlistInfoList(banlistInfo);
         if (!banlistInfos.isEmpty()) {
-            banlistInfo = banlistInfos.get(0);
+            banlistInfo = banlistInfos.getFirst();
             if (banlistInfo.getState() == 0) {
                 banlistInfo.setState(1L);
                 banlistInfo.setUpdateBy(name);
@@ -577,7 +577,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         final List<PlayerDetails> playerDetails = playerDetailsService.selectPlayerDetailsList(details);
 
         if (!playerDetails.isEmpty()) {
-            details = playerDetails.get(0);
+            details = playerDetails.getFirst();
             details.setWhitelistId(whitelistInfo.getId());
             playerDetailsService.updatePlayerDetails(details, false);
         }
@@ -606,7 +606,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 deadlineInfoService.insertWhitelistDeadlineInfo(deadlineInfo);
             } else {
                 // 更新记录
-                deadlineInfo.setId(deadlineInfos.get(0).getId());
+                deadlineInfo.setId(deadlineInfos.getFirst().getId());
                 deadlineInfoService.updateWhitelistDeadlineInfo(deadlineInfo);
             }
         }
@@ -755,7 +755,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
 
         if (!checkRepeat(whitelistInfo).isEmpty()) {
             List<WhitelistInfo> whitelistInfos = checkRepeat(whitelistInfo);
-            WhitelistInfo obj = whitelistInfos.get(0);
+            WhitelistInfo obj = whitelistInfos.getFirst();
 
             map.put("游戏ID", obj.getUserName());
             map.put("QQ号", obj.getQqNum());
@@ -771,7 +771,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             final List<PlayerDetails> details = playerDetailsService.selectPlayerDetailsList(playerDetails);
 
             if (!details.isEmpty()) {
-                playerDetails = details.get(0);
+                playerDetails = details.getFirst();
             }
 
             // if (playerDetails.getProvince() != null) {
@@ -790,21 +790,12 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
 
 
             if (playerDetails.getIdentity() != null) {
-                String identity;
-                switch (playerDetails.getIdentity()) {
-                    case "player":
-                        identity = Identity.PLAYER.getDesc();
-                        break;
-                    case "operator":
-                        identity = Identity.OPERATOR.getDesc();
-                        break;
-                    case "banned":
-                        identity = Identity.BANNED.getDesc();
-                        break;
-                    default:
-                        identity = Identity.OTHER.getDesc();
-                        break;
-                }
+                String identity = switch (playerDetails.getIdentity()) {
+                    case "player" -> Identity.PLAYER.getDesc();
+                    case "operator" -> Identity.OPERATOR.getDesc();
+                    case "banned" -> Identity.BANNED.getDesc();
+                    default -> Identity.OTHER.getDesc();
+                };
                 map.put("身份", identity);
             }
 
@@ -837,9 +828,9 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             // 查询白名单答题记录
             WhitelistQuizSubmission whitelistQuizSubmission = new WhitelistQuizSubmission();
             whitelistQuizSubmission.setPlayerUuid(obj.getUserUuid());
-            final List<WhitelistQuizSubmission> submissions = quizSubmissionService.selectWhitelistQuizSubmissionList(whitelistQuizSubmission);
+            final List<WhitelistQuizSubmission> submissions = quizSubmissionMapper.selectWhitelistQuizSubmissionList(whitelistQuizSubmission);
             if (!submissions.isEmpty()) {
-                whitelistQuizSubmission = submissions.get(0); // 取最新的一次
+                whitelistQuizSubmission = submissions.getFirst(); // 取最新的一次
                 map.put("答题ID", whitelistQuizSubmission.getId());
                 map.put("答题分数", whitelistQuizSubmission.getTotalScore() + "分");
             }
@@ -942,14 +933,14 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                 querySubmission.setPlayerName(whitelistInfo.getUserName());
             }
 
-            List<WhitelistQuizSubmission> submissions = quizSubmissionService.selectWhitelistQuizSubmissionList(querySubmission);
+            List<WhitelistQuizSubmission> submissions = quizSubmissionMapper.selectWhitelistQuizSubmissionList(querySubmission);
 
             if (!submissions.isEmpty()) {
                 for (WhitelistQuizSubmission submission : submissions) {
                     // 只更新还没有关联白名单ID的记录
                     if (submission.getWhitelistId() == null) {
                         submission.setWhitelistId(whitelistInfo.getId());
-                        quizSubmissionService.updateWhitelistQuizSubmission(submission);
+                        quizSubmissionMapper.updateWhitelistQuizSubmission(submission);
                         log.info("已更新答题记录[{}]的白名单ID为[{}]", submission.getId(), whitelistInfo.getId());
                     }
                 }
