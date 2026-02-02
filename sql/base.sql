@@ -384,7 +384,6 @@ INSERT INTO sys_job (job_id, job_name, job_group, invoke_target, cron_expression
 VALUES (25, '清理过期资源权限', 'DEFAULT', 'permissionTask.cleanExpiredPermissions', '0 0 2 * * ?', '1', '1', '0',
         'admin', '2025-12-20 01:40:32', '', null, '每天凌晨2点清理过期的资源权限');
 
-
 DROP TABLE IF EXISTS `sys_job_log`;
 CREATE TABLE `sys_job_log`
 (
