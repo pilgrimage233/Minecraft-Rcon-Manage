@@ -41,30 +41,51 @@ public class EndlessApplication {
         // 获取版本信息
         String version = context.getEnvironment().getProperty("endless.version", "Unknown");
 
+        // 收集初始化数据
+        int serverCount = context.getBean(IServerInfoService.class).selectServerInfoList(new ServerInfo()).size();
+        int commandCount = (RconService.COMMAND_INFO != null ? RconService.COMMAND_INFO.size() : 0);
+        int emailTemplateCount = EmailTempCache.size();
+        int rconConnectionCount = RconCache.size();
+        int nodeServerCount = NodeCache.size();
+        int botCount = context.getBean(BotManager.class).getAllBots().size();
+        String updateTime = DateUtils.getTime();
+
+        // 打印启动横幅
         System.out.println("""
-                (♥◠‿◠)ﾉﾞ  Endless启动成功   ლ(´ڡ`ლ)ﾞ \s
-                  _____   _   _   _____   _       _____   _____   _____ \s
-                 |  ___| | \\ | | |  _  \\ | |     |  ___| |  ___| |  ___|\s
-                 | |___  |  \\| | | | | | | |     | |___  | |___  | |___ \s
-                 |  ___| | . ` | | | | | | |     |  ___| |_____| |_____|\s
-                 | |___  | |\\  | | |_| | | |___  | |___   _____   _____ \s
-                 |_____| |_| \\_| |_____/ |_____| |_____| |_____| |_____|\s
-                                                                         \s
-                                    Version: """ + version + """
-                                                                         \s""");
+                
+                (♥◠‿◠)ﾉﾞ  Endless启动成功   ლ(´ڡ`ლ)ﾞ
+                  _____   _   _   _____   _       _____   _____   _____\s
+                 |  ___| | \\ | | |  _  \\ | |     |  ___| |  ___| |  ___|
+                 | |___  |  \\| | | | | | | |     | |___  | |___  | |___\s
+                 |  ___| | . ` | | | | | | |     |  ___| |_____| |_____|
+                 | |___  | |\\  | | |_| | | |___  | |___   _____   _____\s
+                 |_____| |_| \\_| |_____/ |_____| |_____| |_____| |_____|
+                                                                        \s
+                                    Version: %s
+                """.formatted(version));
 
         // 打印初始化信息汇总
-        System.out.println("\n" +
-                "╔════════════════════════════════════════════════════════════════════════════╗\n" +
-                "║                         ENDLESS v" + version + " 初始化信息汇总                        ║\n" +
-                "╠════════════════════════════════════════════════════════════════════════════╣\n" +
-                "║ � 服务器信息器缓存数量: " + String.format("%-50s", context.getBean(IServerInfoService.class).selectServerInfoList(new ServerInfo()).size()) + "║\n" +
-                "║ 📝 缓存指令数量: " + String.format("%-54s", (RconService.COMMAND_INFO != null ? RconService.COMMAND_INFO.size() : 0)) + "║\n" +
-                "║ 📧 缓存邮件模板数量: " + String.format("%-50s", EmailTempCache.size()) + "║\n" +
-                "║ 🔌 Rcon连接服务器数量: " + String.format("%-48s", RconCache.size()) + "║\n" +
-                "║ 🖥️ 节点服务器数量: " + String.format("%-52s", NodeCache.size()) + "║\n" +
-                "║ 🤖 QQ机器人数量: " + String.format("%-54s", context.getBean(BotManager.class).getAllBots().size()) + "║\n" +
-                "║ ⏱️ 服务器信息更新时间: " + String.format("%-46s", DateUtils.getNowDate()) + "║\n" +
-                "╚════════════════════════════════════════════════════════════════════════════╝\n");
+        System.out.println("""
+                ╔════════════════════════════════════════════════════════════════════════════╗
+                ║                      ENDLESS v%-8s 初始化信息汇总                            ║
+                ╠════════════════════════════════════════════════════════════════════════════╣
+                ║ 🎮 服务器缓存数量        : %-45d║
+                ║ 📝 缓存指令数量          : %-45d║
+                ║ 📧 邮件模板数量          : %-45d║
+                ║ 🔌 Rcon连接数量          : %-45d║
+                ║ 🖥️ 节点服务器数量        : %-45d║
+                ║ 🤖 QQ机器人数量          : %-45d║
+                ║ ⏱️ 初始化完成时间        : %-45s║
+                ╚════════════════════════════════════════════════════════════════════════════╝
+                """.formatted(
+                version,
+                serverCount,
+                commandCount,
+                emailTemplateCount,
+                rconConnectionCount,
+                nodeServerCount,
+                botCount,
+                updateTime
+        ));
     }
 }
