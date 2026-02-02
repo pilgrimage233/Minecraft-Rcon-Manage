@@ -7,6 +7,7 @@ import cc.endmc.server.domain.quiz.WhitelistQuizSubmissionDetail;
 import cc.endmc.server.mapper.quiz.WhitelistQuizSubmissionMapper;
 import cc.endmc.server.service.quiz.IWhitelistQuizSubmissionService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -19,6 +20,7 @@ import java.util.List;
  * @author Memory
  * @date 2025-03-20
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class WhitelistQuizSubmissionServiceImpl implements IWhitelistQuizSubmissionService {
@@ -72,9 +74,10 @@ public class WhitelistQuizSubmissionServiceImpl implements IWhitelistQuizSubmiss
     @Override
     public int updateWhitelistQuizSubmission(WhitelistQuizSubmission whitelistQuizSubmission) {
         whitelistQuizSubmission.setUpdateTime(DateUtils.getNowDate());
-        whitelistQuizSubmissionMapper.deleteWhitelistQuizSubmissionDetailBySubmissionId(whitelistQuizSubmission.getId())
-        ;
-        insertWhitelistQuizSubmissionDetail(whitelistQuizSubmission);
+        if (StringUtils.isNotNull(whitelistQuizSubmission.getWhitelistQuizSubmissionDetailList())) {
+            whitelistQuizSubmissionMapper.deleteWhitelistQuizSubmissionDetailBySubmissionId(whitelistQuizSubmission.getId());
+            insertWhitelistQuizSubmissionDetail(whitelistQuizSubmission);
+        }
         return whitelistQuizSubmissionMapper.updateWhitelistQuizSubmission(whitelistQuizSubmission);
     }
 
@@ -119,7 +122,8 @@ public class WhitelistQuizSubmissionServiceImpl implements IWhitelistQuizSubmiss
                 list.add(whitelistQuizSubmissionDetail);
             }
             if (!list.isEmpty()) {
-                whitelistQuizSubmissionMapper.batchWhitelistQuizSubmissionDetail(list);
+                final int i = whitelistQuizSubmissionMapper.batchWhitelistQuizSubmissionDetail(list);
+                log.debug("插入答题详情记录数: {}", i);
             }
         }
     }

@@ -3,7 +3,7 @@ endless:
   # 名称
   name: EndlessManager
   # 版本
-  version: 3.5.3
+  version: 3.5.5
   # 版权年份
   copyrightYear: 2026
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
@@ -41,9 +41,9 @@ server:
     accept-count: 1000
     threads:
       # tomcat最大线程数，默认为200
-      max: 800
+      max: 200
       # Tomcat启动初始化的线程数，默认值10
-      min-spare: 100
+      min-spare: 10
 
 # 日志配置
 logging:
@@ -218,8 +218,14 @@ qq:
 app:
   # 鉴权密钥 (请设置为复杂且唯一的密钥)
   secret-key:
-  # IP头名称 用于获取真实IP (多个代理头可以用逗号分隔)
-  ip-header-name: X-Real-IP,X-Forwarded-For
+  # IP头名称 用于获取真实IP
+  ip-header-name: X-Forwarded-For
+  # 前端配置
+  front-end:
+    # 前端路径 用于一键升级 (例如: /www/wwwroot/mc.endmc.cc)
+    # 如果配置此路径，更新时会自动更新前端文件
+    # 系统会自动检测目录结构（dist目录或index.html）
+    path:
 
 # 日志清理配置
 cleanup:

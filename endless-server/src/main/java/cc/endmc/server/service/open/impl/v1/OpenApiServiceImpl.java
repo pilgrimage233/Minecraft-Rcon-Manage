@@ -167,7 +167,7 @@ public class OpenApiServiceImpl implements IOpenApiService {
             queryInfo.setUserName(whitelistInfo.getUserName());
             List<WhitelistInfo> existingWhitelists = whitelistInfoService.selectWhitelistInfoList(queryInfo);
             if (!existingWhitelists.isEmpty()) {
-                submission.setWhitelistId(existingWhitelists.get(0).getId());
+                submission.setWhitelistId(existingWhitelists.getFirst().getId());
             }
             // 如果找不到对应的白名单记录，whitelistId将保持为null，后续可以通过数据库触发器或定时任务来关联
         }

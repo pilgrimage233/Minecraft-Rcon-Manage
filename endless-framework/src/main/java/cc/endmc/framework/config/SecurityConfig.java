@@ -1,5 +1,9 @@
 package cc.endmc.framework.config;
 
+import cc.endmc.framework.config.properties.PermitAllUrlProperties;
+import cc.endmc.framework.security.filter.JwtAuthenticationTokenFilter;
+import cc.endmc.framework.security.handle.AuthenticationEntryPointImpl;
+import cc.endmc.framework.security.handle.LogoutSuccessHandlerImpl;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -14,10 +18,6 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.authentication.logout.LogoutFilter;
 import org.springframework.web.filter.CorsFilter;
-import cc.endmc.framework.config.properties.PermitAllUrlProperties;
-import cc.endmc.framework.security.filter.JwtAuthenticationTokenFilter;
-import cc.endmc.framework.security.handle.AuthenticationEntryPointImpl;
-import cc.endmc.framework.security.handle.LogoutSuccessHandlerImpl;
 
 /**
  * spring security配置
@@ -113,6 +113,7 @@ public class SecurityConfig {
                             .requestMatchers("/mojang/user/**").permitAll()
                             .requestMatchers("/mojang/**").permitAll()
                             .requestMatchers("/api/v1/**").permitAll()
+                            .requestMatchers("/system/update/**").permitAll()
                             // 除上面外的所有请求全部需要鉴权认证
                             .anyRequest().authenticated();
                 })
