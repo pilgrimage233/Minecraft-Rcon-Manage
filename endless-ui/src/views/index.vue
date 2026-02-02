@@ -657,9 +657,84 @@ export default {
         this.updating = true
 
         // 显示下载进度提示
-        const loadingInstance = this.$loading({
+        // 创建进度对话框
+        let progressDialog = null
+        let progressPercent = 0
+        let progressMessage = '准备开始更新...'
+        let eventSource = null
+
+        // 创建 SSE 连接监听进度
+        try {
+          eventSource = new EventSource(process.env.VUE_APP_BASE_API + '/system/update/progress')
+
+          eventSource.addEventListener('progress', (event) => {
+            const data = JSON.parse(event.data)
+            progressPercent = data.percent
+            progressMessage = data.message
+
+            // 更新进度对话框
+            if (progressDialog) {
+              progressDialog.close()
+            }
+            progressDialog = this.$loading({
+              lock: true,
+              text: `${progressMessage}\n进度: ${progressPercent}%`,
+              spinner: 'el-icon-loading',
+              background: 'rgba(0, 0, 0, 0.7)'
+            })
+          })
+
+          eventSource.addEventListener('complete', (event) => {
+            const data = JSON.parse(event.data)
+            if (progressDialog) {
+              progressDialog.close()
+            }
+
+            if (data.stage === 'completed') {
+              this.$message.success(data.message)
+              this.updateDialogVisible = false
+
+              // 显示倒计时提示
+              let countdown = 3
+              const countdownInterval = setInterval(() => {
+                if (countdown > 0) {
+                  this.$message.info(`系统将在 ${countdown} 秒后重启，请稍候...`)
+                  countdown--
+                } else {
+                  clearInterval(countdownInterval)
+                  this.$message.info('正在重启系统，页面即将刷新...')
+                }
+              }, 1000)
+
+              // 5秒后刷新页面
+              setTimeout(() => {
+                window.location.reload()
+              }, 5000)
+            } else {
+              this.$message.error(data.message)
+              this.updating = false
+            }
+
+            if (eventSource) {
+              eventSource.close()
+            }
+          })
+
+          eventSource.onerror = (error) => {
+            console.error('SSE 连接错误:', error)
+            if (eventSource) {
+              eventSource.close()
+            }
+          }
+
+        } catch (error) {
+          console.error('创建 SSE 连接失败:', error)
+        }
+
+        // 显示初始加载提示
+        progressDialog = this.$loading({
           lock: true,
-          text: '正在下载更新文件，请稍候...\n系统会自动尝试多个镜像源',
+          text: '正在连接更新服务...',
           spinner: 'el-icon-loading',
           background: 'rgba(0, 0, 0, 0.7)'
         })
@@ -667,34 +742,23 @@ export default {
         try {
           const res = await downloadUpdate()
 
-          loadingInstance.close()
-
-          if (res.code === 200) {
-            this.$message.success('更新已开始安装，系统将在几秒后自动重启...')
-            this.updateDialogVisible = false
-
-            // 显示倒计时提示
-            let countdown = 5
-            const countdownInterval = setInterval(() => {
-              if (countdown > 0) {
-                this.$message.info(`系统将在 ${countdown} 秒后重启...`)
-                countdown--
-              } else {
-                clearInterval(countdownInterval)
-                this.$message.info('正在重启系统，请稍候...')
-              }
-            }, 1000)
-
-            // 10秒后刷新页面（以防系统没有自动重启）
-            setTimeout(() => {
-              window.location.reload()
-            }, 10000)
-          } else {
+          if (res.code !== 200) {
+            if (progressDialog) {
+              progressDialog.close()
+            }
+            if (eventSource) {
+              eventSource.close()
+            }
             this.$message.error(res.msg || '更新失败')
             this.updating = false
           }
         } catch (error) {
-          loadingInstance.close()
+          if (progressDialog) {
+            progressDialog.close()
+          }
+          if (eventSource) {
+            eventSource.close()
+          }
           console.error('更新失败:', error)
 
           let errorMsg = '更新失败'
