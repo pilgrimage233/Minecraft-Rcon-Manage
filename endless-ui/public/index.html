@@ -9,6 +9,16 @@
   <title><%= webpackConfig.name %></title>
   <!--[if lt IE 11]>
   <script>window.location.href = '/html/ie.html';</script><![endif]-->
+
+  <!-- 生产环境使用CDN加速 -->
+  <% if (process.env.NODE_ENV === 'production') { %>
+  <% for (var i in htmlWebpackPlugin.options.cdn && htmlWebpackPlugin.options.cdn.css) { %>
+  <link href="<%= htmlWebpackPlugin.options.cdn.css[i] %>" rel="stylesheet">
+  <% } %>
+  <% for (var i in htmlWebpackPlugin.options.cdn && htmlWebpackPlugin.options.cdn.js) { %>
+  <script src="<%= htmlWebpackPlugin.options.cdn.js[i] %>"></script>
+  <% } %>
+  <% } %>
   <style>
     html,
     body,
