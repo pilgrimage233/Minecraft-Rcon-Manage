@@ -49,11 +49,11 @@
 
 ### 环境要求
 
-- JDK 1.8
+- JDK 21+
 - Maven 3.2+
 - MySQL 5.7+
 - Redis 5.0+
-- Node.js 16（白名单前端需 Node.js 18）
+- Node.js 16（白名单前端需 Node.js 18+）
 
 ### 部署流程
 
