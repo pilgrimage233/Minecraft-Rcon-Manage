@@ -3,7 +3,7 @@ endless:
   # 名称
   name: EndlessManager
   # 版本
-  version: 3.5.5
+  version: 3.5.6
   # 版权年份
   copyrightYear: 2026
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
@@ -74,6 +74,7 @@ spring:
     basename: i18n/messages
   profiles:
     active: druid
+    include: github
   # 文件上传
   servlet:
     multipart:
@@ -241,3 +242,14 @@ cleanup:
   login-log:
     # 保留天数，默认30天
     retain-days: 30
+
+# GitHub Actions 配置
+github:
+  # GitHub Personal Access Token
+  # 申请地址：https://github.com/settings/tokens
+  # 需要权限：repo (Full control of private repositories), workflow (Update GitHub Action workflows)
+  token:
+  # GitHub 仓库地址 (格式: owner/repo)
+  repository: pilgrimage233/Minecraft-Rcon-Manage
+  # 工作流文件名
+  workflow-file: release.yml
