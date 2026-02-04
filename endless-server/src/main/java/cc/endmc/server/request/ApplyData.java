@@ -1,4 +1,4 @@
-package cc.endmc.server.controller.permission.request;
+package cc.endmc.server.request;
 
 import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.domain.player.PlayerDetails;

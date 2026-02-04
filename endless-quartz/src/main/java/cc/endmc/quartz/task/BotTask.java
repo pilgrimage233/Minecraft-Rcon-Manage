@@ -1,16 +1,14 @@
 package cc.endmc.quartz.task;
 
 import cc.endmc.common.core.redis.RedisCache;
+import cc.endmc.server.cache.QuizConfigCache;
 import cc.endmc.server.common.constant.BotApi;
 import cc.endmc.server.common.constant.CacheKey;
-import cc.endmc.server.config.QuestionConfig;
 import cc.endmc.server.domain.bot.QqBotConfig;
 import cc.endmc.server.domain.permission.WhitelistInfo;
-import cc.endmc.server.domain.quiz.WhitelistQuizConfig;
 import cc.endmc.server.domain.quiz.WhitelistQuizSubmission;
 import cc.endmc.server.service.bot.IQqBotConfigService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
-import cc.endmc.server.service.quiz.IWhitelistQuizConfigService;
 import cc.endmc.server.service.quiz.IWhitelistQuizSubmissionService;
 import cc.endmc.server.utils.BotUtil;
 import cc.endmc.server.ws.BotClient;
@@ -41,8 +39,8 @@ public class BotTask {
     private final IWhitelistInfoService whitelistInfoService;
     private final BotManager botManager;
     private final IQqBotConfigService qqBotConfigService;
-    private final IWhitelistQuizConfigService quizConfigService;
     private final IWhitelistQuizSubmissionService quizSubmissionService;
+    private final QuizConfigCache quizConfigCache;
     private final RedisCache redisCache;
     private final Environment env;
 
@@ -580,17 +578,9 @@ public class BotTask {
         log.info("开始检测长时间未答卷用户...");
 
         try {
-            // 获取配置项
-            WhitelistQuizConfig config = new WhitelistQuizConfig();
-            config.setConfigKey(QuestionConfig.AUTO_REMOVE_FROM_GROUP_AFTER_INACTIVE_DAYS);
-            List<WhitelistQuizConfig> configs = quizConfigService.selectWhitelistQuizConfigList(config);
-
-            if (configs.isEmpty()) {
-                log.info("未找到自动踢出配置，跳过检测");
-                return;
-            }
-
-            int inactiveDays = Integer.parseInt(configs.getFirst().getConfigValue());
+            // 从缓存获取配置项
+            int inactiveDays = quizConfigCache.getAutoRemoveFromGroupAfterInactiveDays();
+            
             if (inactiveDays <= 0) {
                 log.info("自动踢出功能已禁用 (配置值: {})", inactiveDays);
                 return;

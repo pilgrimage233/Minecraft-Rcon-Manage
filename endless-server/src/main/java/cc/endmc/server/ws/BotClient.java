@@ -28,10 +28,10 @@ import cc.endmc.server.service.bot.IQqBotLogService;
 import cc.endmc.server.service.bot.IQqBotManagerService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
 import cc.endmc.server.service.server.IServerInfoService;
-import cc.endmc.server.utils.CodeUtil;
 import cc.endmc.server.utils.CommandUtil;
 import cc.endmc.server.utils.HtmlUtils;
 import cc.endmc.server.utils.IPUtils;
+import cc.endmc.server.utils.SecureCodeUtil;
 import cc.endmc.server.ws.handler.CommandHandler;
 import cc.endmc.server.ws.handler.CommandRegistry;
 import cn.hutool.http.HttpRequest;
@@ -1062,21 +1062,36 @@ public class BotClient {
         }
 
         Map<String, Object> result = new HashMap<>();
-        final String code = CodeUtil.generateCode(whitelistInfo.getQqNum(), CacheKey.VERIFY_FOR_BOT_KEY);
+
+        // 检查是否有活跃的验证码
+        if (SecureCodeUtil.hasActiveCode(whitelistInfo.getQqNum(), CacheKey.VERIFY_FOR_BOT_KEY)) {
+            result.put("status", "NO");
+            result.put("msg", "请勿重复提交！否则可能将无法通过验证！");
+            return result;
+        }
+
+        // 生成安全的验证码（8位字母数字组合）
+        final String code = SecureCodeUtil.generateSecureCode(
+                whitelistInfo.getQqNum(),
+                CacheKey.VERIFY_FOR_BOT_KEY,
+                8,
+                30
+        );
 
         if (StringUtils.isEmpty(code)) {
             result.put("status", "NO");
             result.put("msg", "验证码申请失败，请稍后再试。");
             return result;
-        } else if (code != null && code.equals("isExist")) {
-            result.put("status", "NO");
-            result.put("msg", "请勿重复提交！否则可能将无法通过验证！");
-            return result;
-        } else {
-            result.put("status", "YES");
-            result.put("msg", "验证码申请成功，请查看邮箱。");
         }
+
+        // 缓存白名单信息
         redisCache.setCacheObject(CacheKey.VERIFY_FOR_BOT_KEY + code, whitelistInfo, 30, TimeUnit.MINUTES);
+
+        // 标记活跃验证码
+        SecureCodeUtil.markActiveCode(whitelistInfo.getQqNum(), CacheKey.VERIFY_FOR_BOT_KEY, 30);
+
+        result.put("status", "YES");
+        result.put("msg", "验证码申请成功，请查看邮箱。");
         result.put("code", code);
 
         return result;

@@ -68,9 +68,20 @@ public interface IWhitelistInfoService {
      */
     public int deleteWhitelistInfoById(Long id);
 
-
+    /**
+     * 检查重复提交
+     *
+     * @param whitelistInfo 白名单
+     * @return 结果
+     */
     List<WhitelistInfo> checkRepeat(WhitelistInfo whitelistInfo);
 
+    /**
+     * 获取玩家白名单信息
+     *
+     * @param params 参数
+     * @return 结果
+     */
     Map<String, Object> check(Map<String, String> params);
 
     /**

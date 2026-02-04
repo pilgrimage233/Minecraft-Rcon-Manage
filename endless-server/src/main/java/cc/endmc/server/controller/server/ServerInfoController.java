@@ -15,13 +15,11 @@ import cc.endmc.framework.manager.AsyncManager;
 import cc.endmc.permission.annotation.RconPermission;
 import cc.endmc.permission.service.IResourcePermissionService;
 import cc.endmc.permission.utils.RconPermissionUtils;
-import cc.endmc.server.annotation.SignVerify;
 import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.rconclient.RconClient;
 import cc.endmc.server.common.service.RconService;
 import cc.endmc.server.domain.other.HistoryCommand;
-import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.service.other.IHistoryCommandService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
@@ -362,75 +360,6 @@ public class ServerInfoController extends BaseController {
                 }
             });
         }
-    }
-
-    @SignVerify
-    @GetMapping("/getServerInfoByGameId/{gameId}")
-    public AjaxResult getServerInfoByGameId(@PathVariable String gameId) {
-        WhitelistInfo whitelistInfo = new WhitelistInfo();
-        whitelistInfo.setUserName(gameId);
-        final List<WhitelistInfo> list = whitelistInfoService.selectWhitelistInfoList(whitelistInfo);
-        if (list == null || list.isEmpty()) {
-            return error("抱歉，您未在白名单！");
-        }
-        whitelistInfo = list.get(0);
-        if (!whitelistInfo.getStatus().equals("1")) {
-            return error("抱歉，您未在白名单！");
-        }
-        if (whitelistInfo.getServers() == null || whitelistInfo.getServers().isEmpty()) {
-            return error("抱歉，您未分配服务器！");
-        }
-        // 获取已知存活服务器主键
-        final Set<String> keySet = RconCache.getMap().keySet();
-        // 获取所有服务器
-        Map<String, Object> serverInfoMap;
-
-        // 先从缓存获取服务器信息
-        if (redisCache.hasKey(CacheKey.SERVER_INFO_MAP_KEY)) {
-            serverInfoMap = redisCache.getCacheObject(CacheKey.SERVER_INFO_MAP_KEY);
-            log.debug("从缓存获取服务器信息成功");
-        } else {
-            // 缓存不存在，从数据库查询并更新缓存
-            serverInfoMap = new HashMap<>();
-            final List<ServerInfo> serverInfos = serverInfoService.selectServerInfoList(new ServerInfo());
-            for (ServerInfo serverInfo : serverInfos) {
-                serverInfoMap.put(serverInfo.getId().toString(), serverInfo);
-            }
-            // 更新缓存
-            redisCache.setCacheObject(CacheKey.SERVER_INFO_MAP_KEY, serverInfoMap);
-            log.debug("从数据库获取服务器信息并更新缓存");
-        }
-
-        List<Object> server = new ArrayList<>();
-        if (!whitelistInfo.getServers().contains("all")) {
-            for (String s : whitelistInfo.getServers().split(",")) {
-                if (keySet.contains(s) && serverInfoMap.containsKey(s)) {
-                    server.add(serverInfoMap.get(s));
-                }
-            }
-        } else {
-            for (String s : keySet) {
-                if (serverInfoMap.containsKey(s)) {
-                    server.add(serverInfoMap.get(s));
-                }
-            }
-        }
-
-        List<Map<String, Object>> result = new ArrayList<>();
-        for (Object serverObj : server) {
-            Map<String, Object> data = new HashMap<>();
-            // 使用Map处理对象，避免类型转换问题
-            Map<String, Object> serverMap = (Map<String, Object>) serverObj;
-            data.put("nameTag", serverMap.get("nameTag"));
-            data.put("ip", serverMap.get("playAddress"));
-            data.put("port", serverMap.get("playAddressPort"));
-            data.put("version", serverMap.get("serverVersion"));
-            data.put("core", serverMap.get("serverCore"));
-            data.put("up_time", serverMap.get("createTime"));
-            data.put("status", "OK");
-            result.add(data);
-        }
-        return success(result);
     }
 
     /**

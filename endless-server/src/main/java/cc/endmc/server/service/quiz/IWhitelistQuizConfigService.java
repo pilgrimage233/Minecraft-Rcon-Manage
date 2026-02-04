@@ -58,4 +58,10 @@ public interface IWhitelistQuizConfigService {
      * @return 结果
      */
     public int deleteWhitelistQuizConfigById(Long id);
+
+    /**
+     * 初始化配置缓存
+     * 在应用启动时调用，加载所有配置到缓存
+     */
+    public void initConfigCache();
 }
