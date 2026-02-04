@@ -50,3 +50,4 @@ nbdist/
 !*/build/*.html
 !*/build/*.xml
 /backup/
+/docs/
