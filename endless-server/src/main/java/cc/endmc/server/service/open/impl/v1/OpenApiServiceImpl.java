@@ -1011,6 +1011,8 @@ public class OpenApiServiceImpl implements IOpenApiService {
 
     /**
      * 获取服务器状态
+     * 使用多线程并行检测所有服务器状态，提升响应速度
+     * 每个服务器的检测任务独立执行，避免单个服务器超时影响整体响应
      *
      * @return 服务器状态信息
      */
@@ -1024,45 +1026,79 @@ public class OpenApiServiceImpl implements IOpenApiService {
         if (serverInfos.isEmpty()) {
             return AjaxResult.error("未找到服务器信息");
         }
-        List<Map<String, Object>> data = new ArrayList<>();
 
-        for (ServerInfo serverInfo : serverInfos) {
-            String cacheKey = CacheKey.MINECRAFT_SERVER_INFO + serverInfo.getId();
-            if (redisCache.hasKey(cacheKey)) {
-                final Map<String, Object> cacheObject = redisCache.getCacheMap(cacheKey);
-                data.add(cacheObject);
-                continue;
-            }
-            Map<String, Object> statusMap = new HashMap<>();
-            String nameTag = serverInfo.getNameTag();
-            statusMap.put("id", serverInfo.getId());
-            statusMap.put("服务器名称", nameTag);
-            statusMap.put("连接地址", serverInfo.getPlayAddress());
-            statusMap.put("连接端口", String.valueOf(serverInfo.getPlayAddressPort()));
-            statusMap.put("版本", serverInfo.getServerVersion());
-            statusMap.put("核心", serverInfo.getServerCore());
+        // 使用CompletableFuture并行检测所有服务器状态
+        List<CompletableFuture<Map<String, Object>>> futures = serverInfos.stream()
+                .map(serverInfo -> CompletableFuture.supplyAsync(() -> {
+                    String cacheKey = CacheKey.MINECRAFT_SERVER_INFO + serverInfo.getId();
 
-            final boolean rconConnection = NetWorkUtil.testRconConnection(String.valueOf(serverInfo.getId()));
-            statusMap.put("Rcon连接", rconConnection ? "成功" : "失败");
+                    // 检查缓存
+                    if (redisCache.hasKey(cacheKey)) {
+                        return redisCache.getCacheMap(cacheKey);
+                    }
 
-            final MinecraftServerInfo minecraftServerLatency = NetWorkUtil.getMinecraftServerLatency(serverInfo.getPlayAddress(), serverInfo.getPlayAddressPort());
-            statusMap.put("在线状态", minecraftServerLatency.isReachable() ? "在线" : "离线");
-            statusMap.put("在线人数", String.valueOf(minecraftServerLatency.getOnlinePlayers()));
-            statusMap.put("最大人数", String.valueOf(minecraftServerLatency.getMaxPlayers()));
-            statusMap.put("延迟(ms)", String.valueOf(minecraftServerLatency.getLatency()));
+                    // 构建服务器状态信息
+                    Map<String, Object> statusMap = new HashMap<>();
+                    String nameTag = serverInfo.getNameTag();
+                    statusMap.put("id", serverInfo.getId());
+                    statusMap.put("服务器名称", nameTag);
+                    statusMap.put("连接地址", serverInfo.getPlayAddress());
+                    statusMap.put("连接端口", String.valueOf(serverInfo.getPlayAddressPort()));
+                    statusMap.put("版本", serverInfo.getServerVersion());
+                    statusMap.put("核心", serverInfo.getServerCore());
 
-            final boolean offline = statusMap.get("在线状态").equals("离线");
-            if (offline && !rconConnection) {
-                statusMap.put("指标", "服务熔断");
-            } else if (offline || !rconConnection) {
-                statusMap.put("指标", "服务降级");
-            } else {
-                statusMap.put("指标", "服务正常");
-            }
-            data.add(statusMap);
+                    try {
+                        // 异步检测RCON连接
+                        final boolean rconConnection = NetWorkUtil.testRconConnection(String.valueOf(serverInfo.getId()));
+                        statusMap.put("Rcon连接", rconConnection ? "成功" : "失败");
 
-            redisCache.setCacheMap(cacheKey, statusMap, 1, TimeUnit.MINUTES);
-        }
+                        // 异步获取服务器延迟信息
+                        final MinecraftServerInfo minecraftServerLatency = NetWorkUtil.getMinecraftServerLatency(
+                                serverInfo.getPlayAddress(), serverInfo.getPlayAddressPort());
+                        statusMap.put("在线状态", minecraftServerLatency.isReachable() ? "在线" : "离线");
+                        statusMap.put("在线人数", String.valueOf(minecraftServerLatency.getOnlinePlayers()));
+                        statusMap.put("最大人数", String.valueOf(minecraftServerLatency.getMaxPlayers()));
+                        statusMap.put("延迟(ms)", String.valueOf(minecraftServerLatency.getLatency()));
+
+                        // 判断服务状态指标
+                        final boolean offline = statusMap.get("在线状态").equals("离线");
+                        if (offline && !rconConnection) {
+                            statusMap.put("指标", "服务熔断");
+                        } else if (offline || !rconConnection) {
+                            statusMap.put("指标", "服务降级");
+                        } else {
+                            statusMap.put("指标", "服务正常");
+                        }
+                    } catch (Exception e) {
+                        log.error("检测服务器状态失败: {}", serverInfo.getNameTag(), e);
+                        statusMap.put("Rcon连接", "检测失败");
+                        statusMap.put("在线状态", "检测失败");
+                        statusMap.put("在线人数", "0");
+                        statusMap.put("最大人数", "0");
+                        statusMap.put("延迟(ms)", "0");
+                        statusMap.put("指标", "检测异常");
+                    }
+
+                    // 缓存结果
+                    redisCache.setCacheMap(cacheKey, statusMap, 1, TimeUnit.MINUTES);
+                    return statusMap;
+                }))
+                .collect(Collectors.toList());
+
+        // 等待所有异步任务完成，设置超时时间为10秒
+        List<Map<String, Object>> data = futures.stream()
+                .map(future -> {
+                    try {
+                        return future.get(10, TimeUnit.SECONDS);
+                    } catch (Exception e) {
+                        log.error("获取服务器状态超时或失败", e);
+                        Map<String, Object> errorMap = new HashMap<>();
+                        errorMap.put("错误", "获取状态超时");
+                        return errorMap;
+                    }
+                })
+                .collect(Collectors.toList());
+
         return AjaxResult.success(data);
     }
 
