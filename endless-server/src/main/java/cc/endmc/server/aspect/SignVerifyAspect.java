@@ -76,12 +76,12 @@ public class SignVerifyAspect {
 
         // 检查方法是否在排除列表中
         if (Arrays.asList(signVerify.excludeMethods()).contains(methodName)) {
-            log.debug("方法 {} 在排除列表中，跳过签名验证", methodName);
+            // log.debug("方法 {} 在排除列表中，跳过签名验证", methodName);
             return joinPoint.proceed();
         }
 
         // 使用类级别的配置
-        log.debug("使用类级别的SignVerify配置验证方法: {}", methodName);
+        // log.debug("使用类级别的SignVerify配置验证方法: {}", methodName);
         return processSignVerify(joinPoint, signVerify);
     }
 

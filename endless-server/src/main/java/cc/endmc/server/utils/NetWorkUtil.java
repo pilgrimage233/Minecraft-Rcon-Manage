@@ -65,7 +65,7 @@ public class NetWorkUtil {
 
             try (Socket socket = new Socket()) {
                 long startTime = System.currentTimeMillis();
-                socket.connect(new java.net.InetSocketAddress(resolvedHost, resolvedPort), 5000); // 5秒超时
+                socket.connect(new java.net.InetSocketAddress(resolvedHost, resolvedPort), 3000); // 3秒超时
                 long endTime = System.currentTimeMillis();
 
                 // 发送握手包
@@ -87,7 +87,7 @@ public class NetWorkUtil {
                 return serverInfo;
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("获取服务器信息失败: {}:{}, 错误: {}", host, port, e.getMessage());
             serverInfo.setReachable(false);
             return serverInfo;
         }
@@ -186,7 +186,7 @@ public class NetWorkUtil {
                 serverInfo.setFavicon(jsonObject.getString("favicon"));
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("解析服务器响应失败: {}", e.getMessage());
         }
     }
 
@@ -217,7 +217,7 @@ public class NetWorkUtil {
                 return motdBuilder.toString();
             }
         } catch (Exception e) {
-            e.printStackTrace();
+            log.error("解析MOTD失败: {}", e.getMessage());
         }
         return "";
     }

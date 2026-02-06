@@ -120,7 +120,7 @@ public class OpenApiController extends BaseController {
      *
      * @return AjaxResult
      */
-    @SignVerify(rateLimitCount = 5)
+    @SignVerify(rateLimitCount = 10)
     @GetMapping("/getServerStatus")
     public AjaxResult getServerStatus() {
         return openApiService.getServerStatus();
