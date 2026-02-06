@@ -209,8 +209,18 @@ public class SysUpdateController extends BaseController {
                         return;
                     }
 
-                    log.info("新 JAR 已下载到: {}", downloadedJar.getAbsolutePath());
-                    UpdateProgressController.sendProgress("backend_downloaded", "后端文件下载完成", 40);
+                    // 二次验证文件完整性
+                    if (!downloadedJar.exists() || downloadedJar.length() < 1024 * 1024) {
+                        log.error("下载的 JAR 文件不完整或太小: {} 字节", downloadedJar.length());
+                        UpdateProgressController.sendComplete(false, "下载的文件不完整，请重试");
+                        FileUtil.del(downloadedJar);
+                        return;
+                    }
+
+                    log.info("新 JAR 已下载到: {}，文件大小: {} 字节",
+                            downloadedJar.getAbsolutePath(), downloadedJar.length());
+                    UpdateProgressController.sendProgress("backend_downloaded",
+                            String.format("后端文件下载完成 (%s)", formatFileSize(downloadedJar.length())), 40);
 
                     // 备份当前 JAR
                     File currentJar = new File(currentJarPath);
@@ -280,8 +290,10 @@ public class SysUpdateController extends BaseController {
                 // 设置超时并下载，带进度回调
                 long startTime = System.currentTimeMillis();
                 AtomicLong lastProgressTime = new AtomicLong(startTime);
+                AtomicLong expectedSize = new AtomicLong(-1);
+                AtomicLong downloadedSize = new AtomicLong(0);
 
-                HttpUtil.downloadFile(downloadUrl, targetFile, 300000, new StreamProgress() {
+                HttpUtil.downloadFile(downloadUrl, targetFile, 600000, new StreamProgress() {
                     private long lastReportedPercent = 0;
 
                     @Override
@@ -291,6 +303,10 @@ public class SysUpdateController extends BaseController {
 
                     @Override
                     public void progress(long total, long progressSize) {
+                        // 记录预期大小和已下载大小
+                        expectedSize.set(total);
+                        downloadedSize.set(progressSize);
+                        
                         // 每秒最多更新一次进度
                         long now = System.currentTimeMillis();
                         if (now - lastProgressTime.get() < 1000) {
@@ -323,13 +339,34 @@ public class SysUpdateController extends BaseController {
                 
                 long duration = System.currentTimeMillis() - startTime;
 
-                if (targetFile.exists() && targetFile.length() > 0) {
-                    log.info("成功从 {} 下载，耗时 {}ms，文件大小: {} 字节",
-                            downloadUrl, duration, targetFile.length());
-                    return true;
+                // 验证文件是否下载完整
+                if (!targetFile.exists()) {
+                    log.warn("从 {} 下载后文件不存在", downloadUrl);
+                    continue;
                 }
 
-                log.warn("从 {} 下载的文件为空", downloadUrl);
+                long actualFileSize = targetFile.length();
+                long expected = expectedSize.get();
+
+                if (actualFileSize == 0) {
+                    log.warn("从 {} 下载的文件为空", downloadUrl);
+                    FileUtil.del(targetFile);
+                    continue;
+                }
+
+                // 如果知道预期大小，验证文件完整性
+                if (expected > 0) {
+                    if (actualFileSize < expected) {
+                        log.warn("从 {} 下载不完整: 预期 {} 字节，实际 {} 字节 ({:.2f}%)",
+                                downloadUrl, expected, actualFileSize, (actualFileSize * 100.0 / expected));
+                        FileUtil.del(targetFile);
+                        continue;
+                    }
+                }
+
+                log.info("成功从 {} 下载，耗时 {}ms，文件大小: {} 字节",
+                        downloadUrl, duration, actualFileSize);
+                return true;
 
             } catch (Exception e) {
                 log.warn("从 {} 下载失败: {}", downloadUrl, e.getMessage());
@@ -401,8 +438,18 @@ public class SysUpdateController extends BaseController {
                 return;
             }
 
-            log.info("前端 ZIP 已下载到: {}", downloadedZip.getAbsolutePath());
-            UpdateProgressController.sendProgress("frontend_downloaded", "前端文件下载完成", 85);
+            // 验证 ZIP 文件完整性
+            if (!downloadedZip.exists() || downloadedZip.length() < 1024) {
+                log.error("下载的前端 ZIP 文件不完整或太小: {} 字节", downloadedZip.length());
+                UpdateProgressController.sendProgress("frontend_download_failed", "前端文件下载不完整", 85);
+                FileUtil.del(downloadedZip);
+                return;
+            }
+
+            log.info("前端 ZIP 已下载到: {}，文件大小: {} 字节",
+                    downloadedZip.getAbsolutePath(), downloadedZip.length());
+            UpdateProgressController.sendProgress("frontend_downloaded",
+                    String.format("前端文件下载完成 (%s)", formatFileSize(downloadedZip.length())), 85);
 
             // 检查前端路径
             File frontEndDir = new File(frontEndPath);

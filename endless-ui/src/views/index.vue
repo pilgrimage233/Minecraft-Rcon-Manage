@@ -299,6 +299,7 @@ import {mapActions, mapState} from 'vuex'
 import NodeInstanceDialog from './index/NodeInstanceDialog.vue'
 import {marked} from 'marked'
 import DOMPurify from 'dompurify'
+import {buildSSEUrl} from '@/utils/sse'
 
 export default {
   name: 'Index',
@@ -665,7 +666,9 @@ export default {
 
         // 创建 SSE 连接监听进度
         try {
-          eventSource = new EventSource(process.env.VUE_APP_BASE_API + '/system/update/progress')
+          // 使用工具函数构建完整的 SSE URL
+          const sseUrl = buildSSEUrl('/system/update/progress')
+          eventSource = new EventSource(sseUrl)
 
           eventSource.addEventListener('progress', (event) => {
             const data = JSON.parse(event.data)
