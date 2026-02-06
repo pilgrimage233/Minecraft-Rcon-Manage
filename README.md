@@ -398,10 +398,10 @@
 
 #### 技术栈
 
-**主控端（endless-node）**
+**主控端（Endless-Manager）**
 
-- Spring Boot
-- MyBatis-Plus
+- Spring Boot 3.5.9
+- MyBatis 3.0.5
 - WebSocket（实时控制台）
 - Quartz（定时任务）
 
@@ -438,7 +438,7 @@
 
 ---
 
-## � 相关项目
+## 相关项目
 
 - **Endless-Node**：节点端程序，部署在目标服务器上
     - GitHub：https://github.com/pilgrimage233/Endless-Node
