@@ -53,30 +53,6 @@
           />
         </el-select>
       </el-form-item>
-      <el-form-item label="添加时间" prop="addTime">
-        <el-date-picker v-model="queryParams.addTime"
-                        clearable
-                        placeholder="请选择添加时间"
-                        type="date"
-                        value-format="yyyy-MM-dd">
-        </el-date-picker>
-      </el-form-item>
-      <el-form-item label="开始时间" prop="startTime">
-        <el-date-picker v-model="queryParams.startTime"
-                        clearable
-                        placeholder="请选择开始时间"
-                        type="date"
-                        value-format="yyyy-MM-dd">
-        </el-date-picker>
-      </el-form-item>
-      <el-form-item label="结束时间" prop="endTime">
-        <el-date-picker v-model="queryParams.endTime"
-                        clearable
-                        placeholder="请选择结束时间"
-                        type="date"
-                        value-format="yyyy-MM-dd">
-        </el-date-picker>
-      </el-form-item>
       <el-form-item label="移除时间" prop="removeTime">
         <el-date-picker v-model="queryParams.removeTime"
                         clearable
