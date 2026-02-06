@@ -700,12 +700,12 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
             if (whitelistInfo == null) {
                 return 0;
             }
-
+            details.setWhitelistId(id);
             details.setQq(whitelistInfo.getQqNum());
             playerDetailsService.deletePlayerDetailsByInfo(details);
 
             // 尝试删除白名单
-            rconService.sendCommand("all", String.format(Command.WHITELIST_REMOVE, whitelistInfo.getUserName()),
+            rconService.sendCommandAsync("all", String.format(Command.WHITELIST_REMOVE, whitelistInfo.getUserName()),
                     whitelistInfo.getOnlineFlag() == 1);
         }
         return whitelistInfoMapper.deleteWhitelistInfoByIds(ids);

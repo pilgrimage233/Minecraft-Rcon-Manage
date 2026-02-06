@@ -79,6 +79,94 @@ public class RconService {
     }
 
     /**
+     * 异步发送Rcon命令（不等待返回结果）
+     * 适用于不需要关心执行结果的场景，如批量删除白名单
+     *
+     * @param key     服务器ID
+     * @param command 命令
+     */
+    public void sendCommandAsync(String key, String command) {
+        sendCommandAsync(key, command, false, null);
+    }
+
+    /**
+     * 异步发送Rcon命令（不等待返回结果）
+     *
+     * @param key        服务器ID
+     * @param command    命令
+     * @param onlineFlag 是否在线
+     */
+    public void sendCommandAsync(String key, String command, boolean onlineFlag) {
+        sendCommandAsync(key, command, onlineFlag, null);
+    }
+
+    /**
+     * 异步发送Rcon命令（不等待返回结果）
+     * 此方法立即返回，不阻塞调用线程
+     * 命令执行失败只记录日志，不抛出异常
+     *
+     * @param key        服务器ID
+     * @param command    命令
+     * @param onlineFlag 是否在线
+     * @param reason     封禁原因
+     */
+    public void sendCommandAsync(String key, String command, boolean onlineFlag, String reason) {
+        CompletableFuture.runAsync(() -> {
+            try {
+                if (key.contains("all")) {
+                    sendCommandToAllServersAsync(command, onlineFlag, reason);
+                } else {
+                    sendCommandToSingleServerAsync(key, command, onlineFlag, reason);
+                }
+            } catch (Exception e) {
+                log.error("异步发送命令失败 [key={}, command={}]: {}", key, command, e.getMessage());
+            }
+        }).exceptionally(ex -> {
+            log.error("异步任务执行异常 [key={}, command={}]: {}", key, command, ex.getMessage());
+            return null;
+        });
+    }
+
+    /**
+     * 异步发送命令到所有服务器（不等待结果）
+     */
+    private void sendCommandToAllServersAsync(String command, boolean onlineFlag, String reason) {
+        RconCache.getMap().forEach((k, client) -> {
+            CompletableFuture.runAsync(() -> {
+                try {
+                    final String replaced = replaceCommand(k, command, onlineFlag, reason);
+                    client.sendCommand(replaced);
+                    log.debug("异步发送命令成功到服务器 {}: {}", k, command);
+                } catch (Exception e) {
+                    log.error("异步发送命令失败到服务器 {} [command={}]: {}", k, command, e.getMessage());
+                }
+            });
+        });
+    }
+
+    /**
+     * 异步发送命令到单个服务器（不等待结果）
+     */
+    private void sendCommandToSingleServerAsync(String key, String command, boolean onlineFlag, String reason) {
+        RconClient client = RconCache.get(key);
+        if (client == null) {
+            log.error("RconClient not found for key: {}", key);
+            return;
+        }
+
+        CompletableFuture.runAsync(() -> {
+            try {
+                final String replaced = replaceCommand(key, command, onlineFlag, reason);
+                client.sendCommand(replaced);
+                log.debug("异步发送命令成功到服务器 {}: {}", key, command);
+            } catch (Exception e) {
+                log.error("异步发送命令失败到服务器 {} [command={}]: {}", key, command, e.getMessage());
+            }
+        });
+    }
+
+
+    /**
      * 发送Rcon命令
      *
      * @param key        服务器ID
