@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 
+
 /**
  * 白名单ID更改历史Service业务层处理
  *
@@ -87,5 +88,18 @@ public class WhitelistIdChangeHistoryServiceImpl implements IWhitelistIdChangeHi
     @Override
     public int deleteWhitelistIdChangeHistoryById(Long id) {
         return whitelistIdChangeHistoryMapper.deleteWhitelistIdChangeHistoryById(id);
+    }
+
+    /**
+     * 根据白名单ID查询更改历史
+     *
+     * @param whitelistId 白名单ID
+     * @return 更改历史列表
+     */
+    @Override
+    public List<WhitelistIdChangeHistory> selectChangeHistoryByWhitelistId(Long whitelistId) {
+        WhitelistIdChangeHistory query = new WhitelistIdChangeHistory();
+        query.setWhitelistId(whitelistId);
+        return whitelistIdChangeHistoryMapper.selectWhitelistIdChangeHistoryList(query);
     }
 }

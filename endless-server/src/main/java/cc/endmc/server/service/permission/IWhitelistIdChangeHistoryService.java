@@ -58,4 +58,12 @@ public interface IWhitelistIdChangeHistoryService {
      * @return 结果
      */
     int deleteWhitelistIdChangeHistoryById(Long id);
+
+    /**
+     * 根据白名单ID查询更改历史
+     *
+     * @param whitelistId 白名单ID
+     * @return 更改历史列表
+     */
+    List<WhitelistIdChangeHistory> selectChangeHistoryByWhitelistId(Long whitelistId);
 }

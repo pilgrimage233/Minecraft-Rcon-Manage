@@ -235,6 +235,19 @@ public class WhitelistInfoController extends BaseController {
     }
 
     /**
+     * 根据白名单ID查询ID更改历史
+     */
+    @PreAuthorize("@ss.hasPermi('mc:whitelist:query')")
+    @GetMapping("/changeHistory/byWhitelistId")
+    public AjaxResult getChangeHistoryByWhitelistId(@RequestParam Long whitelistId) {
+        if (whitelistId == null) {
+            return error("白名单ID不能为空");
+        }
+        List<WhitelistIdChangeHistory> list = whitelistIdChangeHistoryService.selectChangeHistoryByWhitelistId(whitelistId);
+        return success(list);
+    }
+
+    /**
      * 批量导入白名单数据
      */
     @PostMapping("/importTemplate")

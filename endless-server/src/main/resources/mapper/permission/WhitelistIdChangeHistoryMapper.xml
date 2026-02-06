@@ -6,6 +6,7 @@
 
     <resultMap type="cc.endmc.server.domain.permission.WhitelistIdChangeHistory" id="WhitelistIdChangeHistoryResult">
         <result property="id" column="id"/>
+        <result property="whitelistId" column="whitelist_id"/>
         <result property="oldUserName" column="old_user_name"/>
         <result property="newUserName" column="new_user_name"/>
         <result property="oldUserUuid" column="old_user_uuid"/>
@@ -24,6 +25,7 @@
 
     <sql id="selectWhitelistIdChangeHistoryVo">
         select id,
+               whitelist_id,
                old_user_name,
                new_user_name,
                old_user_uuid,
@@ -46,6 +48,7 @@
             resultMap="WhitelistIdChangeHistoryResult">
         <include refid="selectWhitelistIdChangeHistoryVo"/>
         <where>
+            <if test="whitelistId != null">and whitelist_id = #{whitelistId}</if>
             <if test="oldUserName != null  and oldUserName != ''">and old_user_name like concat('%', #{oldUserName},
                 '%')
             </if>
@@ -68,6 +71,7 @@
             keyProperty="id">
         insert into whitelist_id_change_history
         <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="whitelistId != null">whitelist_id,</if>
             <if test="oldUserName != null and oldUserName != ''">old_user_name,</if>
             <if test="newUserName != null and newUserName != ''">new_user_name,</if>
             <if test="oldUserUuid != null">old_user_uuid,</if>
@@ -84,6 +88,7 @@
             <if test="remark != null">remark,</if>
         </trim>
         <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="whitelistId != null">#{whitelistId},</if>
             <if test="oldUserName != null and oldUserName != ''">#{oldUserName},</if>
             <if test="newUserName != null and newUserName != ''">#{newUserName},</if>
             <if test="oldUserUuid != null">#{oldUserUuid},</if>
@@ -105,6 +110,7 @@
             parameterType="cc.endmc.server.domain.permission.WhitelistIdChangeHistory">
         update whitelist_id_change_history
         <trim prefix="SET" suffixOverrides=",">
+            <if test="whitelistId != null">whitelist_id = #{whitelistId},</if>
             <if test="oldUserName != null and oldUserName != ''">old_user_name = #{oldUserName},</if>
             <if test="newUserName != null and newUserName != ''">new_user_name = #{newUserName},</if>
             <if test="oldUserUuid != null">old_user_uuid = #{oldUserUuid},</if>

@@ -136,7 +136,13 @@
           <span>{{ parseTime(scope.row.time, '{y}-{m}-{d} {h}:{i}') }}</span>
         </template>
       </el-table-column>
-      <el-table-column align="center" label="游戏名称" prop="userName" show-overflow-tooltip/>
+      <el-table-column align="center" label="游戏名称" prop="userName" show-overflow-tooltip>
+        <template slot-scope="scope">
+          <el-button type="text" @click="handleViewHistory(scope.row.id, scope.row.userName)">
+            {{ scope.row.userName }}
+          </el-button>
+        </template>
+      </el-table-column>
       <el-table-column align="center" label="UUID" prop="userUuid" show-overflow-tooltip/>
       <el-table-column align="center" label="渠道来源" prop="createBy">
         <template slot-scope="scope">
@@ -344,6 +350,38 @@
         <el-button @click="cancelBatch">取 消</el-button>
       </div>
     </el-dialog>
+
+    <!-- ID更改历史对话框 -->
+    <el-dialog :visible.sync="historyDialogVisible" append-to-body title="ID更改历史" width="900px">
+      <div v-loading="historyLoading">
+        <div v-if="historyList.length === 0 && !historyLoading"
+             style="text-align: center; padding: 40px 0; color: #909399;">
+          <i class="el-icon-info" style="font-size: 48px; margin-bottom: 16px;"></i>
+          <p>该用户暂无ID更改记录</p>
+        </div>
+        <el-table v-else :data="historyList" border stripe>
+          <el-table-column align="center" label="旧游戏ID" prop="oldUserName" show-overflow-tooltip/>
+          <el-table-column align="center" label="新游戏ID" prop="newUserName" show-overflow-tooltip/>
+          <el-table-column align="center" label="更改时间" prop="changeTime" width="180">
+            <template slot-scope="scope">
+              <span>{{ parseTime(scope.row.changeTime, '{y}-{m}-{d} {h}:{i}:{s}') }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column align="center" label="更改原因" prop="changeReason" show-overflow-tooltip/>
+          <el-table-column align="center" label="IP地址" prop="ipAddress" width="140"/>
+          <el-table-column align="center" label="状态" prop="status" width="100">
+            <template slot-scope="scope">
+              <el-tag v-if="scope.row.status === '1'" type="success">成功</el-tag>
+              <el-tag v-else-if="scope.row.status === '2'" type="danger">失败</el-tag>
+              <el-tag v-else type="info">待处理</el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="historyDialogVisible = false">关 闭</el-button>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -352,6 +390,7 @@ import {
   addWhiteListForAdmin,
   delWhitelist,
   downloadTemplate,
+  getChangeHistoryByWhitelistId,
   getServerList,
   getWhitelist,
   listWhitelist,
@@ -449,6 +488,11 @@ export default {
       dialogVisible: false,
       batchApplyOpen: false,
       batchForm: {},
+      // ID更改历史相关
+      historyDialogVisible: false,
+      historyLoading: false,
+      historyList: [],
+      currentUserName: "",
       upload: {
         headers: {
           Authorization: 'Bearer ' + getToken()
@@ -681,6 +725,25 @@ export default {
     },
     handleBatchApply() {
       this.batchApplyOpen = true;
+    },
+    /** 查看ID更改历史 */
+    handleViewHistory(whitelistId, userName) {
+      this.currentUserName = userName;
+      this.historyDialogVisible = true;
+      this.historyLoading = true;
+      this.historyList = [];
+
+      getChangeHistoryByWhitelistId(whitelistId).then(res => {
+        this.historyLoading = false;
+        if (res.code === 200) {
+          this.historyList = res.data || [];
+        } else {
+          this.$modal.msgError(res.msg || '查询失败');
+        }
+      }).catch(() => {
+        this.historyLoading = false;
+        this.$modal.msgError('查询失败');
+      });
     },
     handleFileUploadProgress(event, file) {
       this.upload.isUploading = true;

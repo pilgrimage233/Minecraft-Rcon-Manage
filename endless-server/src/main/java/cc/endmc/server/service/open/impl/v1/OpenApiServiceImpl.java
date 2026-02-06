@@ -1624,6 +1624,7 @@ public class OpenApiServiceImpl implements IOpenApiService {
         // 8. 记录更改历史
         String ip = IPUtils.getClientIpAddress(request, ipHeaderName);
         WhitelistIdChangeHistory history = new WhitelistIdChangeHistory();
+        history.setWhitelistId(whitelistId);
         history.setOldUserName(oldUserName);
         history.setNewUserName(newUserName);
         history.setOldUserUuid(oldUuid);

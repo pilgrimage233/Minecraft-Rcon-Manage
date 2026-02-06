@@ -80,3 +80,12 @@ export function importTemplate(data) {
     }
   })
 }
+
+// 根据白名单ID查询ID更改历史
+export function getChangeHistoryByWhitelistId(whitelistId) {
+  return request({
+    url: '/mc/whitelist/changeHistory/byWhitelistId',
+    method: 'get',
+    params: {whitelistId}
+  })
+}

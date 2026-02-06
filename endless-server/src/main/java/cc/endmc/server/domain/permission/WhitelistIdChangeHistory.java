@@ -25,6 +25,12 @@ public class WhitelistIdChangeHistory extends BaseEntity {
     private Long id;
 
     /**
+     * 白名单ID
+     */
+    @Excel(name = "白名单ID")
+    private Long whitelistId;
+
+    /**
      * 旧游戏ID
      */
     @Excel(name = "旧游戏ID")
