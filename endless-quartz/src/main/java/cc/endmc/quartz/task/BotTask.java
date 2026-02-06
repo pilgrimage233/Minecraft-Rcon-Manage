@@ -295,13 +295,21 @@ public class BotTask {
                             .replace("v", "")
                             .trim();
 
-                    if (!currentVersion.equals(latestVersion)) {
+                    // 比较版本号
+                    int versionComparison = compareVersions(currentVersion, latestVersion);
+
+                    // 只有当最新版本大于当前版本时才发送通知
+                    if (versionComparison < 0) {
                         // 有新版本，发送通知
                         sendUpdateNotification(latestRelease, latestWorkflow, config);
 
                         // 缓存最新版本信息，避免重复通知
                         String versionCacheKey = CacheKey.UPDATE_CHECK_KEY + "latest_version";
                         redisCache.setCacheObject(versionCacheKey, latestVersion, 24, TimeUnit.HOURS);
+                    } else if (versionComparison > 0) {
+                        log.info("当前版本 {} 高于最新发布版本 {}，跳过更新通知", currentVersion, latestVersion);
+                    } else {
+                        log.info("当前版本 {} 已是最新版本", currentVersion);
                     }
                 }
                 log.info("GitHub项目更新检查完成");
@@ -551,6 +559,61 @@ public class BotTask {
         if (str == null) return "N/A";
         if (str.length() <= maxLength) return str;
         return str.substring(0, maxLength) + "...";
+    }
+
+    /**
+     * 比较两个版本号
+     *
+     * @param version1 版本号1
+     * @param version2 版本号2
+     * @return 如果version1 < version2返回负数，version1 > version2返回正数，相等返回0
+     */
+    private int compareVersions(String version1, String version2) {
+        if (version1 == null || version2 == null || "unknown".equals(version1)) {
+            return -1; // 如果版本号无效，默认认为需要更新
+        }
+
+        try {
+            // 移除可能的前缀（如 "v"）
+            version1 = version1.replace("v", "").trim();
+            version2 = version2.replace("v", "").trim();
+
+            // 分割版本号
+            String[] parts1 = version1.split("\\.");
+            String[] parts2 = version2.split("\\.");
+
+            int maxLength = Math.max(parts1.length, parts2.length);
+
+            for (int i = 0; i < maxLength; i++) {
+                int v1 = i < parts1.length ? parseVersionPart(parts1[i]) : 0;
+                int v2 = i < parts2.length ? parseVersionPart(parts2[i]) : 0;
+
+                if (v1 < v2) {
+                    return -1;
+                } else if (v1 > v2) {
+                    return 1;
+                }
+            }
+
+            return 0; // 版本号相等
+        } catch (Exception e) {
+            log.error("版本号比较失败: {} vs {}, 错误: {}", version1, version2, e.getMessage());
+            return -1; // 出错时默认认为需要更新
+        }
+    }
+
+    /**
+     * 解析版本号的单个部分（处理数字和可能的后缀）
+     * 例如: "3" -> 3, "5-beta" -> 5
+     */
+    private int parseVersionPart(String part) {
+        try {
+            // 移除非数字字符（如 "-beta", "-SNAPSHOT" 等）
+            String numericPart = part.replaceAll("[^0-9].*", "");
+            return numericPart.isEmpty() ? 0 : Integer.parseInt(numericPart);
+        } catch (NumberFormatException e) {
+            return 0;
+        }
     }
 
     /**
