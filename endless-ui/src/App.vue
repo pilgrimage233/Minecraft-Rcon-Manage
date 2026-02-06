@@ -7,6 +7,7 @@
 
 <script>
 import ThemePicker from "@/components/ThemePicker";
+import {detectMemoryLeak} from "@/utils/performance";
 
 export default {
   name: "App",
@@ -17,6 +18,12 @@ export default {
       titleTemplate: title => {
         return title ? `${title} - ${process.env.VUE_APP_TITLE}` : process.env.VUE_APP_TITLE
       }
+    }
+  },
+  mounted() {
+    // 开发环境启用内存泄漏检测
+    if (process.env.NODE_ENV === 'development') {
+      detectMemoryLeak();
     }
   }
 };

@@ -2,51 +2,70 @@ package cc.endmc.server.service.open.impl.v1;
 
 import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.common.core.redis.RedisCache;
+import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
+import cc.endmc.framework.manager.AsyncManager;
 import cc.endmc.node.domain.NodeServer;
 import cc.endmc.node.service.INodeMinecraftServerService;
 import cc.endmc.node.service.INodeServerService;
+import cc.endmc.server.cache.QuizConfigCache;
 import cc.endmc.server.cache.RconCache;
+import cc.endmc.server.common.EmailTemplates;
 import cc.endmc.server.common.constant.CacheKey;
-import cc.endmc.server.config.QuestionConfig;
+import cc.endmc.server.common.service.EmailService;
 import cc.endmc.server.domain.permission.BanlistInfo;
 import cc.endmc.server.domain.permission.OperatorList;
+import cc.endmc.server.domain.permission.WhitelistIdChangeHistory;
 import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.domain.player.PlayerDetails;
 import cc.endmc.server.domain.player.vo.PlayerDetailsVo;
-import cc.endmc.server.domain.quiz.*;
+import cc.endmc.server.domain.quiz.WhitelistQuizAnswer;
+import cc.endmc.server.domain.quiz.WhitelistQuizQuestion;
+import cc.endmc.server.domain.quiz.WhitelistQuizSubmission;
+import cc.endmc.server.domain.quiz.WhitelistQuizSubmissionDetail;
 import cc.endmc.server.domain.quiz.vo.WhitelistQuizQuestionVo;
 import cc.endmc.server.domain.relation.RconNodeInstanceRelation;
 import cc.endmc.server.domain.server.ServerInfo;
+import cc.endmc.server.dto.VerifySource;
+import cc.endmc.server.enums.Identity;
 import cc.endmc.server.mapper.permission.WhitelistInfoMapper;
 import cc.endmc.server.mapper.player.PlayerDetailsMapper;
 import cc.endmc.server.mapper.server.ServerInfoMapper;
 import cc.endmc.server.model.MinecraftServerInfo;
+import cc.endmc.server.request.ApplyData;
+import cc.endmc.server.request.ChangeIdRequest;
 import cc.endmc.server.service.message.AsyncMessagePushService;
 import cc.endmc.server.service.open.IOpenApiService;
+import cc.endmc.server.service.other.IIpLimitInfoService;
 import cc.endmc.server.service.permission.IBanlistInfoService;
 import cc.endmc.server.service.permission.IOperatorListService;
+import cc.endmc.server.service.permission.IWhitelistIdChangeHistoryService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
-import cc.endmc.server.service.quiz.IWhitelistQuizConfigService;
+import cc.endmc.server.service.player.IPlayerDetailsService;
 import cc.endmc.server.service.quiz.IWhitelistQuizQuestionService;
 import cc.endmc.server.service.quiz.IWhitelistQuizSubmissionService;
 import cc.endmc.server.service.relation.IRconNodeInstanceRelationService;
 import cc.endmc.server.service.server.IServerInfoService;
-import cc.endmc.server.utils.MinecraftUUIDUtil;
-import cc.endmc.server.utils.NetWorkUtil;
+import cc.endmc.server.utils.*;
 import com.alibaba.fastjson2.JSON;
 import com.alibaba.fastjson2.JSONArray;
 import com.alibaba.fastjson2.JSONObject;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
+import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -62,16 +81,19 @@ import java.util.stream.Collectors;
 public class OpenApiServiceImpl implements IOpenApiService {
 
     private final RedisCache redisCache;
+    private final AsyncManager asyncManager = AsyncManager.me();
+    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
 
     // Quiz相关服务
     private final IWhitelistQuizSubmissionService quizSubmissionService;
     private final IWhitelistQuizQuestionService quizQuestionService;
-    private final IWhitelistQuizConfigService quizConfigService;
+    private final QuizConfigCache quizConfigCache;
 
     // 权限相关服务
     private final IWhitelistInfoService whitelistInfoService;
     private final IOperatorListService operatorListService;
     private final IBanlistInfoService banlistInfoService;
+    private final IWhitelistIdChangeHistoryService whitelistIdChangeHistoryService;
 
     // 服务器相关服务
     private final IServerInfoService serverInfoService;
@@ -82,10 +104,25 @@ public class OpenApiServiceImpl implements IOpenApiService {
     // 异步消息推送服务
     private final AsyncMessagePushService asyncMessagePushService;
 
+    // 其他服务
+    private final IIpLimitInfoService iIpLimitInfoService;
+    private final IPlayerDetailsService playerDetailsService;
+    private final EmailService emailService;
+
     // Mapper
     private final WhitelistInfoMapper whitelistInfoMapper;
     private final PlayerDetailsMapper playerDetailsMapper;
     private final ServerInfoMapper serverInfoMapper;
+
+    // 配置属性
+    @Value("${app-url}")
+    private String appUrl;
+    @Value("${whitelist.iplimit}")
+    private String iplimit;
+    @Value("${whitelist.email}")
+    private String ADMIN_EMAIL;
+    @Value("${app.ip-header-name:X-Real-IP}")
+    private String ipHeaderName;
 
     /**
      * 提交白名单问卷答案
@@ -171,7 +208,7 @@ public class OpenApiServiceImpl implements IOpenApiService {
             }
             // 如果找不到对应的白名单记录，whitelistId将保持为null，后续可以通过数据库触发器或定时任务来关联
         }
-        
+
         submission.setPlayerName(whitelistInfo.getUserName());
 
         // 确保playerUuid不为空
@@ -320,16 +357,11 @@ public class OpenApiServiceImpl implements IOpenApiService {
         // 设置总分
         submission.setTotalScore(totalScore);
 
-        // 检查是否通过及格线
-        WhitelistQuizConfig passScoreConfig = new WhitelistQuizConfig();
-        passScoreConfig.setConfigKey(QuestionConfig.PASS_SCORE);
-        List<WhitelistQuizConfig> passConfigs = quizConfigService.selectWhitelistQuizConfigList(passScoreConfig);
-        if (!passConfigs.isEmpty()) {
-            long passScore = Long.parseLong(passConfigs.getFirst().getConfigValue());
-            if (totalScore >= passScore) {
-                submission.setPassStatus(1); // 已通过
-                submission.setReviewer("System(Auto_Quiz_Pass)"); // 自动审核
-            }
+        // 检查是否通过及格线 - 使用缓存
+        long passScore = quizConfigCache.getPassScore();
+        if (totalScore >= passScore) {
+            submission.setPassStatus(1); // 已通过
+            submission.setReviewer("System(Auto_Quiz_Pass)"); // 自动审核
         }
 
         if (random && !randomSuccess) {
@@ -425,59 +457,38 @@ public class OpenApiServiceImpl implements IOpenApiService {
      */
     @Override
     public AjaxResult getQuestions() {
-        final WhitelistQuizConfig whitelistQuizConfig = new WhitelistQuizConfig();
-        // 答题功能开启才能查询
-        whitelistQuizConfig.setConfigKey(QuestionConfig.STATUS);
-        whitelistQuizConfig.setConfigValue(Boolean.TRUE.toString());
-        AtomicBoolean random = new AtomicBoolean(false);
-        AtomicInteger questionCount = new AtomicInteger(0);
-        List<WhitelistQuizQuestionVo> questions = new ArrayList<>();
+        // 使用缓存检查答题功能是否开启
+        if (!quizConfigCache.isQuizEnabled()) {
+            return AjaxResult.success(new ArrayList<>());
+        }
 
+        final WhitelistQuizQuestion question = new WhitelistQuizQuestion();
+        question.setStatus(1);
 
-        if (!quizConfigService.selectWhitelistQuizConfigList(whitelistQuizConfig).isEmpty()) {
-            final WhitelistQuizQuestion question = new WhitelistQuizQuestion();
-            question.setStatus(1);
+        // 从缓存获取配置
+        boolean random = quizConfigCache.isRandomQuestion();
+        int questionCount = quizConfigCache.getQuestionCount();
 
-            // 查询配置
-            final List<WhitelistQuizConfig> configs = quizConfigService.selectWhitelistQuizConfigList(new WhitelistQuizConfig());
-            configs.forEach(config -> {
-                if (config.getConfigKey().equals(QuestionConfig.RANDOM)) {
-                    random.set(Boolean.parseBoolean(config.getConfigValue()));
-                }
-                if (config.getConfigKey().equals(QuestionConfig.QUESTION_COUNT)) {
-                    questionCount.set(Integer.parseInt(config.getConfigValue()));
+        // 随机抽取问题 - 使用VO查询
+        List<WhitelistQuizQuestionVo> questions = quizQuestionService.selectWhitelistQuizQuestionVoList(question);
+
+        if (random && questionCount > 0 && questionCount < questions.size()) {
+            Collections.shuffle(questions);
+            questions = questions.subList(0, questionCount);
+        } else if (!random && questionCount > 0 && questionCount < questions.size()) {
+            questions = questions.subList(0, questionCount);
+        }
+
+        if (!questions.isEmpty()) {
+            // 根据 sortOrder 排序
+            questions.sort(Comparator.comparing(WhitelistQuizQuestionVo::getSortOrder, Comparator.nullsLast(Comparator.naturalOrder())));
+
+            // 处理随机验证题型
+            questions.forEach(q -> {
+                if (q.getQuestionType() == 4) { // 随机验证题型
+                    processRandomVerificationQuestion(q);
                 }
             });
-
-            // 随机抽取问题 - 使用VO查询
-            if (random.get()) {
-                questions = quizQuestionService.selectWhitelistQuizQuestionVoList(question);
-                if (questionCount.get() < questions.size()) {
-                    Collections.shuffle(questions);
-                    questions = questions.subList(0, questionCount.get());
-                }
-            }
-
-            if (!random.get() && questionCount.get() > 0) {
-                questions = quizQuestionService.selectWhitelistQuizQuestionVoList(question);
-                if (questionCount.get() < questions.size()) {
-                    questions = questions.subList(0, questionCount.get());
-                }
-            } else {
-                questions = quizQuestionService.selectWhitelistQuizQuestionVoList(question);
-            }
-
-            if (!questions.isEmpty()) {
-                // 根据 sortOrder 排序
-                questions.sort(Comparator.comparing(WhitelistQuizQuestionVo::getSortOrder, Comparator.nullsLast(Comparator.naturalOrder())));
-
-                // 处理随机验证题型
-                questions.forEach(q -> {
-                    if (q.getQuestionType() == 4) { // 随机验证题型
-                        processRandomVerificationQuestion(q);
-                    }
-                });
-            }
         }
 
         return AjaxResult.success(questions);
@@ -1000,6 +1011,8 @@ public class OpenApiServiceImpl implements IOpenApiService {
 
     /**
      * 获取服务器状态
+     * 使用多线程并行检测所有服务器状态，提升响应速度
+     * 每个服务器的检测任务独立执行，避免单个服务器超时影响整体响应
      *
      * @return 服务器状态信息
      */
@@ -1013,45 +1026,95 @@ public class OpenApiServiceImpl implements IOpenApiService {
         if (serverInfos.isEmpty()) {
             return AjaxResult.error("未找到服务器信息");
         }
-        List<Map<String, Object>> data = new ArrayList<>();
+
+        // 使用CompletableFuture并行检测所有服务器状态
+        List<CompletableFuture<Map<String, Object>>> futures = new ArrayList<>();
 
         for (ServerInfo serverInfo : serverInfos) {
-            String cacheKey = CacheKey.MINECRAFT_SERVER_INFO + serverInfo.getId();
-            if (redisCache.hasKey(cacheKey)) {
-                final Map<String, Object> cacheObject = redisCache.getCacheMap(cacheKey);
-                data.add(cacheObject);
-                continue;
-            }
-            Map<String, Object> statusMap = new HashMap<>();
-            String nameTag = serverInfo.getNameTag();
-            statusMap.put("id", serverInfo.getId());
-            statusMap.put("服务器名称", nameTag);
-            statusMap.put("连接地址", serverInfo.getPlayAddress());
-            statusMap.put("连接端口", String.valueOf(serverInfo.getPlayAddressPort()));
-            statusMap.put("版本", serverInfo.getServerVersion());
-            statusMap.put("核心", serverInfo.getServerCore());
+            CompletableFuture<Map<String, Object>> future = CompletableFuture.supplyAsync(() -> {
+                String cacheKey = CacheKey.MINECRAFT_SERVER_INFO + serverInfo.getId();
 
-            final boolean rconConnection = NetWorkUtil.testRconConnection(String.valueOf(serverInfo.getId()));
-            statusMap.put("Rcon连接", rconConnection ? "成功" : "失败");
+                // 检查缓存
+                if (redisCache.hasKey(cacheKey)) {
+                    return redisCache.getCacheMap(cacheKey);
+                }
 
-            final MinecraftServerInfo minecraftServerLatency = NetWorkUtil.getMinecraftServerLatency(serverInfo.getPlayAddress(), serverInfo.getPlayAddressPort());
-            statusMap.put("在线状态", minecraftServerLatency.isReachable() ? "在线" : "离线");
-            statusMap.put("在线人数", String.valueOf(minecraftServerLatency.getOnlinePlayers()));
-            statusMap.put("最大人数", String.valueOf(minecraftServerLatency.getMaxPlayers()));
-            statusMap.put("延迟(ms)", String.valueOf(minecraftServerLatency.getLatency()));
+                // 构建服务器状态信息
+                Map<String, Object> statusMap = new HashMap<>();
+                String nameTag = serverInfo.getNameTag();
+                statusMap.put("id", serverInfo.getId());
+                statusMap.put("服务器名称", nameTag);
+                statusMap.put("连接地址", serverInfo.getPlayAddress());
+                statusMap.put("连接端口", String.valueOf(serverInfo.getPlayAddressPort()));
+                statusMap.put("版本", serverInfo.getServerVersion());
+                statusMap.put("核心", serverInfo.getServerCore());
 
-            final boolean offline = statusMap.get("在线状态").equals("离线");
-            if (offline && !rconConnection) {
-                statusMap.put("指标", "服务熔断");
-            } else if (offline || !rconConnection) {
-                statusMap.put("指标", "服务降级");
-            } else {
-                statusMap.put("指标", "服务正常");
-            }
-            data.add(statusMap);
+                try {
+                    // 异步检测RCON连接
+                    final boolean rconConnection = NetWorkUtil.testRconConnection(String.valueOf(serverInfo.getId()));
+                    statusMap.put("Rcon连接", rconConnection ? "成功" : "失败");
 
-            redisCache.setCacheMap(cacheKey, statusMap, 1, TimeUnit.MINUTES);
+                    // 异步获取服务器延迟信息
+                    final MinecraftServerInfo minecraftServerLatency = NetWorkUtil.getMinecraftServerLatency(
+                            serverInfo.getPlayAddress(), serverInfo.getPlayAddressPort());
+                    statusMap.put("在线状态", minecraftServerLatency.isReachable() ? "在线" : "离线");
+                    statusMap.put("在线人数", String.valueOf(minecraftServerLatency.getOnlinePlayers()));
+                    statusMap.put("最大人数", String.valueOf(minecraftServerLatency.getMaxPlayers()));
+                    statusMap.put("延迟(ms)", String.valueOf(minecraftServerLatency.getLatency()));
+
+                    // 判断服务状态指标
+                    final boolean offline = statusMap.get("在线状态").equals("离线");
+                    if (offline && !rconConnection) {
+                        statusMap.put("指标", "服务熔断");
+                    } else if (offline || !rconConnection) {
+                        statusMap.put("指标", "服务降级");
+                    } else {
+                        statusMap.put("指标", "服务正常");
+                    }
+                } catch (Exception e) {
+                    log.error("检测服务器{}状态失败,原因: {}", serverInfo.getNameTag(), e.getMessage());
+                    statusMap.put("Rcon连接", "失败");
+                    statusMap.put("在线状态", "离线");
+                    statusMap.put("在线人数", "0");
+                    statusMap.put("最大人数", "0");
+                    statusMap.put("延迟(ms)", "0");
+                    statusMap.put("指标", "服务熔断");
+                }
+
+                // 缓存结果
+                redisCache.setCacheMap(cacheKey, statusMap, 3, TimeUnit.MINUTES);
+                return statusMap;
+            });
+            futures.add(future);
         }
+
+        // 等待所有异步任务完成，设置超时时间为5秒
+        List<Map<String, Object>> data = new ArrayList<>();
+        for (int i = 0; i < futures.size(); i++) {
+            ServerInfo serverInfo = serverInfos.get(i);
+            try {
+                Map<String, Object> result = futures.get(i).get(5, TimeUnit.SECONDS);
+                data.add(result);
+            } catch (Exception e) {
+                log.error("获取服务器{}状态超时,原因: {}", serverInfo.getNameTag(), e.getMessage());
+                // 超时时返回基本信息，状态设置为离线
+                Map<String, Object> timeoutMap = new HashMap<>();
+                timeoutMap.put("id", serverInfo.getId());
+                timeoutMap.put("服务器名称", serverInfo.getNameTag());
+                timeoutMap.put("连接地址", serverInfo.getPlayAddress());
+                timeoutMap.put("连接端口", String.valueOf(serverInfo.getPlayAddressPort()));
+                timeoutMap.put("版本", serverInfo.getServerVersion());
+                timeoutMap.put("核心", serverInfo.getServerCore());
+                timeoutMap.put("Rcon连接", "失败");
+                timeoutMap.put("在线状态", "离线");
+                timeoutMap.put("在线人数", "0");
+                timeoutMap.put("最大人数", "0");
+                timeoutMap.put("延迟(ms)", "0");
+                timeoutMap.put("指标", "服务熔断");
+                data.add(timeoutMap);
+            }
+        }
+
         return AjaxResult.success(data);
     }
 
@@ -1230,6 +1293,884 @@ public class OpenApiServiceImpl implements IOpenApiService {
         } catch (Exception e) {
             log.error("从缓存获取服务器信息失败，serverId: {}", serverId, e);
             return "未知服务器";
+        }
+    }
+
+    /**
+     * 申请白名单
+     */
+    @Override
+    @SneakyThrows
+    public AjaxResult apply(HttpServletRequest request, WhitelistInfo whitelistInfo, Map<String, String> header) {
+        // 1. 基础参数校验
+        AjaxResult validationResult = validateApplyParams(whitelistInfo);
+        if (validationResult != null) {
+            return validationResult;
+        }
+
+        log.info("申请信息:{}", whitelistInfo);
+        log.info("header:{}", header);
+
+        // 2. 获取并验证User-Agent
+        String userAgent = header.get("user-agent");
+        AjaxResult uaCheckResult = validateUserAgent(userAgent);
+        if (uaCheckResult != null) {
+            return uaCheckResult;
+        }
+
+        // 3. 验证游戏ID和QQ号格式
+        AjaxResult formatCheckResult = validateInputFormat(whitelistInfo);
+        if (formatCheckResult != null) {
+            return formatCheckResult;
+        }
+
+        // 4. 检查重复申请
+        AjaxResult repeatCheckResult = checkRepeatApplication(whitelistInfo);
+        if (repeatCheckResult != null) {
+            return repeatCheckResult;
+        }
+
+        // 5. IP限流检查
+        String ip = IPUtils.getClientIpAddress(request, ipHeaderName);
+        AjaxResult limitResult = checkIpLimitForApply(ip, whitelistInfo, userAgent);
+        if (limitResult != null) {
+            return limitResult;
+        }
+
+        // 6. 检查是否有活跃的验证码
+        if (SecureCodeUtil.hasActiveCode(whitelistInfo.getQqNum(), CacheKey.VERIFY_KEY)) {
+            return AjaxResult.error("您已有一个待验证的申请，请勿重复提交！");
+        }
+
+        // 7. 生成安全的验证码（8位字母数字组合）
+        String code = SecureCodeUtil.generateSecureCode(
+                whitelistInfo.getQqNum(),
+                CacheKey.VERIFY_KEY,
+                8,
+                30
+        );
+
+        if (StringUtils.isEmpty(code)) {
+            return AjaxResult.error("验证码生成失败,请稍后再试!");
+        }
+
+        // 8. 标记活跃验证码
+        SecureCodeUtil.markActiveCode(whitelistInfo.getQqNum(), CacheKey.VERIFY_KEY, 30);
+
+        // 9. 创建玩家详情并获取地理位置
+        PlayerDetails details = createPlayerDetailsForApply(whitelistInfo, ip);
+
+        // 10. 缓存申请数据
+        cacheApplyData(code, whitelistInfo, details);
+
+        // 11. 生成验证链接并发送邮件
+        String verifyUrl = buildVerifyUrl(header, code);
+        emailService.push(whitelistInfo.getQqNum() + EmailTemplates.QQ_EMAIL,
+                EmailTemplates.EMAIL_VERIFY_TITLE, EmailTemplates.getEmailVerifyTemplate(verifyUrl));
+
+        return AjaxResult.success("验证邮件已发送,请查收! 如果未收到邮件,请检查垃圾箱或联系管理员!");
+    }
+
+    /**
+     * 验证白名单
+     */
+    @Override
+    public AjaxResult verify(HttpServletRequest request, String code, Map<String, String> header) {
+        if (StringUtils.isEmpty(code)) {
+            return AjaxResult.error("验证失败,请勿直接访问此链接!");
+        }
+
+        // 1. 检查验证码并获取申请来源
+        VerifySource verifySource = checkVerifyCode(code);
+        if (verifySource == null) {
+            return AjaxResult.error("验证失败,验证码无效!");
+        }
+
+        // 2. 解析申请数据
+        ApplyData applyData;
+        try {
+            applyData = parseApplyData(verifySource);
+        } catch (Exception e) {
+            log.error("数据转换失败", e);
+            return AjaxResult.error("验证失败,数据格式错误!");
+        }
+
+        // 3. IP限流检查
+        String ip = IPUtils.getClientIpAddress(request, ipHeaderName);
+        AjaxResult limitResult = checkIpLimitForVerify(ip, applyData.getWhitelistInfo(), header);
+        if (limitResult != null) {
+            return limitResult;
+        }
+
+        // 4. 更新地理位置信息
+        updateLocationInfo(ip, applyData.getDetails());
+
+        // 5. 保存玩家详情
+        if (applyData.getDetails() != null) {
+            playerDetailsService.insertPlayerDetails(applyData.getDetails());
+        }
+
+        // 6. 完善白名单信息
+        completeWhitelistInfo(applyData.getWhitelistInfo(), verifySource.getSource());
+
+        // 7. 检查是否自动审核通过
+        boolean autoApproved = checkAutoApproval(applyData.getWhitelistInfo());
+
+        // 8. 保存白名单申请
+        if (whitelistInfoService.insertWhitelistInfo(applyData.getWhitelistInfo()) == 0) {
+            return AjaxResult.error(EmailTemplates.APPLY_ERROR);
+        }
+
+        // 9. 删除验证码
+        redisCache.deleteObject(verifySource.getCacheKey());
+
+        // 10. 发送通知（异步）
+        sendNotifications(applyData.getWhitelistInfo(), applyData.getDetails(), verifySource.getSource(), autoApproved);
+
+        return AjaxResult.success(autoApproved ? "恭喜您！您的白名单申请已自动审核通过！" : EmailTemplates.APPLY_SUCCESS);
+    }
+
+    /**
+     * 请求更改游戏ID
+     */
+    @Override
+    public AjaxResult requestChangeId(HttpServletRequest request, ChangeIdRequest changeRequest) {
+        // 1. 参数校验
+        if (StringUtils.isEmpty(changeRequest.getOldUserName()) ||
+                StringUtils.isEmpty(changeRequest.getNewUserName()) ||
+                StringUtils.isEmpty(changeRequest.getQqNum())) {
+            return AjaxResult.error("参数不能为空!");
+        }
+
+        // 2. 格式校验
+        Pattern gameIdPattern = Pattern.compile("[a-zA-Z0-9_]{1,35}");
+        if (!gameIdPattern.matcher(changeRequest.getOldUserName()).matches()) {
+            return AjaxResult.error("旧游戏ID格式不正确!");
+        }
+        if (!gameIdPattern.matcher(changeRequest.getNewUserName()).matches()) {
+            return AjaxResult.error("新游戏ID格式不正确!");
+        }
+
+        Pattern qqPattern = Pattern.compile("[0-9]{5,11}");
+        if (!qqPattern.matcher(changeRequest.getQqNum()).matches()) {
+            return AjaxResult.error("QQ号格式不正确!");
+        }
+
+        // 3. 查询旧ID对应的白名单信息
+        WhitelistInfo query = new WhitelistInfo();
+        query.setUserName(changeRequest.getOldUserName().toLowerCase());
+        List<WhitelistInfo> whitelistInfos = whitelistInfoService.selectWhitelistInfoList(query);
+
+        if (whitelistInfos == null || whitelistInfos.isEmpty()) {
+            return AjaxResult.error("未找到该游戏ID的白名单记录!");
+        }
+
+        WhitelistInfo whitelistInfo = whitelistInfos.getFirst();
+
+        // 4. 验证QQ号是否匹配
+        if (!whitelistInfo.getQqNum().equals(changeRequest.getQqNum())) {
+            return AjaxResult.error("QQ号与该游戏ID不匹配!");
+        }
+
+        // 5. 检查新ID是否已存在
+        WhitelistInfo newIdQuery = new WhitelistInfo();
+        newIdQuery.setUserName(changeRequest.getNewUserName().toLowerCase());
+        List<WhitelistInfo> newIdList = whitelistInfoService.selectWhitelistInfoList(newIdQuery);
+        if (newIdList != null && !newIdList.isEmpty()) {
+            return AjaxResult.error("新游戏ID已存在白名单中!");
+        }
+
+        // 6. 检查是否有活跃的验证码（防止重复申请）
+        if (SecureCodeUtil.hasActiveCode(changeRequest.getQqNum(), CacheKey.CHANGE_ID_KEY)) {
+            return AjaxResult.error("您已有一个待验证的更改请求，请勿重复申请！");
+        }
+
+        // 7. 生成验证码
+        String code = SecureCodeUtil.generateNumericCode(
+                changeRequest.getQqNum(),
+                CacheKey.CHANGE_ID_KEY,
+                6,
+                30
+        );
+
+        if (StringUtils.isEmpty(code)) {
+            return AjaxResult.error("验证码生成失败,请稍后再试!");
+        }
+
+        // 8. 缓存更改请求数据
+        Map<String, Object> cacheData = new HashMap<>();
+        cacheData.put("oldUserName", changeRequest.getOldUserName().toLowerCase());
+        cacheData.put("newUserName", changeRequest.getNewUserName().toLowerCase());
+        cacheData.put("qqNum", changeRequest.getQqNum());
+        cacheData.put("changeReason", changeRequest.getChangeReason());
+        cacheData.put("whitelistId", whitelistInfo.getId());
+        redisCache.setCacheObject(CacheKey.CHANGE_ID_KEY + code, cacheData, 30, TimeUnit.MINUTES);
+
+        // 9. 标记该QQ号有活跃的验证码
+        SecureCodeUtil.markActiveCode(changeRequest.getQqNum(), CacheKey.CHANGE_ID_KEY, 30);
+
+        // 10. 发送验证邮件
+        String verifyContent = String.format(
+                "您好！<br><br>" +
+                        "您正在申请更改白名单游戏ID：<br>" +
+                        "旧ID：%s<br>" +
+                        "新ID：%s<br><br>" +
+                        "您的验证码是：<strong style='font-size: 24px; color: #409EFF;'>%s</strong><br><br>" +
+                        "请在30分钟内使用此验证码完成更改。<br>" +
+                        "如果这不是您的操作，请忽略此邮件。",
+                changeRequest.getOldUserName(),
+                changeRequest.getNewUserName(),
+                code
+        );
+
+        try {
+            emailService.push(changeRequest.getQqNum() + EmailTemplates.QQ_EMAIL,
+                    "白名单ID更改验证", verifyContent);
+        } catch (Exception e) {
+            log.error("发送验证邮件失败", e);
+            return AjaxResult.error("发送验证邮件失败，请稍后重试!");
+        }
+
+        return AjaxResult.success("验证码已发送到您的QQ邮箱，请查收!");
+    }
+
+    /**
+     * 确认更改游戏ID
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AjaxResult confirmChangeId(HttpServletRequest request, String code, String qqNum) {
+        if (StringUtils.isEmpty(code) || StringUtils.isEmpty(qqNum)) {
+            return AjaxResult.error("验证码和QQ号不能为空!");
+        }
+
+        // 1. 验证验证码和QQ号是否匹配
+        if (!SecureCodeUtil.verifyCode(code, CacheKey.CHANGE_ID_KEY, qqNum)) {
+            return AjaxResult.error("验证码无效、已过期或QQ号不匹配!");
+        }
+
+        // 2. 获取缓存数据
+        String cacheKey = CacheKey.CHANGE_ID_KEY + code;
+        if (!redisCache.hasKey(cacheKey)) {
+            return AjaxResult.error("验证失败，数据不存在!");
+        }
+
+        @SuppressWarnings("unchecked")
+        Map<String, Object> cacheData = redisCache.getCacheObject(cacheKey);
+        if (cacheData == null) {
+            return AjaxResult.error("验证失败，数据不存在!");
+        }
+
+        String oldUserName = (String) cacheData.get("oldUserName");
+        String newUserName = (String) cacheData.get("newUserName");
+        String cachedQqNum = (String) cacheData.get("qqNum");
+        String changeReason = (String) cacheData.get("changeReason");
+        Long whitelistId = Long.valueOf(cacheData.get("whitelistId").toString());
+
+        // 3. 二次验证QQ号
+        if (!cachedQqNum.equals(qqNum)) {
+            return AjaxResult.error("QQ号验证失败!");
+        }
+
+        // 4. 再次检查新ID是否已存在（防止并发）
+        WhitelistInfo newIdQuery = new WhitelistInfo();
+        newIdQuery.setUserName(newUserName);
+        List<WhitelistInfo> newIdList = whitelistInfoService.selectWhitelistInfoList(newIdQuery);
+        if (newIdList != null && !newIdList.isEmpty()) {
+            // 清理缓存
+            redisCache.deleteObject(cacheKey);
+            SecureCodeUtil.deleteCode(code, CacheKey.CHANGE_ID_KEY);
+            SecureCodeUtil.clearActiveCode(qqNum, CacheKey.CHANGE_ID_KEY);
+            return AjaxResult.error("新游戏ID已存在白名单中!");
+        }
+
+        // 5. 获取原白名单信息
+        WhitelistInfo whitelistInfo = whitelistInfoService.selectWhitelistInfoById(whitelistId);
+        if (whitelistInfo == null) {
+            redisCache.deleteObject(cacheKey);
+            SecureCodeUtil.deleteCode(code, CacheKey.CHANGE_ID_KEY);
+            SecureCodeUtil.clearActiveCode(qqNum, CacheKey.CHANGE_ID_KEY);
+            return AjaxResult.error("白名单记录不存在!");
+        }
+
+        String oldUuid = whitelistInfo.getUserUuid();
+
+        // 6. 更新白名单信息
+        boolean isOnline = whitelistInfo.getOnlineFlag() == 1;
+        String newUuid = MinecraftUUIDUtil.getPlayerUUID(newUserName, isOnline);
+
+        whitelistInfo.setUserName(newUserName);
+        whitelistInfo.setUserUuid(newUuid);
+        whitelistInfo.setUpdateBy("CHANGE_ID::" + oldUserName + "->" + newUserName);
+        whitelistInfo.setUpdateTime(new Date());
+
+        int updateResult = whitelistInfoService.updateWhitelistInfo(whitelistInfo, "SYSTEM");
+        if (updateResult == 0) {
+            return AjaxResult.error("更新白名单失败!");
+        }
+
+        // 7. 更新玩家详情
+        PlayerDetails playerQuery = new PlayerDetails();
+        playerQuery.setUserName(oldUserName);
+        List<PlayerDetails> playerList = playerDetailsService.selectPlayerDetailsList(playerQuery);
+        if (playerList != null && !playerList.isEmpty()) {
+            PlayerDetails playerDetails = playerList.getFirst();
+            playerDetails.setUserName(newUserName);
+            playerDetails.setUpdateBy("CHANGE_ID::" + oldUserName + "->" + newUserName);
+            playerDetails.setUpdateTime(new Date());
+            playerDetailsService.updatePlayerDetails(playerDetails, true);
+        }
+
+        // 8. 记录更改历史
+        String ip = IPUtils.getClientIpAddress(request, ipHeaderName);
+        WhitelistIdChangeHistory history = new WhitelistIdChangeHistory();
+        history.setOldUserName(oldUserName);
+        history.setNewUserName(newUserName);
+        history.setOldUserUuid(oldUuid);
+        history.setNewUserUuid(newUuid);
+        history.setQqNum(qqNum);
+        history.setChangeReason(changeReason);
+        history.setChangeTime(new Date());
+        history.setIpAddress(ip);
+        history.setStatus("1");
+        history.setCreateBy("CHANGE_ID::" + oldUserName);
+        whitelistIdChangeHistoryService.insertWhitelistIdChangeHistory(history);
+
+        // 9. 清理所有相关缓存
+        redisCache.deleteObject(cacheKey);
+        SecureCodeUtil.deleteCode(code, CacheKey.CHANGE_ID_KEY);
+        SecureCodeUtil.clearActiveCode(qqNum, CacheKey.CHANGE_ID_KEY);
+
+        // 10. 发送通知邮件
+        asyncManager.execute(new TimerTask() {
+            @Override
+            public void run() {
+                String notifyContent = String.format(
+                        "您好！<br><br>" +
+                                "您的白名单游戏ID已成功更改：<br>" +
+                                "旧ID：%s<br>" +
+                                "新ID：%s<br>" +
+                                "更改时间：%s<br><br>" +
+                                "如果这不是您的操作，请立即联系管理员！",
+                        oldUserName,
+                        newUserName,
+                        DateUtils.getTime()
+                );
+                try {
+                    emailService.push(qqNum + EmailTemplates.QQ_EMAIL,
+                            "白名单ID更改成功通知", notifyContent);
+                } catch (Exception e) {
+                    log.error("发送通知邮件失败", e);
+                }
+            }
+        });
+
+        return AjaxResult.success("游戏ID更改成功!");
+    }
+
+    /**
+     * 检查白名单
+     */
+    @Override
+    public Map<String, Object> check(Map<String, String> params) {
+        return whitelistInfoService.check(params);
+    }
+
+    /**
+     * 根据游戏ID获取可用服务器列表
+     */
+    @Override
+    public AjaxResult getServerInfoByGameId(String gameId) {
+        WhitelistInfo whitelistInfo = new WhitelistInfo();
+        whitelistInfo.setUserName(gameId);
+        final List<WhitelistInfo> list = whitelistInfoService.selectWhitelistInfoList(whitelistInfo);
+        if (list == null || list.isEmpty()) {
+            return AjaxResult.error("抱歉，您未在白名单！");
+        }
+        whitelistInfo = list.getFirst();
+        if (!whitelistInfo.getStatus().equals("1")) {
+            return AjaxResult.error("抱歉，您未在白名单！");
+        }
+        if (whitelistInfo.getServers() == null || whitelistInfo.getServers().isEmpty()) {
+            return AjaxResult.error("抱歉，您未分配服务器！");
+        }
+        // 获取已知存活服务器主键
+        final Set<String> keySet = RconCache.getMap().keySet();
+        // 获取所有服务器
+        Map<String, Object> serverInfoMap;
+
+        // 先从缓存获取服务器信息
+        if (redisCache.hasKey(CacheKey.SERVER_INFO_MAP_KEY)) {
+            serverInfoMap = redisCache.getCacheObject(CacheKey.SERVER_INFO_MAP_KEY);
+            log.debug("从缓存获取服务器信息成功");
+        } else {
+            // 缓存不存在，从数据库查询并更新缓存
+            serverInfoMap = new HashMap<>();
+            final List<ServerInfo> serverInfos = serverInfoService.selectServerInfoList(new ServerInfo());
+            for (ServerInfo serverInfo : serverInfos) {
+                serverInfoMap.put(serverInfo.getId().toString(), serverInfo);
+            }
+            // 更新缓存
+            redisCache.setCacheObject(CacheKey.SERVER_INFO_MAP_KEY, serverInfoMap);
+            log.debug("从数据库获取服务器信息并更新缓存");
+        }
+
+        List<Object> server = new ArrayList<>();
+        if (!whitelistInfo.getServers().contains("all")) {
+            for (String s : whitelistInfo.getServers().split(",")) {
+                if (keySet.contains(s) && serverInfoMap.containsKey(s)) {
+                    server.add(serverInfoMap.get(s));
+                }
+            }
+        } else {
+            for (String s : keySet) {
+                if (serverInfoMap.containsKey(s)) {
+                    server.add(serverInfoMap.get(s));
+                }
+            }
+        }
+
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object serverObj : server) {
+            Map<String, Object> data = new HashMap<>();
+            // 使用Map处理对象，避免类型转换问题
+            Map<String, Object> serverMap = (Map<String, Object>) serverObj;
+            data.put("nameTag", serverMap.get("nameTag"));
+            data.put("ip", serverMap.get("playAddress"));
+            data.put("port", serverMap.get("playAddressPort"));
+            data.put("version", serverMap.get("serverVersion"));
+            data.put("core", serverMap.get("serverCore"));
+            data.put("up_time", serverMap.get("createTime"));
+            data.put("status", "OK");
+            result.add(data);
+        }
+        return AjaxResult.success(result);
+    }
+
+    /**
+     * 验证申请参数
+     */
+    private AjaxResult validateApplyParams(WhitelistInfo whitelistInfo) {
+        if (whitelistInfo == null || whitelistInfo.getUserName() == null || whitelistInfo.getQqNum() == null) {
+            return AjaxResult.error("申请信息不能为空!");
+        }
+        return null;
+    }
+
+    /**
+     * 验证User-Agent
+     */
+    private AjaxResult validateUserAgent(String userAgent) {
+        if (StringUtils.isEmpty(userAgent)) {
+            return AjaxResult.error("请勿使用爬虫提交申请!");
+        }
+
+        // 黑名单检查
+        String[] blackList = {
+                "okhttp", "Postman", "curl", "python", "Go-http-client", "Java",
+                "HttpClient", "Apache-HttpClient", "httpunit", "webclient",
+                "webharvest", "wget", "libwww", "htmlunit", "pangolin"
+        };
+        for (String blocked : blackList) {
+            if (userAgent.contains(blocked)) {
+                return AjaxResult.error("请勿使用爬虫提交申请!");
+            }
+        }
+
+        // 浏览器白名单检查
+        String[] browserList = {"Mozilla", "Chrome", "Safari", "Edge", "Opera", "Firefox"};
+        boolean isBrowser = false;
+        for (String browser : browserList) {
+            if (userAgent.contains(browser)) {
+                isBrowser = true;
+                break;
+            }
+        }
+        if (!isBrowser) {
+            return AjaxResult.error("请使用浏览器提交申请!");
+        }
+
+        return null;
+    }
+
+    /**
+     * 验证输入格式
+     */
+    private AjaxResult validateInputFormat(WhitelistInfo whitelistInfo) {
+        // 游戏ID正则匹配
+        Pattern gameIdPattern = Pattern.compile("[a-zA-Z0-9_]{1,35}");
+        if (!gameIdPattern.matcher(whitelistInfo.getUserName()).matches()) {
+            return AjaxResult.error("游戏ID不合法!");
+        }
+
+        // QQ号正则匹配
+        Pattern qqPattern = Pattern.compile("[0-9]{5,11}");
+        if (!qqPattern.matcher(whitelistInfo.getQqNum()).matches()) {
+            return AjaxResult.error("QQ号不合法!");
+        }
+
+        return null;
+    }
+
+    /**
+     * 检查重复申请
+     */
+    private AjaxResult checkRepeatApplication(WhitelistInfo whitelistInfo) {
+        List<WhitelistInfo> existingApplications = whitelistInfoService.checkRepeat(whitelistInfo);
+        if (existingApplications.isEmpty()) {
+            return null;
+        }
+
+        WhitelistInfo existing = existingApplications.getFirst();
+        return switch (existing.getAddState()) {
+            case "1" -> AjaxResult.success(String.format("用户:[%s]的提交已于 [%s] 日通过审核,审核人:[%s]",
+                    existing.getUserName(),
+                    dateFormat.format(existing.getAddTime()),
+                    existing.getReviewUsers()));
+            case "2" ->
+                    AjaxResult.success(String.format("用户:[%s]的审核已于 [%s] 日被移除白名单,请规范游戏!如有疑问联系管理员",
+                            existing.getUserName(),
+                            dateFormat.format(existing.getAddTime())));
+            default -> AjaxResult.success("正在审核,请勿重复提交申请~ 如有纰漏或加急请联系管理员!");
+        };
+    }
+
+    /**
+     * IP限流检查（申请阶段）
+     */
+    @SneakyThrows
+    private AjaxResult checkIpLimitForApply(String ip, WhitelistInfo whitelistInfo, String userAgent) {
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        String bodyParams = mapper.writeValueAsString(whitelistInfo);
+
+        return WhitelistUtils.checkIpLimit(ip, iIpLimitInfoService, iplimit,
+                whitelistInfo.getUserName(), userAgent, bodyParams);
+    }
+
+    /**
+     * 验证验证码
+     */
+    private AjaxResult validateVerifyCode(String code) {
+        if (StringUtils.isEmpty(code)) {
+            return AjaxResult.error("验证码生成失败,请稍后再试!");
+        }
+        if ("isExist".equals(code)) {
+            return AjaxResult.error("请勿重复申请！");
+        }
+        return null;
+    }
+
+    /**
+     * 创建玩家详情（申请阶段）
+     */
+    private PlayerDetails createPlayerDetailsForApply(WhitelistInfo whitelistInfo, String ip) {
+        PlayerDetails details = new PlayerDetails();
+        details.setUserName(whitelistInfo.getUserName());
+        details.setQq(whitelistInfo.getQqNum());
+        details.setCreateBy("AUTO::apply::" + whitelistInfo.getUserName());
+        details.setCreateTime(new Date());
+        details.setIdentity(Identity.PLAYER.getValue());
+        details.setGameTime(0L);
+
+        // 获取地理位置（使用带缓存的方法）
+        if (StringUtils.isNotEmpty(ip)) {
+            String[] location = WhitelistUtils.getIpLocationWithCache(ip);
+            if (location[0] != null) {
+                details.setProvince(location[0]);
+            }
+            if (location[1] != null) {
+                details.setCity(location[1]);
+            }
+        }
+
+        return details;
+    }
+
+    /**
+     * 缓存申请数据
+     */
+    private void cacheApplyData(String code, WhitelistInfo whitelistInfo, PlayerDetails details) {
+        Map<String, Object> data = new HashMap<>();
+        data.put("whitelistInfo", whitelistInfo);
+        data.put("details", details);
+        redisCache.setCacheObject(CacheKey.VERIFY_KEY + code, data, 30, TimeUnit.MINUTES);
+    }
+
+    /**
+     * 构建验证链接
+     */
+    private String buildVerifyUrl(Map<String, String> header, String code) {
+        String baseUrl = appUrl;
+
+        // 从header获取前端地址
+        if (header.containsKey("origon")) {
+            baseUrl = header.get("origon");
+        } else if (header.containsKey("referer")) {
+            baseUrl = header.get("referer");
+        }
+
+        // 去掉末尾的斜杠
+        if (baseUrl.endsWith("/")) {
+            baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+        }
+
+        return baseUrl + "/verify?code=" + code;
+    }
+
+    /**
+     * 检查验证码并确定来源
+     */
+    private VerifySource checkVerifyCode(String code) {
+        String webKey = CacheKey.VERIFY_KEY + code;
+        String botKey = CacheKey.VERIFY_FOR_BOT_KEY + code;
+        String batchKey = CacheKey.VERIFY_FOR_BATCH_KEY + code;
+
+        if (redisCache.hasKey(webKey)) {
+            return new VerifySource(webKey, "网页", false, false);
+        } else if (redisCache.hasKey(botKey)) {
+            return new VerifySource(botKey, "机器人", true, false);
+        } else if (redisCache.hasKey(batchKey)) {
+            return new VerifySource(batchKey, "批量", false, true);
+        }
+        return null;
+    }
+
+    /**
+     * 解析申请数据
+     */
+    @SuppressWarnings("unchecked")
+    private ApplyData parseApplyData(VerifySource verifySource) {
+        Object cacheData = redisCache.getCacheObject(verifySource.getCacheKey());
+        if (cacheData == null) {
+            throw new RuntimeException("缓存数据为空");
+        }
+
+        WhitelistInfo whitelistInfo;
+        PlayerDetails details;
+
+        if (!verifySource.isFromBot() && !verifySource.isFromBatch()) {
+            // Web端申请
+            Map<String, Object> data = (Map<String, Object>) cacheData;
+            whitelistInfo = ((JSONObject) data.get("whitelistInfo")).toJavaObject(WhitelistInfo.class);
+            details = ((JSONObject) data.get("details")).toJavaObject(PlayerDetails.class);
+        } else {
+            // 机器人或批量申请
+            whitelistInfo = (WhitelistInfo) cacheData;
+            details = createPlayerDetails(whitelistInfo, verifySource);
+        }
+
+        return new ApplyData(whitelistInfo, details);
+    }
+
+    /**
+     * 创建玩家详情
+     */
+    private PlayerDetails createPlayerDetails(WhitelistInfo whitelistInfo, VerifySource verifySource) {
+        PlayerDetails details = new PlayerDetails();
+        details.setUserName(whitelistInfo.getUserName());
+        details.setQq(whitelistInfo.getQqNum());
+        details.setCreateTime(new Date());
+        details.setIdentity(Identity.PLAYER.getValue());
+        details.setGameTime(0L);
+        details.setCreateBy(verifySource.isFromBatch() ?
+                "BATCH::apply::" + whitelistInfo.getUserName() :
+                "BOT::apply::" + whitelistInfo.getUserName());
+        return details;
+    }
+
+    /**
+     * IP限流检查（验证阶段）
+     */
+    private AjaxResult checkIpLimitForVerify(String ip, WhitelistInfo whitelistInfo, Map<String, String> header) {
+        if (StringUtils.isEmpty(ip)) {
+            return null;
+        }
+        return WhitelistUtils.checkIpLimit(ip, iIpLimitInfoService, iplimit,
+                whitelistInfo.getUserName(), header.get("user-agent"), null);
+    }
+
+    /**
+     * 更新地理位置信息
+     */
+    private void updateLocationInfo(String ip, PlayerDetails details) {
+        if (StringUtils.isEmpty(ip) || details == null) {
+            return;
+        }
+
+        String[] location = WhitelistUtils.getIpLocationWithCache(ip);
+        if (location[0] != null) {
+            details.setProvince(location[0]);
+        }
+        if (location[1] != null) {
+            details.setCity(location[1]);
+        }
+    }
+
+    /**
+     * 完善白名单信息
+     */
+    private void completeWhitelistInfo(WhitelistInfo whitelistInfo, String source) {
+        // 生成UUID
+        boolean isOnline = whitelistInfo.getOnlineFlag() == 1;
+        String uuid = MinecraftUUIDUtil.getPlayerUUID(whitelistInfo.getUserName(), isOnline);
+        whitelistInfo.setUserUuid(uuid);
+
+        // 设置创建信息
+        String prefix = switch (source) {
+            case "机器人" -> "BOT";
+            case "批量" -> "BATCH";
+            default -> "WEB";
+        };
+        whitelistInfo.setCreateBy(prefix + "::apply::" + whitelistInfo.getUserName());
+
+        // 设置时间和状态
+        Date now = new Date();
+        whitelistInfo.setCreateTime(now);
+        whitelistInfo.setAddTime(now);
+        whitelistInfo.setTime(now);
+        whitelistInfo.setAddState("0");
+        whitelistInfo.setStatus("0");
+    }
+
+    /**
+     * 检查是否自动审核通过
+     */
+    private boolean checkAutoApproval(WhitelistInfo whitelistInfo) {
+        // 检查答题功能是否开启
+        if (!isQuizEnabled()) {
+            log.info("答题功能未开启，跳过自动审批检查");
+            return false;
+        }
+
+        // 检查自动通过功能是否启用
+        if (!isAutoPassEnabled()) {
+            return false;
+        }
+
+        // 检查玩家答题记录
+        WhitelistQuizSubmission latestSubmission = getLatestQuizSubmission(whitelistInfo.getUserName());
+        if (latestSubmission == null || latestSubmission.getPassStatus() == null || latestSubmission.getPassStatus() != 1) {
+            return false;
+        }
+
+        // 自动审核通过
+        whitelistInfo.setStatus("1");
+        whitelistInfo.setReviewUsers("System(Auto)");
+        whitelistInfo.setUpdateTime(new Date());
+        log.info("用户[{}]的白名单申请已自动通过审核，答题分数：{}",
+                whitelistInfo.getUserName(), latestSubmission.getTotalScore());
+        return true;
+    }
+
+    /**
+     * 检查答题功能是否开启 - 使用缓存
+     */
+    private boolean isQuizEnabled() {
+        return quizConfigCache.isQuizEnabled();
+    }
+
+    /**
+     * 检查自动通过功能是否启用 - 使用缓存
+     */
+    private boolean isAutoPassEnabled() {
+        return quizConfigCache.isAutoPassEnabled();
+    }
+
+    /**
+     * 获取最新的答题记录
+     */
+    private WhitelistQuizSubmission getLatestQuizSubmission(String playerName) {
+        WhitelistQuizSubmission query = new WhitelistQuizSubmission();
+        query.setPlayerName(playerName);
+        List<WhitelistQuizSubmission> submissions = quizSubmissionService.selectWhitelistQuizSubmissionList(query);
+
+        if (submissions == null || submissions.isEmpty()) {
+            return null;
+        }
+
+        // 找到最新的提交
+        WhitelistQuizSubmission latest = submissions.getFirst();
+        for (WhitelistQuizSubmission sub : submissions) {
+            if (sub.getSubmitTime() != null &&
+                    (latest.getSubmitTime() == null || sub.getSubmitTime().after(latest.getSubmitTime()))) {
+                latest = sub;
+            }
+        }
+        return latest;
+    }
+
+    /**
+     * 发送通知（异步）
+     */
+    private void sendNotifications(WhitelistInfo whitelistInfo, PlayerDetails details, String source, boolean autoApproved) {
+        // 通知申请人
+        asyncManager.execute(new TimerTask() {
+            @Override
+            public void run() {
+                sendApplicantNotification(whitelistInfo, autoApproved);
+            }
+        });
+
+        // 通知管理员
+        asyncManager.execute(new TimerTask() {
+            @Override
+            public void run() {
+                sendAdminNotification(whitelistInfo, autoApproved);
+            }
+        });
+    }
+
+    /**
+     * 发送申请人通知
+     */
+    private void sendApplicantNotification(WhitelistInfo whitelistInfo, boolean autoApproved) {
+        try {
+            String emailContent;
+            if (autoApproved) {
+                emailContent = EmailTemplates.getWhitelistNotificationPending(
+                        whitelistInfo.getQqNum(),
+                        whitelistInfo.getUserName(),
+                        DateUtils.getTime(),
+                        true,
+                        "default"
+                ).replace("正在审核中", "已自动审核通过");
+            } else {
+                emailContent = EmailTemplates.getWhitelistNotificationPending(
+                        whitelistInfo.getQqNum(),
+                        whitelistInfo.getUserName(),
+                        DateUtils.getTime(),
+                        false,
+                        "default"
+                );
+            }
+            emailService.push(whitelistInfo.getQqNum() + EmailTemplates.QQ_EMAIL,
+                    EmailTemplates.TITLE, emailContent);
+        } catch (Exception e) {
+            log.error("发送申请人通知失败", e);
+        }
+    }
+
+    /**
+     * 发送管理员通知
+     */
+    private void sendAdminNotification(WhitelistInfo whitelistInfo, boolean autoApproved) {
+        try {
+            String reviewTemplate = EmailTemplates.getReviewTemplate(
+                    whitelistInfo.getQqNum(),
+                    whitelistInfo.getUserName(),
+                    DateUtils.getTime(),
+                    autoApproved
+            );
+
+            String fallbackMessage = autoApproved ?
+                    "用户 [" + whitelistInfo.getUserName() + "] 的白名单申请已被系统自动审核通过!" :
+                    "用户 [" + whitelistInfo.getUserName() + "] 提交了白名单申请,请尽快审核!";
+
+            emailService.push(ADMIN_EMAIL, EmailTemplates.TITLE,
+                    reviewTemplate != null ? reviewTemplate : fallbackMessage);
+        } catch (Exception e) {
+            log.error("发送管理员通知失败", e);
         }
     }
 

@@ -69,6 +69,21 @@ module.exports = {
         minRatio: 0.8                   // 压缩率小于1才会压缩
       })
     ],
+    // 性能优化：排除大型依赖
+    externals: process.env.NODE_ENV === 'production' ? {
+      'vue': 'Vue',
+      'vue-router': 'VueRouter',
+      'vuex': 'Vuex',
+      'axios': 'axios',
+      'element-ui': 'ELEMENT',
+      'echarts': 'echarts'
+    } : {},
+    // 性能提示配置
+    performance: {
+      hints: 'warning',
+      maxEntrypointSize: 512000,
+      maxAssetSize: 512000
+    }
   },
   chainWebpack(config) {
     config.plugins.delete('preload') // TODO: need test
@@ -91,6 +106,13 @@ module.exports = {
       })
       .end()
 
+    // 图片压缩
+    config.module
+      .rule('images')
+      .use('url-loader')
+      .loader('url-loader')
+      .tap(options => Object.assign(options, {limit: 10240}))
+
     config.when(process.env.NODE_ENV !== 'development', config => {
       config
         .plugin('ScriptExtHtmlWebpackPlugin')
@@ -101,6 +123,7 @@ module.exports = {
         }])
         .end()
 
+      // 代码分割优化
       config.optimization.splitChunks({
         chunks: 'all',
         cacheGroups: {
@@ -115,6 +138,21 @@ module.exports = {
             test: /[\\/]node_modules[\\/]_?element-ui(.*)/, // in order to adapt to cnpm
             priority: 20 // the weight needs to be larger than libs and app or it will be packaged into libs or app
           },
+          echarts: {
+            name: 'chunk-echarts',
+            test: /[\\/]node_modules[\\/]_?echarts(.*)/,
+            priority: 20
+          },
+          monaco: {
+            name: 'chunk-monaco',
+            test: /[\\/]node_modules[\\/]_?monaco-editor(.*)/,
+            priority: 20
+          },
+          xterm: {
+            name: 'chunk-xterm',
+            test: /[\\/]node_modules[\\/]_?xterm(.*)/,
+            priority: 20
+          },
           commons: {
             name: 'chunk-commons',
             test: resolve('src/components'), // can customize your rules
@@ -125,11 +163,29 @@ module.exports = {
         }
       })
 
-      config.optimization.runtimeChunk('single'),
-        {
-          from: path.resolve(__dirname, './public/robots.txt'), //防爬虫文件
-          to: './' //到根目录下
+      // 优化运行时chunk
+      config.optimization.runtimeChunk('single')
+
+      // 压缩配置
+      config.optimization.minimize(true)
+
+      // 添加CDN资源
+      config.plugin('html').tap(args => {
+        args[0].cdn = {
+          css: [
+            'https://cdn.jsdelivr.net/npm/element-ui@2.15.14/lib/theme-chalk/index.css'
+          ],
+          js: [
+            'https://cdn.jsdelivr.net/npm/vue@2.6.12/dist/vue.min.js',
+            'https://cdn.jsdelivr.net/npm/vue-router@3.4.9/dist/vue-router.min.js',
+            'https://cdn.jsdelivr.net/npm/vuex@3.6.0/dist/vuex.min.js',
+            'https://cdn.jsdelivr.net/npm/axios@0.24.0/dist/axios.min.js',
+            'https://cdn.jsdelivr.net/npm/element-ui@2.15.14/lib/index.js',
+            'https://cdn.jsdelivr.net/npm/echarts@5.4.0/dist/echarts.min.js'
+          ]
         }
+        return args
+      })
     })
   }
 }

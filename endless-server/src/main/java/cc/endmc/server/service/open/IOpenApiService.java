@@ -2,7 +2,12 @@ package cc.endmc.server.service.open;
 
 
 import cc.endmc.common.core.domain.AjaxResult;
+import cc.endmc.server.domain.permission.WhitelistInfo;
+import cc.endmc.server.request.ChangeIdRequest;
 import com.alibaba.fastjson2.JSONObject;
+import jakarta.servlet.http.HttpServletRequest;
+
+import java.util.Map;
 
 /**
  * Open API 接口服务
@@ -99,4 +104,59 @@ public interface IOpenApiService {
      * @return 队列状态信息
      */
     AjaxResult getMessageQueueStatus();
+
+    /**
+     * 申请白名单
+     *
+     * @param request       请求
+     * @param whitelistInfo 白名单信息
+     * @param header        请求头
+     * @return 结果
+     */
+    AjaxResult apply(HttpServletRequest request, WhitelistInfo whitelistInfo, Map<String, String> header);
+
+    /**
+     * 验证白名单
+     *
+     * @param request 请求
+     * @param code    验证码
+     * @param header  请求头
+     * @return 结果
+     */
+    AjaxResult verify(HttpServletRequest request, String code, Map<String, String> header);
+
+    /**
+     * 请求更改游戏ID
+     *
+     * @param request       请求
+     * @param changeRequest 更改请求
+     * @return 结果
+     */
+    AjaxResult requestChangeId(HttpServletRequest request, ChangeIdRequest changeRequest);
+
+    /**
+     * 确认更改游戏ID
+     *
+     * @param request 请求
+     * @param code    验证码
+     * @param qqNum   QQ号
+     * @return 结果
+     */
+    AjaxResult confirmChangeId(HttpServletRequest request, String code, String qqNum);
+
+    /**
+     * 获取玩家白名单信息
+     *
+     * @param params 参数
+     * @return 结果
+     */
+    Map<String, Object> check(Map<String, String> params);
+
+    /**
+     * 根据游戏ID获取服务器信息
+     *
+     * @param gameId 游戏ID
+     * @return 结果
+     */
+    AjaxResult getServerInfoByGameId(String gameId);
 }

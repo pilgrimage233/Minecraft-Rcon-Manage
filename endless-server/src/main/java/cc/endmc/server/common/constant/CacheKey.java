@@ -35,6 +35,8 @@ public class CacheKey {
 
     public static final String VERIFY_FOR_BATCH_KEY = "server_manager:verify:batch:"; // 批量操作验证码前缀
 
+    public static final String CHANGE_ID_KEY = "server_manager:change_id:"; // ID更改验证码前缀
+
     public static final String COMMAND_USE_KEY = "server_manager:command:use:"; // 指令使用前缀
 
     public static final String NODE_SERVER_MAP_KEY = "server_manager:node:server_map:"; // 节点服务器映射前缀

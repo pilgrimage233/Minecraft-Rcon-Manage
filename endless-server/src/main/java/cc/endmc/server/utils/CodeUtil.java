@@ -26,6 +26,7 @@ public class CodeUtil {
      * @param cacheKey 缓存键
      * @return 验证码
      */
+    @Deprecated
     public static String generateCode(String qq, String cacheKey) {
         // 验证码
         String code;

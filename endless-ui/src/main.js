@@ -1,10 +1,6 @@
 import Vue from 'vue'
 
 import Cookies from 'js-cookie'
-
-import Element from 'element-ui'
-import './assets/styles/element-variables.scss'
-
 import '@/assets/styles/index.scss' // global css
 import '@/assets/styles/ruoyi.scss' // ruoyi css
 import App from './App'
@@ -37,6 +33,16 @@ import DictTag from '@/components/DictTag'
 import VueMeta from 'vue-meta'
 // 字典数据组件
 import DictData from '@/components/DictData'
+
+// 按需引入Element UI组件以减少包体积
+// 生产环境使用CDN，开发环境使用本地
+if (process.env.NODE_ENV === 'development') {
+  const Element = require('element-ui')
+  require('./assets/styles/element-variables.scss')
+  Vue.use(Element, {
+    size: Cookies.get('size') || 'medium'
+  })
+}
 
 // 全局方法挂载
 Vue.prototype.getDicts = getDicts
@@ -72,11 +78,18 @@ DictData.install()
  * please remove it before going online! ! !
  */
 
-Vue.use(Element, {
-  size: Cookies.get('size') || 'medium' // set element-ui default size
-})
+// 生产环境使用CDN的Element UI
+if (process.env.NODE_ENV === 'production') {
+  Vue.use(window.ELEMENT, {
+    size: Cookies.get('size') || 'medium'
+  })
+}
 
 Vue.config.productionTip = false
+// 性能优化：关闭开发工具提示
+Vue.config.devtools = process.env.NODE_ENV === 'development'
+// 性能优化：关闭生产环境的警告
+Vue.config.silent = process.env.NODE_ENV === 'production'
 
 new Vue({
   el: '#app',

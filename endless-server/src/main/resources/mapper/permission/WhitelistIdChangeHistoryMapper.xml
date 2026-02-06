@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.permission.WhitelistIdChangeHistoryMapper">
+
+    <resultMap type="cc.endmc.server.domain.permission.WhitelistIdChangeHistory" id="WhitelistIdChangeHistoryResult">
+        <result property="id" column="id"/>
+        <result property="oldUserName" column="old_user_name"/>
+        <result property="newUserName" column="new_user_name"/>
+        <result property="oldUserUuid" column="old_user_uuid"/>
+        <result property="newUserUuid" column="new_user_uuid"/>
+        <result property="qqNum" column="qq_num"/>
+        <result property="changeReason" column="change_reason"/>
+        <result property="changeTime" column="change_time"/>
+        <result property="ipAddress" column="ip_address"/>
+        <result property="status" column="status"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectWhitelistIdChangeHistoryVo">
+        select id,
+               old_user_name,
+               new_user_name,
+               old_user_uuid,
+               new_user_uuid,
+               qq_num,
+               change_reason,
+               change_time,
+               ip_address,
+               status,
+               create_by,
+               create_time,
+               update_by,
+               update_time,
+               remark
+        from whitelist_id_change_history
+    </sql>
+
+    <select id="selectWhitelistIdChangeHistoryList"
+            parameterType="cc.endmc.server.domain.permission.WhitelistIdChangeHistory"
+            resultMap="WhitelistIdChangeHistoryResult">
+        <include refid="selectWhitelistIdChangeHistoryVo"/>
+        <where>
+            <if test="oldUserName != null  and oldUserName != ''">and old_user_name like concat('%', #{oldUserName},
+                '%')
+            </if>
+            <if test="newUserName != null  and newUserName != ''">and new_user_name like concat('%', #{newUserName},
+                '%')
+            </if>
+            <if test="qqNum != null  and qqNum != ''">and qq_num = #{qqNum}</if>
+            <if test="status != null  and status != ''">and status = #{status}</if>
+        </where>
+        order by change_time desc
+    </select>
+
+    <select id="selectWhitelistIdChangeHistoryById" parameterType="Long" resultMap="WhitelistIdChangeHistoryResult">
+        <include refid="selectWhitelistIdChangeHistoryVo"/>
+        where id = #{id}
+    </select>
+
+    <insert id="insertWhitelistIdChangeHistory"
+            parameterType="cc.endmc.server.domain.permission.WhitelistIdChangeHistory" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into whitelist_id_change_history
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="oldUserName != null and oldUserName != ''">old_user_name,</if>
+            <if test="newUserName != null and newUserName != ''">new_user_name,</if>
+            <if test="oldUserUuid != null">old_user_uuid,</if>
+            <if test="newUserUuid != null">new_user_uuid,</if>
+            <if test="qqNum != null and qqNum != ''">qq_num,</if>
+            <if test="changeReason != null">change_reason,</if>
+            <if test="changeTime != null">change_time,</if>
+            <if test="ipAddress != null">ip_address,</if>
+            <if test="status != null">status,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="oldUserName != null and oldUserName != ''">#{oldUserName},</if>
+            <if test="newUserName != null and newUserName != ''">#{newUserName},</if>
+            <if test="oldUserUuid != null">#{oldUserUuid},</if>
+            <if test="newUserUuid != null">#{newUserUuid},</if>
+            <if test="qqNum != null and qqNum != ''">#{qqNum},</if>
+            <if test="changeReason != null">#{changeReason},</if>
+            <if test="changeTime != null">#{changeTime},</if>
+            <if test="ipAddress != null">#{ipAddress},</if>
+            <if test="status != null">#{status},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+        </trim>
+    </insert>
+
+    <update id="updateWhitelistIdChangeHistory"
+            parameterType="cc.endmc.server.domain.permission.WhitelistIdChangeHistory">
+        update whitelist_id_change_history
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="oldUserName != null and oldUserName != ''">old_user_name = #{oldUserName},</if>
+            <if test="newUserName != null and newUserName != ''">new_user_name = #{newUserName},</if>
+            <if test="oldUserUuid != null">old_user_uuid = #{oldUserUuid},</if>
+            <if test="newUserUuid != null">new_user_uuid = #{newUserUuid},</if>
+            <if test="qqNum != null and qqNum != ''">qq_num = #{qqNum},</if>
+            <if test="changeReason != null">change_reason = #{changeReason},</if>
+            <if test="changeTime != null">change_time = #{changeTime},</if>
+            <if test="ipAddress != null">ip_address = #{ipAddress},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="createBy != null">create_by = #{createBy},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <delete id="deleteWhitelistIdChangeHistoryById" parameterType="Long">
+        delete
+        from whitelist_id_change_history
+        where id = #{id}
+    </delete>
+
+    <delete id="deleteWhitelistIdChangeHistoryByIds" parameterType="String">
+        delete from whitelist_id_change_history where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
+</mapper>

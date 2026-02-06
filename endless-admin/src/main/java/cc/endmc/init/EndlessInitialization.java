@@ -19,6 +19,7 @@ import cc.endmc.server.domain.email.CustomEmailTemplates;
 import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.sdk.SearchHttpAK;
 import cc.endmc.server.service.email.ICustomEmailTemplatesService;
+import cc.endmc.server.service.quiz.IWhitelistQuizConfigService;
 import cc.endmc.server.service.server.IServerCommandInfoService;
 import cc.endmc.server.service.server.IServerInfoService;
 import cn.hutool.http.HttpResponse;
@@ -58,6 +59,7 @@ public class EndlessInitialization implements InitializingBean {
     private final INodeServerService nodeServerService;
     private final IServerCommandInfoService commandInfoService;
     private final ICustomEmailTemplatesService customEmailTemplatesService;
+    private final IWhitelistQuizConfigService whitelistQuizConfigService;
     private final RconService rconService;
     private final RconConfig rconConfig;
     private final Environment env;
@@ -87,9 +89,10 @@ public class EndlessInitialization implements InitializingBean {
             CompletableFuture<Void> commandFuture = CompletableFuture.runAsync(this::initCommandInfo, executorService);
             CompletableFuture<Void> nodeFuture = CompletableFuture.runAsync(this::initNodeServers, executorService);
             CompletableFuture<Void> emailFuture = CompletableFuture.runAsync(this::initEmailTemplates, executorService);
+            CompletableFuture<Void> quizConfigFuture = CompletableFuture.runAsync(this::initQuizConfigCache, executorService);
 
             // 等待所有任务完成
-            CompletableFuture.allOf(serverInfoFuture, commandFuture, nodeFuture, emailFuture)
+            CompletableFuture.allOf(serverInfoFuture, commandFuture, nodeFuture, emailFuture, quizConfigFuture)
                     .get(30, TimeUnit.SECONDS);
 
             // 4. 初始化 Rcon 连接（依赖服务器信息）
@@ -301,6 +304,19 @@ public class EndlessInitialization implements InitializingBean {
         } catch (Exception e) {
             log.error("❌ 初始化邮件模板缓存失败", e);
             // 邮件模板失败不应该导致整个初始化失败
+        }
+    }
+
+    /**
+     * 初始化问卷配置缓存
+     */
+    private void initQuizConfigCache() {
+        try {
+            log.debug("📝 初始化问卷配置缓存...");
+            whitelistQuizConfigService.initConfigCache();
+        } catch (Exception e) {
+            log.error("❌ 初始化问卷配置缓存失败", e);
+            // 问卷配置失败不应该导致整个初始化失败
         }
     }
 

@@ -12,6 +12,8 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.annotation.web.configurers.HeadersConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
@@ -84,10 +86,10 @@ public class SecurityConfig {
     protected SecurityFilterChain filterChain(HttpSecurity httpSecurity) throws Exception {
         return httpSecurity
                 // CSRF禁用，因为不使用session
-                .csrf(csrf -> csrf.disable())
+                .csrf(AbstractHttpConfigurer::disable)
                 // 禁用HTTP响应标头
                 .headers((headersCustomizer) -> {
-                    headersCustomizer.cacheControl(cache -> cache.disable()).frameOptions(options -> options.sameOrigin());
+                    headersCustomizer.cacheControl(HeadersConfigurer.CacheControlConfig::disable).frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin);
                 })
                 // 认证失败处理类
                 .exceptionHandling(exception -> exception.authenticationEntryPoint(unauthorizedHandler))
@@ -99,17 +101,10 @@ public class SecurityConfig {
                     // 对于登录login 注册register 验证码captchaImage 允许匿名访问
                     requests.requestMatchers("/login", "/register", "/captchaImage").permitAll()
                             // 静态资源，可匿名访问
-                            .requestMatchers(HttpMethod.GET, "/","/system/info", "/*.html", "/**.html", "/**.css", "/**.js", "/profile/**").permitAll()
+                            .requestMatchers(HttpMethod.GET, "/", "/system/info", "/*.html", "/**.html", "/**.css", "/**.js", "/profile/**").permitAll()
                             .requestMatchers("/swagger-ui.html", "/v3/api-docs/**", "/swagger-ui/**", "/druid/**").permitAll()
                             // 放行WebSocket端点
                             .requestMatchers("/ws/**").permitAll()
-                            .requestMatchers("/mc/whitelist/apply").permitAll()
-                            .requestMatchers("/mc/whitelist/verify").permitAll()
-                            .requestMatchers("/server/serverlist/getOnlinePlayer").permitAll()
-                            .requestMatchers("/mc/whitelist/check").permitAll()
-                            .requestMatchers("/mc/whitelist/getWhiteList").permitAll()
-                            .requestMatchers("/server/serverlist/sendCommand").permitAll()
-                            .requestMatchers("/server/serverlist/getServerInfoByGameId/*").permitAll()
                             .requestMatchers("/mojang/user/**").permitAll()
                             .requestMatchers("/mojang/**").permitAll()
                             .requestMatchers("/api/v1/**").permitAll()
