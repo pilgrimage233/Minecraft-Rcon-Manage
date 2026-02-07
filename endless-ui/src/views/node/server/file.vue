@@ -587,7 +587,7 @@ export default {
 <style lang="scss" scoped>
 .app-container {
   padding: 20px;
-  background-color: #f0f2f5;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
   min-height: calc(100vh - 84px);
 }
 

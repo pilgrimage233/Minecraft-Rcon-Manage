@@ -1,219 +1,231 @@
 <template>
   <div class="app-container">
-    <el-form v-show="showSearch" ref="queryForm" :inline="true" :model="queryParams" label-width="68px" size="small">
-      <el-form-item label="服务器ID" prop="serverId">
-        <el-input
-          v-model="queryParams.serverId"
-          clearable
-          placeholder="请输入服务器ID"
-          @keyup.enter.native="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item label="在线加白" prop="onlineAddWhitelistCommand">
-        <el-input
-          v-model="queryParams.onlineAddWhitelistCommand"
-          clearable
-          placeholder="请输入在线加白指令"
-          @keyup.enter.native="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item label="离线加白" prop="offlineAddWhitelistCommand">
-        <el-input
-          v-model="queryParams.offlineAddWhitelistCommand"
-          clearable
-          placeholder="请输入离线加白指令"
-          @keyup.enter.native="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item label="在线移白" prop="onlineRmWhitelistCommand">
-        <el-input
-          v-model="queryParams.onlineRmWhitelistCommand"
-          clearable
-          placeholder="请输入在线移白指令"
-          @keyup.enter.native="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item label="离线移白" prop="offlineRmWhitelistCommand">
-        <el-input
-          v-model="queryParams.offlineRmWhitelistCommand"
-          clearable
-          placeholder="请输入离线移白指令"
-          @keyup.enter.native="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item label="在线封禁" prop="onlineAddBanCommand">
-        <el-input
-          v-model="queryParams.onlineAddBanCommand"
-          clearable
-          placeholder="请输入在线封禁指令"
-          @keyup.enter.native="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item label="离线封禁" prop="offlineAddBanCommand">
-        <el-input
-          v-model="queryParams.offlineAddBanCommand"
-          clearable
-          placeholder="请输入离线封禁指令"
-          @keyup.enter.native="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item label="在线解封" prop="onlineRmBanCommand">
-        <el-input
-          v-model="queryParams.onlineRmBanCommand"
-          clearable
-          placeholder="请输入在线解封指令"
-          @keyup.enter.native="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item label="离线解封" prop="offlineRmBanCommand">
-        <el-input
-          v-model="queryParams.offlineRmBanCommand"
-          clearable
-          placeholder="请输入离线解封指令"
-          @keyup.enter.native="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item>
-        <el-button icon="el-icon-search" size="mini" type="primary" @click="handleQuery">搜索</el-button>
-        <el-button icon="el-icon-refresh" size="mini" @click="resetQuery">重置</el-button>
-      </el-form-item>
-    </el-form>
+    <el-card v-show="showSearch" class="search-card" shadow="never">
+      <el-form ref="queryForm" :inline="true" :model="queryParams" label-width="85px" size="small">
+        <el-row :gutter="20">
+          <el-col :span="6">
+            <el-form-item label="服务器ID" prop="serverId">
+              <el-input
+                v-model="queryParams.serverId"
+                clearable
+                placeholder="请输入服务器ID"
+                @keyup.enter.native="handleQuery"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="在线加白" prop="onlineAddWhitelistCommand">
+              <el-input
+                v-model="queryParams.onlineAddWhitelistCommand"
+                clearable
+                placeholder="搜索在线加白指令"
+                @keyup.enter.native="handleQuery"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item label="在线封禁" prop="onlineAddBanCommand">
+              <el-input
+                v-model="queryParams.onlineAddBanCommand"
+                clearable
+                placeholder="搜索在线封禁指令"
+                @keyup.enter.native="handleQuery"
+              />
+            </el-form-item>
+          </el-col>
+          <el-col :span="6">
+            <el-form-item>
+              <el-button icon="el-icon-search" size="mini" type="primary" @click="handleQuery">搜索</el-button>
+              <el-button icon="el-icon-refresh" size="mini" @click="resetQuery">重置</el-button>
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
+    </el-card>
 
-    <el-row :gutter="10" class="mb8">
-      <el-col :span="1.5">
-        <el-button
-          v-hasPermi="['mc:command:add']"
-          icon="el-icon-plus"
-          plain
-          size="mini"
-          type="primary"
-          @click="handleAdd"
-        >新增
-        </el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button
-          v-hasPermi="['mc:command:edit']"
-          :disabled="single"
-          icon="el-icon-edit"
-          plain
-          size="mini"
-          type="success"
-          @click="handleUpdate"
-        >修改
-        </el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button
-          v-hasPermi="['mc:command:remove']"
-          :disabled="multiple"
-          icon="el-icon-delete"
-          plain
-          size="mini"
-          type="danger"
-          @click="handleDelete"
-        >删除
-        </el-button>
-      </el-col>
-      <el-col :span="1.5">
-        <el-button
-          v-hasPermi="['mc:command:export']"
-          icon="el-icon-download"
-          plain
-          size="mini"
-          type="warning"
-          @click="handleExport"
-        >导出
-        </el-button>
-      </el-col>
-      <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
-    </el-row>
-
-    <el-table v-loading="loading" :data="commandList" @selection-change="handleSelectionChange">
-      <el-table-column align="center" type="selection" width="55"/>
-      <el-table-column align="center" label="主键ID" prop="id"/>
-      <el-table-column align="center" label="服务器ID" prop="serverId"/>
-      <el-table-column align="center" label="在线加白指令" prop="onlineAddWhitelistCommand" show-overflow-tooltip/>
-      <el-table-column align="center" label="离线加白指令" prop="offlineAddWhitelistCommand" show-overflow-tooltip/>
-      <el-table-column align="center" label="在线移白指令" prop="onlineRmWhitelistCommand" show-overflow-tooltip/>
-      <el-table-column align="center" label="离线移白指令" prop="offlineRmWhitelistCommand" show-overflow-tooltip/>
-      <el-table-column align="center" label="在线加封指令" prop="onlineAddBanCommand" show-overflow-tooltip/>
-      <el-table-column align="center" label="离线加封指令" prop="offlineAddBanCommand" show-overflow-tooltip/>
-      <el-table-column align="center" label="在线解封指令" prop="onlineRmBanCommand" show-overflow-tooltip/>
-      <el-table-column align="center" label="离线解封指令" prop="offlineRmBanCommand" show-overflow-tooltip/>
-      <el-table-column align="center" label="描述" prop="remark"/>
-      <el-table-column align="center" class-name="small-padding fixed-width" label="操作">
-        <template slot-scope="scope">
+    <el-card class="table-card" shadow="never">
+      <el-row :gutter="10" class="mb8">
+        <el-col :span="1.5">
+          <el-button
+            v-hasPermi="['mc:command:add']"
+            icon="el-icon-plus"
+            plain
+            size="mini"
+            type="primary"
+            @click="handleAdd"
+          >新增
+          </el-button>
+        </el-col>
+        <el-col :span="1.5">
           <el-button
             v-hasPermi="['mc:command:edit']"
+            :disabled="single"
             icon="el-icon-edit"
+            plain
             size="mini"
-            type="text"
-            @click="handleUpdate(scope.row)"
+            type="success"
+            @click="handleUpdate"
           >修改
           </el-button>
+        </el-col>
+        <el-col :span="1.5">
           <el-button
             v-hasPermi="['mc:command:remove']"
+            :disabled="multiple"
             icon="el-icon-delete"
+            plain
             size="mini"
-            type="text"
-            @click="handleDelete(scope.row)"
+            type="danger"
+            @click="handleDelete"
           >删除
           </el-button>
-        </template>
-      </el-table-column>
-    </el-table>
+        </el-col>
+        <el-col :span="1.5">
+          <el-button
+            v-hasPermi="['mc:command:export']"
+            icon="el-icon-download"
+            plain
+            size="mini"
+            type="warning"
+            @click="handleExport"
+          >导出
+          </el-button>
+        </el-col>
+        <right-toolbar :showSearch.sync="showSearch" @queryTable="getList"></right-toolbar>
+      </el-row>
 
-    <pagination
-      v-show="total>0"
-      :limit.sync="queryParams.pageSize"
-      :page.sync="queryParams.pageNum"
-      :total="total"
-      @pagination="getList"
-    />
+      <el-table v-loading="loading" :data="commandList" @selection-change="handleSelectionChange">
+        <el-table-column align="center" type="selection" width="55"/>
+        <el-table-column align="center" label="主键ID" prop="id" width="80"/>
+        <el-table-column align="center" label="服务器ID" prop="serverId" width="100">
+          <template slot-scope="scope">
+            <el-tag size="small">{{ scope.row.serverId }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column align="center" label="白名单指令 (在线/离线)">
+          <el-table-column align="center" label="在线加白" prop="onlineAddWhitelistCommand" show-overflow-tooltip/>
+          <el-table-column align="center" label="离线加白" prop="offlineAddWhitelistCommand" show-overflow-tooltip/>
+          <el-table-column align="center" label="在线移白" prop="onlineRmWhitelistCommand" show-overflow-tooltip/>
+          <el-table-column align="center" label="离线移白" prop="offlineRmWhitelistCommand" show-overflow-tooltip/>
+        </el-table-column>
+        <el-table-column align="center" label="封禁指令 (在线/离线)">
+          <el-table-column align="center" label="在线封禁" prop="onlineAddBanCommand" show-overflow-tooltip/>
+          <el-table-column align="center" label="离线封禁" prop="offlineAddBanCommand" show-overflow-tooltip/>
+          <el-table-column align="center" label="在线解封" prop="onlineRmBanCommand" show-overflow-tooltip/>
+          <el-table-column align="center" label="离线解封" prop="offlineRmBanCommand" show-overflow-tooltip/>
+        </el-table-column>
+        <el-table-column align="center" label="描述" prop="remark" show-overflow-tooltip/>
+        <el-table-column align="center" class-name="small-padding fixed-width" label="操作" width="120">
+          <template slot-scope="scope">
+            <el-button
+              v-hasPermi="['mc:command:edit']"
+              icon="el-icon-edit"
+              size="mini"
+              type="text"
+              @click="handleUpdate(scope.row)"
+            >修改
+            </el-button>
+            <el-button
+              v-hasPermi="['mc:command:remove']"
+              icon="el-icon-delete"
+              size="mini"
+              type="text"
+              @click="handleDelete(scope.row)"
+            >删除
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <pagination
+        v-show="total>0"
+        :limit.sync="queryParams.pageSize"
+        :page.sync="queryParams.pageNum"
+        :total="total"
+        @pagination="getList"
+      />
+    </el-card>
 
     <!-- 添加或修改指令管理对话框 -->
-    <el-dialog :before-close="handleClose" :title="title" :visible.sync="open" append-to-body width="500px">
-      <div style="color: #F56C6C; margin-bottom: 15px;">提示：所有指令格式为"指令 {player}"，例如：whitelist add {player}
-      </div>
-      <el-form ref="form" :model="form" :rules="rules" label-width="80px">
-        <el-form-item label="服务器ID" prop="server">
-          <el-select v-model="serverList" :disabled=editFlag multiple placeholder="请选择服务器">
-            <el-option
-              v-for="item in serverOptions"
-              :key="item.value"
-              :label="item.label"
-              :value="item.value">
-            </el-option>
-          </el-select>
-        </el-form-item>
-        <el-form-item label="在线加白" prop="onlineAddWhitelistCommand">
-          <el-input v-model="form.onlineAddWhitelistCommand" placeholder="请输入在线加白指令"/>
-        </el-form-item>
-        <el-form-item label="离线加白" prop="offlineAddWhitelistCommand">
-          <el-input v-model="form.offlineAddWhitelistCommand" placeholder="请输入离线加白指令"/>
-        </el-form-item>
-        <el-form-item label="在线移白" prop="onlineRmWhitelistCommand">
-          <el-input v-model="form.onlineRmWhitelistCommand" placeholder="请输入在线移白指令"/>
-        </el-form-item>
-        <el-form-item label="离线移白" prop="offlineRmWhitelistCommand">
-          <el-input v-model="form.offlineRmWhitelistCommand" placeholder="请输入离线移白指令"/>
-        </el-form-item>
-        <el-form-item label="在线加封" prop="onlineAddBanCommand">
-          <el-input v-model="form.onlineAddBanCommand" placeholder="请输入在线加封指令"/>
-        </el-form-item>
-        <el-form-item label="离线加封" prop="offlineAddBanCommand">
-          <el-input v-model="form.offlineAddBanCommand" placeholder="请输入离线加封指令"/>
-        </el-form-item>
-        <el-form-item label="在线解封" prop="onlineRmBanCommand">
-          <el-input v-model="form.onlineRmBanCommand" placeholder="请输入在线解封指令"/>
-        </el-form-item>
-        <el-form-item label="离线解封" prop="offlineRmBanCommand">
-          <el-input v-model="form.offlineRmBanCommand" placeholder="请输入离线解封指令"/>
-        </el-form-item>
-        <el-form-item label="描述" prop="remark">
-          <el-input v-model="form.remark" placeholder="请输入描述"/>
-        </el-form-item>
+    <el-dialog :before-close="handleClose" :title="title" :visible.sync="open" append-to-body
+               custom-class="command-dialog" width="700px">
+      <el-alert
+        :closable="false"
+        description='所有指令格式为"指令 {player}"，例如：whitelist add {player}。其中 {player} 会被自动替换为玩家名称。'
+        show-icon
+        style="margin-bottom: 20px;"
+        title="指令格式提示"
+        type="warning"
+      />
+      <el-form ref="form" :model="form" :rules="rules" label-width="110px">
+        <el-row :gutter="20">
+          <el-col :span="24">
+            <el-form-item label="服务器ID" prop="server">
+              <el-select v-model="serverList" :disabled=editFlag multiple placeholder="请选择服务器"
+                         style="width: 100%">
+                <el-option
+                  v-for="item in serverOptions"
+                  :key="item.value"
+                  :label="item.label"
+                  :value="item.value">
+                </el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="描述备注" prop="remark">
+              <el-input v-model="form.remark" placeholder="请输入描述备注" type="textarea"/>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <div class="form-section-title">白名单命令配置 (Whitelist)</div>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="在线加白" prop="onlineAddWhitelistCommand">
+              <el-input v-model="form.onlineAddWhitelistCommand" placeholder="例如: whitelist add {player}"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="离线加白" prop="offlineAddWhitelistCommand">
+              <el-input v-model="form.offlineAddWhitelistCommand" placeholder="离线玩家加白指令"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="在线移白" prop="onlineRmWhitelistCommand">
+              <el-input v-model="form.onlineRmWhitelistCommand" placeholder="例如: whitelist remove {player}"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="离线移白" prop="offlineRmWhitelistCommand">
+              <el-input v-model="form.offlineRmWhitelistCommand" placeholder="离线玩家移白指令"/>
+            </el-form-item>
+          </el-col>
+        </el-row>
+
+        <div class="form-section-title">封禁命令配置 (Ban)</div>
+        <el-row :gutter="20">
+          <el-col :span="12">
+            <el-form-item label="在线封禁" prop="onlineAddBanCommand">
+              <el-input v-model="form.onlineAddBanCommand" placeholder="例如: ban {player}"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="离线封禁" prop="offlineAddBanCommand">
+              <el-input v-model="form.offlineAddBanCommand" placeholder="离线玩家封禁指令"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="在线解封" prop="onlineRmBanCommand">
+              <el-input v-model="form.onlineRmBanCommand" placeholder="例如: pardon {player}"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="离线解封" prop="offlineRmBanCommand">
+              <el-input v-model="form.offlineRmBanCommand" placeholder="离线玩家解封指令"/>
+            </el-form-item>
+          </el-col>
+        </el-row>
       </el-form>
       <div slot="footer" class="dialog-footer">
         <el-button type="primary" @click="submitForm">确 定</el-button>
@@ -422,3 +434,42 @@ export default {
   }
 };
 </script>
+
+<style lang="scss" scoped>
+.app-container {
+  padding: 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: calc(100vh - 84px);
+}
+
+.search-card {
+  margin-bottom: 20px;
+  border-radius: 8px;
+  border: none;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.table-card {
+  border-radius: 8px;
+  border: none;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+
+  .el-table {
+    margin: 15px 0;
+  }
+}
+
+.command-dialog {
+  .form-section-title {
+    font-weight: 600;
+    font-size: 15px;
+    margin: 20px 0 15px;
+    padding-left: 10px;
+    border-left: 4px solid #409EFF;
+    color: #303133;
+    background-color: #f5f7fa;
+    padding: 8px 10px;
+    border-radius: 0 4px 4px 0;
+  }
+}
+</style>

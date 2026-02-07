@@ -1,6 +1,7 @@
 <template>
   <div class="app-container">
-    <el-form v-show="showSearch" ref="queryForm" :inline="true" :model="queryParams" class="search-form"
+    <el-card v-show="showSearch" class="search-card mb8" shadow="never">
+      <el-form ref="queryForm" :inline="true" :model="queryParams" class="search-form"
              label-width="85px"
              size="small">
       <el-row :gutter="20">
@@ -98,8 +99,10 @@
         </el-col>
       </el-row>
     </el-form>
+    </el-card>
 
-    <el-row :gutter="10" class="mb8">
+    <el-card class="table-card" shadow="never">
+      <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
         <el-button
           v-hasPermi="['node:server:add']"
@@ -240,6 +243,7 @@
       :total="total"
       @pagination="getList"
     />
+    </el-card>
 
     <!-- 添加或修改节点服务器对话框 -->
     <el-dialog :title="title" :visible.sync="open" append-to-body custom-class="server-dialog" width="600px">
@@ -560,13 +564,26 @@ export default {
   }
 }
 
-.search-form {
-  background-color: #fff;
-  padding: 20px 20px 0;
-  margin-bottom: 20px;
-  border-radius: 4px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+.app-container {
+  padding: 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: calc(100vh - 84px);
+}
 
+.search-card {
+  margin-bottom: 20px;
+  border-radius: 8px;
+  border: none;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.table-card {
+  border-radius: 8px;
+  border: none;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.search-form {
   .el-form-item {
     margin-bottom: 20px;
   }
