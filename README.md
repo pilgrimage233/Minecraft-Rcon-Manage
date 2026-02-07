@@ -83,6 +83,7 @@
     - `application.yml` 和 `application-druid.yml` 中配置数据库与上传路径
     - 配置 Redis 地址与密码
     - `endless-ui/vue.config.js` 中配置代理 API 地址
+    - 启动后可访问 http://localhost:8080/setup.html 在页面中编辑外置配置（默认仅本机访问，可设置 `setup.allow-remote=true` 放开远程）
 
 4. 启动服务：
 
@@ -459,4 +460,3 @@
 ---
 
 💡 **打造更专业的 Minecraft 运维体验，从这里开始！**
-
