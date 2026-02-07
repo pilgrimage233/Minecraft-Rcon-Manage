@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配置向导</title>
+    <style>
+        :root {
+            --bg: #f5f7fb;
+            --card: #ffffff;
+            --text: #1f2937;
+            --muted: #6b7280;
+            --accent: #2563eb;
+            --danger: #dc2626;
+            --success: #16a34a;
+            --border: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+
+        .container {
+            width: min(960px, 100%);
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            box-shadow: 0 20px 40px rgba(15, 23, 42, 0.08);
+        }
+
+        h1 {
+            margin: 0 0 8px;
+            font-size: 28px;
+        }
+
+        p {
+            margin: 0 0 24px;
+            color: var(--muted);
+        }
+
+        .toolbar {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-bottom: 16px;
+        }
+
+        select, button {
+            padding: 10px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            font-size: 14px;
+        }
+
+        button {
+            cursor: pointer;
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            transition: opacity 0.2s ease;
+        }
+
+        button.secondary {
+            background: #f3f4f6;
+            color: var(--text);
+            border: 1px solid var(--border);
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        textarea {
+            width: 100%;
+            height: 420px;
+            padding: 16px;
+            border-radius: 12px;
+            border: 1px solid var(--border);
+            font-family: "Fira Code", "JetBrains Mono", Consolas, monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            resize: vertical;
+            background: #f9fafb;
+        }
+
+        .status {
+            margin-top: 12px;
+            font-size: 14px;
+            min-height: 20px;
+        }
+
+        .status.error {
+            color: var(--danger);
+        }
+
+        .status.success {
+            color: var(--success);
+        }
+
+        .hint {
+            margin-top: 16px;
+            color: var(--muted);
+            font-size: 13px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>配置向导</h1>
+    <p>在页面中直接编辑外置配置文件，保存后重启服务使配置生效。</p>
+
+    <div class="toolbar">
+        <label for="config-file">配置文件：</label>
+        <select id="config-file">
+            <option value="application.yml">application.yml</option>
+            <option value="application-druid.yml">application-druid.yml</option>
+        </select>
+        <button class="secondary" id="reload-btn">重新加载</button>
+        <button id="save-btn">保存配置</button>
+    </div>
+
+    <textarea id="config-content" spellcheck="false"></textarea>
+    <div class="status" id="status"></div>
+    <div class="hint">默认仅允许本机访问配置向导，可在配置中设置 <strong>setup.allow-remote=true</strong> 放开远程访问。</div>
+</div>
+
+<script>
+    const fileSelect = document.getElementById('config-file');
+    const contentArea = document.getElementById('config-content');
+    const status = document.getElementById('status');
+    const saveBtn = document.getElementById('save-btn');
+    const reloadBtn = document.getElementById('reload-btn');
+
+    const setStatus = (message, type) => {
+        status.textContent = message || '';
+        status.className = `status ${type || ''}`.trim();
+    };
+
+    const fetchConfig = async () => {
+        const file = fileSelect.value;
+        setStatus('正在加载配置...', '');
+        saveBtn.disabled = true;
+        reloadBtn.disabled = true;
+        try {
+            const response = await fetch(`/setup/config?file=${encodeURIComponent(file)}`);
+            const result = await response.json();
+            if (result.code === 200 && result.data) {
+                contentArea.value = result.data.content || '';
+                setStatus(`已加载 ${file}`, 'success');
+            } else {
+                setStatus(result.msg || '加载失败', 'error');
+            }
+        } catch (error) {
+            setStatus('无法读取配置，请检查服务状态', 'error');
+        } finally {
+            saveBtn.disabled = false;
+            reloadBtn.disabled = false;
+        }
+    };
+
+    const saveConfig = async () => {
+        const file = fileSelect.value;
+        setStatus('正在保存配置...', '');
+        saveBtn.disabled = true;
+        try {
+            const response = await fetch(`/setup/config?file=${encodeURIComponent(file)}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/plain; charset=utf-8'
+                },
+                body: contentArea.value
+            });
+            const result = await response.json();
+            if (result.code === 200) {
+                setStatus(result.msg || '保存成功', 'success');
+            } else {
+                setStatus(result.msg || '保存失败', 'error');
+            }
+        } catch (error) {
+            setStatus('保存失败，请检查服务状态', 'error');
+        } finally {
+            saveBtn.disabled = false;
+        }
+    };
+
+    fileSelect.addEventListener('change', fetchConfig);
+    reloadBtn.addEventListener('click', fetchConfig);
+    saveBtn.addEventListener('click', saveConfig);
+
+    fetchConfig();
+</script>
+</body>
+</html>
