@@ -1027,95 +1027,119 @@ public class OpenApiServiceImpl implements IOpenApiService {
             return AjaxResult.error("未找到服务器信息");
         }
 
+        List<Map<String, Object>> data = collectServerStatus(serverInfos, true);
+        return AjaxResult.success(data);
+    }
+
+    public void refreshServerStatusCache() {
+        final ServerInfo info = new ServerInfo();
+        info.setStatus(1L);
+        List<ServerInfo> serverInfos = serverInfoService.selectServerInfoList(info);
+        if (serverInfos.isEmpty()) {
+            return;
+        }
+        collectServerStatus(serverInfos, false);
+    }
+
+    private List<Map<String, Object>> collectServerStatus(List<ServerInfo> serverInfos, boolean useCache) {
+        final int perServerTimeoutSeconds = 5;
+
         // 使用CompletableFuture并行检测所有服务器状态
         List<CompletableFuture<Map<String, Object>>> futures = new ArrayList<>();
 
         for (ServerInfo serverInfo : serverInfos) {
             CompletableFuture<Map<String, Object>> future = CompletableFuture.supplyAsync(() -> {
-                String cacheKey = CacheKey.MINECRAFT_SERVER_INFO + serverInfo.getId();
+                        String cacheKey = CacheKey.MINECRAFT_SERVER_INFO + serverInfo.getId();
 
-                // 检查缓存
-                if (redisCache.hasKey(cacheKey)) {
-                    return redisCache.getCacheMap(cacheKey);
-                }
+                        // 检查缓存
+                        if (useCache && redisCache.hasKey(cacheKey)) {
+                            Map<String, Object> cached = redisCache.getCacheMap(cacheKey);
+                            if (cached != null && !cached.isEmpty()) {
+                                return cached;
+                            }
+                        }
 
-                // 构建服务器状态信息
-                Map<String, Object> statusMap = new HashMap<>();
-                String nameTag = serverInfo.getNameTag();
-                statusMap.put("id", serverInfo.getId());
-                statusMap.put("服务器名称", nameTag);
-                statusMap.put("连接地址", serverInfo.getPlayAddress());
-                statusMap.put("连接端口", String.valueOf(serverInfo.getPlayAddressPort()));
-                statusMap.put("版本", serverInfo.getServerVersion());
-                statusMap.put("核心", serverInfo.getServerCore());
+                        // 构建服务器状态信息
+                        Map<String, Object> statusMap = buildBaseStatusMap(serverInfo);
 
-                try {
-                    // 异步检测RCON连接
-                    final boolean rconConnection = NetWorkUtil.testRconConnection(String.valueOf(serverInfo.getId()));
-                    statusMap.put("Rcon连接", rconConnection ? "成功" : "失败");
+                        try {
+                            // 异步检测RCON连接
+                            final boolean rconConnection = NetWorkUtil.testRconConnection(String.valueOf(serverInfo.getId()));
+                            statusMap.put("Rcon连接", rconConnection ? "成功" : "失败");
 
-                    // 异步获取服务器延迟信息
-                    final MinecraftServerInfo minecraftServerLatency = NetWorkUtil.getMinecraftServerLatency(
-                            serverInfo.getPlayAddress(), serverInfo.getPlayAddressPort());
-                    statusMap.put("在线状态", minecraftServerLatency.isReachable() ? "在线" : "离线");
-                    statusMap.put("在线人数", String.valueOf(minecraftServerLatency.getOnlinePlayers()));
-                    statusMap.put("最大人数", String.valueOf(minecraftServerLatency.getMaxPlayers()));
-                    statusMap.put("延迟(ms)", String.valueOf(minecraftServerLatency.getLatency()));
+                            // 异步获取服务器延迟信息
+                            final MinecraftServerInfo minecraftServerLatency = NetWorkUtil.getMinecraftServerLatency(
+                                    serverInfo.getPlayAddress(), serverInfo.getPlayAddressPort());
+                            statusMap.put("在线状态", minecraftServerLatency.isReachable() ? "在线" : "离线");
+                            statusMap.put("在线人数", String.valueOf(minecraftServerLatency.getOnlinePlayers()));
+                            statusMap.put("最大人数", String.valueOf(minecraftServerLatency.getMaxPlayers()));
+                            statusMap.put("延迟(ms)", String.valueOf(minecraftServerLatency.getLatency()));
 
-                    // 判断服务状态指标
-                    final boolean offline = statusMap.get("在线状态").equals("离线");
-                    if (offline && !rconConnection) {
-                        statusMap.put("指标", "服务熔断");
-                    } else if (offline || !rconConnection) {
-                        statusMap.put("指标", "服务降级");
-                    } else {
-                        statusMap.put("指标", "服务正常");
-                    }
-                } catch (Exception e) {
-                    log.error("检测服务器{}状态失败,原因: {}", serverInfo.getNameTag(), e.getMessage());
-                    statusMap.put("Rcon连接", "失败");
-                    statusMap.put("在线状态", "离线");
-                    statusMap.put("在线人数", "0");
-                    statusMap.put("最大人数", "0");
-                    statusMap.put("延迟(ms)", "0");
-                    statusMap.put("指标", "服务熔断");
-                }
+                            // 判断服务状态指标
+                            final boolean offline = statusMap.get("在线状态").equals("离线");
+                            if (offline && !rconConnection) {
+                                statusMap.put("指标", "服务熔断");
+                            } else if (offline || !rconConnection) {
+                                statusMap.put("指标", "服务降级");
+                            } else {
+                                statusMap.put("指标", "服务正常");
+                            }
+                        } catch (Exception e) {
+                            log.error("检测服务器{}状态失败,原因: {}", serverInfo.getNameTag(), e.getMessage());
+                            applyFailureStatus(statusMap);
+                        }
 
-                // 缓存结果
-                redisCache.setCacheMap(cacheKey, statusMap, 3, TimeUnit.MINUTES);
-                return statusMap;
-            });
+                        // 缓存结果
+                        redisCache.setCacheMap(cacheKey, statusMap, 3, TimeUnit.MINUTES);
+                        return statusMap;
+                    }).completeOnTimeout(buildTimeoutStatusMap(serverInfo), perServerTimeoutSeconds, TimeUnit.SECONDS)
+                    .exceptionally(ex -> {
+                        log.error("检测服务器{}状态异常,原因: {}", serverInfo.getNameTag(), ex.getMessage());
+                        return buildTimeoutStatusMap(serverInfo);
+                    });
             futures.add(future);
         }
 
-        // 等待所有异步任务完成，设置超时时间为5秒
+        // 等待所有异步任务完成，避免逐个等待导致总时长放大
+        CompletableFuture<Void> allFutures = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                .orTimeout(perServerTimeoutSeconds + 1L, TimeUnit.SECONDS)
+                .exceptionally(ex -> null);
+        allFutures.join();
+
         List<Map<String, Object>> data = new ArrayList<>();
         for (int i = 0; i < futures.size(); i++) {
             ServerInfo serverInfo = serverInfos.get(i);
-            try {
-                Map<String, Object> result = futures.get(i).get(5, TimeUnit.SECONDS);
-                data.add(result);
-            } catch (Exception e) {
-                log.error("获取服务器{}状态超时,原因: {}", serverInfo.getNameTag(), e.getMessage());
-                // 超时时返回基本信息，状态设置为离线
-                Map<String, Object> timeoutMap = new HashMap<>();
-                timeoutMap.put("id", serverInfo.getId());
-                timeoutMap.put("服务器名称", serverInfo.getNameTag());
-                timeoutMap.put("连接地址", serverInfo.getPlayAddress());
-                timeoutMap.put("连接端口", String.valueOf(serverInfo.getPlayAddressPort()));
-                timeoutMap.put("版本", serverInfo.getServerVersion());
-                timeoutMap.put("核心", serverInfo.getServerCore());
-                timeoutMap.put("Rcon连接", "失败");
-                timeoutMap.put("在线状态", "离线");
-                timeoutMap.put("在线人数", "0");
-                timeoutMap.put("最大人数", "0");
-                timeoutMap.put("延迟(ms)", "0");
-                timeoutMap.put("指标", "服务熔断");
-                data.add(timeoutMap);
-            }
+            Map<String, Object> result = futures.get(i).getNow(buildTimeoutStatusMap(serverInfo));
+            data.add(result);
         }
 
-        return AjaxResult.success(data);
+        return data;
+    }
+
+    private Map<String, Object> buildBaseStatusMap(ServerInfo serverInfo) {
+        Map<String, Object> statusMap = new HashMap<>();
+        statusMap.put("id", serverInfo.getId());
+        statusMap.put("服务器名称", serverInfo.getNameTag());
+        statusMap.put("连接地址", serverInfo.getPlayAddress());
+        statusMap.put("连接端口", String.valueOf(serverInfo.getPlayAddressPort()));
+        statusMap.put("版本", serverInfo.getServerVersion());
+        statusMap.put("核心", serverInfo.getServerCore());
+        return statusMap;
+    }
+
+    private Map<String, Object> buildTimeoutStatusMap(ServerInfo serverInfo) {
+        Map<String, Object> timeoutMap = buildBaseStatusMap(serverInfo);
+        applyFailureStatus(timeoutMap);
+        return timeoutMap;
+    }
+
+    private void applyFailureStatus(Map<String, Object> statusMap) {
+        statusMap.put("Rcon连接", "失败");
+        statusMap.put("在线状态", "离线");
+        statusMap.put("在线人数", "0");
+        statusMap.put("最大人数", "0");
+        statusMap.put("延迟(ms)", "0");
+        statusMap.put("指标", "服务熔断");
     }
 
     /**
