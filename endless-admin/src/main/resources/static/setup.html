@@ -117,6 +117,16 @@
             color: var(--muted);
             font-size: 13px;
         }
+
+        .warning {
+            margin-top: 16px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            border: 1px solid rgba(220, 38, 38, 0.3);
+            background: rgba(220, 38, 38, 0.08);
+            color: var(--danger);
+            font-size: 13px;
+        }
     </style>
 </head>
 <body>
@@ -136,7 +146,8 @@
 
     <textarea id="config-content" spellcheck="false"></textarea>
     <div class="status" id="status"></div>
-    <div class="hint">默认仅允许本机访问配置向导，可在配置中设置 <strong>setup.allow-remote=true</strong> 放开远程访问。</div>
+    <div class="warning">⚠️ 开启 <strong>setup.allow-remote=true</strong> 后任何可访问该地址的用户都能直接编辑配置且无需登录，请务必仅在受信任网络中使用。</div>
+    <div class="hint">保存配置后需要重启服务使新配置生效。</div>
 </div>
 
 <script>
@@ -158,6 +169,10 @@
         reloadBtn.disabled = true;
         try {
             const response = await fetch(`/setup/config?file=${encodeURIComponent(file)}`);
+            if (!response.ok) {
+                setStatus(`读取配置失败: HTTP ${response.status}`, 'error');
+                return;
+            }
             const result = await response.json();
             if (result.code === 200 && result.data) {
                 contentArea.value = result.data.content || '';
@@ -166,7 +181,7 @@
                 setStatus(result.msg || '加载失败', 'error');
             }
         } catch (error) {
-            setStatus('无法读取配置，请检查服务状态', 'error');
+            setStatus(`无法读取配置: ${error?.message || '未知错误'}`, 'error');
         } finally {
             saveBtn.disabled = false;
             reloadBtn.disabled = false;
@@ -185,6 +200,10 @@
                 },
                 body: contentArea.value
             });
+            if (!response.ok) {
+                setStatus(`保存失败: HTTP ${response.status}`, 'error');
+                return;
+            }
             const result = await response.json();
             if (result.code === 200) {
                 setStatus(result.msg || '保存成功', 'success');
@@ -192,7 +211,7 @@
                 setStatus(result.msg || '保存失败', 'error');
             }
         } catch (error) {
-            setStatus('保存失败，请检查服务状态', 'error');
+            setStatus(`保存失败: ${error?.message || '未知错误'}`, 'error');
         } finally {
             saveBtn.disabled = false;
         }

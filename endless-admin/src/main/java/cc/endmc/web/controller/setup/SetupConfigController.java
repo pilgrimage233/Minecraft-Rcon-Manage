@@ -14,7 +14,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.yaml.snakeyaml.LoaderOptions;
+import org.yaml.snakeyaml.constructor.SafeConstructor;
+import org.yaml.snakeyaml.Yaml;
+import org.yaml.snakeyaml.error.YAMLException;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -35,6 +41,7 @@ public class SetupConfigController
     private static final Logger log = LoggerFactory.getLogger(SetupConfigController.class);
     private static final Path CONFIG_DIR = Paths.get("config");
     private static final Set<String> ALLOWED_FILES = Set.of("application.yml", "application-druid.yml");
+    private static final Yaml SAFE_YAML = new Yaml(new SafeConstructor(new LoaderOptions()));
 
     @Value("${setup.allow-remote:false}")
     private boolean allowRemote;
@@ -89,6 +96,10 @@ public class SetupConfigController
         {
             return AjaxResult.error("配置内容不能为空");
         }
+        if (!isValidYaml(content))
+        {
+            return AjaxResult.error("配置内容不是有效的YAML格式");
+        }
         try
         {
             Files.createDirectories(CONFIG_DIR);
@@ -110,7 +121,13 @@ public class SetupConfigController
         {
             return null;
         }
-        return CONFIG_DIR.resolve(file).normalize();
+        Path configDir = CONFIG_DIR.toAbsolutePath().normalize();
+        Path normalized = configDir.resolve(file).normalize();
+        if (!normalized.startsWith(configDir))
+        {
+            return null;
+        }
+        return normalized;
     }
 
     private boolean isRequestAllowed(HttpServletRequest request)
@@ -124,8 +141,27 @@ public class SetupConfigController
         {
             return false;
         }
-        return "127.0.0.1".equals(address)
-                || "0:0:0:0:0:0:0:1".equals(address)
-                || "::1".equals(address);
+        try
+        {
+            return InetAddress.getByName(address).isLoopbackAddress();
+        }
+        catch (UnknownHostException ex)
+        {
+            return false;
+        }
+    }
+
+    private boolean isValidYaml(String content)
+    {
+        try
+        {
+            SAFE_YAML.load(content);
+            return true;
+        }
+        catch (YAMLException ex)
+        {
+            log.warn("YAML格式校验失败", ex);
+            return false;
+        }
     }
 }

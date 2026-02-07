@@ -14,6 +14,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.scheduling.annotation.EnableScheduling;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * 启动程序
@@ -23,6 +25,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @SpringBootApplication(exclude = {DataSourceAutoConfiguration.class}, scanBasePackages = "cc.endmc")
 public class EndlessApplication {
+    private static final Logger log = LoggerFactory.getLogger(EndlessApplication.class);
+
     public static void main(String[] args) {
         // 初始化配置文件
         try {
@@ -42,12 +46,12 @@ public class EndlessApplication {
         String version = context.getEnvironment().getProperty("endless.version", "Unknown");
         String serverPort = context.getEnvironment().getProperty("server.port", "8080");
         String contextPath = context.getEnvironment().getProperty("server.servlet.context-path", "");
-        if ("/".equals(contextPath))
+        if (contextPath.isEmpty() || "/".equals(contextPath))
         {
             contextPath = "";
         }
         String setupUrl = String.format("http://localhost:%s%s/setup.html", serverPort, contextPath);
-        System.out.printf("🔧 配置向导地址: %s (仅本机访问，可设置 setup.allow-remote=true)%n", setupUrl);
+        log.info("🔧 配置向导地址: {} (仅本机访问，可设置 setup.allow-remote=true)", setupUrl);
 
         // 收集初始化数据
         int serverCount = context.getBean(IServerInfoService.class).selectServerInfoList(new ServerInfo()).size();
