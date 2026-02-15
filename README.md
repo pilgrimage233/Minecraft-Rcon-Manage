@@ -110,9 +110,9 @@
     ```
 
     白名单前端（独立部署）：
-    - 项目地址：[whitelist-vue](https://github.com/pilgrimage233/whitelist-vue)
-    - 推荐部署平台：Cloudflare Pages
-    - 修改 `.env` 设置 `VITE_API_URL=http://your-domain/prod-api`
+    - 项目地址：[whitelist-next](https://github.com/pilgrimage233/whitelist-next)
+    - 推荐部署平台：Vercel
+    - 修改 `.env.local` 设置 `API_BASE_URL=http://your-domain/prod-api`
 
 5. 访问系统：http://localhost:80
 
@@ -445,9 +445,9 @@
     - 功能：接收主控端指令，管理本地服务器实例
     - 技术栈：Spring Boot 3.4.4 + SQLite + WebSocket
 
-- **whitelist-vue**：白名单前端独立部署项目
-    - GitHub：https://github.com/pilgrimage233/whitelist-vue
-    - 推荐部署：Cloudflare Pages
+- **whitelist-next**：白名单前端独立部署项目
+    - GitHub：https://github.com/pilgrimage233/whitelist-next
+    - 推荐部署：Vercel
 
 ## 🙏 致谢
 
