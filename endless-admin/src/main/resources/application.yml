@@ -3,7 +3,7 @@ endless:
   # 名称
   name: EndlessManager
   # 版本
-  version: 3.6.3
+  version: 3.7.0
   # 版权年份
   copyrightYear: 2026
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
@@ -224,8 +224,8 @@ qq:
 app:
   # 鉴权密钥 (请设置为复杂且唯一的密钥)
   secret-key:
-  # IP头名称 用于获取真实IP
-  ip-header-name: X-Forwarded-For
+  # IP头名称 用于获取真实IP (例如: X-Forwarded-For, X-Real-IP) (多个IP头用逗号分隔，按优先级顺序)
+  ip-header-name: X-Real-IP, X-Forwarded-For, X-Client-IP, CF-Connecting-IP
   # 前端配置
   front-end:
     # 前端路径 用于一键升级 (例如: /www/wwwroot/mc.endmc.cc)
