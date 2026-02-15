@@ -1694,6 +1694,127 @@ public class OpenApiServiceImpl implements IOpenApiService {
     }
 
     /**
+     * 已登录白名单用户更改游戏ID
+     */
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public AjaxResult changeIdForWhitelistUser(HttpServletRequest request,
+                                               Long whitelistId,
+                                               String newUserName,
+                                               String changeReason,
+                                               String qqNum,
+                                               String operatorName) {
+        if (whitelistId == null || StringUtils.isEmpty(newUserName)) {
+            return AjaxResult.error("参数不能为空!");
+        }
+
+        Pattern gameIdPattern = Pattern.compile("[a-zA-Z0-9_]{1,35}");
+        if (!gameIdPattern.matcher(newUserName).matches()) {
+            return AjaxResult.error("新游戏ID格式不正确!");
+        }
+
+        WhitelistInfo whitelistInfo = whitelistInfoService.selectWhitelistInfoById(whitelistId);
+        if (whitelistInfo == null || StringUtils.isEmpty(whitelistInfo.getUserName())) {
+            return AjaxResult.error("白名单记录不存在!");
+        }
+
+        String oldUserName = whitelistInfo.getUserName();
+        String normalizedNewUserName = newUserName.toLowerCase();
+        if (oldUserName.equalsIgnoreCase(normalizedNewUserName)) {
+            return AjaxResult.error("新旧游戏ID不能相同!");
+        }
+
+        WhitelistInfo newIdQuery = new WhitelistInfo();
+        newIdQuery.setUserName(normalizedNewUserName);
+        List<WhitelistInfo> newIdList = whitelistInfoService.selectWhitelistInfoList(newIdQuery);
+        if (newIdList != null && !newIdList.isEmpty()) {
+            return AjaxResult.error("新游戏ID已存在白名单中!");
+        }
+
+        String oldUuid = whitelistInfo.getUserUuid();
+        boolean isOnline = whitelistInfo.getOnlineFlag() == 1;
+        String newUuid = MinecraftUUIDUtil.getPlayerUUID(normalizedNewUserName, isOnline);
+        String updateBy = "CHANGE_ID::" + oldUserName + "->" + normalizedNewUserName;
+
+        whitelistInfo.setUserName(normalizedNewUserName);
+        whitelistInfo.setUserUuid(newUuid);
+        whitelistInfo.setUpdateBy(updateBy);
+        whitelistInfo.setUpdateTime(new Date());
+
+        int updateResult = whitelistInfoService.updateWhitelistInfo(whitelistInfo, "SYSTEM");
+        if (updateResult == 0) {
+            return AjaxResult.error("更新白名单失败!");
+        }
+
+        PlayerDetails playerQuery = new PlayerDetails();
+        playerQuery.setUserName(oldUserName);
+        List<PlayerDetails> playerList = playerDetailsService.selectPlayerDetailsList(playerQuery);
+        if (playerList != null && !playerList.isEmpty()) {
+            PlayerDetails playerDetails = playerList.getFirst();
+            playerDetails.setUserName(normalizedNewUserName);
+            playerDetails.setUpdateBy(updateBy);
+            playerDetails.setUpdateTime(new Date());
+            playerDetailsService.updatePlayerDetails(playerDetails, true);
+        }
+
+        String ip = IPUtils.getClientIpAddress(request, ipHeaderName);
+        String finalQqNum = StringUtils.isNotEmpty(qqNum) ? qqNum : whitelistInfo.getQqNum();
+        WhitelistIdChangeHistory history = new WhitelistIdChangeHistory();
+        history.setWhitelistId(whitelistId);
+        history.setOldUserName(oldUserName);
+        history.setNewUserName(normalizedNewUserName);
+        history.setOldUserUuid(oldUuid);
+        history.setNewUserUuid(newUuid);
+        history.setQqNum(finalQqNum);
+        history.setChangeReason(changeReason);
+        history.setChangeTime(new Date());
+        history.setIpAddress(ip);
+        history.setStatus("1");
+        String createBy = StringUtils.isNotEmpty(operatorName)
+                ? "CHANGE_ID::LOGIN::" + operatorName
+                : updateBy;
+        history.setCreateBy(createBy);
+        whitelistIdChangeHistoryService.insertWhitelistIdChangeHistory(history);
+
+        if (StringUtils.isNotEmpty(oldUserName)) {
+            redisCache.deleteObject(CacheKey.PLAYER_INFO_KEY + oldUserName.toLowerCase());
+        }
+        if (StringUtils.isNotEmpty(normalizedNewUserName)) {
+            redisCache.deleteObject(CacheKey.PLAYER_INFO_KEY + normalizedNewUserName);
+        }
+        if (StringUtils.isNotEmpty(finalQqNum)) {
+            redisCache.deleteObject(CacheKey.PLAYER_INFO_KEY + finalQqNum);
+        }
+
+        if (StringUtils.isNotEmpty(finalQqNum)) {
+            asyncManager.execute(new TimerTask() {
+                @Override
+                public void run() {
+                    String notifyContent = String.format(
+                            "您好！<br><br>" +
+                                    "您的白名单游戏ID已成功更改：<br>" +
+                                    "旧ID：%s<br>" +
+                                    "新ID：%s<br>" +
+                                    "更改时间：%s<br><br>" +
+                                    "如果这不是您的操作，请立即联系管理员！",
+                            oldUserName,
+                            normalizedNewUserName,
+                            DateUtils.getTime()
+                    );
+                    try {
+                        emailService.push(finalQqNum + EmailTemplates.QQ_EMAIL,
+                                "白名单ID更改成功通知", notifyContent);
+                    } catch (Exception e) {
+                        log.error("发送通知邮件失败", e);
+                    }
+                }
+            });
+        }
+
+        return AjaxResult.success("游戏ID更改成功!");
+    }
+
+    /**
      * 检查白名单
      */
     @Override

@@ -85,6 +85,15 @@ public interface IWhitelistInfoService {
     Map<String, Object> check(Map<String, String> params);
 
     /**
+     * 获取玩家白名单信息
+     *
+     * @param params             参数
+     * @param applyPrivacyFilter 是否应用隐私过滤
+     * @return 结果
+     */
+    Map<String, Object> check(Map<String, String> params, boolean applyPrivacyFilter);
+
+    /**
      * 查询白名单列表（包含封禁信息）
      *
      * @param whitelistInfo 白名单

@@ -145,6 +145,24 @@ public interface IOpenApiService {
     AjaxResult confirmChangeId(HttpServletRequest request, String code, String qqNum);
 
     /**
+     * 已登录白名单用户更改游戏ID
+     *
+     * @param request      请求
+     * @param whitelistId  白名单ID
+     * @param newUserName  新游戏ID
+     * @param changeReason 更改原因
+     * @param qqNum        QQ号
+     * @param operatorName 操作人
+     * @return 结果
+     */
+    AjaxResult changeIdForWhitelistUser(HttpServletRequest request,
+                                        Long whitelistId,
+                                        String newUserName,
+                                        String changeReason,
+                                        String qqNum,
+                                        String operatorName);
+
+    /**
      * 获取玩家白名单信息
      *
      * @param params 参数

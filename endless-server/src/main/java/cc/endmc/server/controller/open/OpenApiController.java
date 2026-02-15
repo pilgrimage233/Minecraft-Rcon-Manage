@@ -22,7 +22,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/v1")
 @RequiredArgsConstructor
-@SignVerify(message = "API签名验证失败", rateLimitCount = 20L)
+@SignVerify(message = "验证失败", rateLimitCount = 50L)
 public class OpenApiController extends BaseController {
 
     private final IOpenApiService openApiService;
@@ -120,7 +120,7 @@ public class OpenApiController extends BaseController {
      *
      * @return AjaxResult
      */
-    @SignVerify(rateLimitCount = 10)
+    @SignVerify(rateLimitCount = 20L)
     @GetMapping("/getServerStatus")
     public AjaxResult getServerStatus() {
         return openApiService.getServerStatus();
@@ -171,7 +171,6 @@ public class OpenApiController extends BaseController {
      * @param header        请求头
      * @return 结果
      */
-    @SignVerify
     @SneakyThrows
     @PostMapping("/apply")
     public AjaxResult apply(HttpServletRequest request, @RequestBody WhitelistInfo whitelistInfo, @RequestHeader Map<String, String> header) {
@@ -187,7 +186,6 @@ public class OpenApiController extends BaseController {
      * @param header  请求头
      * @return 结果
      */
-    @SignVerify
     @GetMapping("/verify")
     public AjaxResult verify(HttpServletRequest request, @RequestParam String code, @RequestHeader Map<String, String> header) {
         return openApiService.verify(request, code, header);
@@ -200,7 +198,6 @@ public class OpenApiController extends BaseController {
      * @param changeRequest 更改请求
      * @return 结果
      */
-    @SignVerify
     @PostMapping("/requestChangeId")
     public AjaxResult requestChangeId(HttpServletRequest request, @RequestBody ChangeIdRequest changeRequest) {
         return openApiService.requestChangeId(request, changeRequest);
@@ -214,7 +211,6 @@ public class OpenApiController extends BaseController {
      * @param qqNum   QQ号（用于验证）
      * @return 结果
      */
-    @SignVerify
     @PostMapping("/confirmChangeId")
     public AjaxResult confirmChangeId(HttpServletRequest request,
                                       @RequestParam String code,
@@ -229,7 +225,7 @@ public class OpenApiController extends BaseController {
      * @return 结果
      */
     @GetMapping("check")
-    public AjaxResult cheack(@RequestParam Map<String, String> params) {
+    public AjaxResult check(@RequestParam Map<String, String> params) {
 
         if (params.isEmpty()) {
             return error("查询信息不能为空!");
@@ -244,7 +240,6 @@ public class OpenApiController extends BaseController {
      * @param gameId 游戏ID
      * @return 结果
      */
-    @SignVerify
     @GetMapping("/getServerInfoByGameId/{gameId}")
     public AjaxResult getServerInfoByGameId(@PathVariable String gameId) {
         return openApiService.getServerInfoByGameId(gameId);

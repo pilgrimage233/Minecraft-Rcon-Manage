@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.permission.WhitelistUserPrivacyMapper">
+
+    <resultMap type="WhitelistUserPrivacy" id="WhitelistUserPrivacyResult">
+        <result property="id" column="id"/>
+        <result property="whitelistId" column="whitelist_id"/>
+        <result property="showQq" column="show_qq"/>
+        <result property="showCity" column="show_city"/>
+        <result property="showLastOnline" column="show_last_online"/>
+        <result property="showGameTime" column="show_game_time"/>
+        <result property="showNameHistory" column="show_name_history"/>
+        <result property="showQuizResult" column="show_quiz_result"/>
+        <result property="showUuid" column="show_uuid"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectWhitelistUserPrivacyVo">
+        select id,
+               whitelist_id,
+               show_qq,
+               show_city,
+               show_last_online,
+               show_game_time,
+               show_name_history,
+               show_quiz_result,
+               show_uuid,
+               create_by,
+               create_time,
+               update_by,
+               update_time,
+               remark
+        from whitelist_user_privacy
+    </sql>
+
+    <select id="selectWhitelistUserPrivacyByWhitelistId" parameterType="Long" resultMap="WhitelistUserPrivacyResult">
+        <include refid="selectWhitelistUserPrivacyVo"/>
+        where whitelist_id = #{whitelistId}
+    </select>
+
+    <insert id="insertWhitelistUserPrivacy" parameterType="WhitelistUserPrivacy" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into whitelist_user_privacy
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="whitelistId != null">whitelist_id,</if>
+            <if test="showQq != null">show_qq,</if>
+            <if test="showCity != null">show_city,</if>
+            <if test="showLastOnline != null">show_last_online,</if>
+            <if test="showGameTime != null">show_game_time,</if>
+            <if test="showNameHistory != null">show_name_history,</if>
+            <if test="showQuizResult != null">show_quiz_result,</if>
+            <if test="showUuid != null">show_uuid,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="whitelistId != null">#{whitelistId},</if>
+            <if test="showQq != null">#{showQq},</if>
+            <if test="showCity != null">#{showCity},</if>
+            <if test="showLastOnline != null">#{showLastOnline},</if>
+            <if test="showGameTime != null">#{showGameTime},</if>
+            <if test="showNameHistory != null">#{showNameHistory},</if>
+            <if test="showQuizResult != null">#{showQuizResult},</if>
+            <if test="showUuid != null">#{showUuid},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+        </trim>
+    </insert>
+
+    <update id="updateWhitelistUserPrivacy" parameterType="WhitelistUserPrivacy">
+        update whitelist_user_privacy
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="showQq != null">show_qq = #{showQq},</if>
+            <if test="showCity != null">show_city = #{showCity},</if>
+            <if test="showLastOnline != null">show_last_online = #{showLastOnline},</if>
+            <if test="showGameTime != null">show_game_time = #{showGameTime},</if>
+            <if test="showNameHistory != null">show_name_history = #{showNameHistory},</if>
+            <if test="showQuizResult != null">show_quiz_result = #{showQuizResult},</if>
+            <if test="showUuid != null">show_uuid = #{showUuid},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where whitelist_id = #{whitelistId}
+    </update>
+
+</mapper>

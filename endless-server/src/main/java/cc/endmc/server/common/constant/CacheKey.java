@@ -59,4 +59,8 @@ public class CacheKey {
     public static final String WHITELIST_CACHE_KEY = "server_manager:whitelist_cache"; // 白名单缓存前缀
 
     public static final String BOT_CONFIG_CACHE_KEY = "server_manager:bot_config_cache"; // 机器人配置缓存前缀
+
+    public static final String WHITELIST_USER_VERIFY_KEY = "server_manager:whitelist_user:verify:"; // 白名单用户验证码前缀
+
+    public static final String WHITELIST_USER_TOKEN_KEY = "server_manager:whitelist_user:token:"; // 白名单用户登录Token前缀
 }
