@@ -1,10 +1,14 @@
 package cc.endmc.web.controller.system;
 
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
@@ -82,6 +86,18 @@ public class UpdateProgressController {
     public SseEmitter streamProgress() {
         String sessionId = generateSessionId();
         SseEmitter emitter = new SseEmitter(600000L); // 10分钟超时
+
+        // 设置防缓存响应头
+        RequestAttributes attrs = RequestContextHolder.getRequestAttributes();
+        if (attrs instanceof ServletRequestAttributes servletAttrs) {
+            HttpServletResponse response = servletAttrs.getResponse();
+            if (response != null) {
+                response.setHeader("Cache-Control", "no-cache");
+                response.setHeader("X-Accel-Buffering", "no");
+                response.setHeader("Connection", "keep-alive");
+                response.setHeader("Access-Control-Allow-Origin", "*");
+            }
+        }
 
         emitter.onCompletion(() -> {
             log.info("SSE 连接完成: {}", sessionId);
