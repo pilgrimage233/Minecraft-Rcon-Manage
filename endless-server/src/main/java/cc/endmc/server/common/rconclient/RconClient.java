@@ -1,6 +1,5 @@
 package cc.endmc.server.common.rconclient;
 
-import lombok.SneakyThrows;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.Closeable;
@@ -20,15 +19,28 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * RconClient是一个用于与RCON服务器通信的客户端实现，支持发送命令、批量命令以及自动重连功能。
+ * 它使用Java NIO的SocketChannel进行非阻塞I/O操作，并通过线程池管理异步任务。
+ * 该类还实现了缓冲区池以优化内存使用，并提供了详细的日志记录以便于调试和监控。
+ */
 public class RconClient implements Closeable {
 
     private static final Logger LOGGER = Logger.getLogger(RconClient.class.getName());
     private static final int AUTHENTICATION_FAILURE_ID = -1;
-    private static final Charset PAYLOAD_CHARSET = StandardCharsets.UTF_8;
-    private static final int MAX_RECONNECT_ATTEMPTS = 3;
-    private static final int BUFFER_POOL_SIZE = 10;
-    private static final int TYPE_COMMAND = 2;
-    private static final int TYPE_AUTH = 3;
+    // RCON协议规定每个数据包至少包含请求ID（4字节）和类型（4字节），加上至少两个空字节作为结束符
+    private static final int RCON_HEADER_SIZE = 2 * Integer.BYTES;
+    // 最小数据包大小为请求ID + 类型 + 2个空字节（结束符），不包含负载
+    private static final int MIN_PACKET_SIZE = RCON_HEADER_SIZE + 2;
+    // 读取空闲时的睡眠时间，避免CPU过高占用
+    private static final int READ_IDLE_SLEEP_MS = 10;
+    // 在默认超时时间的基础上，动态调整每个数据包之间的等待时间，避免过早超时但又能快速响应
+    private static final int DEFAULT_INTER_PACKET_TIMEOUT_MS = 80;
+    public static Charset PAYLOAD_CHARSET = StandardCharsets.UTF_8;
+    public static int MAX_RECONNECT_ATTEMPTS = 3;
+    public static int BUFFER_POOL_SIZE = 10;
+    public static int TYPE_COMMAND = 2;
+    public static int TYPE_AUTH = 3;
     public static long RECONNECT_DELAY_MS; // 重连延迟时间
     public static int DEFAULT_TIMEOUT_MS;  // 超时时间
     public static int DEFAULT_BUFFER_SIZE; // 缓冲区大小
@@ -42,6 +54,53 @@ public class RconClient implements Closeable {
     private final BlockingQueue<ByteBuffer> bufferPool;
     private final boolean useDirectBuffers;
     private SocketChannel socketChannel;
+
+    /**
+     * 打开RconClient
+     *
+     * @param host             主机
+     * @param port             端口
+     * @param password         密码
+     * @param timeoutMs        超时时间
+     * @param useDirectBuffers 是否使用直接缓冲区
+     * @return // RconClient
+     */
+    public static RconClient open(String host, int port, String password, int timeoutMs, boolean useDirectBuffers) {
+        SocketChannel socketChannel;
+        try {
+            socketChannel = SocketChannel.open();
+            socketChannel.configureBlocking(true);
+            applySocketOptions(socketChannel, timeoutMs);
+
+            LOGGER.info(String.format("正在尝试连接RCON服务器 %s:%d，超时时间 %dms", host, port, timeoutMs));
+            socketChannel.socket().connect(new InetSocketAddress(host, port), timeoutMs);
+            socketChannel.configureBlocking(false);
+
+            LOGGER.info("成功建立Socket连接");
+        } catch (IOException e) {
+            String errorMsg = String.format("无法打开到 %s:%d 的socket连接 - %s", host, port, e.getMessage());
+            LOGGER.severe(errorMsg);
+            throw new RconClientException(errorMsg, e);
+        }
+
+        RconClient rconClient = new RconClient(host, port, password, socketChannel, useDirectBuffers);
+        try {
+            LOGGER.info("正在尝试认证RCON服务器");
+            rconClient.authenticate(password);
+            LOGGER.info("成功认证RCON服务器");
+        } catch (Exception authException) {
+            String errorMsg = String.format("RCON服务器认证失败 %s:%d - %s (连接超时: %dms)",
+                    host, port, authException.getMessage(), timeoutMs);
+            LOGGER.severe(errorMsg);
+            try {
+                rconClient.close();
+            } catch (Exception closingException) {
+                authException.addSuppressed(closingException);
+            }
+            throw new RconClientException(errorMsg, authException);
+        }
+        return rconClient;
+    }
 
     private RconClient(String host, int port, String password, SocketChannel socketChannel, boolean useDirectBuffers) {
         this.host = host;
@@ -94,79 +153,13 @@ public class RconClient implements Closeable {
         return open(host, port, password, timeoutMs, true);
     }
 
-    /**
-     * 打开RconClient
-     *
-     * @param host             主机
-     * @param port             端口
-     * @param password         密码
-     * @param timeoutMs        超时时间
-     * @param useDirectBuffers 是否使用直接缓冲区
-     * @return // RconClient
-     */
-    public static RconClient open(String host, int port, String password, int timeoutMs, boolean useDirectBuffers) {
-        SocketChannel socketChannel;
+    private static void sleepQuietly(long millis) throws IOException {
         try {
-            socketChannel = SocketChannel.open();
-            socketChannel.socket().setTcpNoDelay(true);
-            socketChannel.socket().setKeepAlive(true);
-            socketChannel.socket().setSoTimeout(timeoutMs);
-            socketChannel.socket().setReceiveBufferSize(DEFAULT_BUFFER_SIZE);
-            socketChannel.socket().setSendBufferSize(DEFAULT_BUFFER_SIZE);
-
-            // Set connection timeout
-            socketChannel.configureBlocking(true);
-
-            LOGGER.info(String.format("正在尝试连接RCON服务器 %s:%d，超时时间 %dms", host, port, timeoutMs));
-
-            // Use a separate thread with timeout for connection
-            CompletableFuture<Boolean> connectionFuture = CompletableFuture.supplyAsync(() -> {
-                try {
-                    socketChannel.socket().connect(new InetSocketAddress(host, port), timeoutMs);
-                    return true;
-                } catch (IOException e) {
-                    LOGGER.severe("连接失败: " + e.getMessage());
-                    return false;
-                }
-            });
-
-            try {
-                if (!connectionFuture.get(timeoutMs, TimeUnit.MILLISECONDS)) {
-                    throw new RconClientException("连接超时");
-                }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new RconClientException("连接被中断", e);
-            } catch (ExecutionException e) {
-                throw new RconClientException("连接执行错误", e.getCause());
-            } catch (TimeoutException e) {
-                throw new RconClientException("连接在 " + timeoutMs + "ms 后超时", e);
-            }
-
-            LOGGER.info("成功建立Socket连接");
-        } catch (IOException e) {
-            String errorMsg = String.format("无法打开到 %s:%d 的socket连接 - %s", host, port, e.getMessage());
-            LOGGER.severe(errorMsg);
-            throw new RconClientException(errorMsg, e);
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IOException("线程被中断", e);
         }
-
-        RconClient rconClient = new RconClient(host, port, password, socketChannel, useDirectBuffers);
-        try {
-            LOGGER.info("正在尝试认证RCON服务器");
-            rconClient.authenticate(password);
-            LOGGER.info("成功认证RCON服务器");
-        } catch (Exception authException) {
-            String errorMsg = String.format("RCON服务器认证失败 %s:%d - %s (连接超时: %dms)",
-                    host, port, authException.getMessage(), timeoutMs);
-            LOGGER.severe(errorMsg);
-            try {
-                rconClient.close();
-            } catch (Exception closingException) {
-                authException.addSuppressed(closingException);
-            }
-            throw new RconClientException(errorMsg, authException);
-        }
-        return rconClient;
     }
 
     /**
@@ -305,6 +298,14 @@ public class RconClient implements Closeable {
         }
     }
 
+    private static void applySocketOptions(SocketChannel channel, int timeoutMs) throws IOException {
+        channel.socket().setTcpNoDelay(true);
+        channel.socket().setKeepAlive(true);
+        channel.socket().setSoTimeout(timeoutMs);
+        channel.socket().setReceiveBufferSize(DEFAULT_BUFFER_SIZE);
+        channel.socket().setSendBufferSize(DEFAULT_BUFFER_SIZE);
+    }
+
     /**
      * 认证
      *
@@ -313,12 +314,19 @@ public class RconClient implements Closeable {
     private void authenticate(String password) {
         LOGGER.info("开始RCON认证流程");
         try {
-            send(TYPE_AUTH, password);
+            authenticateWithCurrentConnection(password);
             LOGGER.info("RCON认证成功");
+        } catch (IOException e) {
+            LOGGER.log(Level.SEVERE, "RCON认证失败: {0}", e.getMessage());
+            throw new RconClientException("RCON认证失败: " + e.getMessage(), e);
         } catch (Exception e) {
-            LOGGER.severe("RCON认证失败: " + e.getMessage());
+            LOGGER.log(Level.SEVERE, "RCON认证失败: {0}", e.getMessage());
             throw e;
         }
+    }
+
+    private void authenticateWithCurrentConnection(String password) throws IOException {
+        sendInternal(TYPE_AUTH, password);
     }
 
     /**
@@ -340,13 +348,10 @@ public class RconClient implements Closeable {
 
                 if (attempts < MAX_RECONNECT_ATTEMPTS) {
                     try {
-                        LOGGER.info(String.format("等待 %dms 后进行重连尝试", RECONNECT_DELAY_MS));
-                        Thread.sleep(RECONNECT_DELAY_MS);
+                        waitBeforeReconnect();
                         reconnect();
-                    } catch (InterruptedException ie) {
-                        Thread.currentThread().interrupt();
-                        LOGGER.severe("重连被中断: " + ie.getMessage());
-                        throw new RconClientException("重连被中断", ie);
+                    } catch (IOException ioException) {
+                        throw new RconClientException("重连等待被中断", ioException);
                     }
                 } else {
                     LOGGER.severe(String.format("在 %d 次尝试后仍然无法发送命令: %s",
@@ -372,29 +377,32 @@ public class RconClient implements Closeable {
         ByteBuffer buffer = null;
         try {
             buffer = toByteBuffer(requestId, type, payloadBytes);
-            socketChannel.write(buffer);
+            writeFully(buffer);
 
-            ByteBuffer responseBuffer = readResponse();
-            int responseId = responseBuffer.getInt();
+            ResponsePacket firstPacket = readResponsePacket(DEFAULT_TIMEOUT_MS, false);
+            validateResponsePacket(requestId, firstPacket);
 
-            if (responseId == AUTHENTICATION_FAILURE_ID) {
-                throw new AuthFailureException();
+            if (type == TYPE_AUTH) {
+                return decodePayload(firstPacket.payload).trim();
             }
 
-            if (responseId != requestId) {
-                throw new RconClientException("无效的响应ID: 期望 " + requestId + "，但收到 " + responseId);
+            StringBuilder allPayload = new StringBuilder(decodePayload(firstPacket.payload));
+            int interPacketTimeoutMs = resolveInterPacketTimeoutMs();
+
+            while (true) {
+                ResponsePacket packet = readResponsePacket(interPacketTimeoutMs, true);
+                if (packet == null) {
+                    break;
+                }
+                validateResponsePacket(requestId, packet);
+                allPayload.append(decodePayload(packet.payload));
+
+                if (isTerminalPayload(packet.payload)) {
+                    break;
+                }
             }
 
-            int responseType = responseBuffer.getInt();
-
-            byte[] bodyBytes = new byte[responseBuffer.remaining()];
-            responseBuffer.get(bodyBytes);
-
-            if (bodyBytes.length >= 2 && bodyBytes[bodyBytes.length - 1] == 0 && bodyBytes[bodyBytes.length - 2] == 0) {
-                return new String(bodyBytes, 0, bodyBytes.length - 2, PAYLOAD_CHARSET).trim();
-            } else {
-                return new String(bodyBytes, PAYLOAD_CHARSET).trim();
-            }
+            return allPayload.toString().trim();
         } finally {
             if (buffer != null) {
                 returnBuffer(buffer);
@@ -408,19 +416,22 @@ public class RconClient implements Closeable {
     private void reconnect() {
         try {
             LOGGER.info(String.format("正在关闭与 %s:%d 的现有连接", host, port));
-            socketChannel.close();
+            if (socketChannel != null && socketChannel.isOpen()) {
+                socketChannel.close();
+            }
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "关闭现有连接时出错: " + e.getMessage(), e);
         }
 
         try {
             LOGGER.info(String.format("正在尝试重新连接到 %s:%d", host, port));
-            socketChannel = SocketChannel.open(new InetSocketAddress(host, port));
-            socketChannel.socket().setTcpNoDelay(true);
-            socketChannel.socket().setKeepAlive(true);
+            socketChannel = SocketChannel.open();
             socketChannel.configureBlocking(true);
+            applySocketOptions(socketChannel, DEFAULT_TIMEOUT_MS);
+            socketChannel.socket().connect(new InetSocketAddress(host, port), DEFAULT_TIMEOUT_MS);
+            socketChannel.configureBlocking(false);
             LOGGER.info("Socket连接已重新建立，正在尝试认证");
-            authenticate(password);
+            authenticateWithCurrentConnection(password);
             isConnected.set(true);
             LOGGER.info("成功重新连接并认证到 " + host + ":" + port);
         } catch (IOException e) {
@@ -431,70 +442,49 @@ public class RconClient implements Closeable {
         }
     }
 
-    @SneakyThrows
-    private ByteBuffer readResponse() {
+    private void waitBeforeReconnect() throws IOException {
+        if (RECONNECT_DELAY_MS <= 0) {
+            return;
+        }
+        LOGGER.info(String.format("等待 %dms 后进行重连尝试", RECONNECT_DELAY_MS));
+        sleepQuietly(RECONNECT_DELAY_MS);
+    }
+
+    private ResponsePacket readResponsePacket(int timeoutMs, boolean allowTimeoutWithoutData) throws IOException {
         ByteBuffer sizeBuffer = null;
         ByteBuffer dataBuffer = null;
-        ByteBuffer nullsBuffer = null;
 
         try {
-            // LOGGER.fine("正在读取响应大小");
             sizeBuffer = getBuffer(Integer.BYTES);
             sizeBuffer.limit(Integer.BYTES);
-            readFully(sizeBuffer);
+            boolean hasHeader = readFully(sizeBuffer, timeoutMs, allowTimeoutWithoutData);
+            if (!hasHeader) {
+                return null;
+            }
+
             sizeBuffer.flip();
-            // LOGGER.fine("响应大小读取成功");
             sizeBuffer.order(ByteOrder.LITTLE_ENDIAN);
             int size = sizeBuffer.getInt();
 
-            // LOGGER.fine("正在检查响应大小");
-            if (size <= 0 || size > MAX_RESPONSE_SIZE) {
-                String errorMsg = String.format("无效的响应大小: %d 字节（最大允许: %d 字节）。这可能表示协议不匹配或服务器配置错误。", size, MAX_RESPONSE_SIZE);
-                LOGGER.severe(errorMsg);
-
-                // LOGGER.severe("无效的响应大小: " + size + " 字节（最大允许: " + MAX_RESPONSE_SIZE + " 字节）。这可能表示协议不匹配或服务器配置错误。");
-                if (size <= 0 || size > 1000000) {
-                    LOGGER.warning("尝试使用默认缓冲区大小恢复");
-                    size = DEFAULT_BUFFER_SIZE;
-                }
+            if (size < MIN_PACKET_SIZE || size > MAX_RESPONSE_SIZE) {
+                throw new IOException(String.format("无效的响应大小: %d（允许范围: %d-%d）", size, MIN_PACKET_SIZE, MAX_RESPONSE_SIZE));
             }
 
-            LOGGER.fine(String.format("响应大小: %d 字节", size));
-
-            // 确保在分配缓冲区前大小合理
-            // 注意：这里不再减去2个字节，而是读取完整数据
-            int dataSize = Math.min(size, MAX_RESPONSE_SIZE);
-
-            // LOGGER.fine("正在读取响应数据");
-            dataBuffer = getBuffer(dataSize);
-            dataBuffer.limit(dataSize);
+            dataBuffer = getBuffer(size);
+            dataBuffer.limit(size);
             dataBuffer.order(ByteOrder.LITTLE_ENDIAN);
-
-            try {
-                readFully(dataBuffer);
-            } catch (IOException e) {
-                LOGGER.severe("读取数据时出错: " + e.getMessage());
-                throw new RconClientException("读取响应数据失败: " + e.getMessage(), e);
-            }
-
+            readFully(dataBuffer, timeoutMs, false);
             dataBuffer.flip();
 
-            // 不再单独读取空字节，而是作为数据的一部分
-            // 在sendInternal中处理
+            int responseId = dataBuffer.getInt();
+            int responseType = dataBuffer.getInt();
+            byte[] bodyBytes = new byte[dataBuffer.remaining()];
+            dataBuffer.get(bodyBytes);
 
-            ByteBuffer result = ByteBuffer.allocate(dataBuffer.remaining());
-            result.order(ByteOrder.LITTLE_ENDIAN);
-            result.put(dataBuffer);
-            result.flip();
-            // LOGGER.fine("响应读取成功");
-            return result;
-        } catch (Exception e) {
-            LOGGER.severe("读取响应时出错: " + e.getMessage());
-            throw new RconClientException("读取响应失败: " + e.getMessage(), e);
+            return new ResponsePacket(responseId, responseType, bodyBytes);
         } finally {
             returnBuffer(sizeBuffer);
             returnBuffer(dataBuffer);
-            returnBuffer(nullsBuffer);
         }
     }
 
@@ -502,7 +492,7 @@ public class RconClient implements Closeable {
      * 检查连接
      */
     private void checkConnection() {
-        if (!isConnected.get() || !socketChannel.isConnected()) {
+        if (!isConnected.get() || socketChannel == null || !socketChannel.isOpen() || !socketChannel.isConnected()) {
             throw new RconClientException("未连接到RCON服务器");
         }
     }
@@ -513,37 +503,102 @@ public class RconClient implements Closeable {
      * @param buffer 缓冲区
      * @throws IOException IO异常
      */
-    private void readFully(ByteBuffer buffer) throws IOException {
+    private boolean readFully(ByteBuffer buffer, int timeoutMs, boolean allowTimeoutWithoutData) throws IOException {
+        long timeoutNanos = TimeUnit.MILLISECONDS.toNanos(Math.max(1, timeoutMs));
+        long deadline = System.nanoTime() + timeoutNanos;
         int totalBytesRead = 0;
-        int maxAttempts = 10;
-        int attempts = 0;
 
-        while (buffer.hasRemaining() && attempts < maxAttempts) {
+        while (buffer.hasRemaining()) {
             int bytesRead = socketChannel.read(buffer);
 
-            if (bytesRead == 0) {
-                // No data available yet, wait a bit
-                attempts++;
-                try {
-                    Thread.sleep(50);
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt();
-                    throw new IOException("读取被中断");
-                }
+            if (bytesRead > 0) {
+                totalBytesRead += bytesRead;
                 continue;
             }
 
-            if (bytesRead == -1) {
+            if (bytesRead < 0) {
                 throw new IOException("读取到流结束，已读取 " + totalBytesRead + " 字节");
             }
 
-            totalBytesRead += bytesRead;
-            attempts = 0; // Reset attempts counter on successful read
+            if (System.nanoTime() >= deadline) {
+                if (allowTimeoutWithoutData && totalBytesRead == 0) {
+                    return false;
+                }
+                throw new IOException("读取超时，已读取 " + totalBytesRead + " 字节");
+            }
+
+            sleepQuietly(READ_IDLE_SLEEP_MS);
+        }
+        return true;
+    }
+
+    private void writeFully(ByteBuffer buffer) throws IOException {
+        long timeoutNanos = TimeUnit.MILLISECONDS.toNanos(Math.max(1, DEFAULT_TIMEOUT_MS));
+        long deadline = System.nanoTime() + timeoutNanos;
+
+        while (buffer.hasRemaining()) {
+            int bytesWritten = socketChannel.write(buffer);
+            if (bytesWritten > 0) {
+                continue;
+            }
+
+            if (bytesWritten < 0) {
+                throw new IOException("写入失败：连接已关闭");
+            }
+
+            if (System.nanoTime() >= deadline) {
+                throw new IOException("写入超时");
+            }
+            sleepQuietly(READ_IDLE_SLEEP_MS);
+        }
+    }
+
+    private void validateResponsePacket(int requestId, ResponsePacket packet) {
+        if (packet.requestId == AUTHENTICATION_FAILURE_ID) {
+            throw new AuthFailureException();
         }
 
-        if (buffer.hasRemaining()) {
-            throw new IOException("在 " + maxAttempts + " 次尝试后仍无法读取完整数据");
+        if (packet.requestId != requestId) {
+            throw new RconClientException("无效的响应ID: 期望 " + requestId + "，但收到 " + packet.requestId);
         }
+    }
+
+    private String decodePayload(byte[] bodyBytes) {
+        if (bodyBytes == null || bodyBytes.length == 0) {
+            return "";
+        }
+
+        int payloadLength = bodyBytes.length;
+        while (payloadLength > 0 && bodyBytes[payloadLength - 1] == 0) {
+            payloadLength--;
+        }
+        return new String(bodyBytes, 0, payloadLength, PAYLOAD_CHARSET);
+    }
+
+    private boolean isTerminalPayload(byte[] bodyBytes) {
+        if (bodyBytes == null || bodyBytes.length == 0) {
+            return true;
+        }
+
+        for (byte bodyByte : bodyBytes) {
+            if (bodyByte != 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private int resolveInterPacketTimeoutMs() {
+        int candidate = DEFAULT_TIMEOUT_MS / 4;
+        if (candidate <= 0) {
+            return DEFAULT_INTER_PACKET_TIMEOUT_MS;
+        }
+        return Math.max(20, Math.min(200, candidate));
+    }
+
+    // 响应数据包记录类，包含请求ID、类型和负载字节数组
+    private record ResponsePacket(int requestId, int type, byte[] payload) {
+
     }
 
     /**
