@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.vote.VoteTemplateMapper">
+
+    <resultMap id="VoteTemplateResult" type="cc.endmc.server.domain.vote.VoteTemplate">
+        <result property="id" column="id"/>
+        <result property="templateCode" column="template_code"/>
+        <result property="templateName" column="template_name"/>
+        <result property="templateDesc" column="template_desc"/>
+        <result property="targetType" column="target_type"/>
+        <result property="actionType" column="action_type"/>
+        <result property="actionCommandTemplate" column="action_command_template"/>
+        <result property="minRequiredVotes" column="min_required_votes"/>
+        <result property="voteDurationSeconds" column="vote_duration_seconds"/>
+        <result property="needReason" column="need_reason"/>
+        <result property="enabled" column="enabled"/>
+        <result property="sortOrder" column="sort_order"/>
+        <result property="extraConfig" column="extra_config"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectVoteTemplateVo">
+        select id,
+               template_code,
+               template_name,
+               template_desc,
+               target_type,
+               action_type,
+               action_command_template,
+               min_required_votes,
+               vote_duration_seconds,
+               need_reason,
+               enabled,
+               sort_order,
+               extra_config,
+               create_by,
+               create_time,
+               update_by,
+               update_time,
+               remark
+        from vote_template
+    </sql>
+
+    <insert id="insertVoteTemplate" parameterType="cc.endmc.server.domain.vote.VoteTemplate" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into vote_template
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="templateCode != null">template_code,</if>
+            <if test="templateName != null">template_name,</if>
+            <if test="templateDesc != null">template_desc,</if>
+            <if test="targetType != null">target_type,</if>
+            <if test="actionType != null">action_type,</if>
+            <if test="actionCommandTemplate != null">action_command_template,</if>
+            <if test="minRequiredVotes != null">min_required_votes,</if>
+            <if test="voteDurationSeconds != null">vote_duration_seconds,</if>
+            <if test="needReason != null">need_reason,</if>
+            <if test="enabled != null">enabled,</if>
+            <if test="sortOrder != null">sort_order,</if>
+            <if test="extraConfig != null">extra_config,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="remark != null">remark,</if>
+            create_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="templateCode != null">#{templateCode},</if>
+            <if test="templateName != null">#{templateName},</if>
+            <if test="templateDesc != null">#{templateDesc},</if>
+            <if test="targetType != null">#{targetType},</if>
+            <if test="actionType != null">#{actionType},</if>
+            <if test="actionCommandTemplate != null">#{actionCommandTemplate},</if>
+            <if test="minRequiredVotes != null">#{minRequiredVotes},</if>
+            <if test="voteDurationSeconds != null">#{voteDurationSeconds},</if>
+            <if test="needReason != null">#{needReason},</if>
+            <if test="enabled != null">#{enabled},</if>
+            <if test="sortOrder != null">#{sortOrder},</if>
+            <if test="extraConfig != null">#{extraConfig},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="remark != null">#{remark},</if>
+            now()
+        </trim>
+    </insert>
+
+    <select id="selectVoteTemplateById" parameterType="Long" resultMap="VoteTemplateResult">
+        <include refid="selectVoteTemplateVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectVoteTemplateByCode" parameterType="String" resultMap="VoteTemplateResult">
+        <include refid="selectVoteTemplateVo"/>
+        where template_code = #{templateCode}
+        limit 1
+    </select>
+
+    <select id="selectEnabledVoteTemplateList" resultMap="VoteTemplateResult">
+        <include refid="selectVoteTemplateVo"/>
+        where enabled = 1
+        order by sort_order asc, id asc
+    </select>
+
+</mapper>
