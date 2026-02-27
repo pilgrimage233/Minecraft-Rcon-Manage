@@ -11,6 +11,9 @@
         <result property="qqNum" column="qq_num"/>
         <result property="password" column="password"/>
         <result property="status" column="status"/>
+        <result property="roleLevel" column="role_level"/>
+        <result property="roleTitle" column="role_title"/>
+        <result property="canInitiateVote" column="can_initiate_vote"/>
         <result property="lastLoginTime" column="last_login_time"/>
         <result property="createBy" column="create_by"/>
         <result property="createTime" column="create_time"/>
@@ -26,6 +29,9 @@
                qq_num,
                password,
                status,
+               role_level,
+               role_title,
+               can_initiate_vote,
                last_login_time,
                create_by,
                create_time,
@@ -58,6 +64,9 @@
             <if test="qqNum != null">qq_num,</if>
             <if test="password != null">password,</if>
             <if test="status != null">status,</if>
+            <if test="roleLevel != null">role_level,</if>
+            <if test="roleTitle != null">role_title,</if>
+            <if test="canInitiateVote != null">can_initiate_vote,</if>
             <if test="lastLoginTime != null">last_login_time,</if>
             <if test="createBy != null">create_by,</if>
             <if test="createTime != null">create_time,</if>
@@ -71,6 +80,9 @@
             <if test="qqNum != null">#{qqNum},</if>
             <if test="password != null">#{password},</if>
             <if test="status != null">#{status},</if>
+            <if test="roleLevel != null">#{roleLevel},</if>
+            <if test="roleTitle != null">#{roleTitle},</if>
+            <if test="canInitiateVote != null">#{canInitiateVote},</if>
             <if test="lastLoginTime != null">#{lastLoginTime},</if>
             <if test="createBy != null">#{createBy},</if>
             <if test="createTime != null">#{createTime},</if>
@@ -88,6 +100,9 @@
             <if test="qqNum != null">qq_num = #{qqNum},</if>
             <if test="password != null">password = #{password},</if>
             <if test="status != null">status = #{status},</if>
+            <if test="roleLevel != null">role_level = #{roleLevel},</if>
+            <if test="roleTitle != null">role_title = #{roleTitle},</if>
+            <if test="canInitiateVote != null">can_initiate_vote = #{canInitiateVote},</if>
             <if test="lastLoginTime != null">last_login_time = #{lastLoginTime},</if>
             <if test="updateBy != null">update_by = #{updateBy},</if>
             <if test="updateTime != null">update_time = #{updateTime},</if>
@@ -99,6 +114,35 @@
     <update id="updateWhitelistUserLoginTime">
         update whitelist_user
         set last_login_time = #{lastLoginTime}
+        where id = #{id}
+    </update>
+
+    <select id="selectWhitelistUserList" parameterType="WhitelistUser" resultMap="WhitelistUserResult">
+        <include refid="selectWhitelistUserVo"/>
+        <where>
+            <if test="userName != null and userName != ''">
+                and lower(user_name) like concat('%', lower(#{userName}), '%')
+            </if>
+            <if test="qqNum != null and qqNum != ''">
+                and qq_num = #{qqNum}
+            </if>
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+            <if test="roleLevel != null">
+                and role_level = #{roleLevel}
+            </if>
+        </where>
+        order by id desc
+    </select>
+
+    <update id="updateWhitelistUserRole">
+        update whitelist_user
+        set role_level        = #{roleLevel},
+            role_title        = #{roleTitle},
+            can_initiate_vote = #{canInitiateVote},
+            update_by         = #{updateBy},
+            update_time       = now()
         where id = #{id}
     </update>
 

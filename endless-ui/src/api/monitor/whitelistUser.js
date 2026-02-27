@@ -24,3 +24,21 @@ export function forceLogout(token) {
     method: 'delete'
   })
 }
+
+// 查询白名单注册用户列表
+export function listRegisteredUsers(query) {
+  return request({
+    url: '/monitor/whitelist-user/registered/list',
+    method: 'get',
+    params: query
+  })
+}
+
+// 更新白名单用户角色
+export function updateWhitelistUserRole(data) {
+  return request({
+    url: '/monitor/whitelist-user/role',
+    method: 'put',
+    data: data
+  })
+}

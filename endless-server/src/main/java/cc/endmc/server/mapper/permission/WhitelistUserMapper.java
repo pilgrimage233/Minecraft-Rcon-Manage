@@ -5,6 +5,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * 白名单用户Mapper接口
@@ -22,6 +23,14 @@ public interface WhitelistUserMapper {
     int updateWhitelistUser(WhitelistUser whitelistUser);
 
     int updateWhitelistUserLoginTime(@Param("id") Long id, @Param("lastLoginTime") Date lastLoginTime);
+
+    List<WhitelistUser> selectWhitelistUserList(WhitelistUser whitelistUser);
+
+    int updateWhitelistUserRole(@Param("id") Long id,
+                                @Param("roleLevel") Integer roleLevel,
+                                @Param("roleTitle") String roleTitle,
+                                @Param("canInitiateVote") Integer canInitiateVote,
+                                @Param("updateBy") String updateBy);
 
     long countWhitelistUsers();
 }

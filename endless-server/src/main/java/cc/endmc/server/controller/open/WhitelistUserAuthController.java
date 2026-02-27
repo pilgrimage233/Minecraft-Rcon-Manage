@@ -29,6 +29,7 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -54,6 +55,12 @@ public class WhitelistUserAuthController extends BaseController {
 
     @Value("${token.expireTime:30}")
     private int expireTime;
+
+    @Value("${whitelist.demo.enabled:false}")
+    private boolean whitelistDemoEnabled;
+
+    @Value("${whitelist.demo.username:}")
+    private String whitelistDemoUsername;
 
     /**
      * 发送验证码接口
@@ -92,7 +99,10 @@ public class WhitelistUserAuthController extends BaseController {
             emailService.push(qqNum + EmailTemplates.QQ_EMAIL,
                     EmailTemplates.WHITELIST_LOGIN_CODE_TITLE,
                     EmailTemplates.getWhitelistLoginCodeTemplate(code));
-        } catch (Exception e) {
+        } catch (ExecutionException | InterruptedException e) {
+            if (e instanceof InterruptedException) {
+                Thread.currentThread().interrupt();
+            }
             SecureCodeUtil.deleteCode(code, CacheKey.WHITELIST_USER_VERIFY_KEY);
             SecureCodeUtil.clearActiveCode(qqNum, CacheKey.WHITELIST_USER_VERIFY_KEY);
             return error("验证码发送失败");
@@ -156,12 +166,24 @@ public class WhitelistUserAuthController extends BaseController {
             whitelistUser.setUserName(userName);
             whitelistUser.setPassword(encodedPassword);
             whitelistUser.setStatus(UserConstants.NORMAL);
+            whitelistUser.setRoleLevel(1);
+            whitelistUser.setRoleTitle("成员");
+            whitelistUser.setCanInitiateVote(0);
             whitelistUserService.insertWhitelistUser(whitelistUser);
         } else {
             existing.setWhitelistId(whitelistInfo.getId());
             existing.setUserName(userName);
             existing.setPassword(encodedPassword);
             existing.setStatus(UserConstants.NORMAL);
+            if (existing.getRoleLevel() == null) {
+                existing.setRoleLevel(1);
+            }
+            if (StringUtils.isEmpty(existing.getRoleTitle())) {
+                existing.setRoleTitle("成员");
+            }
+            if (existing.getCanInitiateVote() == null) {
+                existing.setCanInitiateVote(0);
+            }
             whitelistUserService.updateWhitelistUser(existing);
         }
 
@@ -205,6 +227,11 @@ public class WhitelistUserAuthController extends BaseController {
         session.setWhitelistId(whitelistUser.getWhitelistId());
         session.setUserName(whitelistUser.getUserName());
         session.setQqNum(whitelistUser.getQqNum());
+        Integer roleLevel = whitelistUser.getRoleLevel();
+        session.setRoleLevel(roleLevel == null ? 1 : roleLevel);
+        session.setRoleTitle(StringUtils.isEmpty(whitelistUser.getRoleTitle()) ? "成员" : whitelistUser.getRoleTitle());
+        Integer canInitiateVote = whitelistUser.getCanInitiateVote();
+        session.setCanInitiateVote(canInitiateVote == null ? 0 : canInitiateVote);
         session.setToken(token);
         session.setLoginTime(loginTime);
         session.setExpireTime(expireAt);
@@ -278,12 +305,18 @@ public class WhitelistUserAuthController extends BaseController {
         result.put("userName", session.getUserName());
         result.put("gameId", gameId);
         result.put("qqNum", session.getQqNum());
+        result.put("roleLevel", session.getRoleLevel());
+        result.put("roleTitle", session.getRoleTitle());
+        result.put("canInitiateVote", session.getCanInitiateVote());
         result.put("token", session.getToken());
         result.put("loginTime", session.getLoginTime());
         result.put("expireTime", session.getExpireTime());
         result.put("checkInfo", checkInfo);
 
-        String recordUserName = StringUtils.isNotEmpty(gameId) ? gameId.toLowerCase() : null;
+        String recordUserName = gameId;
+        if (gameId != null && !gameId.isEmpty()) {
+            recordUserName = gameId.toLowerCase();
+        }
         List<PlayerOnlineRecord> records = playerOnlineRecordMapper
                 .selectRecentRecords(session.getWhitelistId(), recordUserName, 10);
         result.put("onlineRecords", records);
@@ -339,6 +372,9 @@ public class WhitelistUserAuthController extends BaseController {
         if (whitelistUser == null) {
             return error("用户不存在");
         }
+        if (isDemoWhitelistUser(whitelistUser)) {
+            return error("演示账户不允许修改密码");
+        }
         if (!passwordEncoder.matches(body.getOldPassword(), whitelistUser.getPassword())) {
             return error("原密码错误");
         }
@@ -346,6 +382,13 @@ public class WhitelistUserAuthController extends BaseController {
         whitelistUser.setPassword(passwordEncoder.encode(body.getNewPassword()));
         whitelistUserService.updateWhitelistUser(whitelistUser);
         return success("密码修改成功");
+    }
+
+    private boolean isDemoWhitelistUser(WhitelistUser whitelistUser) {
+        if (!whitelistDemoEnabled || whitelistUser == null || StringUtils.isEmpty(whitelistDemoUsername)) {
+            return false;
+        }
+        return StringUtils.equalsIgnoreCase(StringUtils.trim(whitelistUser.getUserName()), StringUtils.trim(whitelistDemoUsername));
     }
 
     /**

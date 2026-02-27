@@ -48,6 +48,21 @@ public class WhitelistUser extends BaseEntity {
     private String status;
 
     /**
+     * 用户等级(1成员, 50代表, 80管理员, 100Owner)
+     */
+    private Integer roleLevel;
+
+    /**
+     * 用户头衔
+     */
+    private String roleTitle;
+
+    /**
+     * 是否可发起投票(0否 1是)
+     */
+    private Integer canInitiateVote;
+
+    /**
      * 最后登录时间
      */
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")

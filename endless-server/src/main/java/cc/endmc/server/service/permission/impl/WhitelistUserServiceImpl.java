@@ -7,6 +7,7 @@ import cc.endmc.server.service.permission.IWhitelistUserService;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
+import java.util.List;
 
 /**
  * 白名单用户Service业务层处理
@@ -37,6 +38,15 @@ public class WhitelistUserServiceImpl implements IWhitelistUserService {
     @Override
     public int insertWhitelistUser(WhitelistUser whitelistUser) {
         whitelistUser.setCreateTime(DateUtils.getNowDate());
+        if (whitelistUser.getRoleLevel() == null) {
+            whitelistUser.setRoleLevel(1);
+        }
+        if (whitelistUser.getRoleTitle() == null || whitelistUser.getRoleTitle().isEmpty()) {
+            whitelistUser.setRoleTitle("成员");
+        }
+        if (whitelistUser.getCanInitiateVote() == null) {
+            whitelistUser.setCanInitiateVote(0);
+        }
         return whitelistUserMapper.insertWhitelistUser(whitelistUser);
     }
 
@@ -49,6 +59,16 @@ public class WhitelistUserServiceImpl implements IWhitelistUserService {
     @Override
     public int updateWhitelistUserLoginTime(Long id, Date lastLoginTime) {
         return whitelistUserMapper.updateWhitelistUserLoginTime(id, lastLoginTime);
+    }
+
+    @Override
+    public List<WhitelistUser> selectWhitelistUserList(WhitelistUser whitelistUser) {
+        return whitelistUserMapper.selectWhitelistUserList(whitelistUser);
+    }
+
+    @Override
+    public int updateWhitelistUserRole(Long id, Integer roleLevel, String roleTitle, Integer canInitiateVote, String updateBy) {
+        return whitelistUserMapper.updateWhitelistUserRole(id, roleLevel, roleTitle, canInitiateVote, updateBy);
     }
 
     @Override

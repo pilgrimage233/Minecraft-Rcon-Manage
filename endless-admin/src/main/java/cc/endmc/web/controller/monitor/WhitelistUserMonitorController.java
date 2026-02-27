@@ -8,7 +8,9 @@ import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.enums.BusinessType;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.server.common.constant.CacheKey;
+import cc.endmc.server.domain.permission.WhitelistUser;
 import cc.endmc.server.domain.permission.WhitelistUserSession;
+import cc.endmc.server.request.WhitelistUserRoleUpdateRequest;
 import cc.endmc.server.service.permission.IWhitelistUserService;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -70,6 +72,39 @@ public class WhitelistUserMonitorController extends BaseController {
         data.put("registeredCount", registeredCount);
         data.put("onlineCount", onlineCount);
         return success(data);
+    }
+
+    @PreAuthorize("@ss.hasPermi('monitor:whitelist-user:list')")
+    @GetMapping("/registered/list")
+    public TableDataInfo registeredList(WhitelistUser whitelistUser) {
+        startPage();
+        List<WhitelistUser> list = whitelistUserService.selectWhitelistUserList(whitelistUser);
+        return getDataTable(list);
+    }
+
+    @PreAuthorize("@ss.hasPermi('monitor:whitelist-user:role')")
+    @Log(title = "白名单用户角色", businessType = BusinessType.UPDATE)
+    @PutMapping("/role")
+    public AjaxResult updateRole(@RequestBody WhitelistUserRoleUpdateRequest request) {
+        if (request == null || request.getUserId() == null) {
+            return error("用户ID不能为空");
+        }
+        if (request.getRoleLevel() == null || request.getRoleLevel() < 1) {
+            return error("等级必须大于0");
+        }
+        String roleTitle = StringUtils.trim(request.getRoleTitle());
+        if (StringUtils.isEmpty(roleTitle)) {
+            return error("头衔不能为空");
+        }
+        int canInitiate = request.getCanInitiateVote() != null && request.getCanInitiateVote() == 1 ? 1 : 0;
+        int rows = whitelistUserService.updateWhitelistUserRole(
+                request.getUserId(),
+                request.getRoleLevel(),
+                roleTitle,
+                canInitiate,
+                getUsername()
+        );
+        return toAjax(rows);
     }
 
     @PreAuthorize("@ss.hasPermi('monitor:whitelist-user:forceLogout')")
