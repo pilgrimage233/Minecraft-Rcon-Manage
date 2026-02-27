@@ -6,7 +6,7 @@ on:
       branch:
         description: '构建分支'
         required: true
-        default: 'development'
+        default: 'springboot3'
         type: choice
         options:
           - development
