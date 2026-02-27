@@ -1,60 +1,63 @@
 <template>
   <div class="app-container">
-    <el-form v-show="showSearch" ref="queryForm" :inline="true" :model="queryParams" label-width="80px" size="small">
-      <el-form-item label="节点服务器" prop="nodeId">
-        <el-select v-model="queryParams.nodeId" clearable placeholder="请选择节点服务器" style="width: 200px">
-          <el-option
-            v-for="server in nodeServerList"
-            :key="server.id"
-            :label="server.serverName"
-            :value="server.id"
+    <el-card v-show="showSearch" class="search-card mb8" shadow="never">
+      <el-form ref="queryForm" :inline="true" :model="queryParams" label-width="80px" size="small">
+        <el-form-item label="节点服务器" prop="nodeId">
+          <el-select v-model="queryParams.nodeId" clearable placeholder="请选择节点服务器" style="width: 200px">
+            <el-option
+              v-for="server in nodeServerList"
+              :key="server.id"
+              :label="server.serverName"
+              :value="server.id"
+            />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="Java版本" prop="version">
+          <el-input
+            v-model="queryParams.version"
+            clearable
+            placeholder="请输入Java版本"
+            style="width: 200px"
+            @keyup.enter.native="handleQuery"
           />
-        </el-select>
-      </el-form-item>
-      <el-form-item label="Java版本" prop="version">
-        <el-input
-          v-model="queryParams.version"
-          clearable
-          placeholder="请输入Java版本"
-          style="width: 200px"
-          @keyup.enter.native="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item label="环境名称" prop="envName">
-        <el-input
-          v-model="queryParams.envName"
-          clearable
-          placeholder="请输入环境名称"
-          style="width: 200px"
-          @keyup.enter.native="handleQuery"
-        />
-      </el-form-item>
-      <el-form-item label="架构" prop="arch">
-        <el-select v-model="queryParams.arch" clearable placeholder="请选择架构" style="width: 200px">
-          <el-option label="x86" value="x86"/>
-          <el-option label="x64" value="x64"/>
-          <el-option label="arm64" value="arm64"/>
-        </el-select>
-      </el-form-item>
-      <el-form-item label="默认版本" prop="isDefault">
-        <el-select v-model="queryParams.isDefault" clearable placeholder="请选择" style="width: 200px">
-          <el-option :value="1" label="是"/>
-          <el-option :value="0" label="否"/>
-        </el-select>
-      </el-form-item>
-      <el-form-item label="状态" prop="valid">
-        <el-select v-model="queryParams.valid" clearable placeholder="请选择状态" style="width: 200px">
-          <el-option :value="1" label="有效"/>
-          <el-option :value="0" label="无效"/>
-        </el-select>
-      </el-form-item>
-      <el-form-item>
-        <el-button icon="el-icon-search" size="mini" type="primary" @click="handleQuery">搜索</el-button>
-        <el-button icon="el-icon-refresh" size="mini" @click="resetQuery">重置</el-button>
-      </el-form-item>
-    </el-form>
+        </el-form-item>
+        <el-form-item label="环境名称" prop="envName">
+          <el-input
+            v-model="queryParams.envName"
+            clearable
+            placeholder="请输入环境名称"
+            style="width: 200px"
+            @keyup.enter.native="handleQuery"
+          />
+        </el-form-item>
+        <el-form-item label="架构" prop="arch">
+          <el-select v-model="queryParams.arch" clearable placeholder="请选择架构" style="width: 200px">
+            <el-option label="x86" value="x86"/>
+            <el-option label="x64" value="x64"/>
+            <el-option label="arm64" value="arm64"/>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="默认版本" prop="isDefault">
+          <el-select v-model="queryParams.isDefault" clearable placeholder="请选择" style="width: 200px">
+            <el-option :value="1" label="是"/>
+            <el-option :value="0" label="否"/>
+          </el-select>
+        </el-form-item>
+        <el-form-item label="状态" prop="valid">
+          <el-select v-model="queryParams.valid" clearable placeholder="请选择状态" style="width: 200px">
+            <el-option :value="1" label="有效"/>
+            <el-option :value="0" label="无效"/>
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button icon="el-icon-search" size="mini" type="primary" @click="handleQuery">搜索</el-button>
+          <el-button icon="el-icon-refresh" size="mini" @click="resetQuery">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
 
-    <el-row :gutter="10" class="mb8">
+    <el-card class="table-card" shadow="never">
+      <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
         <el-button
           v-hasPermi="['node:env:add']"
@@ -187,6 +190,7 @@
       :total="total"
       @pagination="getList"
     />
+    </el-card>
 
     <!-- 一键安装Java对话框 -->
     <el-dialog :before-close="handleDialogClose" :close-on-click-modal="false" :visible.sync="installDialogVisible"
@@ -1141,3 +1145,24 @@ export default {
   }
 };
 </script>
+
+<style lang="scss" scoped>
+.app-container {
+  padding: 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: calc(100vh - 84px);
+}
+
+.search-card {
+  margin-bottom: 20px;
+  border-radius: 8px;
+  border: none;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.table-card {
+  border-radius: 8px;
+  border: none;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+</style>

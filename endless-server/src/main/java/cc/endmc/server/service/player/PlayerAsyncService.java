@@ -1,8 +1,10 @@
 package cc.endmc.server.service.player;
 
 import cc.endmc.server.domain.player.PlayerDetails;
+import cc.endmc.server.domain.player.PlayerOnlineRecord;
+import cc.endmc.server.mapper.player.PlayerOnlineRecordMapper;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
@@ -16,10 +18,12 @@ import java.util.Set;
  */
 @Slf4j
 @Service
+@RequiredArgsConstructor
 public class PlayerAsyncService {
 
-    @Autowired
-    private IPlayerDetailsService playerDetailsService;
+    private static final long MAX_SESSION_MINUTES = 24 * 60;
+    private final IPlayerDetailsService playerDetailsService;
+    private final PlayerOnlineRecordMapper playerOnlineRecordMapper;
 
     /**
      * 异步处理玩家上线
@@ -31,6 +35,15 @@ public class PlayerAsyncService {
         try {
             // 批量更新玩家最后上线时间
             playerDetailsService.updateLastOnlineTimeByUserNames(playerNames);
+
+            Date now = new Date();
+            for (String playerName : playerNames) {
+                try {
+                    createOnlineRecord(playerName, now);
+                } catch (Exception e) {
+                    log.error("记录玩家 {} 上线记录失败: {}", playerName, e.getMessage());
+                }
+            }
 
             log.debug("已更新 {} 个玩家的上线时间", playerNames.size());
         } catch (Exception e) {
@@ -52,6 +65,7 @@ public class PlayerAsyncService {
         // 对每个下线的玩家计算游戏时间
         for (String playerName : newOfflinePlayers) {
             try {
+                finishOnlineRecord(playerName, new Date());
                 updatePlayerGameTime(playerName);
             } catch (Exception e) {
                 log.error("更新玩家 {} 游戏时间失败: {}", playerName, e.getMessage());
@@ -74,7 +88,7 @@ public class PlayerAsyncService {
             return;
         }
 
-        PlayerDetails playerDetails = playerList.get(0);
+        PlayerDetails playerDetails = playerList.getFirst();
         Date lastOnlineTime = playerDetails.getLastOnlineTime();
         Date now = new Date();
 
@@ -98,5 +112,85 @@ public class PlayerAsyncService {
         } else {
             log.warn("玩家 {} 没有上线时间记录", playerName);
         }
+    }
+
+    private void createOnlineRecord(String playerName, Date loginTime) {
+        if (playerName == null) {
+            return;
+        }
+        String normalizedName = playerName.toLowerCase().trim();
+
+        PlayerOnlineRecord existing = playerOnlineRecordMapper.selectLatestOpenRecord(normalizedName);
+        if (existing != null) {
+            return;
+        }
+
+        PlayerOnlineRecord record = new PlayerOnlineRecord();
+        record.setUserName(normalizedName);
+        record.setWhitelistId(resolveWhitelistId(normalizedName));
+        record.setLoginTime(loginTime);
+        record.setCreateTime(loginTime);
+        playerOnlineRecordMapper.insertPlayerOnlineRecord(record);
+    }
+
+    private void finishOnlineRecord(String playerName, Date logoutTime) {
+        if (playerName == null) {
+            return;
+        }
+        String normalizedName = playerName.toLowerCase().trim();
+
+        PlayerOnlineRecord record = playerOnlineRecordMapper.selectLatestOpenRecord(normalizedName);
+        Date loginTime = record != null ? record.getLoginTime() : null;
+
+        if (loginTime == null) {
+            loginTime = resolveLastOnlineTime(normalizedName);
+        }
+        if (loginTime == null) {
+            log.warn("玩家 {} 没有可用的上线时间记录", normalizedName);
+            return;
+        }
+
+        long minutes = Math.max(0, (logoutTime.getTime() - loginTime.getTime()) / (1000 * 60));
+        long cappedMinutes = Math.min(minutes, MAX_SESSION_MINUTES);
+
+        if (record != null && record.getId() != null) {
+            PlayerOnlineRecord update = new PlayerOnlineRecord();
+            update.setId(record.getId());
+            update.setLogoutTime(logoutTime);
+            update.setPlayMinutes(cappedMinutes);
+            update.setUpdateTime(logoutTime);
+            playerOnlineRecordMapper.updatePlayerOnlineRecord(update);
+            return;
+        }
+
+        PlayerOnlineRecord fallback = new PlayerOnlineRecord();
+        fallback.setUserName(normalizedName);
+        fallback.setWhitelistId(resolveWhitelistId(normalizedName));
+        fallback.setLoginTime(loginTime);
+        fallback.setLogoutTime(logoutTime);
+        fallback.setPlayMinutes(cappedMinutes);
+        fallback.setCreateTime(loginTime);
+        fallback.setUpdateTime(logoutTime);
+        playerOnlineRecordMapper.insertPlayerOnlineRecord(fallback);
+    }
+
+    private Long resolveWhitelistId(String playerName) {
+        PlayerDetails details = new PlayerDetails();
+        details.setUserName(playerName);
+        List<PlayerDetails> list = playerDetailsService.selectPlayerDetailsList(details);
+        if (list.isEmpty()) {
+            return null;
+        }
+        return list.getFirst().getWhitelistId();
+    }
+
+    private Date resolveLastOnlineTime(String playerName) {
+        PlayerDetails details = new PlayerDetails();
+        details.setUserName(playerName);
+        List<PlayerDetails> list = playerDetailsService.selectPlayerDetailsList(details);
+        if (list.isEmpty()) {
+            return null;
+        }
+        return list.getFirst().getLastOnlineTime();
     }
 }

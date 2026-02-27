@@ -89,3 +89,55 @@ export function getChangeHistoryByWhitelistId(whitelistId) {
     params: {whitelistId}
   })
 }
+
+// 查询投票模板
+export function listWhitelistVoteTemplates() {
+  return request({
+    url: '/mc/whitelist/vote/template/list',
+    method: 'get'
+  })
+}
+
+// 新增自定义投票模板
+export function createCustomWhitelistVoteTemplate(data) {
+  return request({
+    url: '/mc/whitelist/vote/template/custom',
+    method: 'post',
+    data: data
+  })
+}
+
+// 查询投票列表
+export function listWhitelistVotes(query) {
+  return request({
+    url: '/mc/whitelist/vote/list',
+    method: 'get',
+    params: query
+  })
+}
+
+// 查询投票详情
+export function getWhitelistVoteDetail(id) {
+  return request({
+    url: '/mc/whitelist/vote/' + id,
+    method: 'get'
+  })
+}
+
+// 发起投票
+export function createWhitelistVote(data) {
+  return request({
+    url: '/mc/whitelist/vote/create',
+    method: 'post',
+    data: data
+  })
+}
+
+// 跟投
+export function castWhitelistVote(data) {
+  return request({
+    url: '/mc/whitelist/vote/cast',
+    method: 'post',
+    data: data
+  })
+}

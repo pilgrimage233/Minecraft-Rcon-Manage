@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.vote.VoteRecordMapper">
+
+    <resultMap id="VoteRecordResult" type="cc.endmc.server.domain.vote.VoteRecord">
+        <result property="id" column="id"/>
+        <result property="voteId" column="vote_id"/>
+        <result property="voterUserId" column="voter_user_id"/>
+        <result property="voterUserName" column="voter_user_name"/>
+        <result property="voteDecision" column="vote_decision"/>
+        <result property="voteComment" column="vote_comment"/>
+        <result property="createTime" column="create_time"/>
+    </resultMap>
+
+    <insert id="insertVoteRecord" parameterType="cc.endmc.server.domain.vote.VoteRecord" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into vote_record(vote_id, voter_user_id, voter_user_name, vote_decision, vote_comment, create_time)
+        values (#{voteId}, #{voterUserId}, #{voterUserName}, #{voteDecision}, #{voteComment}, now())
+    </insert>
+
+    <select id="countVotedByUser" resultType="int">
+        select count(1)
+        from vote_record
+        where vote_id = #{voteId}
+          and voter_user_name = #{voterUserName}
+    </select>
+
+    <select id="countAgreeVotes" parameterType="Long" resultType="int">
+        select count(1)
+        from vote_record
+        where vote_id = #{voteId}
+          and vote_decision = 1
+    </select>
+
+    <select id="countRejectVotes" parameterType="Long" resultType="int">
+        select count(1)
+        from vote_record
+        where vote_id = #{voteId}
+          and vote_decision = 2
+    </select>
+
+    <select id="selectVoteRecordListByVoteId" parameterType="Long" resultMap="VoteRecordResult">
+        select id, vote_id, voter_user_id, voter_user_name, vote_decision, vote_comment, create_time
+        from vote_record
+        where vote_id = #{voteId}
+        order by id asc
+    </select>
+
+</mapper>

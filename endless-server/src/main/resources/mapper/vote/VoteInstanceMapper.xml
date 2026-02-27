@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.vote.VoteInstanceMapper">
+
+    <resultMap id="VoteInstanceResult" type="cc.endmc.server.domain.vote.VoteInstance">
+        <result property="id" column="id"/>
+        <result property="templateId" column="template_id"/>
+        <result property="templateCode" column="template_code"/>
+        <result property="templateName" column="template_name"/>
+        <result property="serverId" column="server_id"/>
+        <result property="targetType" column="target_type"/>
+        <result property="targetPlayerName" column="target_player_name"/>
+        <result property="targetWhitelistId" column="target_whitelist_id"/>
+        <result property="targetRef" column="target_ref"/>
+        <result property="initiatorUserId" column="initiator_user_id"/>
+        <result property="initiatorUserName" column="initiator_user_name"/>
+        <result property="requiredVotes" column="required_votes"/>
+        <result property="agreeVotes" column="agree_votes"/>
+        <result property="rejectVotes" column="reject_votes"/>
+        <result property="status" column="status"/>
+        <result property="expireTime" column="expire_time"/>
+        <result property="finishedTime" column="finished_time"/>
+        <result property="executeStatus" column="execute_status"/>
+        <result property="executeResult" column="execute_result"/>
+        <result property="reason" column="reason"/>
+        <result property="extraContext" column="extra_context"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="selectVoteInstanceVo">
+        select id,
+               template_id,
+               template_code,
+               template_name,
+               server_id,
+               target_type,
+               target_player_name,
+               target_whitelist_id,
+               target_ref,
+               initiator_user_id,
+               initiator_user_name,
+               required_votes,
+               agree_votes,
+               reject_votes,
+               status,
+               expire_time,
+               finished_time,
+               execute_status,
+               execute_result,
+               reason,
+               extra_context,
+               create_time,
+               update_time
+        from vote_instance
+    </sql>
+
+    <select id="selectVoteInstanceById" parameterType="Long" resultMap="VoteInstanceResult">
+        <include refid="selectVoteInstanceVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectVoteInstanceList" parameterType="cc.endmc.server.domain.vote.VoteInstance"
+            resultMap="VoteInstanceResult">
+        <include refid="selectVoteInstanceVo"/>
+        <where>
+            <if test="templateCode != null and templateCode != ''">
+                and template_code = #{templateCode}
+            </if>
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+            <if test="serverId != null">
+                and server_id = #{serverId}
+            </if>
+            <if test="targetPlayerName != null and targetPlayerName != ''">
+                and lower(target_player_name) like concat('%', lower(#{targetPlayerName}), '%')
+            </if>
+            <if test="targetWhitelistId != null">
+                and target_whitelist_id = #{targetWhitelistId}
+            </if>
+        </where>
+        order by
+        <choose>
+            <when test="status != null and status == 'ONGOING'">
+                expire_time asc
+            </when>
+            <otherwise>
+                id desc
+            </otherwise>
+        </choose>
+    </select>
+
+    <insert id="insertVoteInstance" parameterType="cc.endmc.server.domain.vote.VoteInstance" useGeneratedKeys="true"
+            keyProperty="id">
+        insert into vote_instance
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="templateId != null">template_id,</if>
+            <if test="templateCode != null">template_code,</if>
+            <if test="templateName != null">template_name,</if>
+            <if test="serverId != null">server_id,</if>
+            <if test="targetType != null">target_type,</if>
+            <if test="targetPlayerName != null">target_player_name,</if>
+            <if test="targetWhitelistId != null">target_whitelist_id,</if>
+            <if test="targetRef != null">target_ref,</if>
+            <if test="initiatorUserId != null">initiator_user_id,</if>
+            <if test="initiatorUserName != null">initiator_user_name,</if>
+            <if test="requiredVotes != null">required_votes,</if>
+            <if test="agreeVotes != null">agree_votes,</if>
+            <if test="rejectVotes != null">reject_votes,</if>
+            <if test="status != null">status,</if>
+            <if test="expireTime != null">expire_time,</if>
+            <if test="finishedTime != null">finished_time,</if>
+            <if test="executeStatus != null">execute_status,</if>
+            <if test="executeResult != null">execute_result,</if>
+            <if test="reason != null">reason,</if>
+            <if test="extraContext != null">extra_context,</if>
+            create_time,
+            update_time
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="templateId != null">#{templateId},</if>
+            <if test="templateCode != null">#{templateCode},</if>
+            <if test="templateName != null">#{templateName},</if>
+            <if test="serverId != null">#{serverId},</if>
+            <if test="targetType != null">#{targetType},</if>
+            <if test="targetPlayerName != null">#{targetPlayerName},</if>
+            <if test="targetWhitelistId != null">#{targetWhitelistId},</if>
+            <if test="targetRef != null">#{targetRef},</if>
+            <if test="initiatorUserId != null">#{initiatorUserId},</if>
+            <if test="initiatorUserName != null">#{initiatorUserName},</if>
+            <if test="requiredVotes != null">#{requiredVotes},</if>
+            <if test="agreeVotes != null">#{agreeVotes},</if>
+            <if test="rejectVotes != null">#{rejectVotes},</if>
+            <if test="status != null">#{status},</if>
+            <if test="expireTime != null">#{expireTime},</if>
+            <if test="finishedTime != null">#{finishedTime},</if>
+            <if test="executeStatus != null">#{executeStatus},</if>
+            <if test="executeResult != null">#{executeResult},</if>
+            <if test="reason != null">#{reason},</if>
+            <if test="extraContext != null">#{extraContext},</if>
+            now(),
+            now()
+        </trim>
+    </insert>
+
+    <update id="updateVoteInstance" parameterType="cc.endmc.server.domain.vote.VoteInstance">
+        update vote_instance
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="agreeVotes != null">agree_votes = #{agreeVotes},</if>
+            <if test="rejectVotes != null">reject_votes = #{rejectVotes},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="finishedTime != null">finished_time = #{finishedTime},</if>
+            <if test="executeStatus != null">execute_status = #{executeStatus},</if>
+            <if test="executeResult != null">execute_result = #{executeResult},</if>
+            update_time = now()
+        </trim>
+        where id = #{id}
+    </update>
+
+    <select id="countOngoingVote" resultType="int">
+        select count(1)
+        from vote_instance
+        where status = 'ONGOING'
+        and expire_time > now()
+        and template_code = #{templateCode}
+        <if test="serverId != null">
+            and server_id = #{serverId}
+        </if>
+        <if test="targetPlayerName != null and targetPlayerName != ''">
+            and lower(target_player_name) = lower(#{targetPlayerName})
+        </if>
+        <if test="targetWhitelistId != null">
+            and target_whitelist_id = #{targetWhitelistId}
+        </if>
+    </select>
+
+</mapper>

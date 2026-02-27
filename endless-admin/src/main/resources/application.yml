@@ -3,7 +3,7 @@ endless:
   # 名称
   name: EndlessManager
   # 版本
-  version: 3.6.3
+  version: 3.8.0
   # 版权年份
   copyrightYear: 2026
   # 文件路径 示例（ Windows配置D:/ruoyi/uploadPath，Linux配置 /home/ruoyi/uploadPath）
@@ -44,6 +44,11 @@ server:
       max: 200
       # Tomcat启动初始化的线程数，默认值10
       min-spare: 10
+
+# 配置向导
+setup:
+  # 是否允许远程访问配置向导（默认仅本机访问）
+  allow-remote: false
 
 # 日志配置
 logging:
@@ -197,14 +202,33 @@ encrypt:
 
 # RCON配置 如果你不清楚这些是干什么的请勿修改！
 rcon:
-  # 超时时间
+  # 连接/读写超时时间（毫秒）
+  # 建议范围：3000~15000；网络较差可适当调大
   timeout: 5000
-  # 重连延迟时间
+  # 单次失败后的重连等待时间（毫秒）
+  # 建议范围：500~5000
   reconnect-delay-ms: 1000
-  # 最大响应大小 请勿盲目修改！
+  # 单次响应包最大允许大小（字节）
+  # 防止异常大包导致内存占用过高，建议按实际命令输出评估
   max-response-size: 4096
-  # 最大缓冲区大小 请勿盲目修改！
+  # Socket收发缓冲区大小（字节）
+  # 过小会增加分包次数，过大则增加内存占用
   max-buffer-size: 8196
+  # RCON 负载字符集
+  # 常用：UTF-8；填写非法字符集时程序会自动回退 UTF-8
+  payload-charset: UTF-8
+  # 发送失败后的最大重试次数
+  # 例如 3 表示首次失败后最多再尝试 3 次
+  max-reconnect-attempts: 3
+  # ByteBuffer对象池容量
+  # 值越大并发抖动越小，但会占用更多内存
+  buffer-pool-size: 10
+  # RCON命令包类型（协议默认值为2）
+  # 非特殊协议场景不要修改
+  type-command: 2
+  # RCON认证包类型（协议默认值为3）
+  # 非特殊协议场景不要修改
+  type-auth: 3
 
 # QQ机器人配置
 qq:
@@ -219,8 +243,8 @@ qq:
 app:
   # 鉴权密钥 (请设置为复杂且唯一的密钥)
   secret-key:
-  # IP头名称 用于获取真实IP
-  ip-header-name: X-Forwarded-For
+  # IP头名称 用于获取真实IP (例如: X-Forwarded-For, X-Real-IP) (多个IP头用逗号分隔，按优先级顺序)
+  ip-header-name: X-Real-IP, X-Forwarded-For, X-Client-IP, CF-Connecting-IP
   # 前端配置
   front-end:
     # 前端路径 用于一键升级 (例如: /www/wwwroot/mc.endmc.cc)

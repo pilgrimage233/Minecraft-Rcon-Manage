@@ -847,7 +847,8 @@ export default {
 <style lang="scss" scoped>
 .mcs-container {
   padding: 20px;
-  background: #f0f2f5;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: calc(100vh - 84px);
 
   .search-card {
     margin-bottom: 16px;

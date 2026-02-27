@@ -1,26 +1,16 @@
 package cc.endmc.web.controller.monitor;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.TreeSet;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.RedisCallback;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
 import cc.endmc.common.constant.CacheConstants;
 import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.system.domain.SysCache;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.RedisCallback;
+import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.*;
 
 /**
  * 缓存监控
@@ -43,6 +33,10 @@ public class CacheController
         caches.add(new SysCache(CacheConstants.REPEAT_SUBMIT_KEY, "防重提交"));
         caches.add(new SysCache(CacheConstants.RATE_LIMIT_KEY, "限流处理"));
         caches.add(new SysCache(CacheConstants.PWD_ERR_CNT_KEY, "密码错误次数"));
+        caches.add(new SysCache(CacheConstants.MINECRAFT_SERVER_INFO_KEY, "Minecraft服务器信息"));
+        caches.add(new SysCache(CacheConstants.SERVER_MANAGE_KEY, "服务器管理"));
+        caches.add(new SysCache(CacheConstants.WHITELIST_USER_TOKEN_KEY, "白名单用户登录信息"));
+        caches.add(new SysCache(CacheConstants.UPDATE_CHECK_KEY, "更新检查"));
     }
 
     @SuppressWarnings("deprecation")

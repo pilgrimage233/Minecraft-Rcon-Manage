@@ -13,6 +13,7 @@ import cc.endmc.server.common.service.RconService;
 import cc.endmc.server.domain.permission.BanlistInfo;
 import cc.endmc.server.domain.permission.WhitelistDeadlineInfo;
 import cc.endmc.server.domain.permission.WhitelistInfo;
+import cc.endmc.server.domain.permission.WhitelistUserPrivacy;
 import cc.endmc.server.domain.player.PlayerDetails;
 import cc.endmc.server.domain.quiz.WhitelistQuizSubmission;
 import cc.endmc.server.domain.server.ServerInfo;
@@ -22,6 +23,7 @@ import cc.endmc.server.mapper.quiz.WhitelistQuizSubmissionMapper;
 import cc.endmc.server.service.permission.IBanlistInfoService;
 import cc.endmc.server.service.permission.IWhitelistDeadlineInfoService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
+import cc.endmc.server.service.permission.IWhitelistUserPrivacyService;
 import cc.endmc.server.service.player.IPlayerDetailsService;
 import cc.endmc.server.service.server.IServerInfoService;
 import com.alibaba.fastjson2.JSONObject;
@@ -61,6 +63,7 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
     private final IPlayerDetailsService playerDetailsService;
     private final WhitelistQuizSubmissionMapper quizSubmissionMapper;
     private final RedisCache redisCache;
+    private final IWhitelistUserPrivacyService whitelistUserPrivacyService;
 
     @Value("${app-url}")
     private String appUrl;
@@ -735,6 +738,11 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
 
     @Override
     public Map<String, Object> check(Map<String, String> params) {
+        return check(params, true);
+    }
+
+    @Override
+    public Map<String, Object> check(Map<String, String> params, boolean applyPrivacyFilter) {
         Map<String, Object> map = new LinkedHashMap<>();
         WhitelistInfo whitelistInfo = new WhitelistInfo();
         String key = "";
@@ -748,7 +756,9 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
         }
 
         // 先从缓存获取
-        if (redisCache.hasKey(CacheKey.PLAYER_INFO_KEY + key) && redisCache.getCacheMap(CacheKey.PLAYER_INFO_KEY + key) != null) {
+        if (applyPrivacyFilter
+                && redisCache.hasKey(CacheKey.PLAYER_INFO_KEY + key)
+                && redisCache.getCacheMap(CacheKey.PLAYER_INFO_KEY + key) != null) {
             log.debug("从缓存获取玩家信息: {}", key);
             return redisCache.getCacheMap(CacheKey.PLAYER_INFO_KEY + key);
         }
@@ -857,9 +867,45 @@ public class WhitelistInfoServiceImpl implements IWhitelistInfoService {
                     map.put("UUID", obj.getUserUuid());
                     break;
             }
-            redisCache.setCacheMap(CacheKey.PLAYER_INFO_KEY + key, map, 3, TimeUnit.HOURS);
+            if (applyPrivacyFilter) {
+                applyPrivacyFilter(map, obj.getId());
+                redisCache.setCacheMap(CacheKey.PLAYER_INFO_KEY + key, map, 3, TimeUnit.HOURS);
+            }
         }
         return map;
+    }
+
+    private void applyPrivacyFilter(Map<String, Object> map, Long whitelistId) {
+        if (whitelistId == null) {
+            return;
+        }
+        WhitelistUserPrivacy privacy = whitelistUserPrivacyService
+                .selectWhitelistUserPrivacyByWhitelistId(whitelistId);
+        if (privacy == null) {
+            return;
+        }
+        if (Integer.valueOf(0).equals(privacy.getShowQq())) {
+            map.remove("QQ号");
+        }
+        if (Integer.valueOf(0).equals(privacy.getShowCity())) {
+            map.remove("城市");
+        }
+        if (Integer.valueOf(0).equals(privacy.getShowLastOnline())) {
+            map.remove("最后上线时间");
+        }
+        if (Integer.valueOf(0).equals(privacy.getShowGameTime())) {
+            map.remove("游戏时间");
+        }
+        if (Integer.valueOf(0).equals(privacy.getShowNameHistory())) {
+            map.remove("历史名称");
+        }
+        if (Integer.valueOf(0).equals(privacy.getShowQuizResult())) {
+            map.remove("答题ID");
+            map.remove("答题分数");
+        }
+        if (Integer.valueOf(0).equals(privacy.getShowUuid())) {
+            map.remove("UUID");
+        }
     }
 
     /**

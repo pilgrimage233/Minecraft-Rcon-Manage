@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.player.PlayerOnlineRecordMapper">
+
+    <resultMap type="cc.endmc.server.domain.player.PlayerOnlineRecord" id="PlayerOnlineRecordResult">
+        <result property="id" column="id"/>
+        <result property="userName" column="user_name"/>
+        <result property="whitelistId" column="whitelist_id"/>
+        <result property="loginTime" column="login_time"/>
+        <result property="logoutTime" column="logout_time"/>
+        <result property="playMinutes" column="play_minutes"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectPlayerOnlineRecordVo">
+        select id,
+               user_name,
+               whitelist_id,
+               login_time,
+               logout_time,
+               play_minutes,
+               create_time,
+               update_time,
+               remark
+        from player_online_record
+    </sql>
+
+    <select id="selectLatestOpenRecord" parameterType="String" resultMap="PlayerOnlineRecordResult">
+        <include refid="selectPlayerOnlineRecordVo"/>
+        where lower(user_name) = #{userName}
+        and logout_time is null
+        order by login_time desc
+        limit 1
+    </select>
+
+    <insert id="insertPlayerOnlineRecord" parameterType="cc.endmc.server.domain.player.PlayerOnlineRecord"
+            useGeneratedKeys="true"
+            keyProperty="id">
+        insert into player_online_record
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="userName != null and userName != ''">user_name,</if>
+            <if test="whitelistId != null">whitelist_id,</if>
+            <if test="loginTime != null">login_time,</if>
+            <if test="logoutTime != null">logout_time,</if>
+            <if test="playMinutes != null">play_minutes,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="userName != null and userName != ''">#{userName},</if>
+            <if test="whitelistId != null">#{whitelistId},</if>
+            <if test="loginTime != null">#{loginTime},</if>
+            <if test="logoutTime != null">#{logoutTime},</if>
+            <if test="playMinutes != null">#{playMinutes},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+        </trim>
+    </insert>
+
+    <update id="updatePlayerOnlineRecord" parameterType="cc.endmc.server.domain.player.PlayerOnlineRecord">
+        update player_online_record
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="userName != null and userName != ''">user_name = #{userName},</if>
+            <if test="whitelistId != null">whitelist_id = #{whitelistId},</if>
+            <if test="loginTime != null">login_time = #{loginTime},</if>
+            <if test="logoutTime != null">logout_time = #{logoutTime},</if>
+            <if test="playMinutes != null">play_minutes = #{playMinutes},</if>
+            <if test="createTime != null">create_time = #{createTime},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <select id="selectRecentRecords" resultMap="PlayerOnlineRecordResult">
+        <include refid="selectPlayerOnlineRecordVo"/>
+        <where>
+            <choose>
+                <when test="whitelistId != null">
+                    whitelist_id = #{whitelistId}
+                </when>
+                <when test="userName != null and userName != ''">
+                    lower(user_name) = #{userName}
+                </when>
+                <otherwise>
+                    1 = 0
+                </otherwise>
+            </choose>
+        </where>
+        order by login_time desc
+        <if test="limit != null">
+            limit #{limit}
+        </if>
+    </select>
+</mapper>

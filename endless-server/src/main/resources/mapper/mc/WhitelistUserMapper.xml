@@ -1,0 +1,154 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.server.mapper.permission.WhitelistUserMapper">
+
+    <resultMap type="WhitelistUser" id="WhitelistUserResult">
+        <result property="id" column="id"/>
+        <result property="whitelistId" column="whitelist_id"/>
+        <result property="userName" column="user_name"/>
+        <result property="qqNum" column="qq_num"/>
+        <result property="password" column="password"/>
+        <result property="status" column="status"/>
+        <result property="roleLevel" column="role_level"/>
+        <result property="roleTitle" column="role_title"/>
+        <result property="canInitiateVote" column="can_initiate_vote"/>
+        <result property="lastLoginTime" column="last_login_time"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectWhitelistUserVo">
+        select id,
+               whitelist_id,
+               user_name,
+               qq_num,
+               password,
+               status,
+               role_level,
+               role_title,
+               can_initiate_vote,
+               last_login_time,
+               create_by,
+               create_time,
+               update_by,
+               update_time,
+               remark
+        from whitelist_user
+    </sql>
+
+    <select id="selectWhitelistUserById" parameterType="Long" resultMap="WhitelistUserResult">
+        <include refid="selectWhitelistUserVo"/>
+        where id = #{id}
+    </select>
+
+    <select id="selectWhitelistUserByQqNum" parameterType="String" resultMap="WhitelistUserResult">
+        <include refid="selectWhitelistUserVo"/>
+        where qq_num = #{qqNum}
+    </select>
+
+    <select id="selectWhitelistUserByUserName" parameterType="String" resultMap="WhitelistUserResult">
+        <include refid="selectWhitelistUserVo"/>
+        where user_name = #{userName}
+    </select>
+
+    <insert id="insertWhitelistUser" parameterType="WhitelistUser" useGeneratedKeys="true" keyProperty="id">
+        insert into whitelist_user
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="whitelistId != null">whitelist_id,</if>
+            <if test="userName != null">user_name,</if>
+            <if test="qqNum != null">qq_num,</if>
+            <if test="password != null">password,</if>
+            <if test="status != null">status,</if>
+            <if test="roleLevel != null">role_level,</if>
+            <if test="roleTitle != null">role_title,</if>
+            <if test="canInitiateVote != null">can_initiate_vote,</if>
+            <if test="lastLoginTime != null">last_login_time,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="whitelistId != null">#{whitelistId},</if>
+            <if test="userName != null">#{userName},</if>
+            <if test="qqNum != null">#{qqNum},</if>
+            <if test="password != null">#{password},</if>
+            <if test="status != null">#{status},</if>
+            <if test="roleLevel != null">#{roleLevel},</if>
+            <if test="roleTitle != null">#{roleTitle},</if>
+            <if test="canInitiateVote != null">#{canInitiateVote},</if>
+            <if test="lastLoginTime != null">#{lastLoginTime},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+        </trim>
+    </insert>
+
+    <update id="updateWhitelistUser" parameterType="WhitelistUser">
+        update whitelist_user
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="whitelistId != null">whitelist_id = #{whitelistId},</if>
+            <if test="userName != null">user_name = #{userName},</if>
+            <if test="qqNum != null">qq_num = #{qqNum},</if>
+            <if test="password != null">password = #{password},</if>
+            <if test="status != null">status = #{status},</if>
+            <if test="roleLevel != null">role_level = #{roleLevel},</if>
+            <if test="roleTitle != null">role_title = #{roleTitle},</if>
+            <if test="canInitiateVote != null">can_initiate_vote = #{canInitiateVote},</if>
+            <if test="lastLoginTime != null">last_login_time = #{lastLoginTime},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            <if test="updateTime != null">update_time = #{updateTime},</if>
+            <if test="remark != null">remark = #{remark},</if>
+        </trim>
+        where id = #{id}
+    </update>
+
+    <update id="updateWhitelistUserLoginTime">
+        update whitelist_user
+        set last_login_time = #{lastLoginTime}
+        where id = #{id}
+    </update>
+
+    <select id="selectWhitelistUserList" parameterType="WhitelistUser" resultMap="WhitelistUserResult">
+        <include refid="selectWhitelistUserVo"/>
+        <where>
+            <if test="userName != null and userName != ''">
+                and lower(user_name) like concat('%', lower(#{userName}), '%')
+            </if>
+            <if test="qqNum != null and qqNum != ''">
+                and qq_num = #{qqNum}
+            </if>
+            <if test="status != null and status != ''">
+                and status = #{status}
+            </if>
+            <if test="roleLevel != null">
+                and role_level = #{roleLevel}
+            </if>
+        </where>
+        order by id desc
+    </select>
+
+    <update id="updateWhitelistUserRole">
+        update whitelist_user
+        set role_level        = #{roleLevel},
+            role_title        = #{roleTitle},
+            can_initiate_vote = #{canInitiateVote},
+            update_by         = #{updateBy},
+            update_time       = now()
+        where id = #{id}
+    </update>
+
+    <select id="countWhitelistUsers" resultType="long">
+        select count(1)
+        from whitelist_user
+    </select>
+
+</mapper>

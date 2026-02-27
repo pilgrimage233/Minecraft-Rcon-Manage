@@ -1,6 +1,7 @@
 <template>
   <div class="app-container">
-    <el-form v-show="showSearch" ref="queryForm" :inline="true" :model="queryParams" label-width="100px" size="small">
+    <el-card v-show="showSearch" class="search-card mb8" shadow="never">
+      <el-form ref="queryForm" :inline="true" :model="queryParams" label-width="100px" size="small">
       <el-form-item label="节点ID" prop="nodeId">
         <el-input
           v-model="queryParams.nodeId"
@@ -83,8 +84,10 @@
         <el-button icon="el-icon-refresh" size="mini" @click="resetQuery">重置</el-button>
       </el-form-item>
     </el-form>
+    </el-card>
 
-    <el-row :gutter="10" class="mb8">
+    <el-card class="table-card" shadow="never">
+      <el-row :gutter="10" class="mb8">
       <el-col :span="1.5">
         <el-button
           v-hasPermi="['node:log:export']"
@@ -180,6 +183,7 @@
       :total="total"
       @pagination="getList"
     />
+    </el-card>
 
     <!-- 查看操作日志详情对话框 -->
     <el-dialog :visible.sync="open" append-to-body title="操作日志详情" width="700px">
@@ -392,3 +396,24 @@ export default {
   }
 };
 </script>
+
+<style lang="scss" scoped>
+.app-container {
+  padding: 20px;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  min-height: calc(100vh - 84px);
+}
+
+.search-card {
+  margin-bottom: 20px;
+  border-radius: 8px;
+  border: none;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+
+.table-card {
+  border-radius: 8px;
+  border: none;
+  box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+}
+</style>

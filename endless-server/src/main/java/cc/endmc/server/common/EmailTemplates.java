@@ -47,6 +47,8 @@ public class EmailTemplates {
 
     public static final String EMAIL_VERIFY_TITLE = "邮箱验证";
 
+    public static final String WHITELIST_LOGIN_CODE_TITLE = "白名单登录验证码";
+
     public static final String EMAIL_VERIFY_TEMPLATE = """
             <!DOCTYPE html>
             <html>
@@ -141,6 +143,83 @@ public class EmailTemplates {
                         <p class="warning">注意：该验证链接将在30分钟后失效，请尽快完成验证。</p>
                     </div>
                    \s
+                    <div class="footer">
+                        <p>此邮件由系统自动发送，请勿回复</p>
+                        <p>© 2025 Minecraft. All rights reserved.</p>
+                    </div>
+                </div>
+            </body>
+            </html>""";
+
+    public static final String WHITELIST_LOGIN_CODE_TEMPLATE = """
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="UTF-8">
+                <title>白名单登录验证码</title>
+                <style>
+                    body {
+                        margin: 0;
+                        padding: 0;
+                        font-family: 'Helvetica Neue', Arial, sans-serif;
+                        background-color: #f5f5f5;
+                    }
+                    .container {
+                        max-width: 600px;
+                        margin: 20px auto;
+                        background: #ffffff;
+                        border-radius: 16px;
+                        overflow: hidden;
+                        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+                    }
+                    .header {
+                        background: linear-gradient(135deg, #1e2f45, #2c3e50);
+                        color: white;
+                        padding: 30px;
+                        text-align: center;
+                    }
+                    .header h1 {
+                        margin: 0;
+                        font-size: 24px;
+                        font-weight: 600;
+                    }
+                    .content {
+                        padding: 30px;
+                        color: #2c3e50;
+                    }
+                    .verify-code {
+                        text-align: center;
+                        font-size: 28px;
+                        font-weight: bold;
+                        color: #409EFF;
+                        margin: 24px 0;
+                        letter-spacing: 6px;
+                    }
+                    .warning {
+                        color: #E6A23C;
+                        font-size: 14px;
+                        margin-top: 20px;
+                    }
+                    .footer {
+                        background: #f8f9fa;
+                        padding: 20px;
+                        text-align: center;
+                        color: #909399;
+                        font-size: 14px;
+                    }
+                </style>
+            </head>
+            <body>
+                <div class="container">
+                    <div class="header">
+                        <h1>白名单登录验证码</h1>
+                    </div>
+                    <div class="content">
+                        <p>亲爱的用户：</p>
+                        <p>您正在设置白名单登录账号，请使用以下验证码完成验证：</p>
+                        <div class="verify-code">{code}</div>
+                        <p class="warning">注意：验证码将在10分钟后失效，请尽快完成验证。</p>
+                    </div>
                     <div class="footer">
                         <p>此邮件由系统自动发送，请勿回复</p>
                         <p>© 2025 Minecraft. All rights reserved.</p>
@@ -1110,6 +1189,10 @@ public class EmailTemplates {
         }
 
         return EMAIL_VERIFY_TEMPLATE.replace("{verifyLink}", verifyLink);
+    }
+
+    public static String getWhitelistLoginCodeTemplate(String code) {
+        return WHITELIST_LOGIN_CODE_TEMPLATE.replace("{code}", code);
     }
 
     // 获取告警通知模板

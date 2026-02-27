@@ -3,7 +3,6 @@ package cc.endmc.server.utils;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.server.common.constant.CacheKey;
-import cc.endmc.server.service.player.IPlayerDetailsService;
 import cc.endmc.server.service.player.PlayerAsyncService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -22,8 +21,8 @@ import java.util.stream.Collectors;
 public class PlayerMonitorUtil {
 
     private final RedisCache redisCache;
-    private final IPlayerDetailsService playerDetailsService;
     private final PlayerAsyncService playerAsyncService;
+    private volatile Set<String> localCachedOnlinePlayers = new HashSet<>();
 
     /**
      * 检测玩家上下线变化
@@ -32,21 +31,23 @@ public class PlayerMonitorUtil {
      * @return 玩家变化信息
      */
     public PlayerChangeInfo detectPlayerChanges(Set<String> currentOnlinePlayers) {
+        Set<String> normalizedCurrentOnlinePlayers = normalizePlayerNames(currentOnlinePlayers);
+
         // 获取缓存中的在线玩家
-        Set<String> cachedOnlinePlayers = getCachedOnlinePlayers();
+        Set<String> cachedOnlinePlayers = normalizePlayerNames(getCachedOnlinePlayers());
 
         // 找出新上线的玩家
-        Set<String> newOnlinePlayers = new HashSet<>(currentOnlinePlayers);
+        Set<String> newOnlinePlayers = new HashSet<>(normalizedCurrentOnlinePlayers);
         newOnlinePlayers.removeAll(cachedOnlinePlayers);
 
         // 找出新下线的玩家
         Set<String> newOfflinePlayers = new HashSet<>(cachedOnlinePlayers);
-        newOfflinePlayers.removeAll(currentOnlinePlayers);
+        newOfflinePlayers.removeAll(normalizedCurrentOnlinePlayers);
 
         // 更新缓存
-        updateCachedOnlinePlayers(currentOnlinePlayers);
+        updateCachedOnlinePlayers(normalizedCurrentOnlinePlayers);
 
-        return new PlayerChangeInfo(newOnlinePlayers, newOfflinePlayers, currentOnlinePlayers);
+        return new PlayerChangeInfo(newOnlinePlayers, newOfflinePlayers, normalizedCurrentOnlinePlayers);
     }
 
     /**
@@ -54,14 +55,30 @@ public class PlayerMonitorUtil {
      */
     private Set<String> getCachedOnlinePlayers() {
         Set<String> cachedPlayers = redisCache.getCacheObject(CacheKey.ONLINE_PLAYER_KEY);
-        return cachedPlayers != null ? cachedPlayers : new HashSet<>();
+        if (cachedPlayers != null) {
+            return new HashSet<>(cachedPlayers);
+        }
+        return new HashSet<>(localCachedOnlinePlayers);
     }
 
     /**
      * 更新缓存中的在线玩家
      */
     private void updateCachedOnlinePlayers(Set<String> onlinePlayers) {
-        redisCache.setCacheObject(CacheKey.ONLINE_PLAYER_KEY, onlinePlayers);
+        Set<String> normalizedPlayers = normalizePlayerNames(onlinePlayers);
+        localCachedOnlinePlayers = new HashSet<>(normalizedPlayers);
+        redisCache.setCacheObject(CacheKey.ONLINE_PLAYER_KEY, localCachedOnlinePlayers);
+    }
+
+    private Set<String> normalizePlayerNames(Set<String> players) {
+        if (players == null || players.isEmpty()) {
+            return new HashSet<>();
+        }
+        return players.stream()
+                .filter(StringUtils::isNotEmpty)
+                .map(String::trim)
+                .map(String::toLowerCase)
+                .collect(Collectors.toSet());
     }
 
     /**
