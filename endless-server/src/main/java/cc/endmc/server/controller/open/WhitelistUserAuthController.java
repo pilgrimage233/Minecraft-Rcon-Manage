@@ -411,6 +411,13 @@ public class WhitelistUserAuthController extends BaseController {
         if (session.getWhitelistId() == null) {
             return error("未绑定白名单信息");
         }
+        WhitelistUser whitelistUser = whitelistUserService.selectWhitelistUserById(session.getUserId());
+        if (whitelistUser == null) {
+            return error("用户不存在");
+        }
+        if (isDemoWhitelistUser(whitelistUser)) {
+            return error("演示账户不允许修改游戏ID");
+        }
 
         return openApiService.changeIdForWhitelistUser(
                 request,
