@@ -135,6 +135,9 @@ public class ScheduleUtils
         }
         Object obj = SpringUtils.getBean(StringUtils.split(invokeTarget, ".")[0]);
         String beanPackageName = obj.getClass().getPackage().getName();
+        return StringUtils.containsAnyIgnoreCase(beanPackageName, Constants.JOB_WHITELIST_STR)
+                && !StringUtils.containsAnyIgnoreCase(beanPackageName, Constants.JOB_ERROR_STR);
+        String beanPackageName = obj.getClass().getPackage().getName();
         return StringUtils.startsWithAny(beanPackageName, Constants.JOB_WHITELIST_STR)
                 && !StringUtils.startsWithAny(beanPackageName, Constants.JOB_ERROR_STR);
     }
