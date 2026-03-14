@@ -71,12 +71,11 @@ export default {
 
 <style lang="scss" scoped>
 .version-info-container {
-  position: fixed;
-  left: 0;
+  position: sticky;
   bottom: 0;
-  width: 200px;
+  width: 100%;
   padding: 8px 16px;
-  z-index: 999;
+  z-index: 1;
   transition: all 0.3s;
   box-sizing: border-box;
 
@@ -91,8 +90,8 @@ export default {
   }
 
   &.is-collapse {
-    width: 54px;
-    padding: 8px 0;
+    width: 100%;
+    padding: 8px 6px;
 
     .version-collapsed {
       text-align: center;
