@@ -81,6 +81,26 @@
               </el-tooltip>
             </div>
             <div class="terminal-controls">
+              <el-tooltip :content="autoScrollEnabled ? '暂停自动滚动' : '恢复自动滚动'" placement="bottom">
+                <el-button
+                  :icon="autoScrollEnabled ? 'el-icon-video-pause' : 'el-icon-video-play'"
+                  class="refresh-ws-btn"
+                  size="mini"
+                  type="text"
+                  @click="toggleAutoScroll"
+                >
+                </el-button>
+              </el-tooltip>
+              <el-tooltip content="清空控制台" placement="bottom">
+                <el-button
+                  class="refresh-ws-btn"
+                  icon="el-icon-delete"
+                  size="mini"
+                  type="text"
+                  @click="handleClearConsole"
+                >
+                </el-button>
+              </el-tooltip>
               <el-tooltip content="刷新终端连接" placement="bottom">
                 <el-button
                   :loading="wsRefreshLoading"
@@ -168,9 +188,10 @@
             </div>
           </div>
           <div class="terminal-wrapper">
-            <div ref="terminal" :class="['terminal', `terminal-theme-${terminalTheme}`]" @click="focusInput">
+            <div ref="terminal" :class="['terminal', `terminal-theme-${terminalTheme}`]" @click="focusInput"
+                 @scroll.passive="handleTerminalScroll">
               <pre
-                v-if="!consoleText"
+                v-if="!formattedConsoleText"
                 class="content empty-content"
               > </pre>
               <div
@@ -826,7 +847,12 @@ export default {
     return {
       serverId: Number(this.$route.query.serverId) || null,
       instanceInfo: null,
-      consoleText: '',
+      consoleTextHtml: '',
+      consoleLineCount: 0,
+      consoleMaxLines: 2000,
+      consolePendingLines: [],
+      consoleRafId: null,
+      autoScrollEnabled: true,
       command: '',
       pollTimer: null,
       statusTimer: null, // 状态轮询定时器
@@ -1092,7 +1118,7 @@ export default {
           this.stopStatusPolling();
 
           // 清空控制台内容
-          this.consoleText = '';
+          this.clearConsoleOutput();
 
           // 清空文件列表
           this.fileItems = [];
@@ -1112,17 +1138,7 @@ export default {
   computed: {
     // 格式化控制台文本（将 ANSI 代码转换为 HTML）
     formattedConsoleText() {
-      if (!this.consoleText || !this.ansiConverter) return ''
-      try {
-        // 将文本按行分割，逐行转换
-        const lines = this.consoleText.split('\n')
-        const htmlLines = lines.map(line => this.formatLogLine(line))
-        return htmlLines.join('<br>')
-      } catch (error) {
-        console.error('ANSI转换失败:', error)
-        // 如果转换失败，返回纯文本（转义HTML）
-        return this.consoleText.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br>')
-      }
+      return this.consoleTextHtml || ''
     },
     canGoParent() {
       if (!this.currentPath) return false
@@ -1207,6 +1223,7 @@ export default {
   },
   beforeDestroy() {
     this.disconnectWs()
+    this.clearConsoleOutput()
     // 停止状态轮询
     this.stopStatusPolling()
     // 清理预览URL
@@ -1239,13 +1256,22 @@ export default {
             this.connectWs();
           });
           // 立即获取一次状态
-          this.fetchServerStatus();
+          const status = await this.fetchServerStatus();
           // 确保状态轮询已启动
           if (!this.statusTimer) {
             this.startStatusPolling();
           }
           // 初始化玩家数据
-          this.refreshPlayers();
+          if (status && status.isRunning) {
+            this.refreshPlayers();
+          } else {
+            this.playersData = {
+              success: true,
+              onlinePlayers: 0,
+              maxPlayers: 0,
+              players: []
+            };
+          }
         } else {
           this.$message.error('获取实例信息失败');
           this.$router.push('/node/mcs/index');
@@ -1267,13 +1293,7 @@ export default {
         if (response.code === 200 && response.data && response.data.logs) {
           // 将历史日志合并到控制台文本中
           const historyLogs = response.data.logs;
-          if (historyLogs && historyLogs.length > 0) {
-            this.consoleText = historyLogs.join('\n');
-            // 滚动到底部
-            this.$nextTick(() => {
-              this.scrollToBottom();
-            });
-          }
+          this.setConsoleLines(historyLogs || []);
         }
       } catch (error) {
         console.error('获取控制台历史日志失败:', error);
@@ -1292,10 +1312,12 @@ export default {
           this.serverStatus = response.data;
           // 更新运行状态显示
           this.updateStatusDisplay(response.data);
+          return response.data;
         }
       } catch (error) {
         console.error('获取服务器状态失败:', error);
       }
+      return null;
     },
     // 更新状态显示
     updateStatusDisplay(status) {
@@ -1581,15 +1603,14 @@ export default {
             try {
               const body = JSON.parse(msg.body)
               if (body.line) {
-                this.consoleText += (this.consoleText ? '\n' : '') + body.line
+                this.queueConsoleLine(body.line)
               } else if (body.error) {
-                this.consoleText += (this.consoleText ? '\n' : '') + `[ERROR] ${body.error}`
+                this.queueConsoleLine(`[ERROR] ${body.error}`)
               } else if (body.message) {
-                this.consoleText += (this.consoleText ? '\n' : '') + body.message
+                this.queueConsoleLine(body.message)
               } else if (body.console) {
-                this.consoleText = body.console
+                this.setConsoleText(body.console)
               }
-              this.$nextTick(() => this.scrollToBottom())
             } catch (e) {
               console.error('处理WebSocket消息失败:', e)
             }
@@ -1731,6 +1752,85 @@ export default {
       const el = this.$refs.terminal
       if (!el) return
       el.scrollTop = el.scrollHeight
+    },
+    isTerminalNearBottom(threshold = 80) {
+      const el = this.$refs.terminal
+      if (!el) return true
+      return el.scrollHeight - el.scrollTop - el.clientHeight <= threshold
+    },
+    maybeScrollToBottom(force = false) {
+      if (force || (this.autoScrollEnabled && this.isTerminalNearBottom())) {
+        this.$nextTick(() => this.scrollToBottom())
+      }
+    },
+    handleTerminalScroll() {
+      // 滚动事件仅用于触发视图更新，不做重计算
+    },
+    toggleAutoScroll() {
+      this.autoScrollEnabled = !this.autoScrollEnabled
+      if (this.autoScrollEnabled) {
+        this.$nextTick(() => this.scrollToBottom())
+        this.$message.success('已开启自动滚动')
+      } else {
+        this.$message.info('已暂停自动滚动')
+      }
+    },
+    handleClearConsole() {
+      this.clearConsoleOutput()
+      this.$message.success('控制台已清空')
+    },
+    clearConsoleOutput() {
+      if (this.consoleRafId != null) {
+        cancelAnimationFrame(this.consoleRafId)
+        this.consoleRafId = null
+      }
+      this.consolePendingLines = []
+      this.consoleTextHtml = ''
+      this.consoleLineCount = 0
+    },
+    setConsoleText(text) {
+      const lines = text ? String(text).split('\n') : []
+      this.setConsoleLines(lines)
+    },
+    setConsoleLines(lines) {
+      if (!this.ansiConverter) return
+      const normalized = (lines || []).map(line => line == null ? '' : String(line))
+      const keepLines = normalized.slice(-this.consoleMaxLines)
+      this.consoleTextHtml = keepLines.map(line => this.formatLogLine(line)).join('<br>')
+      this.consoleLineCount = keepLines.length
+      this.maybeScrollToBottom(true)
+    },
+    queueConsoleLine(line) {
+      this.consolePendingLines.push(line == null ? '' : String(line))
+      if (this.consoleRafId != null) return
+
+      this.consoleRafId = requestAnimationFrame(() => {
+        this.consoleRafId = null
+        this.flushConsoleLines()
+      })
+    },
+    flushConsoleLines() {
+      if (!this.consolePendingLines.length) return
+
+      const pending = this.consolePendingLines
+      this.consolePendingLines = []
+      const htmlBatch = pending.map(line => this.formatLogLine(line)).join('<br>')
+
+      if (this.consoleTextHtml) {
+        this.consoleTextHtml += '<br>' + htmlBatch
+      } else {
+        this.consoleTextHtml = htmlBatch
+      }
+      this.consoleLineCount += pending.length
+
+      if (this.consoleLineCount > this.consoleMaxLines) {
+        const htmlLines = this.consoleTextHtml.split('<br>')
+        const keepLines = htmlLines.slice(-this.consoleMaxLines)
+        this.consoleTextHtml = keepLines.join('<br>')
+        this.consoleLineCount = keepLines.length
+      }
+
+      this.maybeScrollToBottom(false)
     },
     focusInput() {
       // 用于未来可扩展聚焦输入
@@ -2190,6 +2290,26 @@ export default {
     // 刷新玩家列表
     async refreshPlayers() {
       if (!this.instanceInfo) return;
+
+      // 仅在实例运行时查询在线玩家，避免未启动实例触发不友好报错
+      let isRunning = this.serverStatus && typeof this.serverStatus.isRunning === 'boolean'
+        ? this.serverStatus.isRunning
+        : null;
+
+      if (isRunning === null) {
+        const latestStatus = await this.fetchServerStatus();
+        isRunning = !!(latestStatus && latestStatus.isRunning);
+      }
+
+      if (!isRunning) {
+        this.playersData = {
+          success: true,
+          onlinePlayers: 0,
+          maxPlayers: 0,
+          players: []
+        };
+        return;
+      }
 
       this.playersLoading = true;
       try {
