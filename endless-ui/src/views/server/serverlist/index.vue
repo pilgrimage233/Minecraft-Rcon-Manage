@@ -761,8 +761,12 @@ export default {
       }, `serverlist_${new Date().getTime()}.xlsx`)
     },
     handleRefresh() {
-      refreshCache().then(() => {
-        this.$modal.msgSuccess("刷新成功");
+      refreshCache().then(res => {
+        if (res.code === 200) {
+          this.$modal.msgSuccess(res.msg);
+        } else {
+          this.$modal.msgError(res.msg);
+        }
       })
     },
     /** 打开控制台 */
