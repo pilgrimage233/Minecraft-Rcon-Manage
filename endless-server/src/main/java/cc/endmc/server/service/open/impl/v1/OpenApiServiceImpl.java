@@ -57,6 +57,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -64,6 +66,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.text.SimpleDateFormat;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -108,6 +111,9 @@ public class OpenApiServiceImpl implements IOpenApiService {
     private final IIpLimitInfoService iIpLimitInfoService;
     private final IPlayerDetailsService playerDetailsService;
     private final EmailService emailService;
+    @Autowired
+    @Qualifier("threadPoolTaskExecutor")
+    private Executor taskExecutor;
 
     // Mapper
     private final WhitelistInfoMapper whitelistInfoMapper;
@@ -1092,7 +1098,7 @@ public class OpenApiServiceImpl implements IOpenApiService {
                         // 缓存结果
                         redisCache.setCacheMap(cacheKey, statusMap, 3, TimeUnit.MINUTES);
                         return statusMap;
-                    }).completeOnTimeout(buildTimeoutStatusMap(serverInfo), perServerTimeoutSeconds, TimeUnit.SECONDS)
+                    }, taskExecutor).completeOnTimeout(buildTimeoutStatusMap(serverInfo), perServerTimeoutSeconds, TimeUnit.SECONDS)
                     .exceptionally(ex -> {
                         log.error("检测服务器{}状态异常,原因: {}", serverInfo.getNameTag(), ex.getMessage());
                         return buildTimeoutStatusMap(serverInfo);

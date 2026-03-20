@@ -14,8 +14,10 @@ import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Async;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -40,11 +42,12 @@ public class AsyncMessagePushService {
     private final RedisCache redisCache;
     private final IWhitelistInfoService whitelistInfoService;
     private final IQqBotConfigService qqBotConfigService;
-
+    @Qualifier("threadPoolTaskExecutor")
+    private final ThreadPoolTaskExecutor taskExecutor;
     /**
-     * 消息队列 - 使用ConcurrentLinkedQueue实现轻量级队列
+     * 消费者任务句柄（提交到统一线程池）
      */
-    private final ConcurrentLinkedQueue<PushMessage> messageQueue = new ConcurrentLinkedQueue<>();
+    private final CopyOnWriteArrayList<Future<?>> consumerTasks = new CopyOnWriteArrayList<>();
     /**
      * 服务运行状态
      */
@@ -56,19 +59,19 @@ public class AsyncMessagePushService {
     private final AtomicInteger processedCount = new AtomicInteger(0);
     private final AtomicInteger failedCount = new AtomicInteger(0);
     /**
-     * 消费者线程池
+     * 消息队列（有界阻塞队列，避免无限增长）
      */
-    private ExecutorService consumerPool;
+    private BlockingQueue<PushMessage> messageQueue;
     /**
      * 消费者线程数量配置
      */
-    @Value("${message.push.consumer.threads:5}")
+    @Value("${message.push.consumer.threads:2}")
     private int consumerThreads;
 
     /**
      * 队列最大容量
      */
-    @Value("${message.push.queue.maxSize:10000}")
+    @Value("${message.push.queue.maxSize:1000}")
     private int maxQueueSize;
 
     /**
@@ -78,17 +81,13 @@ public class AsyncMessagePushService {
     public void init() {
         log.info("初始化异步消息推送服务，消费者线程数: {}, 队列最大容量: {}", consumerThreads, maxQueueSize);
 
-        // 创建消费者线程池
-        consumerPool = Executors.newFixedThreadPool(consumerThreads, r -> {
-            Thread thread = new Thread(r, "message-push-consumer-" + System.currentTimeMillis());
-            thread.setDaemon(true);
-            return thread;
-        });
+        this.messageQueue = new LinkedBlockingQueue<>(maxQueueSize);
 
         // 启动消费者
         running.set(true);
         for (int i = 0; i < consumerThreads; i++) {
-            consumerPool.submit(this::consumeMessages);
+            Future<?> task = taskExecutor.submit(this::consumeMessages);
+            consumerTasks.add(task);
         }
 
         log.info("异步消息推送服务启动完成");
@@ -103,17 +102,10 @@ public class AsyncMessagePushService {
 
         running.set(false);
 
-        if (consumerPool != null) {
-            consumerPool.shutdown();
-            try {
-                if (!consumerPool.awaitTermination(30, TimeUnit.SECONDS)) {
-                    consumerPool.shutdownNow();
-                }
-            } catch (InterruptedException e) {
-                consumerPool.shutdownNow();
-                Thread.currentThread().interrupt();
-            }
+        for (Future<?> task : consumerTasks) {
+            task.cancel(true);
         }
+        consumerTasks.clear();
 
         log.info("异步消息推送服务已关闭，处理消息总数: {}, 失败数: {}",
                 processedCount.get(), failedCount.get());
@@ -131,20 +123,14 @@ public class AsyncMessagePushService {
     @Async("virtualThreadExecutor")
     public CompletableFuture<Boolean> pushMessageAsync(String playerName, String message, String serverId, String targetGroups) {
         try {
-            // 检查队列容量
-            if (queueSize.get() >= maxQueueSize) {
+            // 加入有界队列，满了直接拒绝
+            String serverName = getServerNameFromCache(serverId);
+            PushMessage pushMessage = new PushMessage(playerName, message, serverId, serverName, targetGroups);
+
+            if (!messageQueue.offer(pushMessage)) {
                 log.warn("消息队列已满，丢弃消息: player={}, message={}", playerName, message);
                 return CompletableFuture.completedFuture(false);
             }
-
-            // 获取服务器名称
-            String serverName = getServerNameFromCache(serverId);
-
-            // 创建推送消息对象
-            PushMessage pushMessage = new PushMessage(playerName, message, serverId, serverName, targetGroups);
-
-            // 加入队列
-            messageQueue.offer(pushMessage);
             queueSize.incrementAndGet();
 
             log.debug("消息已加入队列: {}, targetGroups: {}", pushMessage.getMessageId(), targetGroups);
@@ -164,10 +150,8 @@ public class AsyncMessagePushService {
 
         while (running.get() || !messageQueue.isEmpty()) {
             try {
-                PushMessage message = messageQueue.poll();
+                PushMessage message = messageQueue.poll(1, TimeUnit.SECONDS);
                 if (message == null) {
-                    // 队列为空，短暂休眠
-                    Thread.sleep(100);
                     continue;
                 }
 
@@ -229,9 +213,13 @@ public class AsyncMessagePushService {
             log.warn("消息处理失败，重新加入队列重试: {}, 重试次数: {}",
                     message.getMessageId(), message.getRetryCount());
 
-            // 重新加入队列
-            messageQueue.offer(message);
-            queueSize.incrementAndGet();
+            // 重新入队，队列满则按失败处理
+            if (messageQueue.offer(message)) {
+                queueSize.incrementAndGet();
+            } else {
+                failedCount.incrementAndGet();
+                log.error("重试入队失败，消息队列已满: {}", message.getMessageId());
+            }
         } else {
             failedCount.incrementAndGet();
             log.error("消息处理最终失败，已达最大重试次数: {}", message.getMessageId());
@@ -437,8 +425,9 @@ public class AsyncMessagePushService {
      * @return 统计信息
      */
     public Map<String, Object> getQueueStats() {
+        int currentQueueSize = messageQueue == null ? 0 : messageQueue.size();
         return Map.of(
-                "queueSize", queueSize.get(),
+                "queueSize", currentQueueSize,
                 "processedCount", processedCount.get(),
                 "failedCount", failedCount.get(),
                 "running", running.get(),

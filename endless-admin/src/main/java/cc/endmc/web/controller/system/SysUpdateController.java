@@ -8,7 +8,9 @@ import cn.hutool.http.HttpUtil;
 import cn.hutool.json.JSONArray;
 import cn.hutool.json.JSONObject;
 import cn.hutool.json.JSONUtil;
+import jakarta.annotation.Resource;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -23,6 +25,7 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Executor;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
@@ -47,6 +50,10 @@ public class SysUpdateController extends BaseController {
 
     @Value("${app.front-end.path:}")
     private String frontEndPath;
+
+    @Resource
+    @Qualifier("threadPoolTaskExecutor")
+    private Executor taskExecutor;
 
     @GetMapping("/check")
     public AjaxResult checkUpdate() {
@@ -261,7 +268,7 @@ public class SysUpdateController extends BaseController {
                     log.error("更新应用程序失败", e);
                     UpdateProgressController.sendComplete(false, "更新失败: " + e.getMessage());
                 }
-            });
+            }, taskExecutor);
 
             return success("更新下载已开始，应用程序将自动重启");
 

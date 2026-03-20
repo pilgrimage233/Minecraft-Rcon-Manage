@@ -48,6 +48,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.java_websocket.client.WebSocketClient;
 import org.java_websocket.handshake.ServerHandshake;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Lazy;
@@ -102,6 +103,8 @@ public class BotClient {
     private final RconService rconService;
     private final ObjectProvider<BotManager> botManagerProvider;
     private final cc.endmc.server.service.github.GitHubActionsService gitHubActionsService;
+    @Qualifier("threadPoolTaskExecutor")
+    private final Executor taskExecutor;
     private volatile boolean isShuttingDown = false;
     /**
      * 命令注册器
@@ -2867,7 +2870,7 @@ public class BotClient {
             } catch (Exception e) {
                 log.error("记录机器人日志失败: {}", e.getMessage(), e);
             }
-        });
+        }, taskExecutor);
     }
 
     /**
