@@ -51,3 +51,4 @@ nbdist/
 !*/build/*.xml
 /backup/
 /docs/
+/.github/ISSUE_TEMPLATE/*.md
