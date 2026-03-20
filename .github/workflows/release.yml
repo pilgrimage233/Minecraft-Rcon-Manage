@@ -53,24 +53,23 @@ jobs:
         id: build-info
         run: |
           VERSION=$(mvn help:evaluate -Dexpression=endless.version -q -DforceStdout)
-          TIMESTAMP=$(date +%Y%m%d-%H%M%S)
           BUILD_DATE=$(date '+%Y-%m-%d %H:%M:%S')
           COMMIT_SHA=$(git rev-parse --short HEAD)
           COMMIT_MSG=$(git log -1 --pretty=%B)
           BRANCH="${{ github.event.inputs.branch }}"
           IS_PRERELEASE="${{ github.event.inputs.is_prerelease }}"
           
-          # 根据分支和预发布状态设置标签
+          # 根据分支和预发布状态设置标签 - 使用短SHA哈希（7位十六进制），确保版本唯一性且简洁
           if [ "$IS_PRERELEASE" = "true" ]; then
-            TAG="v${VERSION}-${BRANCH}-${TIMESTAMP}"
+            TAG="v${VERSION}-${BRANCH}-${COMMIT_SHA}"
             RELEASE_TYPE="⚠️ 测试版 (Pre-release)"
           else
-            TAG="v${VERSION}"
+            # 正式版也加入提交哈希，避免重复发布同一版本号时冲突
+            TAG="v${VERSION}-${COMMIT_SHA}"
             RELEASE_TYPE="✅ 正式版 (Stable)"
           fi
           
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "timestamp=$TIMESTAMP" >> $GITHUB_OUTPUT
           echo "build_date=$BUILD_DATE" >> $GITHUB_OUTPUT
           echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
           echo "tag=$TAG" >> $GITHUB_OUTPUT
@@ -176,7 +175,12 @@ jobs:
             
             ${{ steps.build-info.outputs.is_prerelease == 'true' && '> ⚠️ **警告**: 这是一个测试版本，可能包含未经充分测试的功能和已知问题。不建议在生产环境中使用！' || '> ✅ 这是一个稳定的正式版本，已经过充分测试，可以在生产环境中使用。' }}
             
-            **版本**: `${{ steps.build-info.outputs.version }}`  
+            ### 📌 版本信息
+            
+            **基础版本**: `${{ steps.build-info.outputs.version }}`  
+            **发布标签**: `${{ steps.build-info.outputs.tag }}`  
+            > 💡 **版本号说明**: 标签使用短提交哈希（7位十六进制字符），确保每次构建都有唯一的版本号，避免重复发布。基础版本号保持不变，用于版本管理；完整标签用于 Git 标签和 Release 标识。
+            
             **构建时间**: ${{ steps.build-info.outputs.build_date }}  
             **提交**: [`${{ steps.build-info.outputs.commit_sha }}`](https://github.com/${{ github.repository }}/commit/${{ github.sha }})  
             **分支**: `${{ steps.build-info.outputs.branch }}`  
