@@ -47,6 +47,7 @@ public class RconClient implements Closeable {
     public static int MAX_RESPONSE_SIZE;  // 最大响应大小
     private static final int SHARED_EXECUTOR_CORE_SIZE = Math.max(2, Runtime.getRuntime().availableProcessors());
     private static final int SHARED_EXECUTOR_MAX_SIZE = SHARED_EXECUTOR_CORE_SIZE * 2;
+    private static final int SHARED_EXECUTOR_QUEUE_CAPACITY = 2000;
     private static final ExecutorService SHARED_EXECUTOR = new ThreadPoolExecutor(
             SHARED_EXECUTOR_CORE_SIZE,
             SHARED_EXECUTOR_MAX_SIZE,
@@ -59,14 +60,13 @@ public class RconClient implements Closeable {
                 @Override
                 public Thread newThread(@NotNull Runnable r) {
                     Thread thread = delegate.newThread(r);
-                    thread.setName("rcon-client-async-" + thread.getId());
+                    thread.setName("rcon-client-async-" + thread.threadId());
                     thread.setDaemon(true);
                     return thread;
                 }
             },
             new ThreadPoolExecutor.CallerRunsPolicy()
     );
-    private static final int SHARED_EXECUTOR_QUEUE_CAPACITY = 2000;
     private final String host;
     private final int port;
     private final String password;
