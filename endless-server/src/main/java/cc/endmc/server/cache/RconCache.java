@@ -4,12 +4,16 @@ import cc.endmc.server.common.rconclient.RconClient;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 
 /*
  * RCON客户端缓存
  * 作者：Memory
  */
 public class RconCache {
+
+    private static final Logger LOGGER = Logger.getLogger(RconCache.class.getName());
+
     // private static final Map<String, RconClient> map = new HashMap<>();
     private static final ConcurrentHashMap<String, RconClient> map = new ConcurrentHashMap<>();
 
@@ -45,6 +49,20 @@ public class RconCache {
         }
     }
 
+    public static void closeAll() {
+        if (!map.isEmpty()) {
+            for (RconClient client : map.values()) {
+                if (client != null) {
+                    try {
+                        client.close();
+                    } catch (Exception e) {
+                        LOGGER.warning("Failed to close RconClient: " + e.getMessage());
+                    }
+                }
+            }
+        }
+    }
+
     public static void clear() {
         if (!map.isEmpty()) {
             for (RconClient client : map.values()) {
@@ -53,6 +71,10 @@ public class RconCache {
                 }
             }
         }
+        map.clear();
+    }
+
+    public static void clearAll() {
         map.clear();
     }
 

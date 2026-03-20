@@ -17,11 +17,13 @@ import cc.endmc.server.mapper.server.ServerInfoMapper;
 import cc.endmc.server.utils.IPUtils;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.concurrent.*;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.stream.Collectors;
 
 /**
@@ -37,6 +39,7 @@ public class RconService {
     private static final long RETRY_DELAY_BASE_MS = 1000L;
     private static final int CONNECTION_TIMEOUT_SECONDS = 10;
     private static final int ERROR_EMAIL_THRESHOLD = 10;
+    private static final ReentrantLock INIT_LOCK = new ReentrantLock(true);
     public static Map<String, ServerCommandInfo> COMMAND_INFO = new ConcurrentHashMap<>();
     private final PasswordManager passwordManager;
 
@@ -44,6 +47,8 @@ public class RconService {
     private final RedisCache redisCache;
     private final ServerCommandInfoMapper serverCommandInfoMapper;
     private final ServerInfoMapper serverInfoMapper;
+    @Qualifier("threadPoolTaskExecutor")
+    private final Executor taskExecutor;
     @Value("${whitelist.email}")
     private String adminEmail;
 
@@ -121,7 +126,7 @@ public class RconService {
             } catch (Exception e) {
                 log.error("异步发送命令失败 [key={}, command={}]: {}", key, command, e.getMessage());
             }
-        }).exceptionally(ex -> {
+        }, taskExecutor).exceptionally(ex -> {
             log.error("异步任务执行异常 [key={}, command={}]: {}", key, command, ex.getMessage());
             return null;
         });
@@ -140,7 +145,7 @@ public class RconService {
                 } catch (Exception e) {
                     log.error("异步发送命令失败到服务器 {} [command={}]: {}", k, command, e.getMessage());
                 }
-            });
+            }, taskExecutor);
         });
     }
 
@@ -162,7 +167,7 @@ public class RconService {
             } catch (Exception e) {
                 log.error("异步发送命令失败到服务器 {} [command={}]: {}", key, command, e.getMessage());
             }
-        });
+        }, taskExecutor);
     }
 
 
@@ -219,7 +224,7 @@ public class RconService {
                     log.error("发送命令失败到服务器 {}: {}", k, e.getMessage());
                     return "Error: " + e.getMessage();
                 }
-            });
+            }, taskExecutor);
             futures.add(future);
         });
 
@@ -304,28 +309,33 @@ public class RconService {
             return false;
         }
 
-        // 关闭已存在的连接
-        closeExistingConnection(info.getId().toString());
-
+        INIT_LOCK.lock();
         try {
-            String decryptedPassword = decryptPassword(info);
-            RconClient client = createRconConnection(info, decryptedPassword);
+            // 关闭已存在的连接
+            closeExistingConnection(info.getId().toString());
 
-            if (client != null && client.isSocketChannelOpen()) {
-                COMMAND_INFO.put(info.getId().toString(), createServerCommandInfo(info));
-                RconCache.put(info.getId().toString(), client);
-                clearErrorCount();
-                log.debug(RconMsg.CONNECT_SUCCESS + "{}", info.getNameTag());
-                return true;
-            } else {
-                log.error("RCON连接失败，Socket通道未打开: {} ({}:{})",
-                        info.getNameTag(), info.getIp(), info.getRconPort());
+            try {
+                String decryptedPassword = decryptPassword(info);
+                RconClient client = createRconConnection(info, decryptedPassword);
+
+                if (client != null && client.isSocketChannelOpen()) {
+                    COMMAND_INFO.put(info.getId().toString(), createServerCommandInfo(info));
+                    RconCache.put(info.getId().toString(), client);
+                    clearErrorCount();
+                    log.debug(RconMsg.CONNECT_SUCCESS + "{}", info.getNameTag());
+                    return true;
+                } else {
+                    log.error("RCON连接失败，Socket通道未打开: {} ({}:{})",
+                            info.getNameTag(), info.getIp(), info.getRconPort());
+                    return false;
+                }
+
+            } catch (Exception e) {
+                handleConnectionError(info, e);
                 return false;
             }
-
-        } catch (Exception e) {
-            handleConnectionError(info, e);
-            return false;
+        } finally {
+            INIT_LOCK.unlock();
         }
     }
 
@@ -353,12 +363,12 @@ public class RconService {
         int port = info.getRconPort().intValue();
 
         log.info("正在连接RCON服务器: {}:{} (解析IP: {})", info.getIp(), port, serverIp);
-
-        CompletableFuture<RconClient> rconFuture = CompletableFuture.supplyAsync(() ->
-                RconClient.open(serverIp, port, password));
-
         try {
-            return rconFuture.get(CONNECTION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+            CompletableFuture<RconClient> task = CompletableFuture.supplyAsync(
+                    () -> RconClient.open(serverIp, port, password),
+                    taskExecutor
+            );
+            return task.get(CONNECTION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
         } catch (TimeoutException e) {
             log.error("连接超时: {} ({}:{})", info.getNameTag(), serverIp, port);
             return null;

@@ -22,7 +22,6 @@ import cc.endmc.server.common.service.RconService;
 import cc.endmc.server.domain.other.HistoryCommand;
 import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.service.other.IHistoryCommandService;
-import cc.endmc.server.service.permission.IWhitelistInfoService;
 import cc.endmc.server.service.server.IServerInfoService;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +32,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.Collectors;
 
 /**
@@ -48,11 +48,11 @@ import java.util.stream.Collectors;
 public class ServerInfoController extends BaseController {
 
     private final IServerInfoService serverInfoService;
-    private final IWhitelistInfoService whitelistInfoService;
     private final IHistoryCommandService historyCommandService;
     private final RedisCache redisCache;
     private final RconService rconService;
     private final IResourcePermissionService resourcePermissionService;
+    private final AtomicBoolean refreshingCache = new AtomicBoolean(false);
 
     /**
      * 查询服务器信息列表
@@ -140,7 +140,7 @@ public class ServerInfoController extends BaseController {
     @GetMapping("/getServerList")
     public AjaxResult getServerList() {
         Long userId = SecurityUtils.getUserId();
-        
+
         // 判断Redis是否存在缓存
         if (redisCache.hasKey(CacheKey.SERVER_INFO_KEY)) {
             List<ServerInfo> allServers = (List<ServerInfo>) redisCache.getCacheObject(CacheKey.SERVER_INFO_KEY);
@@ -162,25 +162,53 @@ public class ServerInfoController extends BaseController {
      */
     @GetMapping("/refreshCache")
     public AjaxResult refreshCache() {
-        // 刷新缓存前释放Rcon连接
-        RconCache.getMap().forEach((k, v) -> {
-            try {
-                v.close();
-            } catch (Exception ignored) {
+        if (!refreshingCache.compareAndSet(false, true)) {
+            return error("缓存刷新任务正在执行中，请稍后再试");
+        }
+
+        AsyncManager.me().execute(new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    doRefreshCache();
+                } catch (Exception e) {
+                    log.error("后台刷新服务器缓存失败", e);
+                } finally {
+                    refreshingCache.set(false);
+                }
             }
         });
-        // 服务器信息缓存
-        redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, serverInfoService.selectServerInfoList(new ServerInfo()), 1, TimeUnit.DAYS);
-        // 服务器信息缓存更新时间
+
+        return success("缓存刷新任务已提交，正在后台执行");
+    }
+
+    private void doRefreshCache() {
+        long startTime = System.currentTimeMillis();
+
+        RconCache.closeAll();
+
+        List<ServerInfo> allServers = serverInfoService.selectServerInfoList(new ServerInfo());
+        redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, allServers, 1, TimeUnit.DAYS);
         redisCache.setCacheObject(CacheKey.SERVER_INFO_UPDATE_TIME_KEY, new Date());
-        // 初始化Rcon连接
-        ServerInfo info = new ServerInfo();
-        info.setStatus(1L);
-        RconCache.clear();
-        for (ServerInfo serverInfo : serverInfoService.selectServerInfoList(info)) {
-            rconService.init(serverInfo);
+
+        ServerInfo enabledCondition = new ServerInfo();
+        enabledCondition.setStatus(1L);
+        List<ServerInfo> enabledServers = serverInfoService.selectServerInfoList(enabledCondition);
+
+        RconCache.clearAll();
+        for (ServerInfo serverInfo : enabledServers) {
+            try {
+                boolean connected = rconService.init(serverInfo);
+                if (!connected) {
+                    log.warn("初始化RCON连接失败, serverId={}", serverInfo.getId());
+                }
+            } catch (Exception e) {
+                log.error("初始化RCON连接异常, serverId={}", serverInfo.getId(), e);
+            }
         }
-        return success();
+
+        log.info("服务器缓存刷新完成: allServers={}, enabledServers={}, cost={}ms",
+                allServers.size(), enabledServers.size(), System.currentTimeMillis() - startTime);
     }
 
     /**

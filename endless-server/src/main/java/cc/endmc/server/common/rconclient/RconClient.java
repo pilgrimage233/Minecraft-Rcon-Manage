@@ -45,12 +45,33 @@ public class RconClient implements Closeable {
     public static int DEFAULT_TIMEOUT_MS;  // 超时时间
     public static int DEFAULT_BUFFER_SIZE; // 缓冲区大小
     public static int MAX_RESPONSE_SIZE;  // 最大响应大小
+    private static final int SHARED_EXECUTOR_CORE_SIZE = Math.max(2, Runtime.getRuntime().availableProcessors());
+    private static final int SHARED_EXECUTOR_MAX_SIZE = SHARED_EXECUTOR_CORE_SIZE * 2;
+    private static final ExecutorService SHARED_EXECUTOR = new ThreadPoolExecutor(
+            SHARED_EXECUTOR_CORE_SIZE,
+            SHARED_EXECUTOR_MAX_SIZE,
+            60L,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(SHARED_EXECUTOR_QUEUE_CAPACITY),
+            new ThreadFactory() {
+                private final ThreadFactory delegate = Executors.defaultThreadFactory();
+
+                @Override
+                public Thread newThread(@NotNull Runnable r) {
+                    Thread thread = delegate.newThread(r);
+                    thread.setName("rcon-client-async-" + thread.getId());
+                    thread.setDaemon(true);
+                    return thread;
+                }
+            },
+            new ThreadPoolExecutor.CallerRunsPolicy()
+    );
+    private static final int SHARED_EXECUTOR_QUEUE_CAPACITY = 2000;
     private final String host;
     private final int port;
     private final String password;
     private final AtomicInteger currentRequestId;
     private final AtomicBoolean isConnected;
-    private final ExecutorService executorService;
     private final BlockingQueue<ByteBuffer> bufferPool;
     private final boolean useDirectBuffers;
     private SocketChannel socketChannel;
@@ -109,16 +130,6 @@ public class RconClient implements Closeable {
         this.socketChannel = Objects.requireNonNull(socketChannel, "socketChannel");
         this.currentRequestId = new AtomicInteger(1);
         this.isConnected = new AtomicBoolean(true);
-        this.executorService = Executors.newCachedThreadPool(new ThreadFactory() {
-            private final ThreadFactory defaultFactory = Executors.defaultThreadFactory();
-
-            @Override
-            public Thread newThread(@NotNull Runnable r) {
-                Thread thread = defaultFactory.newThread(r);
-                thread.setDaemon(true); // Make threads daemon so they don't prevent JVM shutdown
-                return thread;
-            }
-        });
         this.useDirectBuffers = useDirectBuffers;
         this.bufferPool = new ArrayBlockingQueue<>(BUFFER_POOL_SIZE);
 
@@ -221,7 +232,7 @@ public class RconClient implements Closeable {
      * @return 响应
      */
     public Future<String> sendCommandAsync(String command) {
-        return executorService.submit(() -> sendCommand(command));
+        return SHARED_EXECUTOR.submit(() -> sendCommand(command));
     }
 
     /**
@@ -259,7 +270,7 @@ public class RconClient implements Closeable {
                     LOGGER.log(Level.WARNING, "命令执行失败: " + command, e);
                     return "Error: " + e.getMessage();
                 }
-            }, executorService);
+            }, SHARED_EXECUTOR);
             futures.add(future);
         }
         return futures;
@@ -272,22 +283,12 @@ public class RconClient implements Closeable {
      * @return 响应列表
      */
     public Future<List<String>> sendBatchCommandsAsync(List<String> commands) {
-        return executorService.submit(() -> sendBatchCommands(commands));
+        return SHARED_EXECUTOR.submit(() -> sendBatchCommands(commands));
     }
 
     @Override
     public void close() {
         isConnected.set(false);
-        executorService.shutdown();
-        try {
-            if (!executorService.awaitTermination(5, TimeUnit.SECONDS)) {
-                executorService.shutdownNow();
-            }
-        } catch (InterruptedException e) {
-            executorService.shutdownNow();
-            Thread.currentThread().interrupt();
-        }
-
         try {
             socketChannel.close();
         } catch (IOException e) {
