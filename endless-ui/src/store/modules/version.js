@@ -29,13 +29,15 @@ const mutations = {
 }
 
 const actions = {
-  async checkUpdate({commit, state}) {
+  async checkUpdate({commit, state}, options = {}) {
+    const force = Boolean(options && options.force)
+
     // 如果正在检查，直接返回
     if (state.checking) return
 
-    // 如果距离上次检查不足5分钟，直接返回
+    // 自动检查时启用5分钟节流；手动检查可强制刷新
     const now = new Date().getTime()
-    if (state.lastCheckTime && now - state.lastCheckTime < 5 * 60 * 1000) {
+    if (!force && state.lastCheckTime && now - state.lastCheckTime < 5 * 60 * 1000) {
       return
     }
 

@@ -17,7 +17,7 @@
         <div v-if="checking" class="checking-text">
           <i class="el-icon-loading"></i> 检查更新中...
         </div>
-        <el-link v-else :underline="false" class="check-link" type="primary" @click="checkUpdate">
+        <el-link v-else :underline="false" class="check-link" type="primary" @click="checkUpdateManually">
           <i class="el-icon-refresh"></i> 检查更新
         </el-link>
       </div>
@@ -60,6 +60,9 @@ export default {
   },
   methods: {
     ...mapActions('version', ['checkUpdate']),
+    checkUpdateManually() {
+      this.checkUpdate({force: true})
+    },
     goToDownload() {
       if (this.downloadUrl) {
         window.open(this.downloadUrl, '_blank')

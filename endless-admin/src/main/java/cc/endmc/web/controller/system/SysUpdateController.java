@@ -35,7 +35,7 @@ public class SysUpdateController extends BaseController {
 
     // GitHub API 镜像源列表（按优先级排序）
     private static final String[] API_MIRRORS = {
-            "https://api.github.com/repos/pilgrimage233/Minecraft-Rcon-Manage/releases/latest"  // 官方 API
+            "https://api.github.com/repos/pilgrimage233/Minecraft-Rcon-Manage"  // 官方 API
     };
 
     // GitHub 下载镜像源列表（按优先级排序）
@@ -51,45 +51,28 @@ public class SysUpdateController extends BaseController {
     @Value("${app.front-end.path:}")
     private String frontEndPath;
 
+    @Value("${github.include-prerelease:true}")
+    private boolean includePrerelease;
+
     @Resource
     @Qualifier("threadPoolTaskExecutor")
     private Executor taskExecutor;
 
     @GetMapping("/check")
     public AjaxResult checkUpdate() {
-        JSONObject json = null;
-        Exception lastException = null;
-
-        // 尝试从多个 API 镜像源获取版本信息
-        for (String apiUrl : API_MIRRORS) {
-            try {
-                log.info("尝试从以下地址获取版本信息: {}", apiUrl);
-
-                String response = HttpUtil.createGet(apiUrl)
-                        .header("Accept", "application/vnd.github.v3+json")
-                        .timeout(10000)
-                        .execute()
-                        .body();
-
-                json = JSONUtil.parseObj(response);
-                log.info("成功从 {} 获取版本信息", apiUrl);
-                break; // 成功获取，跳出循环
-
-            } catch (Exception e) {
-                log.warn("从 {} 获取失败: {}", apiUrl, e.getMessage());
-                lastException = e;
-                // 继续尝试下一个镜像源
-            }
-        }
-
-        // 如果所有镜像源都失败
+        JSONObject json = fetchLatestReleaseInfo();
         if (json == null) {
-            log.error("从所有 API 镜像源检查更新失败", lastException);
             return error("无法连接到更新服务器，请检查网络连接或稍后重试");
         }
 
         try {
-            String latestVersion = json.getStr("tag_name");
+            String latestTag = json.getStr("tag_name");
+            if (latestTag == null || latestTag.trim().isEmpty()) {
+                return error("更新信息缺少版本标签(tag_name)");
+            }
+
+            String latestVersion = extractBaseVersion(latestTag);
+            String currentBaseVersion = extractBaseVersion(currentVersion);
             String releaseNotes = json.getStr("body");
             String downloadUrl = json.getStr("html_url");
 
@@ -107,11 +90,12 @@ public class SysUpdateController extends BaseController {
                 }
             }
 
-            boolean hasUpdate = !currentVersion.equals(latestVersion.replace("v", ""));
+            boolean hasUpdate = compareVersions(latestVersion, currentBaseVersion) > 0;
 
             return success()
                     .put("currentVersion", currentVersion)
-                    .put("latestVersion", latestVersion.replace("v", ""))
+                    .put("latestVersion", latestVersion)
+                    .put("latestTag", normalizeTag(latestTag))
                     .put("hasUpdate", hasUpdate)
                     .put("releaseNotes", releaseNotes)
                     .put("downloadUrl", downloadUrl)
@@ -125,32 +109,8 @@ public class SysUpdateController extends BaseController {
 
     @PostMapping("/download")
     public AjaxResult downloadUpdate() {
-        JSONObject json = null;
-        Exception lastException = null;
-
-        // 尝试从多个 API 镜像源获取版本信息
-        for (String apiUrl : API_MIRRORS) {
-            try {
-                log.info("尝试从以下地址获取版本信息: {}", apiUrl);
-
-                String response = HttpUtil.createGet(apiUrl)
-                        .header("Accept", "application/vnd.github.v3+json")
-                        .timeout(10000)
-                        .execute()
-                        .body();
-
-                json = JSONUtil.parseObj(response);
-                log.info("成功从 {} 获取版本信息", apiUrl);
-                break;
-
-            } catch (Exception e) {
-                log.warn("从 {} 获取失败: {}", apiUrl, e.getMessage());
-                lastException = e;
-            }
-        }
-
+        JSONObject json = fetchLatestReleaseInfo();
         if (json == null) {
-            log.error("从所有 API 镜像源获取版本信息失败", lastException);
             return error("无法连接到更新服务器，请检查网络连接");
         }
 
@@ -170,7 +130,7 @@ public class SysUpdateController extends BaseController {
                         if (name.endsWith(".jar")) {
                             jarDownloadUrl = asset.getStr("browser_download_url");
                             jarFileName = name;
-                        } else if (name.endsWith(".zip") && name.toLowerCase().contains("ui")) {
+                        } else if (name.endsWith(".zip") && isFrontEndZip(name)) {
                             frontEndZipUrl = asset.getStr("browser_download_url");
                             frontEndZipFileName = name;
                         }
@@ -275,6 +235,173 @@ public class SysUpdateController extends BaseController {
         } catch (Exception e) {
             log.error("下载更新失败", e);
             return error("下载更新失败: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 获取最新发布信息。
+     * includePrerelease=true 时从 releases 列表中选择最新的非草稿版本（可包含预发布）；
+     * includePrerelease=false 时读取 releases/latest（仅稳定版）。
+     */
+    private JSONObject fetchLatestReleaseInfo() {
+        Exception lastException = null;
+
+        for (String apiBaseUrl : API_MIRRORS) {
+            try {
+                if (includePrerelease) {
+                    String releasesApi = apiBaseUrl + "/releases?per_page=20";
+                    log.info("尝试从以下地址获取版本列表: {}", releasesApi);
+
+                    String response = HttpUtil.createGet(releasesApi)
+                            .header("Accept", "application/vnd.github.v3+json")
+                            .header("User-Agent", "Endless-Manager-Update-Checker")
+                            .timeout(10000)
+                            .execute()
+                            .body();
+
+                    JSONArray releases = JSONUtil.parseArray(response);
+                    for (int i = 0; i < releases.size(); i++) {
+                        JSONObject release = releases.getJSONObject(i);
+                        if (release == null) {
+                            continue;
+                        }
+
+                        if (release.getBool("draft", false)) {
+                            continue;
+                        }
+
+                        log.info("成功从 {} 获取版本信息", releasesApi);
+                        return release;
+                    }
+
+                    log.warn("{} 返回为空或仅包含草稿版本", releasesApi);
+                    continue;
+                }
+
+                String latestApi = apiBaseUrl + "/releases/latest";
+                log.info("尝试从以下地址获取版本信息: {}", latestApi);
+
+                String response = HttpUtil.createGet(latestApi)
+                        .header("Accept", "application/vnd.github.v3+json")
+                        .header("User-Agent", "Endless-Manager-Update-Checker")
+                        .timeout(10000)
+                        .execute()
+                        .body();
+
+                JSONObject json = JSONUtil.parseObj(response);
+                log.info("成功从 {} 获取版本信息", latestApi);
+                return json;
+            } catch (Exception e) {
+                log.warn("从 {} 获取失败: {}", apiBaseUrl, e.getMessage());
+                lastException = e;
+            }
+        }
+
+        log.error("从所有 API 镜像源获取版本信息失败", lastException);
+        return null;
+    }
+
+    /**
+     * 判断是否为前端压缩包，兼容新旧命名。
+     */
+    private boolean isFrontEndZip(String fileName) {
+        String normalized = fileName.toLowerCase();
+        return normalized.contains("ui") || normalized.startsWith("dist-") || normalized.contains("frontend");
+    }
+
+    /**
+     * 规范化 tag（例如 v3.8.2 -> 3.8.2）。
+     */
+    private String normalizeTag(String versionOrTag) {
+        if (versionOrTag == null) {
+            return "";
+        }
+
+        String normalized = versionOrTag.trim();
+        if (normalized.startsWith("v") || normalized.startsWith("V")) {
+            return normalized.substring(1);
+        }
+        return normalized;
+    }
+
+    /**
+     * 提取基础版本号（剔除 tag 中的分支、SHA 等后缀）。
+     */
+    private String extractBaseVersion(String versionOrTag) {
+        String normalized = normalizeTag(versionOrTag);
+        if (normalized.isEmpty()) {
+            return normalized;
+        }
+
+        int dashIndex = normalized.indexOf('-');
+        if (dashIndex > 0) {
+            normalized = normalized.substring(0, dashIndex);
+        }
+
+        int plusIndex = normalized.indexOf('+');
+        if (plusIndex > 0) {
+            normalized = normalized.substring(0, plusIndex);
+        }
+
+        return normalized;
+    }
+
+    /**
+     * 比较两个版本号（仅比较数字段）。
+     */
+    private int compareVersions(String left, String right) {
+        String normalizedLeft = extractBaseVersion(left);
+        String normalizedRight = extractBaseVersion(right);
+
+        if (normalizedLeft.isEmpty() && normalizedRight.isEmpty()) {
+            return 0;
+        }
+        if (normalizedLeft.isEmpty()) {
+            return -1;
+        }
+        if (normalizedRight.isEmpty()) {
+            return 1;
+        }
+
+        String[] leftParts = normalizedLeft.split("\\.");
+        String[] rightParts = normalizedRight.split("\\.");
+        int maxLength = Math.max(leftParts.length, rightParts.length);
+
+        for (int i = 0; i < maxLength; i++) {
+            int leftPart = i < leftParts.length ? parseVersionPart(leftParts[i]) : 0;
+            int rightPart = i < rightParts.length ? parseVersionPart(rightParts[i]) : 0;
+
+            if (leftPart != rightPart) {
+                return Integer.compare(leftPart, rightPart);
+            }
+        }
+
+        return 0;
+    }
+
+    private int parseVersionPart(String part) {
+        if (part == null || part.isEmpty()) {
+            return 0;
+        }
+
+        StringBuilder digits = new StringBuilder();
+        for (int i = 0; i < part.length(); i++) {
+            char ch = part.charAt(i);
+            if (Character.isDigit(ch)) {
+                digits.append(ch);
+            } else {
+                break;
+            }
+        }
+
+        if (digits.isEmpty()) {
+            return 0;
+        }
+
+        try {
+            return Integer.parseInt(digits.toString());
+        } catch (NumberFormatException e) {
+            return 0;
         }
     }
 
