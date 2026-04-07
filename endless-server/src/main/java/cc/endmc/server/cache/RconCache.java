@@ -22,10 +22,9 @@ public class RconCache {
     }
 
     public static RconClient get(String key) {
-        if (containsKey(key)) {
-            if (map.get(key).isSocketChannelOpen()) {
-                return map.get(key);
-            }
+        RconClient client = map.get(key);
+        if (client != null) {
+            return client;
         }
         throw new RuntimeException("RconClient不存在或连接已关闭");
     }

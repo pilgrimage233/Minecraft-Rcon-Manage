@@ -10,6 +10,7 @@ import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.constant.Command;
 import cc.endmc.server.common.constant.RconMsg;
 import cc.endmc.server.common.rconclient.RconClient;
+import cc.endmc.server.common.rconclient.RconClientException;
 import cc.endmc.server.domain.server.ServerCommandInfo;
 import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.mapper.server.ServerCommandInfoMapper;
@@ -63,11 +64,9 @@ public class RconService {
             return;
         }
 
-        try (RconClient client = RconCache.get(key)) {
-            if (client != null) {
-                RconCache.remove(key);
-                log.debug(RconMsg.TURN_OFF_RCON + "{}", key);
-            }
+        try {
+            RconCache.remove(key);
+            log.debug(RconMsg.TURN_OFF_RCON + "{}", key);
         } catch (Exception e) {
             log.error("关闭 Rcon 连接失败: {}", e.getMessage());
         }
@@ -341,7 +340,7 @@ public class RconService {
 
     private void closeExistingConnection(String serverId) {
         if (!RconCache.isEmpty() && RconCache.containsKey(serverId)) {
-            RconCache.get(serverId).close();
+            RconCache.remove(serverId);
         }
     }
 
@@ -361,16 +360,13 @@ public class RconService {
     private RconClient createRconConnection(ServerInfo info, String password) {
         String serverIp = IPUtils.domainToIp(info.getIp());
         int port = info.getRconPort().intValue();
+        int timeoutMs = CONNECTION_TIMEOUT_SECONDS * 1000;
 
         log.info("正在连接RCON服务器: {}:{} (解析IP: {})", info.getIp(), port, serverIp);
         try {
-            CompletableFuture<RconClient> task = CompletableFuture.supplyAsync(
-                    () -> RconClient.open(serverIp, port, password),
-                    taskExecutor
-            );
-            return task.get(CONNECTION_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-        } catch (TimeoutException e) {
-            log.error("连接超时: {} ({}:{})", info.getNameTag(), serverIp, port);
+            return RconClient.open(serverIp, port, password, timeoutMs);
+        } catch (RconClientException e) {
+            log.error("连接失败: {} ({}:{}) - {}", info.getNameTag(), serverIp, port, e.getMessage());
             return null;
         } catch (Exception e) {
             log.error("连接异常: {} ({}:{})", info.getNameTag(), serverIp, port, e);
