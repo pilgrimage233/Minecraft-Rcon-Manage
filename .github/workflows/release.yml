@@ -59,7 +59,6 @@ jobs:
           BRANCH="${{ github.event.inputs.branch }}"
           IS_PRERELEASE="${{ github.event.inputs.is_prerelease }}"
           
-          # 根据分支和预发布状态设置标签 - 使用短SHA哈希（7位十六进制），确保版本唯一性且简洁
           if [ "$IS_PRERELEASE" = "true" ]; then
             TAG="v${VERSION}-${BRANCH}-${COMMIT_SHA}"
             RELEASE_TYPE="⚠️ 测试版 (Pre-release)"
@@ -140,9 +139,9 @@ jobs:
       - name: Compress Frontend Dist
         run: |
           cd endless-ui
-          zip -r dist-${{ steps.build-info.outputs.version }}.zip dist
+          zip -r endless-ui-${{ steps.build-info.outputs.version }}.zip dist
           echo "✅ Frontend compressed"
-          ls -lh dist-*.zip
+          ls -lh endless-ui-*.zip
 
       # 创建构建信息文件
       - name: Create Build Info File
@@ -246,7 +245,7 @@ jobs:
             > 🏷️ 构建分支: ${{ steps.build-info.outputs.branch }}
           files: |
             endless-admin/target/endless-manager-springboot3-${{ steps.build-info.outputs.version }}.jar
-            endless-ui/dist-${{ steps.build-info.outputs.version }}.zip
+            endless-ui/endless-ui-${{ steps.build-info.outputs.version }}.zip
             build-info.txt
           draft: false
           prerelease: ${{ steps.build-info.outputs.is_prerelease == 'true' }}
