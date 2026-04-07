@@ -267,6 +267,24 @@ cleanup:
     # 保留天数，默认30天
     retain-days: 30
 
+# 线程池看门狗配置
+watchdog:
+  thread-pool:
+    # 是否启用线程池看门狗
+    enabled: true
+    # 监控周期（毫秒）
+    interval-ms: 30000
+    # 首次延迟（毫秒）
+    initial-delay-ms: 30000
+    # 单任务超时阈值（毫秒），超过会尝试interrupt
+    task-timeout-ms: 120000
+    # 队列占用告警阈值（百分比）
+    warn-queue-usage-percent: 80
+    # 是否自动中断超时任务线程
+    auto-interrupt-timeout-task: true
+    # 每个周期最多中断线程数，防止抖动
+    max-interrupt-per-cycle: 2
+
 # GitHub Actions 配置
 github:
   # GitHub Personal Access Token

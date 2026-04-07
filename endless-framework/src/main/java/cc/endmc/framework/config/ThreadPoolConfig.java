@@ -1,6 +1,7 @@
 package cc.endmc.framework.config;
 
-import cc.endmc.common.utils.Threads;
+import cc.endmc.framework.concurrent.MonitoredScheduledThreadPoolExecutor;
+import cc.endmc.framework.concurrent.TaskExecutionTracker;
 import org.apache.commons.lang3.concurrent.BasicThreadFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -11,8 +12,8 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 线程池配置
@@ -37,15 +38,25 @@ public class ThreadPoolConfig implements AsyncConfigurer {
     // 空闲线程存活时间（秒）
     private final int keepAliveSeconds = 300;
 
+    @Bean
+    public TaskExecutionTracker taskExecutionTracker() {
+        return new TaskExecutionTracker();
+    }
+
     @Primary
     @Bean(name = "threadPoolTaskExecutor")
     public ThreadPoolTaskExecutor threadPoolTaskExecutor() {
+        TaskExecutionTracker taskExecutionTracker = taskExecutionTracker();
         ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
         executor.setMaxPoolSize(maxPoolSize);
         executor.setCorePoolSize(corePoolSize);
         executor.setQueueCapacity(queueCapacity);
         executor.setKeepAliveSeconds(keepAliveSeconds);
         executor.setThreadNamePrefix("async-pool-");
+        executor.setAllowCoreThreadTimeOut(true);
+        executor.setWaitForTasksToCompleteOnShutdown(false);
+        executor.setAwaitTerminationSeconds(30);
+        executor.setTaskDecorator(taskExecutionTracker.createTaskDecorator("threadPoolTaskExecutor"));
         // 线程池对拒绝任务(无线程可用)的处理策略
         executor.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
         executor.initialize();
@@ -66,14 +77,17 @@ public class ThreadPoolConfig implements AsyncConfigurer {
      */
     @Bean(name = "scheduledExecutorService")
     protected ScheduledExecutorService scheduledExecutorService() {
-        return new ScheduledThreadPoolExecutor(corePoolSize,
+        TaskExecutionTracker taskExecutionTracker = taskExecutionTracker();
+        MonitoredScheduledThreadPoolExecutor executor = new MonitoredScheduledThreadPoolExecutor(
+                corePoolSize,
                 new BasicThreadFactory.Builder().namingPattern("schedule-pool-%d").daemon(true).build(),
-                new ThreadPoolExecutor.CallerRunsPolicy()) {
-            @Override
-            protected void afterExecute(Runnable r, Throwable t) {
-                super.afterExecute(r, t);
-                Threads.printException(r, t);
-            }
-        };
+                new ThreadPoolExecutor.CallerRunsPolicy(),
+                "scheduledExecutorService",
+                taskExecutionTracker
+        );
+        executor.setRemoveOnCancelPolicy(true);
+        executor.allowCoreThreadTimeOut(true);
+        executor.setKeepAliveTime(keepAliveSeconds, TimeUnit.SECONDS);
+        return executor;
     }
 }
