@@ -69,11 +69,11 @@ public class ObjectCache {
         CACHE.clear();
     }
 
+    @SuppressWarnings("unchecked")
     public static Map<String, ServerCommandInfo> getCommandInfo() {
-        // 获取指令信息
-        if (ObjectCache.containsKey("serverCommandInfo")) {
-            // 从缓存中获取指令信息
-            return (Map<String, ServerCommandInfo>) ObjectCache.get("serverCommandInfo");
+        Object value = ObjectCache.get("serverCommandInfo");
+        if (value instanceof Map) {
+            return (Map<String, ServerCommandInfo>) value;
         }
         return null;
     }

@@ -19,7 +19,9 @@ import org.springframework.web.client.RestTemplate;
 import jakarta.servlet.http.HttpServletResponse;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -89,9 +91,20 @@ public class MojangApiController extends BaseController {
         return success(map);
     }
 
+    private static final List<String> ALLOWED_TEXTURE_HOSTS = List.of(
+            "textures.minecraft.net",
+            "minecraft.net"
+    );
+
     @GetMapping("/texture")
     public void getTexture(@RequestParam String url, HttpServletResponse response) {
         try {
+            URI uri = URI.create(url);
+            String host = uri.getHost();
+            if (host == null || ALLOWED_TEXTURE_HOSTS.stream().noneMatch(host::endsWith)) {
+                response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                return;
+            }
             // 获取皮肤数据
             ResponseEntity<Resource> responseEntity = restTemplate.getForEntity(url, Resource.class);
             Resource resource = responseEntity.getBody();

@@ -190,8 +190,6 @@ public class RconService {
      * @param reason     封禁原因
      */
     public String sendCommand(String key, String command, boolean onlineFlag, String reason) {
-        StringBuilder result = new StringBuilder();
-
         for (int retryCount = 0; retryCount < MAX_RETRIES; retryCount++) {
             try {
                 if (key.contains("all")) {
@@ -257,16 +255,22 @@ public class RconService {
 
         if (retryCount >= MAX_RETRIES - 1) {
             log.error("发送命令最终失败: {}", e.getMessage());
-            // 重连并回调
+            // 重连并直接发送一次命令（不再递归进入重试循环）
             if (reconnect(key)) {
                 log.debug("重连成功，重新发送命令: {}", command);
-                sendCommand(key, command, onlineFlag, reason);
-                return false; // 不需要继续重试
+                try {
+                    RconClient client = RconCache.get(key);
+                    String replaced = replaceCommand(key, command, onlineFlag, reason);
+                    client.sendCommand(replaced);
+                } catch (Exception ex) {
+                    log.error("重连后发送命令仍然失败: {}", ex.getMessage());
+                    handleCommandError(key, command);
+                }
             } else {
                 log.error("重连失败，无法发送命令: {}", command);
                 handleCommandError(key, command);
-                return false;
             }
+            return false;
         }
 
         try {
@@ -286,14 +290,16 @@ public class RconService {
      * @param command 命令
      */
     private void handleCommandError(String key, String command) {
-        Map<String, Object> cache = redisCache.hasKey(CacheKey.ERROR_COMMAND_CACHE_KEY)
-                ? redisCache.getCacheObject(CacheKey.ERROR_COMMAND_CACHE_KEY)
-                : new ConcurrentHashMap<>();
+        if (StringUtils.isEmpty(key) || StringUtils.isEmpty(command)) {
+            return;
+        }
 
-        cache.computeIfAbsent(key, k -> new HashSet<>());
-        ((Set<String>) cache.get(key)).add(command);
-        
-        redisCache.setCacheObject(CacheKey.ERROR_COMMAND_CACHE_KEY, cache);
+        String cacheKey = CacheKey.ERROR_COMMAND_CACHE_KEY + ":" + key;
+        try {
+            redisCache.redisTemplate.opsForSet().add(cacheKey, command);
+        } catch (Exception e) {
+            log.error("记录错误命令失败 [key={}, command={}]: {}", key, command, e.getMessage());
+        }
     }
 
     /**
@@ -348,12 +354,11 @@ public class RconService {
         try {
             return passwordManager.decrypt(info.getRconPassword());
         } catch (NullPointerException e) {
-            log.warn("环境变量未初始化，使用原始密码: {}", info.getNameTag());
-            return info.getRconPassword();
+            log.error("加密密钥未配置，无法解密RCON密码 [{}]", info.getNameTag());
+            throw new SecurityException("加密密钥未配置，请检查 encrypt.key 环境变量", e);
         } catch (Exception e) {
-            log.error("密码解密失败: {} - {}", info.getNameTag(), e.getMessage());
-            log.warn("尝试使用原始密码连接: {}", info.getNameTag());
-            return info.getRconPassword();
+            log.error("密码解密失败 [{}]: {}", info.getNameTag(), e.getMessage());
+            throw new SecurityException("RCON密码解密失败: " + info.getNameTag(), e);
         }
     }
 
@@ -392,8 +397,7 @@ public class RconService {
     }
 
     private void handleConnectionError(ServerInfo info, Exception e) {
-        incrementErrorCount();
-        Integer currentErrorCount = redisCache.getCacheObject(CacheKey.ERROR_COUNT_KEY);
+        long currentErrorCount = incrementErrorCount();
 
         if (currentErrorCount >= ERROR_EMAIL_THRESHOLD && currentErrorCount % ERROR_EMAIL_THRESHOLD == 0) {
             sendErrorNotificationEmail(info, e, currentErrorCount);
@@ -403,20 +407,19 @@ public class RconService {
         log.error("连接失败详细信息: ", e);
     }
 
-    private void incrementErrorCount() {
+    private long incrementErrorCount() {
         String errorCountKey = CacheKey.ERROR_COUNT_KEY;
-        Integer errorCount = redisCache.hasKey(errorCountKey)
-                ? redisCache.getCacheObject(errorCountKey)
-                : 0;
-        redisCache.setCacheObject(errorCountKey, errorCount + 1);
+        Long current = redisCache.redisTemplate.opsForValue().increment(errorCountKey);
+        return current != null ? current : 0L;
     }
 
-    private void sendErrorNotificationEmail(ServerInfo info, Exception e, Integer errorCount) {
+    private void sendErrorNotificationEmail(ServerInfo info, Exception e, Long errorCount) {
         try {
             String errorType = e.getMessage().contains("Authentication") ? "认证失败" : "连接异常";
+            int safeCount = errorCount != null ? errorCount.intValue() : 0;
             String emailContent = EmailTemplates.getAlertNotification(
                     DateUtils.getTime(),
-                    errorCount,
+                safeCount,
                     errorType,
                     info.getNameTag(),
                     info.getIp() + ":" + info.getRconPort()
