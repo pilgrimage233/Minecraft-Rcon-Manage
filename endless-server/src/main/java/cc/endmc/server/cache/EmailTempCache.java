@@ -2,6 +2,7 @@ package cc.endmc.server.cache;
 
 import cc.endmc.server.domain.email.CustomEmailTemplates;
 
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,8 +24,8 @@ public class EmailTempCache {
         if (key == null) {
             return map.get("default");
         }
-        return map.get(key) == null ? map.get("default") : map.get(key); // 指定为空返回默认
-
+        CustomEmailTemplates result = map.get(key);
+        return result != null ? result : map.get("default");
     }
 
     public static void remove(String key) {
@@ -52,6 +53,6 @@ public class EmailTempCache {
     }
 
     public static Map<String, CustomEmailTemplates> getMap() {
-        return map;
+        return Collections.unmodifiableMap(map);
     }
 }

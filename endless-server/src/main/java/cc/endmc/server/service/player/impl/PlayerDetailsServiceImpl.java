@@ -86,51 +86,53 @@ public class PlayerDetailsServiceImpl implements IPlayerDetailsService {
             playerDetails.setUpdateBy(name);
             playerDetails.setUpdateTime(DateUtils.getNowDate());
             if (playerDetails.getIdentity().equals(Identity.OPERATOR.getValue())) {
-                OperatorList operator = new OperatorList();
-                operator.setUserName(playerDetails.getUserName());
-                // 查询玩家之前是否获得过管理员权限
-                final List<OperatorList> operatorLists = operatorListService.selectOperatorListList(operator);
-                if (operatorLists != null && !operatorLists.isEmpty()) {
-                    operator = operatorLists.get(0);
-                    operator.setStatus(1L);
-                    operator.setUpdateBy(name);
-                    operator.setUpdateTime(DateUtils.getNowDate());
-                    operatorListService.updateOperatorList(operator);
-                } else {
-                    operator.setStatus(1L);
-                    operator.setCreateTime(DateUtils.getNowDate());
-                    operator.setCreateBy(name);
-                    if (playerDetails.getRemark() != null) {
-                        operator.setRemark(playerDetails.getRemark());
-                    }
-                    operatorListService.insertOperatorList(operator);
-                }
-
-                // 发送命令
-                rconService.sendCommand("all", String.format(Command.OP_ADD, playerDetails.getUserName()), true);
+                handleOperatorGrant(playerDetails, name);
             }
 
             if (playerDetails.getIdentity().equals(Identity.PLAYER.getValue())) {
-                OperatorList operator = new OperatorList();
-                operator.setUserName(playerDetails.getUserName());
-                // 查询玩家是否处于管理员列表
-                final List<OperatorList> operatorLists = operatorListService.selectOperatorListList(operator);
-                if (operatorLists != null && !operatorLists.isEmpty()) {
-                    operator = operatorLists.get(0);
-                    if (operator.getStatus().equals(1L)) {
-                        operator.setStatus(0L);
-                        operator.setUpdateBy(name);
-                        operator.setUpdateTime(DateUtils.getNowDate());
-
-                        operatorListService.updateOperatorList(operator);
-
-                        // 发送命令
-                        rconService.sendCommand("all", String.format(Command.OP_REMOVE, playerDetails.getUserName()), true);
-                    }
-                }
+                handleOperatorRevoke(playerDetails, name);
             }
         }
         return playerDetailsMapper.updatePlayerDetails(playerDetails);
+    }
+
+    private void handleOperatorGrant(PlayerDetails playerDetails, String operatorName) {
+        OperatorList existing = findOperatorByUserName(playerDetails.getUserName());
+        if (existing != null) {
+            existing.setStatus(1L);
+            existing.setUpdateBy(operatorName);
+            existing.setUpdateTime(DateUtils.getNowDate());
+            operatorListService.updateOperatorList(existing);
+        } else {
+            OperatorList operator = new OperatorList();
+            operator.setUserName(playerDetails.getUserName());
+            operator.setStatus(1L);
+            operator.setCreateTime(DateUtils.getNowDate());
+            operator.setCreateBy(operatorName);
+            if (playerDetails.getRemark() != null) {
+                operator.setRemark(playerDetails.getRemark());
+            }
+            operatorListService.insertOperatorList(operator);
+        }
+        rconService.sendCommand("all", String.format(Command.OP_ADD, playerDetails.getUserName()), true);
+    }
+
+    private void handleOperatorRevoke(PlayerDetails playerDetails, String operatorName) {
+        OperatorList existing = findOperatorByUserName(playerDetails.getUserName());
+        if (existing != null && existing.getStatus().equals(1L)) {
+            existing.setStatus(0L);
+            existing.setUpdateBy(operatorName);
+            existing.setUpdateTime(DateUtils.getNowDate());
+            operatorListService.updateOperatorList(existing);
+            rconService.sendCommand("all", String.format(Command.OP_REMOVE, playerDetails.getUserName()), true);
+        }
+    }
+
+    private OperatorList findOperatorByUserName(String userName) {
+        OperatorList query = new OperatorList();
+        query.setUserName(userName);
+        List<OperatorList> results = operatorListService.selectOperatorListList(query);
+        return (results != null && !results.isEmpty()) ? results.get(0) : null;
     }
 
     /**
