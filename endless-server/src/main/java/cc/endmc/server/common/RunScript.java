@@ -3,6 +3,7 @@ package cc.endmc.server.common;
 import cc.endmc.common.core.redis.RedisCache;
 import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.constant.CacheKey;
+import cc.endmc.server.common.rconclient.RconClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -26,8 +27,8 @@ public class RunScript {
                 log.error("Rcon连接关闭失败");
             }
         });
-        // 关闭线程池
-        // AsyncManager.getInstance().shutdown();
+        // 关闭RconClient共享线程池
+        RconClient.shutdownSharedExecutor();
 
         // 清除缓存
         if (redisCache.deleteObject(CacheKey.SERVER_INFO_KEY)) {

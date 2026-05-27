@@ -634,6 +634,21 @@ public class RconClient implements Closeable {
     public Boolean isSocketChannelOpen() {
         return socketChannel != null && socketChannel.isOpen();
     }
+
+    /**
+     * 关闭共享线程池，应在应用关闭时调用
+     */
+    public static void shutdownSharedExecutor() {
+        SHARED_EXECUTOR.shutdown();
+        try {
+            if (!SHARED_EXECUTOR.awaitTermination(5, TimeUnit.SECONDS)) {
+                SHARED_EXECUTOR.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            SHARED_EXECUTOR.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+    }
 }
 
 

@@ -2,6 +2,8 @@ package cc.endmc.server.cache;
 
 import cc.endmc.server.common.rconclient.RconClient;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.logging.Logger;
@@ -22,59 +24,30 @@ public class RconCache {
     }
 
     public static RconClient get(String key) {
-        RconClient client = map.get(key);
-        if (client != null) {
-            return client;
-        }
-        throw new RuntimeException("RconClient不存在或连接已关闭");
+        return map.get(key);
     }
 
     public static void remove(String key) {
-        if (map.containsKey(key)) {
-            RconClient client = map.get(key);
-            if (client != null) {
-                client.close();
-            }
-            map.remove(key);
+        if (key == null) {
+            return;
         }
+        evict(key);
     }
 
     public static void close(String key) {
-        if (map.containsKey(key)) {
-            RconClient client = map.get(key);
-            if (client != null) {
-                client.close();
-            }
-        }
+        remove(key);
     }
 
     public static void closeAll() {
-        if (!map.isEmpty()) {
-            for (RconClient client : map.values()) {
-                if (client != null) {
-                    try {
-                        client.close();
-                    } catch (Exception e) {
-                        LOGGER.warning("Failed to close RconClient: " + e.getMessage());
-                    }
-                }
-            }
-        }
+        closeAndClearAll();
     }
 
     public static void clear() {
-        if (!map.isEmpty()) {
-            for (RconClient client : map.values()) {
-                if (client != null) {
-                    client.close();
-                }
-            }
-        }
-        map.clear();
+        closeAndClearAll();
     }
 
     public static void clearAll() {
-        map.clear();
+        closeAndClearAll();
     }
 
     public static boolean containsKey(String key) {
@@ -94,7 +67,41 @@ public class RconCache {
     }
 
     public static Map<String, RconClient> getMap() {
-        return map;
+        return Collections.unmodifiableMap(map);
+    }
+
+    private static void closeAndClearAll() {
+        if (map.isEmpty()) {
+            return;
+        }
+
+        Map<String, RconClient> snapshot = new HashMap<>(map);
+        map.clear();
+
+        for (Map.Entry<String, RconClient> entry : snapshot.entrySet()) {
+            closeClient(entry.getKey(), entry.getValue());
+        }
+    }
+
+    private static void evict(String key) {
+        RconClient client = map.remove(key);
+        closeClient(key, client);
+    }
+
+    private static void closeClient(String key, RconClient client) {
+        if (client == null) {
+            return;
+        }
+
+        try {
+            client.close();
+        } catch (Exception e) {
+            if (key == null) {
+                LOGGER.warning("Failed to close RconClient: " + e.getMessage());
+            } else {
+                LOGGER.warning("Failed to close RconClient[" + key + "]: " + e.getMessage());
+            }
+        }
     }
 
 }

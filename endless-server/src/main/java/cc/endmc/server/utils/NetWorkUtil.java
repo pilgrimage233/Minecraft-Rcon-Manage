@@ -14,6 +14,7 @@ import javax.naming.directory.InitialDirContext;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InterruptedIOException;
 import java.net.Socket;
 import java.nio.charset.StandardCharsets;
 
@@ -55,6 +56,7 @@ public class NetWorkUtil {
         serverInfo.setPort(port);
 
         try {
+            checkInterrupted("开始检测");
             // 解析域名和SRV记录
             ServerAddress serverAddress = resolveServerAddress(host, port);
             String resolvedHost = serverAddress.host;
@@ -66,6 +68,7 @@ public class NetWorkUtil {
             try (Socket socket = new Socket()) {
                 long startTime = System.currentTimeMillis();
                 socket.connect(new java.net.InetSocketAddress(resolvedHost, resolvedPort), 3000); // 3秒超时
+                socket.setSoTimeout(DEFAULT_TIMEOUT);
                 long endTime = System.currentTimeMillis();
 
                 // 发送握手包
@@ -107,8 +110,9 @@ public class NetWorkUtil {
         }
 
         // 尝试查询SRV记录
+        DirContext context = null;
         try {
-            DirContext context = new InitialDirContext();
+            context = new InitialDirContext();
             Attributes attributes = context.getAttributes(
                     "dns:///_minecraft._tcp." + host,
                     new String[]{"SRV"}
@@ -130,7 +134,13 @@ public class NetWorkUtil {
             }
         } catch (Exception e) {
             // SRV查询失败，使用默认端口
-            // e.printStackTrace(); // 可以选择不打印SRV查询失败的日志
+        } finally {
+            if (context != null) {
+                try {
+                    context.close();
+                } catch (Exception ignored) {
+                }
+            }
         }
 
         // 返回原始主机和端口
@@ -226,6 +236,7 @@ public class NetWorkUtil {
      * 读取响应
      */
     private static String readResponse(Socket socket) throws IOException {
+        checkInterrupted("读取响应");
         // 读取包长度
         int length = readVarInt(socket);
 
@@ -239,6 +250,7 @@ public class NetWorkUtil {
         byte[] data = new byte[dataLength];
         int read = 0;
         while (read < dataLength) {
+            checkInterrupted("读取数据包");
             int received = socket.getInputStream().read(data, read, dataLength - read);
             if (received == -1) {
                 throw new IOException("连接已关闭");
@@ -374,6 +386,7 @@ public class NetWorkUtil {
         byte currentByte;
 
         while (true) {
+            checkInterrupted("读取VarInt");
             int read = socket.getInputStream().read();
             if (read == -1) {
                 throw new IOException("连接已关闭");
@@ -389,6 +402,12 @@ public class NetWorkUtil {
         }
 
         return value;
+    }
+
+    private static void checkInterrupted(String stage) throws InterruptedIOException {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new InterruptedIOException("任务被中断: " + stage);
+        }
     }
 
     /**
