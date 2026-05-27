@@ -134,4 +134,8 @@
             #{id}
         </foreach>
     </delete>
+
+    <select id="countByStatus" resultType="int">
+        select count(*) from operator_list where status = #{status}
+    </select>
 </mapper>

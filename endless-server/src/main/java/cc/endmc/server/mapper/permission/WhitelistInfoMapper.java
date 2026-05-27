@@ -2,6 +2,7 @@ package cc.endmc.server.mapper.permission;
 
 import cc.endmc.server.domain.permission.WhitelistInfo;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -84,4 +85,12 @@ public interface WhitelistInfoMapper {
      * @return 白名单集合
      */
     public List<WhitelistInfo> selectWhitelistInfoListWithBan(WhitelistInfo whitelistInfo);
+
+    /**
+     * 按状态统计白名单数量
+     *
+     * @param status 状态（可选，为null时统计全部）
+     * @return 数量
+     */
+    int countByStatus(@Param("status") String status);
 }

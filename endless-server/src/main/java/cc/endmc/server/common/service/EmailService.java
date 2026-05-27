@@ -22,64 +22,65 @@ import java.util.concurrent.ExecutionException;
 @Slf4j
 @Component
 public class EmailService {
+    private static final String SSL_FACTORY = "javax.net.ssl.SSLSocketFactory";
+
     @Autowired
     private EmailConfig emailConfig;
 
+    private volatile Session cachedSession;
+    private volatile boolean initialized = false;
+
     public void push(String email, String title, String content) throws ExecutionException, InterruptedException {
-        // 是否开启邮件推送
         if (!emailConfig.isEnable()) {
             return;
         }
 
         try {
-            final Properties props = getProperties();
-            //建立邮件会话
-            Session session = Session.getDefaultInstance(props, new Authenticator() {
-                //身份认证
-                protected PasswordAuthentication getPasswordAuthentication() {
-                    //发件人的账号、密码
-                    String userName = props.getProperty("mail.user");
-                    String password = props.getProperty("mail.password");
-                    return new PasswordAuthentication(userName, password);
-                }
-            });
-            //建立邮件对象
+            Session session = getOrCreateSession();
             MimeMessage message = new MimeMessage(session);
-            //设置邮件的发件人
-            InternetAddress from = new InternetAddress(emailConfig.getAccount(), emailConfig.getSenderName()); //from 参数,可实现代发，注意：代发容易被收信方拒信或进入垃圾箱。
+            InternetAddress from = new InternetAddress(emailConfig.getAccount(), emailConfig.getSenderName());
             message.setFrom(from);
-            //设置邮件的收件人
-            String[] to = {email};//收件人列表
-            InternetAddress[] sendTo = new InternetAddress[to.length];
-            for (int i = 0; i < to.length; i++) {
-                //System.out.println("发送到：" + to[i]);
-                sendTo[i] = new InternetAddress(to[i]);
-            }
-
-            //传入收件人
-            message.setRecipients(Message.RecipientType.TO, sendTo);
-            //设置邮件的主题
+            message.setRecipients(Message.RecipientType.TO, InternetAddress.parse(email));
             message.setSubject(title);
-            //设置邮件的文本内容
             message.setContent(content, "text/html;charset=UTF-8");
-            //设置时间
             message.setSentDate(new Date());
             message.saveChanges();
-            //发送邮件
             Transport.send(message);
             log.info("发送成功！");
         } catch (Exception e) {
             log.error("邮件发送失败！异常信息：{}", String.valueOf(e));
         }
-        //  log.debug("发送邮件给{}，标题：{}，内容：{}", email, title, content);
     }
 
-    private @NotNull Properties getProperties() {
-        final String SSL_FACTORY = "javax.net.ssl.SSLSocketFactory";
+    private Session getOrCreateSession() {
+        if (!initialized) {
+            synchronized (this) {
+                if (!initialized) {
+                    cachedSession = createSession();
+                    initialized = true;
+                }
+            }
+        }
+        return cachedSession;
+    }
+
+    private Session createSession() {
+        Properties props = buildProperties();
+        return Session.getInstance(props, new Authenticator() {
+            @Override
+            protected PasswordAuthentication getPasswordAuthentication() {
+                return new PasswordAuthentication(
+                        props.getProperty("mail.user"),
+                        props.getProperty("mail.password")
+                );
+            }
+        });
+    }
+
+    private @NotNull Properties buildProperties() {
         Properties props = new Properties();
         EmailConfig.SmtpConfig smtpConfig = emailConfig.getCurrentSmtpConfig();
 
-        //协议
         props.setProperty("mail.transport.protocol", "smtp");
         props.setProperty("mail.smtp.host", smtpConfig.getSmtpHost());
         props.setProperty("mail.smtp.port", String.valueOf(smtpConfig.getSmtpPort()));

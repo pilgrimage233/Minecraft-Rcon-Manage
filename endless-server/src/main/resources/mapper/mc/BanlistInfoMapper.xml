@@ -146,4 +146,8 @@
             #{id}
         </foreach>
     </delete>
+
+    <select id="countByState" resultType="int">
+        select count(*) from banlist_info where state = #{state}
+    </select>
 </mapper>

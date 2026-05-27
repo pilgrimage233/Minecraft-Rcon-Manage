@@ -2,6 +2,7 @@ package cc.endmc.server.mapper.permission;
 
 import cc.endmc.server.domain.permission.BanlistInfo;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -60,4 +61,12 @@ public interface BanlistInfoMapper {
      * @return 结果
      */
     public int deleteBanlistInfoByIds(Long[] ids);
+
+    /**
+     * 按状态统计封禁数量
+     *
+     * @param state 状态
+     * @return 数量
+     */
+    int countByState(@Param("state") Long state);
 }

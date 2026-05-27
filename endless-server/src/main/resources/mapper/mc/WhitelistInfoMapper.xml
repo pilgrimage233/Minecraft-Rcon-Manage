@@ -174,4 +174,11 @@
             <if test="qqNum != null  and qqNum != ''">or qq_num = #{qqNum}</if>
         </where>
     </select>
+
+    <select id="countByStatus" resultType="int">
+        select count(*) from whitelist_info
+        <where>
+            <if test="status != null and status != ''">and status = #{status}</if>
+        </where>
+    </select>
 </mapper>

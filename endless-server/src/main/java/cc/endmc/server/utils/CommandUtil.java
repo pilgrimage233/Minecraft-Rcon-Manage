@@ -2,22 +2,7 @@ package cc.endmc.server.utils;
 
 public class CommandUtil {
 
-    /**
-     * 判断是否为高危命令
-     *
-     * @param command 要执行的命令
-     * @return 是否为高危命令
-     */
-    public static boolean isHighRiskCommand(String command) {
-        if (command == null || command.isEmpty()) {
-            return false;
-        }
-
-        // 将命令转为小写并去除前导空格，以便更准确地匹配
-        String cmdLower = command.trim().toLowerCase();
-
-        // 高危命令列表
-        String[] highRiskCommands = {
+    private static final String[] HIGH_RISK_COMMANDS = {
                 // 服务器核心命令
                 "stop",                // 关闭服务器
                 "reload",              // 重载服务器
@@ -125,11 +110,23 @@ public class CommandUtil {
                 "co rollback",            // CoreProtect回滚
                 "co restore",             // CoreProtect恢复
                 "co purge"                // CoreProtect清除数据
-        };
+    };
 
-        // 检查命令是否匹配任何高危命令
-        for (String highRiskCmd : highRiskCommands) {
-            if (cmdLower.startsWith(highRiskCmd.trim().toLowerCase())) {
+    /**
+     * 判断是否为高危命令
+     *
+     * @param command 要执行的命令
+     * @return 是否为高危命令
+     */
+    public static boolean isHighRiskCommand(String command) {
+        if (command == null || command.isEmpty()) {
+            return false;
+        }
+
+        String cmdLower = command.trim().toLowerCase();
+
+        for (String highRiskCmd : HIGH_RISK_COMMANDS) {
+            if (cmdLower.startsWith(highRiskCmd)) {
                 return true;
             }
         }

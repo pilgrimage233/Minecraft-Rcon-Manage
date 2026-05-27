@@ -2,6 +2,7 @@ package cc.endmc.server.mapper.permission;
 
 import cc.endmc.server.domain.permission.OperatorList;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
@@ -61,4 +62,11 @@ public interface OperatorListMapper {
      */
     public int deleteOperatorListByIds(Long[] ids);
 
+    /**
+     * 按状态统计管理员数量
+     *
+     * @param status 状态
+     * @return 数量
+     */
+    int countByStatus(@Param("status") Long status);
 }

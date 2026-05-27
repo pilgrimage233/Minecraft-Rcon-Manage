@@ -53,6 +53,9 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class WhitelistInfoController extends BaseController {
 
+    private static final Pattern GAME_ID_PATTERN = Pattern.compile("[a-zA-Z0-9_]{1,35}");
+    private static final Pattern QQ_PATTERN = Pattern.compile("[0-9]{5,11}");
+
     private final RedisCache redisCache;
     private final AsyncManager asyncManager = AsyncManager.me();
 
@@ -279,16 +282,12 @@ public class WhitelistInfoController extends BaseController {
                 final String remark = template.getRemark();
 
                 // 正则校验数据合法性
-                // 游戏ID正则匹配
-                Pattern p = Pattern.compile("[a-zA-Z0-9_]{1,35}");
-                if (!p.matcher(userName).matches()) {
+                if (!GAME_ID_PATTERN.matcher(userName).matches()) {
                     flag = true;
                     logger.info("游戏ID不合法:{}", userName);
                 }
 
-                // QQ号正则匹配
-                Pattern p2 = Pattern.compile("[0-9]{5,11}");
-                if (!p2.matcher(qq).matches()) {
+                if (!QQ_PATTERN.matcher(qq).matches()) {
                     flag = true;
                     logger.info("QQ号不合法:{}", qq);
                 }

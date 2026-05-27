@@ -13,8 +13,7 @@ import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.common.EmailTemplates;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.service.EmailService;
-import cc.endmc.server.domain.permission.BanlistInfo;
-import cc.endmc.server.domain.permission.OperatorList;
+
 import cc.endmc.server.domain.permission.WhitelistIdChangeHistory;
 import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.domain.player.PlayerDetails;
@@ -28,6 +27,8 @@ import cc.endmc.server.domain.relation.RconNodeInstanceRelation;
 import cc.endmc.server.domain.server.ServerInfo;
 import cc.endmc.server.dto.VerifySource;
 import cc.endmc.server.enums.Identity;
+import cc.endmc.server.mapper.permission.BanlistInfoMapper;
+import cc.endmc.server.mapper.permission.OperatorListMapper;
 import cc.endmc.server.mapper.permission.WhitelistInfoMapper;
 import cc.endmc.server.mapper.player.PlayerDetailsMapper;
 import cc.endmc.server.mapper.server.ServerInfoMapper;
@@ -37,8 +38,6 @@ import cc.endmc.server.request.ChangeIdRequest;
 import cc.endmc.server.service.message.AsyncMessagePushService;
 import cc.endmc.server.service.open.IOpenApiService;
 import cc.endmc.server.service.other.IIpLimitInfoService;
-import cc.endmc.server.service.permission.IBanlistInfoService;
-import cc.endmc.server.service.permission.IOperatorListService;
 import cc.endmc.server.service.permission.IWhitelistIdChangeHistoryService;
 import cc.endmc.server.service.permission.IWhitelistInfoService;
 import cc.endmc.server.service.player.IPlayerDetailsService;
@@ -63,12 +62,15 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
@@ -83,9 +85,15 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class OpenApiServiceImpl implements IOpenApiService {
 
+    private static final String SERVER_LAST_ALIVE_KEY_PREFIX = "server_manager:status:last_alive:";
+    private static final String SERVER_OFFLINE_SINCE_KEY_PREFIX = "server_manager:status:offline_since:";
+    private static final String SERVER_ALERT_SENT_KEY_PREFIX = "server_manager:status:alert_sent:";
+    private static final Pattern GAME_ID_PATTERN = Pattern.compile("[a-zA-Z0-9_]{1,35}");
+    private static final Pattern QQ_PATTERN = Pattern.compile("[0-9]{5,11}");
+
     private final RedisCache redisCache;
     private final AsyncManager asyncManager = AsyncManager.me();
-    private final SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm");
+    private static final DateTimeFormatter DATE_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     // Quiz相关服务
     private final IWhitelistQuizSubmissionService quizSubmissionService;
@@ -94,8 +102,6 @@ public class OpenApiServiceImpl implements IOpenApiService {
 
     // 权限相关服务
     private final IWhitelistInfoService whitelistInfoService;
-    private final IOperatorListService operatorListService;
-    private final IBanlistInfoService banlistInfoService;
     private final IWhitelistIdChangeHistoryService whitelistIdChangeHistoryService;
 
     // 服务器相关服务
@@ -119,6 +125,8 @@ public class OpenApiServiceImpl implements IOpenApiService {
     private final WhitelistInfoMapper whitelistInfoMapper;
     private final PlayerDetailsMapper playerDetailsMapper;
     private final ServerInfoMapper serverInfoMapper;
+    private final BanlistInfoMapper banlistInfoMapper;
+    private final OperatorListMapper operatorListMapper;
 
     // 配置属性
     @Value("${app-url}")
@@ -442,9 +450,13 @@ public class OpenApiServiceImpl implements IOpenApiService {
                 return AjaxResult.success(result);
             }
 
+            Map<String, String> nameTagMap = getServerNameTagMap(cache.keySet());
             cache.forEach((String k, Set<String> v) -> {
                 if (RconCache.containsKey(k)) {  // 只查询活跃服务器
-                    final String nameTag = serverInfoService.selectServerInfoById(Long.valueOf(k)).getNameTag();
+                    String nameTag = nameTagMap.get(k);
+                    if (StringUtils.isEmpty(nameTag)) {
+                        nameTag = k;
+                    }
                     result.put(nameTag, Arrays.toString(v.toArray()));
                 }
             });
@@ -544,11 +556,27 @@ public class OpenApiServiceImpl implements IOpenApiService {
         redisCache.setCacheMap(CacheKey.QUIZ_SUBMISSION_KEY + id, data, 1, TimeUnit.DAYS);
 
         if (submission.getWhitelistQuizSubmissionDetailList() != null) {
+            List<WhitelistQuizSubmissionDetail> submissionDetails = submission.getWhitelistQuizSubmissionDetailList();
+            List<Long> questionIds = submissionDetails.stream()
+                    .map(WhitelistQuizSubmissionDetail::getQuestionId)
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .toList();
+
+            Map<Long, WhitelistQuizQuestion> questionMap = Collections.emptyMap();
+            if (!questionIds.isEmpty()) {
+                List<WhitelistQuizQuestion> questions = quizQuestionService.selectWhitelistQuizQuestionByIds(
+                        questionIds.stream().map(Long::intValue).collect(Collectors.toList()));
+                questionMap = questions.stream()
+                        .filter(q -> q.getId() != null)
+                        .collect(Collectors.toMap(WhitelistQuizQuestion::getId, q -> q, (left, right) -> left));
+            }
+
             List<Map<String, Object>> details = new ArrayList<>();
-            for (WhitelistQuizSubmissionDetail detail : submission.getWhitelistQuizSubmissionDetailList()) {
+            for (WhitelistQuizSubmissionDetail detail : submissionDetails) {
                 Map<String, Object> detailMap = new HashMap<>();
                 detailMap.put("问题ID", detail.getQuestionId());
-                final WhitelistQuizQuestion question = quizQuestionService.selectWhitelistQuizQuestionById(detail.getQuestionId());
+                WhitelistQuizQuestion question = questionMap.get(detail.getQuestionId());
                 detailMap.put("问题内容", question != null ? question.getQuestionText() : "问题已删除");
                 detailMap.put("问题类型", question != null ? question.getQuestionType() : "未知");
                 detailMap.put("玩家答案", detail.getPlayerAnswer());
@@ -839,27 +867,23 @@ public class OpenApiServiceImpl implements IOpenApiService {
         result.put("onlinePlayer", onlinePlayer);
 
         // 申请数量
-        List<WhitelistInfo> whitelistInfos = whitelistInfoMapper.selectWhitelistInfoList(new WhitelistInfo());
-        result.put("applyCount", whitelistInfos.size());
+        int applyCount = whitelistInfoMapper.countByStatus(null);
+        result.put("applyCount", applyCount);
 
         // 白名单数量
-        int index = (int) whitelistInfos.stream().filter(whitelistInfo -> whitelistInfo.getStatus().equals("1")).count();
-        result.put("whiteListCount", index);
+        int whiteListCount = whitelistInfoMapper.countByStatus("1");
+        result.put("whiteListCount", whiteListCount);
 
         // 未通过数量
-        index = (int) whitelistInfos.stream().filter(whitelistInfo -> whitelistInfo.getStatus().equals("0")).count();
-        result.put("notPassCount", index);
+        int notPassCount = whitelistInfoMapper.countByStatus("0");
+        result.put("notPassCount", notPassCount);
 
         // OP数量
-        final OperatorList op = new OperatorList();
-        op.setStatus(1L);
-        final List<OperatorList> operatorLists = operatorListService.selectOperatorListList(op);
-        result.put("opCount", operatorLists.size());
+        int opCount = operatorListMapper.countByStatus(1L);
+        result.put("opCount", opCount);
 
         // 封禁数量
-        final BanlistInfo banlistInfo = new BanlistInfo();
-        banlistInfo.setState(1L);
-        int banCount = banlistInfoService.selectBanlistInfoList(banlistInfo).size();
+        int banCount = banlistInfoMapper.countByState(1L);
         result.put("banCount", banCount);
 
         // 在线前十
@@ -930,8 +954,12 @@ public class OpenApiServiceImpl implements IOpenApiService {
             }
 
             Map<String, String> map = new HashMap<>();
+            Map<String, String> nameTagMap = getServerNameTagMap(RconCache.getMap().keySet());
             RconCache.getMap().forEach((k, v) -> {
-                final String nameTag = serverInfoService.selectServerInfoById(Long.valueOf(k)).getNameTag();
+                String nameTag = nameTagMap.get(k);
+                if (StringUtils.isEmpty(nameTag)) {
+                    nameTag = k;
+                }
                 try {
                     final String list = v.sendCommand("whitelist list");
                     String[] split = new String[0];
@@ -1044,17 +1072,241 @@ public class OpenApiServiceImpl implements IOpenApiService {
         if (serverInfos.isEmpty()) {
             return;
         }
-        collectServerStatus(serverInfos, false);
+        List<Map<String, Object>> statusData = collectServerStatus(serverInfos, false);
+        // handleServerStatusAlerts(statusData);
+    }
+
+    private void handleServerStatusAlerts(List<Map<String, Object>> statusData) {
+        if (statusData == null || statusData.isEmpty()) {
+            return;
+        }
+
+        Date now = new Date();
+        for (Map<String, Object> statusMap : statusData) {
+            if (statusMap == null || statusMap.get("id") == null) {
+                continue;
+            }
+
+            String serverId = String.valueOf(statusMap.get("id"));
+            String lastAliveKey = SERVER_LAST_ALIVE_KEY_PREFIX + serverId;
+            String offlineSinceKey = SERVER_OFFLINE_SINCE_KEY_PREFIX + serverId;
+            String alertSentKey = SERVER_ALERT_SENT_KEY_PREFIX + serverId;
+
+            boolean online = "在线".equals(String.valueOf(statusMap.get("在线状态")));
+            boolean rconConnected = "成功".equals(String.valueOf(statusMap.get("Rcon连接")));
+            boolean healthy = online && rconConnected;
+
+            Date lastAliveTime = redisCache.getCacheObject(lastAliveKey);
+            Date offlineSinceTime = redisCache.getCacheObject(offlineSinceKey);
+            Boolean alerted = redisCache.getCacheObject(alertSentKey);
+
+            if (healthy) {
+                if (offlineSinceTime != null && Boolean.TRUE.equals(alerted)) {
+                    sendServerRecoveryAlert(statusMap, offlineSinceTime, lastAliveTime, now);
+                }
+                redisCache.setCacheObject(lastAliveKey, now, 30, TimeUnit.DAYS);
+                redisCache.deleteObject(offlineSinceKey);
+                redisCache.deleteObject(alertSentKey);
+                continue;
+            }
+
+            if (offlineSinceTime == null) {
+                offlineSinceTime = now;
+                redisCache.setCacheObject(offlineSinceKey, offlineSinceTime, 30, TimeUnit.DAYS);
+            }
+
+            if (Boolean.TRUE.equals(alerted)) {
+                continue;
+            }
+
+            sendServerOfflineAlert(statusMap, offlineSinceTime, lastAliveTime, now);
+            redisCache.setCacheObject(alertSentKey, true, 30, TimeUnit.DAYS);
+        }
+    }
+
+    private void sendServerOfflineAlert(Map<String, Object> statusMap,
+                                        Date offlineSinceTime,
+                                        Date lastAliveTime,
+                                        Date detectTime) {
+        try {
+            String alertMessage = buildServerOfflineAlertMessage(statusMap, offlineSinceTime, lastAliveTime, detectTime);
+            broadcastAlertToActiveBots(alertMessage, "失联告警");
+        } catch (Exception e) {
+            log.error("发送服务器失联告警失败", e);
+        }
+    }
+
+    private String buildServerOfflineAlertMessage(Map<String, Object> statusMap,
+                                                  Date offlineSinceTime,
+                                                  Date lastAliveTime,
+                                                  Date detectTime) {
+        String serverName = String.valueOf(statusMap.getOrDefault("服务器名称", "未知"));
+        String serverId = String.valueOf(statusMap.getOrDefault("id", "未知"));
+        String address = String.valueOf(statusMap.getOrDefault("连接地址", "未知"));
+        String port = String.valueOf(statusMap.getOrDefault("连接端口", "未知"));
+        String onlineStatus = String.valueOf(statusMap.getOrDefault("在线状态", "未知"));
+        String rconStatus = String.valueOf(statusMap.getOrDefault("Rcon连接", "未知"));
+        String latency = String.valueOf(statusMap.getOrDefault("延迟(ms)", "未知"));
+        String failureType = String.valueOf(statusMap.getOrDefault("失败类型", "状态异常"));
+
+        String reason = resolveOfflineReason(statusMap, failureType);
+        String offlineSince = formatDateTime(offlineSinceTime);
+        String lastAlive = formatDateTime(lastAliveTime);
+        String detectAt = formatDateTime(detectTime);
+        String offlineDuration = formatOfflineDuration(offlineSinceTime, detectTime);
+
+        return String.format(
+                """
+                        【服务器异常告警】
+                        服务器: %s (#%s)
+                        地址: %s:%s
+                        原因: %s（%s）
+                        状态: 运行=%s, RCON=%s, 延迟=%sms
+                        失联时间: %s
+                        上次存活: %s
+                        已失联时长: %s
+                        检测时间: %s
+                        建议: 优先检查进程、网络与RCON配置。""",
+                serverName,
+                serverId,
+                address,
+                port,
+                reason,
+                failureType,
+                onlineStatus,
+                rconStatus,
+                latency,
+                offlineSince,
+                lastAlive,
+                offlineDuration,
+                detectAt
+        );
+    }
+
+    private void sendServerRecoveryAlert(Map<String, Object> statusMap,
+                                         Date offlineSinceTime,
+                                         Date lastAliveTime,
+                                         Date recoverTime) {
+        try {
+            String alertMessage = buildServerRecoveryMessage(statusMap, offlineSinceTime, lastAliveTime, recoverTime);
+            broadcastAlertToActiveBots(alertMessage, "恢复通知");
+        } catch (Exception e) {
+            log.error("发送服务器恢复通知失败", e);
+        }
+    }
+
+    private void broadcastAlertToActiveBots(String message, String alertType) {
+        if (StringUtils.isEmpty(message)) {
+            return;
+        }
+        BotUtil.sendMessage(message);
+        log.debug("服务器{}已提交发送", alertType);
+    }
+
+    private String buildServerRecoveryMessage(Map<String, Object> statusMap,
+                                              Date offlineSinceTime,
+                                              Date lastAliveTime,
+                                              Date recoverTime) {
+        String serverName = String.valueOf(statusMap.getOrDefault("服务器名称", "未知"));
+        String serverId = String.valueOf(statusMap.getOrDefault("id", "未知"));
+        String address = String.valueOf(statusMap.getOrDefault("连接地址", "未知"));
+        String port = String.valueOf(statusMap.getOrDefault("连接端口", "未知"));
+        String latency = String.valueOf(statusMap.getOrDefault("延迟(ms)", "未知"));
+        String onlinePlayers = String.valueOf(statusMap.getOrDefault("在线人数", "未知"));
+        String maxPlayers = String.valueOf(statusMap.getOrDefault("最大人数", "未知"));
+
+        String offlineSince = formatDateTime(offlineSinceTime);
+        String lastAlive = formatDateTime(lastAliveTime);
+        String recoverAt = formatDateTime(recoverTime);
+        String offlineDuration = formatOfflineDuration(offlineSinceTime, recoverTime);
+
+        return String.format(
+                """
+                        【服务器恢复通知】
+                        服务器: %s (#%s)
+                        地址: %s:%s
+                        恢复状态: 运行=在线, RCON=成功, 在线人数=%s/%s, 延迟=%sms
+                        本次失联开始: %s
+                        上次存活时间: %s
+                        失联总时长: %s
+                        恢复时间: %s""",
+                serverName,
+                serverId,
+                address,
+                port,
+                onlinePlayers,
+                maxPlayers,
+                latency,
+                offlineSince,
+                lastAlive,
+                offlineDuration,
+                recoverAt
+        );
+    }
+
+    private String resolveOfflineReason(Map<String, Object> statusMap, String failureType) {
+        if ("检测超时".equals(failureType)) {
+            return "状态检测超时（超过5秒）";
+        }
+        if (failureType != null && failureType.startsWith("检测异常")) {
+            return failureType;
+        }
+
+        boolean online = "在线".equals(String.valueOf(statusMap.get("在线状态")));
+        boolean rconConnected = "成功".equals(String.valueOf(statusMap.get("Rcon连接")));
+        if (!online && !rconConnected) {
+            return "服务器离线且RCON断联";
+        }
+        if (!online) {
+            return "服务器离线";
+        }
+        if (!rconConnected) {
+            return "RCON断联";
+        }
+        return "服务状态异常";
+    }
+
+    private String formatDateTime(Date date) {
+        if (date == null) {
+            return "未知";
+        }
+        return DateUtils.parseDateToStr(DateUtils.YYYY_MM_DD_HH_MM_SS, date);
+    }
+
+    private String formatOfflineDuration(Date offlineSince, Date detectTime) {
+        if (offlineSince == null || detectTime == null) {
+            return "未知";
+        }
+
+        long diffMs = Math.max(0L, detectTime.getTime() - offlineSince.getTime());
+        long totalSeconds = diffMs / 1000;
+        long days = totalSeconds / 86400;
+        long hours = (totalSeconds % 86400) / 3600;
+        long minutes = (totalSeconds % 3600) / 60;
+        long seconds = totalSeconds % 60;
+
+        if (days > 0) {
+            return String.format("%d天%d小时%d分%d秒", days, hours, minutes, seconds);
+        }
+        if (hours > 0) {
+            return String.format("%d小时%d分%d秒", hours, minutes, seconds);
+        }
+        if (minutes > 0) {
+            return String.format("%d分%d秒", minutes, seconds);
+        }
+        return String.format("%d秒", seconds);
     }
 
     private List<Map<String, Object>> collectServerStatus(List<ServerInfo> serverInfos, boolean useCache) {
         final int perServerTimeoutSeconds = 5;
 
         // 使用CompletableFuture并行检测所有服务器状态
-        List<CompletableFuture<Map<String, Object>>> futures = new ArrayList<>();
+        List<CompletableFuture<Map<String, Object>>> wrappedFutures = new ArrayList<>();
 
         for (ServerInfo serverInfo : serverInfos) {
-            CompletableFuture<Map<String, Object>> future = CompletableFuture.supplyAsync(() -> {
+            Map<String, Object> timeoutStatus = buildTimeoutStatusMap(serverInfo);
+
+            CompletableFuture<Map<String, Object>> workerFuture = CompletableFuture.supplyAsync(() -> {
                         String cacheKey = CacheKey.MINECRAFT_SERVER_INFO + serverInfo.getId();
 
                         // 检查缓存
@@ -1092,34 +1344,79 @@ public class OpenApiServiceImpl implements IOpenApiService {
                             }
                         } catch (Exception e) {
                             log.error("检测服务器{}状态失败,原因: {}", serverInfo.getNameTag(), e.getMessage());
-                            applyFailureStatus(statusMap);
+                            applyFailureStatus(statusMap, "检测异常: " + e.getClass().getSimpleName());
                         }
 
                         // 缓存结果
                         redisCache.setCacheMap(cacheKey, statusMap, 3, TimeUnit.MINUTES);
                         return statusMap;
-                    }, taskExecutor).completeOnTimeout(buildTimeoutStatusMap(serverInfo), perServerTimeoutSeconds, TimeUnit.SECONDS)
+                    }, taskExecutor);
+
+            CompletableFuture<Map<String, Object>> timeoutFuture = CompletableFuture.supplyAsync(() -> {
+                boolean cancelled = workerFuture.cancel(true);
+                if (cancelled) {
+                    log.warn("检测服务器{}状态任务超时，已取消后台执行", serverInfo.getNameTag());
+                }
+                return timeoutStatus;
+            }, CompletableFuture.delayedExecutor(perServerTimeoutSeconds, TimeUnit.SECONDS, taskExecutor));
+
+            CompletableFuture<Map<String, Object>> wrappedFuture = workerFuture
+                    .applyToEither(timeoutFuture, Function.identity())
                     .exceptionally(ex -> {
                         log.error("检测服务器{}状态异常,原因: {}", serverInfo.getNameTag(), ex.getMessage());
-                        return buildTimeoutStatusMap(serverInfo);
+                        return timeoutStatus;
                     });
-            futures.add(future);
+
+            wrappedFutures.add(wrappedFuture);
         }
 
         // 等待所有异步任务完成，避免逐个等待导致总时长放大
-        CompletableFuture<Void> allFutures = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
-                .orTimeout(perServerTimeoutSeconds + 1L, TimeUnit.SECONDS)
-                .exceptionally(ex -> null);
-        allFutures.join();
+        CompletableFuture.allOf(wrappedFutures.toArray(new CompletableFuture[0])).join();
 
         List<Map<String, Object>> data = new ArrayList<>();
-        for (int i = 0; i < futures.size(); i++) {
+        for (int i = 0; i < wrappedFutures.size(); i++) {
             ServerInfo serverInfo = serverInfos.get(i);
-            Map<String, Object> result = futures.get(i).getNow(buildTimeoutStatusMap(serverInfo));
+            Map<String, Object> result = wrappedFutures.get(i).getNow(buildTimeoutStatusMap(serverInfo));
             data.add(result);
         }
 
         return data;
+    }
+
+    private String formatDate(Date date) {
+        return LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault()).format(DATE_FORMATTER);
+    }
+
+    private Map<String, String> getServerNameTagMap(Collection<String> serverIds) {
+        if (serverIds == null || serverIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<Long> ids = serverIds.stream()
+                .filter(StringUtils::isNotEmpty)
+                .map(id -> {
+                    try {
+                        return Long.valueOf(id);
+                    } catch (NumberFormatException e) {
+                        return null;
+                    }
+                })
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        if (ids.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        List<ServerInfo> serverInfos = serverInfoMapper.selectServerInfoByIds(ids);
+        if (serverInfos == null || serverInfos.isEmpty()) {
+            return Collections.emptyMap();
+        }
+
+        return serverInfos.stream()
+                .filter(info -> info.getId() != null)
+                .collect(Collectors.toMap(info -> String.valueOf(info.getId()), ServerInfo::getNameTag, (left, right) -> left));
     }
 
     private Map<String, Object> buildBaseStatusMap(ServerInfo serverInfo) {
@@ -1135,17 +1432,22 @@ public class OpenApiServiceImpl implements IOpenApiService {
 
     private Map<String, Object> buildTimeoutStatusMap(ServerInfo serverInfo) {
         Map<String, Object> timeoutMap = buildBaseStatusMap(serverInfo);
-        applyFailureStatus(timeoutMap);
+        applyFailureStatus(timeoutMap, "检测超时");
         return timeoutMap;
     }
 
     private void applyFailureStatus(Map<String, Object> statusMap) {
+        applyFailureStatus(statusMap, "检测失败");
+    }
+
+    private void applyFailureStatus(Map<String, Object> statusMap, String failureType) {
         statusMap.put("Rcon连接", "失败");
         statusMap.put("在线状态", "离线");
         statusMap.put("在线人数", "0");
         statusMap.put("最大人数", "0");
         statusMap.put("延迟(ms)", "0");
         statusMap.put("指标", "服务熔断");
+        statusMap.put("失败类型", failureType);
     }
 
     /**
@@ -1473,7 +1775,7 @@ public class OpenApiServiceImpl implements IOpenApiService {
         }
 
         // 2. 格式校验
-        Pattern gameIdPattern = Pattern.compile("[a-zA-Z0-9_]{1,35}");
+        Pattern gameIdPattern = GAME_ID_PATTERN;
         if (!gameIdPattern.matcher(changeRequest.getOldUserName()).matches()) {
             return AjaxResult.error("旧游戏ID格式不正确!");
         }
@@ -1481,7 +1783,7 @@ public class OpenApiServiceImpl implements IOpenApiService {
             return AjaxResult.error("新游戏ID格式不正确!");
         }
 
-        Pattern qqPattern = Pattern.compile("[0-9]{5,11}");
+        Pattern qqPattern = QQ_PATTERN;
         if (!qqPattern.matcher(changeRequest.getQqNum()).matches()) {
             return AjaxResult.error("QQ号格式不正确!");
         }
@@ -1714,7 +2016,7 @@ public class OpenApiServiceImpl implements IOpenApiService {
             return AjaxResult.error("参数不能为空!");
         }
 
-        Pattern gameIdPattern = Pattern.compile("[a-zA-Z0-9_]{1,35}");
+        Pattern gameIdPattern = GAME_ID_PATTERN;
         if (!gameIdPattern.matcher(newUserName).matches()) {
             return AjaxResult.error("新游戏ID格式不正确!");
         }
@@ -1950,13 +2252,13 @@ public class OpenApiServiceImpl implements IOpenApiService {
      */
     private AjaxResult validateInputFormat(WhitelistInfo whitelistInfo) {
         // 游戏ID正则匹配
-        Pattern gameIdPattern = Pattern.compile("[a-zA-Z0-9_]{1,35}");
+        Pattern gameIdPattern = GAME_ID_PATTERN;
         if (!gameIdPattern.matcher(whitelistInfo.getUserName()).matches()) {
             return AjaxResult.error("游戏ID不合法!");
         }
 
         // QQ号正则匹配
-        Pattern qqPattern = Pattern.compile("[0-9]{5,11}");
+        Pattern qqPattern = QQ_PATTERN;
         if (!qqPattern.matcher(whitelistInfo.getQqNum()).matches()) {
             return AjaxResult.error("QQ号不合法!");
         }
@@ -1977,12 +2279,12 @@ public class OpenApiServiceImpl implements IOpenApiService {
         return switch (existing.getAddState()) {
             case "1" -> AjaxResult.success(String.format("用户:[%s]的提交已于 [%s] 日通过审核,审核人:[%s]",
                     existing.getUserName(),
-                    dateFormat.format(existing.getAddTime()),
+                    formatDate(existing.getAddTime()),
                     existing.getReviewUsers()));
             case "2" ->
                     AjaxResult.success(String.format("用户:[%s]的审核已于 [%s] 日被移除白名单,请规范游戏!如有疑问联系管理员",
                             existing.getUserName(),
-                            dateFormat.format(existing.getAddTime())));
+                            formatDate(existing.getAddTime())));
             default -> AjaxResult.success("正在审核,请勿重复提交申请~ 如有纰漏或加急请联系管理员!");
         };
     }

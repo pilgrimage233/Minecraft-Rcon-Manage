@@ -10,15 +10,27 @@ import java.util.regex.Pattern;
 public class HtmlUtils {
     private static final Logger log = LoggerFactory.getLogger(HtmlUtils.class);
 
+    private static final Pattern TITLE_PATTERN = Pattern.compile(
+            "<title>(.*?)</title>", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern META_DESC_PATTERN = Pattern.compile(
+            "<meta\\s+name=[\"']description[\"']\\s+content=[\"'](.*?)[\"']",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern META_KEYWORDS_PATTERN = Pattern.compile(
+            "<meta\\s+name=[\"']keywords[\"']\\s+content=[\"'](.*?)[\"']",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern CHARSET_PATTERN = Pattern.compile(
+            "<meta\\s+http-equiv=[\"']Content-Type[\"']\\s+content=[\"'].*?charset=(.*?)[\"']",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+    private static final Pattern FAVICON_PATTERN = Pattern.compile(
+            "<link\\s+rel=[\"'](?:shortcut\\s+)?icon[\"']\\s+href=[\"'](.*?)[\"']",
+            Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+
     /**
      * 从HTML内容中提取标题
      */
     public static String extractTitle(String htmlContent) {
         try {
-            // 使用正则表达式提取<title>标签内容
-            Pattern pattern = Pattern.compile("<title>(.*?)</title>",
-                    Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-            Matcher matcher = pattern.matcher(htmlContent);
+            Matcher matcher = TITLE_PATTERN.matcher(htmlContent);
             if (matcher.find()) {
                 return matcher.group(1).trim();
             }
@@ -33,11 +45,7 @@ public class HtmlUtils {
      */
     public static String extractMetaDescription(String htmlContent) {
         try {
-            // 使用正则表达式提取<meta name="description" content="...">标签内容
-            Pattern pattern = Pattern.compile(
-                    "<meta\\s+name=[\"']description[\"']\\s+content=[\"'](.*?)[\"']",
-                    Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-            Matcher matcher = pattern.matcher(htmlContent);
+            Matcher matcher = META_DESC_PATTERN.matcher(htmlContent);
             if (matcher.find()) {
                 return matcher.group(1).trim();
             }
@@ -52,11 +60,7 @@ public class HtmlUtils {
      */
     public static String extractMetaKeywords(String htmlContent) {
         try {
-            // 使用正则表达式提取<meta name="keywords" content="...">标签内容
-            Pattern pattern = Pattern.compile(
-                    "<meta\\s+name=[\"']keywords[\"']\\s+content=[\"'](.*?)[\"']",
-                    Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-            Matcher matcher = pattern.matcher(htmlContent);
+            Matcher matcher = META_KEYWORDS_PATTERN.matcher(htmlContent);
             if (matcher.find()) {
                 return matcher.group(1).trim();
             }
@@ -78,10 +82,7 @@ public class HtmlUtils {
             }
 
             // 然后尝试从meta标签中获取
-            Pattern pattern = Pattern.compile(
-                    "<meta\\s+http-equiv=[\"']Content-Type[\"']\\s+content=[\"'].*?charset=(.*?)[\"']",
-                    Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-            Matcher matcher = pattern.matcher(htmlContent);
+            Matcher matcher = CHARSET_PATTERN.matcher(htmlContent);
             if (matcher.find()) {
                 return matcher.group(1).trim();
             }
@@ -96,11 +97,7 @@ public class HtmlUtils {
      */
     public static String extractFavicon(String htmlContent, URL baseUrl) {
         try {
-            // 尝试从link标签中获取
-            Pattern pattern = Pattern.compile(
-                    "<link\\s+rel=[\"'](?:shortcut\\s+)?icon[\"']\\s+href=[\"'](.*?)[\"']",
-                    Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
-            Matcher matcher = pattern.matcher(htmlContent);
+            Matcher matcher = FAVICON_PATTERN.matcher(htmlContent);
             if (matcher.find()) {
                 String faviconUrl = matcher.group(1).trim();
                 // 如果是相对路径，转换为绝对路径
