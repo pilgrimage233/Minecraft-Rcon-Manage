@@ -3,11 +3,11 @@ message:
   push:
     # 消费者线程数量
     consumer:
-      threads: 5
+      threads: 2
     # 队列配置
     queue:
       # 队列最大容量
-      maxSize: 10000
+      maxSize: 1000
     # 重试配置
     retry:
       # 最大重试次数

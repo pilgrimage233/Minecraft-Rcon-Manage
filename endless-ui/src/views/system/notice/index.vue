@@ -27,6 +27,16 @@
           />
         </el-select>
       </el-form-item>
+      <el-form-item label="前台展示" prop="showInFrontend">
+        <el-select v-model="queryParams.showInFrontend" clearable placeholder="请选择">
+          <el-option
+            v-for="item in yesNoOptions"
+            :key="item.value"
+            :label="item.label"
+            :value="item.value"
+          />
+        </el-select>
+      </el-form-item>
       <el-form-item>
         <el-button icon="el-icon-search" size="mini" type="primary" @click="handleQuery">搜索</el-button>
         <el-button icon="el-icon-refresh" size="mini" @click="resetQuery">重置</el-button>
@@ -84,6 +94,39 @@
       <el-table-column align="center" label="公告类型" prop="noticeType" width="100">
         <template slot-scope="scope">
           <dict-tag :options="dict.type.sys_notice_type" :value="scope.row.noticeType"/>
+        </template>
+      </el-table-column>
+      <el-table-column align="center" label="类型颜色" prop="typeColor" width="120">
+        <template slot-scope="scope">
+          <el-tag
+            v-if="scope.row.typeColor"
+            :style="{ backgroundColor: scope.row.typeColor, color: '#fff', borderColor: scope.row.typeColor }"
+            size="mini"
+          >{{ scope.row.typeColor }}</el-tag>
+          <span v-else>-</span>
+        </template>
+      </el-table-column>
+      <el-table-column align="center" label="生效时间" width="220">
+        <template slot-scope="scope">
+          <span>
+            {{ formatDateTime(scope.row.effectiveStartTime) || '不限' }}
+            ~
+            {{ formatDateTime(scope.row.effectiveEndTime) || '不限' }}
+          </span>
+        </template>
+      </el-table-column>
+      <el-table-column align="center" label="前台展示" prop="showInFrontend" width="100">
+        <template slot-scope="scope">
+          <el-tag :type="normalizeBoolValue(scope.row.showInFrontend) === '1' ? 'success' : 'info'" size="mini">
+            {{ normalizeBoolValue(scope.row.showInFrontend) === '1' ? '是' : '否' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column align="center" label="置顶" prop="isPinned" width="80">
+        <template slot-scope="scope">
+          <el-tag :type="normalizeBoolValue(scope.row.isPinned) === '1' ? 'warning' : 'info'" size="mini">
+            {{ normalizeBoolValue(scope.row.isPinned) === '1' ? '是' : '否' }}
+          </el-tag>
         </template>
       </el-table-column>
       <el-table-column align="center" label="状态" prop="status" width="100">
@@ -160,6 +203,47 @@
               </el-radio-group>
             </el-form-item>
           </el-col>
+          <el-col :span="12">
+            <el-form-item label="类型颜色" prop="typeColor">
+              <el-color-picker v-model="form.typeColor"/>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="置顶">
+              <el-radio-group v-model="form.isPinned">
+                <el-radio
+                  v-for="item in yesNoOptions"
+                  :key="item.value"
+                  :label="item.value"
+                >{{ item.label }}
+                </el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="前台展示">
+              <el-radio-group v-model="form.showInFrontend">
+                <el-radio
+                  v-for="item in yesNoOptions"
+                  :key="item.value"
+                  :label="item.value"
+                >{{ item.label }}
+                </el-radio>
+              </el-radio-group>
+            </el-form-item>
+          </el-col>
+          <el-col :span="24">
+            <el-form-item label="生效时间" prop="effectiveTimeRange">
+              <el-date-picker
+                v-model="form.effectiveTimeRange"
+                end-placeholder="结束时间"
+                range-separator="至"
+                start-placeholder="开始时间"
+                type="datetimerange"
+                value-format="yyyy-MM-dd HH:mm:ss"
+              />
+            </el-form-item>
+          </el-col>
           <el-col :span="24">
             <el-form-item label="内容">
               <editor v-model="form.noticeContent" :min-height="192"/>
@@ -183,6 +267,10 @@ export default {
   dicts: ['sys_notice_status', 'sys_notice_type'],
   data() {
     return {
+      yesNoOptions: [
+        { label: '是', value: '1' },
+        { label: '否', value: '0' }
+      ],
       // 遮罩层
       loading: true,
       // 选中数组
@@ -207,7 +295,8 @@ export default {
         pageSize: 10,
         noticeTitle: undefined,
         createBy: undefined,
-        status: undefined
+        status: undefined,
+        showInFrontend: undefined
       },
       // 表单参数
       form: {},
@@ -229,7 +318,21 @@ export default {
     /** 查询公告列表 */
     getList() {
       this.loading = true;
-      listNotice(this.queryParams).then(response => {
+      const params = {
+        ...this.queryParams,
+        pageNum: Number(this.queryParams.pageNum) || 1,
+        pageSize: Number(this.queryParams.pageSize) || 10,
+      };
+
+      if (!['0', '1'].includes(String(params.showInFrontend))) {
+        params.showInFrontend = undefined;
+      }
+
+      if (!['1', '2'].includes(String(params.noticeType))) {
+        params.noticeType = undefined;
+      }
+
+      listNotice(params).then(response => {
         this.noticeList = response.rows;
         this.total = response.total;
         this.loading = false;
@@ -247,9 +350,27 @@ export default {
         noticeTitle: undefined,
         noticeType: undefined,
         noticeContent: undefined,
-        status: "0"
+        status: "0",
+        typeColor: "#3b82f6",
+        effectiveStartTime: undefined,
+        effectiveEndTime: undefined,
+        effectiveTimeRange: [],
+        showInFrontend: undefined,
+        isPinned: undefined
       };
       this.resetForm("form");
+    },
+    normalizeBoolValue(value) {
+      if (value === '1' || value === 'Y' || value === 'y') {
+        return '1';
+      }
+      return '0';
+    },
+    formatDateTime(value) {
+      if (!value) {
+        return '';
+      }
+      return parseTime(value, '{y}-{m}-{d} {h}:{i}:{s}');
     },
     /** 搜索按钮操作 */
     handleQuery() {
@@ -279,6 +400,21 @@ export default {
       const noticeId = row.noticeId || this.ids
       getNotice(noticeId).then(response => {
         this.form = response.data;
+        if (this.form.typeColor && this.form.typeColor.includes('rgba')) {
+          this.form.typeColor = '#3b82f6';
+        }
+        this.form.effectiveTimeRange = this.form.effectiveStartTime || this.form.effectiveEndTime
+          ? [this.form.effectiveStartTime, this.form.effectiveEndTime]
+          : [];
+        if (!this.form.typeColor) {
+          this.form.typeColor = '#3b82f6';
+        }
+        if (!this.form.showInFrontend) {
+          this.form.showInFrontend = undefined;
+        }
+        if (!this.form.isPinned) {
+          this.form.isPinned = undefined;
+        }
         this.open = true;
         this.title = "修改公告";
       });
@@ -287,6 +423,9 @@ export default {
     submitForm: function () {
       this.$refs["form"].validate(valid => {
         if (valid) {
+          const effectiveTimeRange = this.form.effectiveTimeRange || [];
+          this.form.effectiveStartTime = effectiveTimeRange.length ? effectiveTimeRange[0] : null;
+          this.form.effectiveEndTime = effectiveTimeRange.length ? effectiveTimeRange[1] : null;
           if (this.form.noticeId != undefined) {
             updateNotice(this.form).then(response => {
               this.$modal.msgSuccess("修改成功");

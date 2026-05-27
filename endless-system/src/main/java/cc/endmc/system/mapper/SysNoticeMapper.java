@@ -1,6 +1,9 @@
 package cc.endmc.system.mapper;
 
 import java.util.List;
+
+import org.apache.ibatis.annotations.Param;
+
 import cc.endmc.system.domain.SysNotice;
 
 /**
@@ -25,6 +28,14 @@ public interface SysNoticeMapper
      * @return 公告集合
      */
     public List<SysNotice> selectNoticeList(SysNotice notice);
+
+    /**
+     * 查询当前有效且可在前台展示的公告
+     *
+     * @param limit 条数限制
+     * @return 公告集合
+     */
+    public List<SysNotice> selectActiveFrontendNoticeList(@Param("limit") Integer limit);
 
     /**
      * 新增公告

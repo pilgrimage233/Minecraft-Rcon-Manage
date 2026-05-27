@@ -15,12 +15,34 @@ import iframeToggle from "./IframeToggle/index"
 export default {
   name: 'AppMain',
   components: {iframeToggle},
+  mounted() {
+    this.triggerLayoutReflow()
+  },
+  watch: {
+    $route() {
+      this.triggerLayoutReflow()
+    }
+  },
   computed: {
     cachedViews() {
       return this.$store.state.tagsView.cachedViews
     },
     key() {
       return this.$route.path
+    }
+  },
+  methods: {
+    triggerLayoutReflow() {
+      this.$nextTick(() => {
+        // 首帧重排：处理大部分页面切换后容器尺寸未刷新问题
+        requestAnimationFrame(() => {
+          window.dispatchEvent(new Event('resize'))
+        })
+        // 过渡动画结束后再重排一次，避免偶现错位
+        setTimeout(() => {
+          window.dispatchEvent(new Event('resize'))
+        }, 260)
+      })
     }
   }
 }

@@ -1,8 +1,10 @@
 package cc.endmc.system.service.impl;
 
 import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
 import cc.endmc.system.domain.SysNotice;
 import cc.endmc.system.mapper.SysNoticeMapper;
 import cc.endmc.system.service.ISysNoticeService;
@@ -40,6 +42,18 @@ public class SysNoticeServiceImpl implements ISysNoticeService
     public List<SysNotice> selectNoticeList(SysNotice notice)
     {
         return noticeMapper.selectNoticeList(notice);
+    }
+
+    /**
+     * 查询当前有效且可在前台展示的公告
+     *
+     * @param limit 条数限制
+     * @return 公告集合
+     */
+    @Override
+    public List<SysNotice> selectActiveFrontendNoticeList(Integer limit)
+    {
+        return noticeMapper.selectActiveFrontendNoticeList(limit);
     }
 
     /**

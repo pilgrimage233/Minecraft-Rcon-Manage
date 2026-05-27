@@ -6,13 +6,18 @@ import cc.endmc.server.annotation.SignVerify;
 import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.request.ChangeIdRequest;
 import cc.endmc.server.service.open.IOpenApiService;
+import cc.endmc.system.domain.SysNotice;
+import cc.endmc.system.service.ISysNoticeService;
 import com.alibaba.fastjson2.JSONObject;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * 公共接口
@@ -26,6 +31,7 @@ import java.util.Map;
 public class OpenApiController extends BaseController {
 
     private final IOpenApiService openApiService;
+    private final ISysNoticeService noticeService;
 
     /**
      * 聚合查询
@@ -243,6 +249,35 @@ public class OpenApiController extends BaseController {
     @GetMapping("/getServerInfoByGameId/{gameId}")
     public AjaxResult getServerInfoByGameId(@PathVariable String gameId) {
         return openApiService.getServerInfoByGameId(gameId);
+    }
+
+    /**
+     * 获取前台可见的有效公告
+     *
+     * @param limit 条数限制，默认 5
+     * @return 公告列表
+     */
+    @GetMapping("/notices")
+    public AjaxResult getFrontendNotices(@RequestParam(required = false, defaultValue = "5") Integer limit) {
+        int safeLimit = limit == null || limit <= 0 ? 5 : Math.min(limit, 20);
+        List<SysNotice> notices = noticeService.selectActiveFrontendNoticeList(safeLimit);
+        List<Map<String, Object>> data = notices.stream().map(notice -> {
+            Map<String, Object> item = new HashMap<>(12);
+            item.put("noticeId", notice.getNoticeId());
+            item.put("noticeTitle", notice.getNoticeTitle());
+            item.put("noticeType", notice.getNoticeType());
+            item.put("noticeContent", notice.getNoticeContent());
+            item.put("status", notice.getStatus());
+            item.put("typeColor", notice.getTypeColor());
+            item.put("effectiveStartTime", notice.getEffectiveStartTime());
+            item.put("effectiveEndTime", notice.getEffectiveEndTime());
+            item.put("showInFrontend", notice.getShowInFrontend());
+            item.put("isPinned", notice.getIsPinned());
+            item.put("createBy", notice.getCreateBy());
+            item.put("createTime", notice.getCreateTime());
+            return item;
+        }).collect(Collectors.toList());
+        return success(data);
     }
 
 }

@@ -19,6 +19,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 public class ThreadPoolWatchdog {
 
     private static final String ASYNC_POOL_NAME = "threadPoolTaskExecutor";
+    private static final String SCHEDULED_POOL_NAME = "scheduledExecutorService";
+    private static final int MAX_DIAG_TASKS = 3;
+    private static final int MAX_STACK_FRAMES = 6;
 
     private final ThreadPoolTaskExecutor threadPoolTaskExecutor;
     private final ScheduledExecutorService scheduledExecutorService;
@@ -91,6 +94,10 @@ public class ThreadPoolWatchdog {
                     oldestRunningMs);
         }
 
+        if (hasTimedOutTask) {
+            logTimedOutTaskDetails(ASYNC_POOL_NAME, runningTasks);
+        }
+
         if (autoInterruptTimeoutTask && hasTimedOutTask) {
             int interrupted = taskExecutionTracker.interruptTimedOutTasks(
                     ASYNC_POOL_NAME,
@@ -125,11 +132,65 @@ public class ThreadPoolWatchdog {
                     monitoredPool.getCompletedTaskCount());
         }
 
+        List<TaskExecutionTracker.RunningTask> runningTasks = taskExecutionTracker.snapshot(SCHEDULED_POOL_NAME);
+        long oldestRunningMs = runningTasks.isEmpty() ? 0L : runningTasks.get(0).runningMs();
+        if (oldestRunningMs >= taskTimeoutMs) {
+            logTimedOutTaskDetails(SCHEDULED_POOL_NAME, runningTasks);
+        }
+
         if (autoInterruptTimeoutTask) {
             int interrupted = monitoredPool.interruptTimedOutTasks(taskTimeoutMs, maxInterruptPerCycle);
             if (interrupted > 0) {
                 log.warn("线程池自愈[scheduledExecutorService] 已中断超时任务线程 {} 个 (timeout={}ms)", interrupted, taskTimeoutMs);
             }
         }
+    }
+
+    private void logTimedOutTaskDetails(String poolName, List<TaskExecutionTracker.RunningTask> runningTasks) {
+        if (runningTasks == null || runningTasks.isEmpty()) {
+            return;
+        }
+
+        int limit = Math.min(MAX_DIAG_TASKS, runningTasks.size());
+        for (int i = 0; i < limit; i++) {
+            TaskExecutionTracker.RunningTask task = runningTasks.get(i);
+            if (task.runningMs() < taskTimeoutMs) {
+                continue;
+            }
+
+            Thread thread = task.thread();
+            StackTraceElement[] stackTrace = thread == null ? new StackTraceElement[0] : thread.getStackTrace();
+            String stackSummary = buildStackSummary(stackTrace);
+
+            log.warn("线程池诊断[{}] taskId={}, taskName={}, thread={}, state={}, running={}ms, stackTop={}",
+                    poolName,
+                    task.id(),
+                    task.taskName(),
+                    thread == null ? "unknown" : thread.getName(),
+                    thread == null ? "unknown" : thread.getState(),
+                    task.runningMs(),
+                    stackSummary);
+        }
+    }
+
+    private String buildStackSummary(StackTraceElement[] stackTrace) {
+        if (stackTrace == null || stackTrace.length == 0) {
+            return "no-stack";
+        }
+
+        StringBuilder builder = new StringBuilder();
+        int limit = Math.min(MAX_STACK_FRAMES, stackTrace.length);
+        for (int i = 0; i < limit; i++) {
+            StackTraceElement frame = stackTrace[i];
+            if (i > 0) {
+                builder.append(" <- ");
+            }
+            builder.append(frame.getClassName())
+                    .append(".")
+                    .append(frame.getMethodName())
+                    .append(":")
+                    .append(frame.getLineNumber());
+        }
+        return builder.toString();
     }
 }

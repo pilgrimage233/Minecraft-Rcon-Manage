@@ -247,70 +247,95 @@ public class OnlineTask {
      */
     public void commandRetry() {
         log.debug("commandRetry start");
-        Map<String, Object> map = new HashMap<>();
-        if (cache.hasKey(CacheKey.ERROR_COMMAND_CACHE_KEY)) {
-            map = cache.getCacheObject(CacheKey.ERROR_COMMAND_CACHE_KEY);
-            if (map.isEmpty()) {
-                return;
+        migrateLegacyErrorCommandCache();
+
+        String prefix = CacheKey.ERROR_COMMAND_CACHE_KEY + ":";
+        Collection<String> keys = cache.keys(prefix + "*");
+        if (keys == null || keys.isEmpty()) {
+            log.debug("commandRetry end");
+            return;
+        }
+
+        for (String redisKey : keys) {
+            if (StringUtils.isEmpty(redisKey) || !redisKey.startsWith(prefix)) {
+                continue;
             }
-            map.remove("@type");
+            String key = redisKey.substring(prefix.length());
+            Set<String> commands = cache.getCacheSet(redisKey);
+            if (commands == null || commands.isEmpty()) {
+                cache.deleteObject(redisKey);
+                continue;
+            }
 
-            // 发送缓存中的命令
-            for (Map.Entry<String, Object> entry : map.entrySet()) {
-                String key = entry.getKey();
-                Set<String> commands = (Set<String>) entry.getValue();
-                if (commands.isEmpty()) {
-                    continue;
-                }
-                boolean flag = key.contains("all");
+            boolean flag = key.contains("all");
+            Set<String> executedCommands = new HashSet<>();
 
-                // 已执行命令
-                Set<String> executedCommands = new HashSet<>();
-
-                for (String command : commands) {
-                    try {
-                        if (flag) {
-                            RconCache.getMap().forEach((k, v) -> {
-                                try {
-                                    v.sendCommand(command);
-                                } catch (Exception e) {
-                                    log.error("Failed to send command: {}", command, e);
-                                }
-                            });
-                        } else {
-                            if (RconCache.containsKey(key)) {
-                                RconCache.get(key).sendCommand(command);
-                            } else {
-                                // 移除
-                                executedCommands.add(command);
+            for (String command : commands) {
+                try {
+                    if (flag) {
+                        RconCache.getMap().forEach((k, v) -> {
+                            try {
+                                v.sendCommand(command);
+                            } catch (Exception e) {
+                                log.error("Failed to send command: {}", command, e);
                             }
+                        });
+                    } else {
+                        if (RconCache.containsKey(key)) {
+                            RconCache.get(key).sendCommand(command);
+                        } else {
+                            // 移除
+                            executedCommands.add(command);
                         }
-                        log.info("Successfully sent command: {}", command);
-
-                        executedCommands.add(command);
-                    } catch (Exception e) {
-                        log.error("Failed to send command: {}", command, e);
                     }
-                }
+                    log.info("Successfully sent command: {}", command);
 
-                // 移除已执行命令
-                commands.removeAll(executedCommands);
-
-                if (commands.isEmpty()) {
-                    // 删除缓存
-                    map.remove(key);
+                    executedCommands.add(command);
+                } catch (Exception e) {
+                    log.error("Failed to send command: {}", command, e);
                 }
-                if (map.isEmpty()) {
-                    // 删除缓存
-                    cache.deleteObject(CacheKey.ERROR_COMMAND_CACHE_KEY);
-                } else {
-                    // 更新缓存
-                    cache.setCacheObject(CacheKey.ERROR_COMMAND_CACHE_KEY, map);
-                }
+            }
 
+            if (!executedCommands.isEmpty()) {
+                cache.redisTemplate.opsForSet().remove(redisKey, executedCommands.toArray());
+            }
+
+            Set<String> remaining = cache.getCacheSet(redisKey);
+            if (remaining == null || remaining.isEmpty()) {
+                cache.deleteObject(redisKey);
             }
         }
         log.debug("commandRetry end");
+    }
+
+    private void migrateLegacyErrorCommandCache() {
+        if (!cache.hasKey(CacheKey.ERROR_COMMAND_CACHE_KEY)) {
+            return;
+        }
+
+        Map<String, Object> legacyMap = cache.getCacheObject(CacheKey.ERROR_COMMAND_CACHE_KEY);
+        if (legacyMap == null || legacyMap.isEmpty()) {
+            cache.deleteObject(CacheKey.ERROR_COMMAND_CACHE_KEY);
+            return;
+        }
+
+        legacyMap.remove("@type");
+        String prefix = CacheKey.ERROR_COMMAND_CACHE_KEY + ":";
+
+        for (Map.Entry<String, Object> entry : legacyMap.entrySet()) {
+            Object value = entry.getValue();
+            if (!(value instanceof Collection<?> commands)) {
+                continue;
+            }
+            String redisKey = prefix + entry.getKey();
+            for (Object command : commands) {
+                if (command != null) {
+                    cache.redisTemplate.opsForSet().add(redisKey, String.valueOf(command));
+                }
+            }
+        }
+
+        cache.deleteObject(CacheKey.ERROR_COMMAND_CACHE_KEY);
     }
 
     /**

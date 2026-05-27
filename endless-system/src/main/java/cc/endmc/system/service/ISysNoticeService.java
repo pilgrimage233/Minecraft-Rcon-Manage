@@ -1,6 +1,7 @@
 package cc.endmc.system.service;
 
 import java.util.List;
+
 import cc.endmc.system.domain.SysNotice;
 
 /**
@@ -25,6 +26,14 @@ public interface ISysNoticeService
      * @return 公告集合
      */
     public List<SysNotice> selectNoticeList(SysNotice notice);
+
+    /**
+     * 查询当前有效且可在前台展示的公告
+     *
+     * @param limit 条数限制
+     * @return 公告集合
+     */
+    public List<SysNotice> selectActiveFrontendNoticeList(Integer limit);
 
     /**
      * 新增公告
