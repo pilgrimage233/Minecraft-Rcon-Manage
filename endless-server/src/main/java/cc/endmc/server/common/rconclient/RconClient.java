@@ -16,6 +16,7 @@ import java.util.Objects;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -36,15 +37,18 @@ public class RconClient implements Closeable {
     private static final int READ_IDLE_SLEEP_MS = 10;
     // 在默认超时时间的基础上，动态调整每个数据包之间的等待时间，避免过早超时但又能快速响应
     private static final int DEFAULT_INTER_PACKET_TIMEOUT_MS = 80;
-    public static Charset PAYLOAD_CHARSET = StandardCharsets.UTF_8;
-    public static int MAX_RECONNECT_ATTEMPTS = 3;
-    public static int BUFFER_POOL_SIZE = 10;
-    public static int TYPE_COMMAND = 2;
-    public static int TYPE_AUTH = 3;
-    public static long RECONNECT_DELAY_MS; // 重连延迟时间
-    public static int DEFAULT_TIMEOUT_MS;  // 超时时间
-    public static int DEFAULT_BUFFER_SIZE; // 缓冲区大小
-    public static int MAX_RESPONSE_SIZE;  // 最大响应大小
+    // 协议常量，不可变
+    public static final int TYPE_COMMAND = 2;
+    public static final int TYPE_AUTH = 3;
+
+    // 配置字段，通过 RconConfig.init() 初始化，使用 volatile 保证可见性
+    private static volatile Charset payloadCharset = StandardCharsets.UTF_8;
+    private static volatile int maxReconnectAttempts = 3;
+    private static volatile int bufferPoolSize = 10;
+    private static volatile long reconnectDelayMs; // 重连延迟时间
+    private static volatile int defaultTimeoutMs;  // 超时时间
+    private static volatile int defaultBufferSize; // 缓冲区大小
+    private static volatile int maxResponseSize;  // 最大响应大小
     private static final int SHARED_EXECUTOR_CORE_SIZE = Math.max(2, Runtime.getRuntime().availableProcessors());
     private static final int SHARED_EXECUTOR_MAX_SIZE = SHARED_EXECUTOR_CORE_SIZE * 2;
     private static final int SHARED_EXECUTOR_QUEUE_CAPACITY = 2000;
@@ -74,7 +78,8 @@ public class RconClient implements Closeable {
     private final AtomicBoolean isConnected;
     private final BlockingQueue<ByteBuffer> bufferPool;
     private final boolean useDirectBuffers;
-    private SocketChannel socketChannel;
+    private final ReentrantLock sendLock = new ReentrantLock(true); // 公平锁，避免饥饿
+    private volatile SocketChannel socketChannel;
 
     /**
      * 打开RconClient
@@ -131,11 +136,11 @@ public class RconClient implements Closeable {
         this.currentRequestId = new AtomicInteger(1);
         this.isConnected = new AtomicBoolean(true);
         this.useDirectBuffers = useDirectBuffers;
-        this.bufferPool = new ArrayBlockingQueue<>(BUFFER_POOL_SIZE);
+        this.bufferPool = new ArrayBlockingQueue<>(bufferPoolSize);
 
         // Pre-allocate buffers
-        for (int i = 0; i < BUFFER_POOL_SIZE; i++) {
-            bufferPool.offer(createBuffer(DEFAULT_BUFFER_SIZE));
+        for (int i = 0; i < bufferPoolSize; i++) {
+            bufferPool.offer(createBuffer(defaultBufferSize));
         }
     }
 
@@ -148,7 +153,7 @@ public class RconClient implements Closeable {
      * @return // RconClient
      */
     public static RconClient open(String host, int port, String password) {
-        return open(host, port, password, DEFAULT_TIMEOUT_MS);
+        return open(host, port, password, defaultTimeoutMs);
     }
 
     /**
@@ -195,7 +200,7 @@ public class RconClient implements Closeable {
         ByteBuffer buffer = bufferPool.poll();
         if (buffer == null || buffer.capacity() < minCapacity) {
             // If no buffer available or too small, create a new one
-            return createBuffer(Math.max(minCapacity, DEFAULT_BUFFER_SIZE));
+            return createBuffer(Math.max(minCapacity, defaultBufferSize));
         }
         buffer.clear(); // Reset position and limit
         return buffer;
@@ -207,7 +212,7 @@ public class RconClient implements Closeable {
      * @param buffer 缓冲区
      */
     private void returnBuffer(ByteBuffer buffer) {
-        if (buffer != null && buffer.capacity() <= DEFAULT_BUFFER_SIZE * 2) {
+        if (buffer != null && buffer.capacity() <= defaultBufferSize * 2) {
             // Clear buffer before returning to pool
             buffer.clear();
             bufferPool.offer(buffer);
@@ -290,12 +295,23 @@ public class RconClient implements Closeable {
     public void close() {
         isConnected.set(false);
         try {
-            socketChannel.close();
+            if (socketChannel != null && socketChannel.isOpen()) {
+                socketChannel.close();
+            }
         } catch (IOException e) {
-            throw new RconClientException("关闭socket通道失败", e);
+            LOGGER.warning("关闭socket通道失败: " + e.getMessage());
         } finally {
-            // Clear buffer pool
-            bufferPool.clear();
+            // 清空缓冲区池，对于 direct buffer 需要显式清理
+            if (useDirectBuffers) {
+                // 对于 direct buffer，遍历并清空以帮助 GC 回收
+                ByteBuffer buffer;
+                while ((buffer = bufferPool.poll()) != null) {
+                    // direct buffer 无法直接释放，但清空引用有助于 GC 通过 Cleaner 回收
+                    buffer.clear();
+                }
+            } else {
+                bufferPool.clear();
+            }
         }
     }
 
@@ -303,8 +319,8 @@ public class RconClient implements Closeable {
         channel.socket().setTcpNoDelay(true);
         channel.socket().setKeepAlive(true);
         channel.socket().setSoTimeout(timeoutMs);
-        channel.socket().setReceiveBufferSize(DEFAULT_BUFFER_SIZE);
-        channel.socket().setSendBufferSize(DEFAULT_BUFFER_SIZE);
+        channel.socket().setReceiveBufferSize(defaultBufferSize);
+        channel.socket().setSendBufferSize(defaultBufferSize);
     }
 
     /**
@@ -331,37 +347,42 @@ public class RconClient implements Closeable {
     }
 
     /**
-     * 发送
+     * 发送命令，使用 ReentrantLock 替代 synchronized 以获得更细粒度的锁控制
      *
      * @param type    类型
      * @param payload 负载
-     * @return // 响应
+     * @return 响应
      */
-    private synchronized String send(int type, String payload) {
-        int attempts = 0;
-        while (attempts < MAX_RECONNECT_ATTEMPTS) {
-            try {
-                return sendInternal(type, payload);
-            } catch (IOException e) {
-                attempts++;
-                LOGGER.log(Level.WARNING, String.format("连接失败（第 %d 次尝试，共 %d 次）: %s",
-                        attempts, MAX_RECONNECT_ATTEMPTS, e.getMessage()));
+    private String send(int type, String payload) {
+        sendLock.lock();
+        try {
+            int attempts = 0;
+            while (attempts < maxReconnectAttempts) {
+                try {
+                    return sendInternal(type, payload);
+                } catch (IOException e) {
+                    attempts++;
+                    LOGGER.log(Level.WARNING, String.format("连接失败（第 %d 次尝试，共 %d 次）: %s",
+                            attempts, maxReconnectAttempts, e.getMessage()));
 
-                if (attempts < MAX_RECONNECT_ATTEMPTS) {
-                    try {
-                        waitBeforeReconnect();
-                        reconnect();
-                    } catch (IOException ioException) {
-                        throw new RconClientException("重连等待被中断", ioException);
+                    if (attempts < maxReconnectAttempts) {
+                        try {
+                            waitBeforeReconnect();
+                            reconnect();
+                        } catch (IOException ioException) {
+                            throw new RconClientException("重连等待被中断", ioException);
+                        }
+                    } else {
+                        LOGGER.severe(String.format("在 %d 次尝试后仍然无法发送命令: %s",
+                                maxReconnectAttempts, e.getMessage()));
+                        throw new RconClientException("在 " + maxReconnectAttempts + " 次尝试后仍然无法发送命令", e);
                     }
-                } else {
-                    LOGGER.severe(String.format("在 %d 次尝试后仍然无法发送命令: %s",
-                            MAX_RECONNECT_ATTEMPTS, e.getMessage()));
-                    throw new RconClientException("在 " + MAX_RECONNECT_ATTEMPTS + " 次尝试后仍然无法发送命令", e);
                 }
             }
+            throw new RconClientException("在 " + maxReconnectAttempts + " 次尝试后仍然无法发送命令");
+        } finally {
+            sendLock.unlock();
         }
-        throw new RconClientException("在 " + MAX_RECONNECT_ATTEMPTS + " 次尝试后仍然无法发送命令");
     }
 
     /**
@@ -374,13 +395,13 @@ public class RconClient implements Closeable {
     private String sendInternal(int type, String payload) throws IOException {
         int requestId = currentRequestId.getAndIncrement();
 
-        byte[] payloadBytes = payload.getBytes(PAYLOAD_CHARSET);
+        byte[] payloadBytes = payload.getBytes(payloadCharset);
         ByteBuffer buffer = null;
         try {
             buffer = toByteBuffer(requestId, type, payloadBytes);
             writeFully(buffer);
 
-            ResponsePacket firstPacket = readResponsePacket(DEFAULT_TIMEOUT_MS, false);
+            ResponsePacket firstPacket = readResponsePacket(defaultTimeoutMs, false);
             validateResponsePacket(requestId, firstPacket);
 
             if (type == TYPE_AUTH) {
@@ -428,8 +449,8 @@ public class RconClient implements Closeable {
             LOGGER.info(String.format("正在尝试重新连接到 %s:%d", host, port));
             socketChannel = SocketChannel.open();
             socketChannel.configureBlocking(true);
-            applySocketOptions(socketChannel, DEFAULT_TIMEOUT_MS);
-            socketChannel.socket().connect(new InetSocketAddress(host, port), DEFAULT_TIMEOUT_MS);
+            applySocketOptions(socketChannel, defaultTimeoutMs);
+            socketChannel.socket().connect(new InetSocketAddress(host, port), defaultTimeoutMs);
             socketChannel.configureBlocking(false);
             LOGGER.info("Socket连接已重新建立，正在尝试认证");
             authenticateWithCurrentConnection(password);
@@ -444,11 +465,11 @@ public class RconClient implements Closeable {
     }
 
     private void waitBeforeReconnect() throws IOException {
-        if (RECONNECT_DELAY_MS <= 0) {
+        if (reconnectDelayMs <= 0) {
             return;
         }
-        LOGGER.info(String.format("等待 %dms 后进行重连尝试", RECONNECT_DELAY_MS));
-        sleepQuietly(RECONNECT_DELAY_MS);
+        LOGGER.info(String.format("等待 %dms 后进行重连尝试", reconnectDelayMs));
+        sleepQuietly(reconnectDelayMs);
     }
 
     private ResponsePacket readResponsePacket(int timeoutMs, boolean allowTimeoutWithoutData) throws IOException {
@@ -467,8 +488,8 @@ public class RconClient implements Closeable {
             sizeBuffer.order(ByteOrder.LITTLE_ENDIAN);
             int size = sizeBuffer.getInt();
 
-            if (size < MIN_PACKET_SIZE || size > MAX_RESPONSE_SIZE) {
-                throw new IOException(String.format("无效的响应大小: %d（允许范围: %d-%d）", size, MIN_PACKET_SIZE, MAX_RESPONSE_SIZE));
+            if (size < MIN_PACKET_SIZE || size > maxResponseSize) {
+                throw new IOException(String.format("无效的响应大小: %d（允许范围: %d-%d）", size, MIN_PACKET_SIZE, maxResponseSize));
             }
 
             dataBuffer = getBuffer(size);
@@ -534,7 +555,7 @@ public class RconClient implements Closeable {
     }
 
     private void writeFully(ByteBuffer buffer) throws IOException {
-        long timeoutNanos = TimeUnit.MILLISECONDS.toNanos(Math.max(1, DEFAULT_TIMEOUT_MS));
+        long timeoutNanos = TimeUnit.MILLISECONDS.toNanos(Math.max(1, defaultTimeoutMs));
         long deadline = System.nanoTime() + timeoutNanos;
 
         while (buffer.hasRemaining()) {
@@ -573,7 +594,7 @@ public class RconClient implements Closeable {
         while (payloadLength > 0 && bodyBytes[payloadLength - 1] == 0) {
             payloadLength--;
         }
-        return new String(bodyBytes, 0, payloadLength, PAYLOAD_CHARSET);
+        return new String(bodyBytes, 0, payloadLength, payloadCharset);
     }
 
     private boolean isTerminalPayload(byte[] bodyBytes) {
@@ -590,7 +611,7 @@ public class RconClient implements Closeable {
     }
 
     private int resolveInterPacketTimeoutMs() {
-        int candidate = DEFAULT_TIMEOUT_MS / 4;
+        int candidate = defaultTimeoutMs / 4;
         if (candidate <= 0) {
             return DEFAULT_INTER_PACKET_TIMEOUT_MS;
         }
@@ -648,6 +669,66 @@ public class RconClient implements Closeable {
             SHARED_EXECUTOR.shutdownNow();
             Thread.currentThread().interrupt();
         }
+    }
+
+    // ========== 配置 setter 方法，由 RconConfig.init() 调用 ==========
+
+    public static void setPayloadCharset(Charset charset) {
+        payloadCharset = charset;
+    }
+
+    public static void setMaxReconnectAttempts(int attempts) {
+        maxReconnectAttempts = attempts;
+    }
+
+    public static void setBufferPoolSize(int size) {
+        bufferPoolSize = size;
+    }
+
+    public static void setReconnectDelayMs(long delayMs) {
+        reconnectDelayMs = delayMs;
+    }
+
+    public static void setDefaultTimeoutMs(int timeoutMs) {
+        defaultTimeoutMs = timeoutMs;
+    }
+
+    public static void setDefaultBufferSize(int bufferSize) {
+        defaultBufferSize = bufferSize;
+    }
+
+    public static void setMaxResponseSize(int responseSize) {
+        maxResponseSize = responseSize;
+    }
+
+    // ========== 配置 getter 方法 ==========
+
+    public static Charset getPayloadCharset() {
+        return payloadCharset;
+    }
+
+    public static int getMaxReconnectAttempts() {
+        return maxReconnectAttempts;
+    }
+
+    public static int getBufferPoolSize() {
+        return bufferPoolSize;
+    }
+
+    public static long getReconnectDelayMs() {
+        return reconnectDelayMs;
+    }
+
+    public static int getDefaultTimeoutMs() {
+        return defaultTimeoutMs;
+    }
+
+    public static int getDefaultBufferSize() {
+        return defaultBufferSize;
+    }
+
+    public static int getMaxResponseSize() {
+        return maxResponseSize;
     }
 }
 

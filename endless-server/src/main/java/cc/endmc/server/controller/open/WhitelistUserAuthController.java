@@ -10,7 +10,7 @@ import cc.endmc.server.annotation.SignVerify;
 import cc.endmc.server.common.EmailTemplates;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.rconclient.RconClient;
-import cc.endmc.server.common.service.EmailService;
+import cc.endmc.common.email.EmailService;
 import cc.endmc.server.common.service.RconService;
 import cc.endmc.server.cache.RconCache;
 import cc.endmc.server.domain.other.HistoryCommand;

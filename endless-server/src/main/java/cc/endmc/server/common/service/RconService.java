@@ -1,6 +1,7 @@
 package cc.endmc.server.common.service;
 
 import cc.endmc.common.core.redis.RedisCache;
+import cc.endmc.common.email.EmailService;
 import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.server.cache.RconCache;
@@ -40,10 +41,18 @@ public class RconService {
     private static final long RETRY_DELAY_BASE_MS = 1000L;
     private static final int CONNECTION_TIMEOUT_SECONDS = 10;
     private static final int ERROR_EMAIL_THRESHOLD = 10;
-    private static final ReentrantLock INIT_LOCK = new ReentrantLock(true);
-    public static Map<String, ServerCommandInfo> COMMAND_INFO = new ConcurrentHashMap<>();
-    private final PasswordManager passwordManager;
 
+    /**
+     * Per-server 锁，避免全局锁导致不同服务器的 init 互相阻塞
+     */
+    private static final ConcurrentHashMap<String, ReentrantLock> SERVER_LOCKS = new ConcurrentHashMap<>();
+
+    /**
+     * 服务器命令信息缓存，使用 ConcurrentHashMap 保证线程安全
+     */
+    public static final ConcurrentHashMap<String, ServerCommandInfo> COMMAND_INFO = new ConcurrentHashMap<>();
+
+    private final PasswordManager passwordManager;
     private final EmailService emailService;
     private final RedisCache redisCache;
     private final ServerCommandInfoMapper serverCommandInfoMapper;
@@ -198,9 +207,13 @@ public class RconService {
                     return sendCommandToSingleServer(key, command, onlineFlag, reason);
                 }
             } catch (Exception e) {
-                if (handleRetryLogic(retryCount, key, command, onlineFlag, reason, e)) {
-                    continue;
-                } else {
+                String result = handleRetryLogic(retryCount, key, command, onlineFlag, reason, e);
+                if (result != null) {
+                    // 重连成功后得到了结果
+                    return result;
+                }
+                // result == null 表示需要继续重试或已失败
+                if (retryCount >= MAX_RETRIES - 1) {
                     break;
                 }
             }
@@ -208,6 +221,9 @@ public class RconService {
         return null;
     }
 
+    /**
+     * 发送命令到所有服务器，带超时控制
+     */
     private String sendCommandToAllServers(String command, boolean onlineFlag, String reason) throws ExecutionException, InterruptedException {
         List<CompletableFuture<String>> futures = new ArrayList<>();
         StringBuilder result = new StringBuilder();
@@ -225,12 +241,29 @@ public class RconService {
             futures.add(future);
         });
 
-        // 等待所有命令执行完成
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+        // 等待所有命令执行完成，设置30秒超时
+        try {
+            CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]))
+                    .get(30, TimeUnit.SECONDS);
+        } catch (TimeoutException e) {
+            log.warn("等待所有服务器响应超时（30秒），继续处理已完成的结果");
+            // 超时后继续收集已完成的结果
+        } catch (ExecutionException e) {
+            log.error("执行命令异常: {}", e.getMessage());
+        }
 
-        // 收集所有结果
+        // 收集所有结果（包括已完成的）
         for (CompletableFuture<String> future : futures) {
-            result.append(future.get()).append("\n");
+            if (future.isDone()) {
+                try {
+                    result.append(future.get()).append("\n");
+                } catch (Exception e) {
+                    result.append("Error: ").append(e.getMessage()).append("\n");
+                }
+            } else {
+                result.append("Timeout: 服务器响应超时\n");
+                future.cancel(true); // 取消未完成的任务
+            }
         }
 
         log.debug("发送命令成功到所有服务器: {}", command);
@@ -250,7 +283,12 @@ public class RconService {
         return result;
     }
 
-    private boolean handleRetryLogic(int retryCount, String key, String command, boolean onlineFlag, String reason, Exception e) {
+    /**
+     * 处理重试逻辑
+     *
+     * @return 重连成功后的命令结果，如果返回 null 表示需要继续重试或已失败
+     */
+    private String handleRetryLogic(int retryCount, String key, String command, boolean onlineFlag, String reason, Exception e) {
         log.warn("发送命令失败，第{}次重试: {}", retryCount + 1, e.getMessage());
 
         if (retryCount >= MAX_RETRIES - 1) {
@@ -261,7 +299,8 @@ public class RconService {
                 try {
                     RconClient client = RconCache.get(key);
                     String replaced = replaceCommand(key, command, onlineFlag, reason);
-                    client.sendCommand(replaced);
+                    String result = client.sendCommand(replaced);
+                    return stripMinecraftColorCodes(result);
                 } catch (Exception ex) {
                     log.error("重连后发送命令仍然失败: {}", ex.getMessage());
                     handleCommandError(key, command);
@@ -270,17 +309,20 @@ public class RconService {
                 log.error("重连失败，无法发送命令: {}", command);
                 handleCommandError(key, command);
             }
-            return false;
+            return null;
         }
 
         try {
-            Thread.sleep(RETRY_DELAY_BASE_MS * (retryCount + 1));
+            // 使用指数退避策略，重试间隔随次数增加
+            // 注意：这里使用 Thread.sleep 是有意为之的阻塞操作，因为重试需要等待连接恢复
+            long delay = Math.min(RETRY_DELAY_BASE_MS * (1L << retryCount), 10000); // 最大10秒
+            Thread.sleep(delay);
         } catch (InterruptedException ie) {
             Thread.currentThread().interrupt();
-            return false;
+            return null;
         }
 
-        return true; // 继续重试
+        return null; // 继续重试
     }
 
     /**
@@ -303,6 +345,38 @@ public class RconService {
     }
 
     /**
+     * 获取服务器级别的锁，避免全局锁导致不同服务器的 init 互相阻塞
+     *
+     * @param serverId 服务器ID
+     * @return 该服务器对应的锁
+     */
+    private static ReentrantLock getServerLock(String serverId) {
+        return SERVER_LOCKS.computeIfAbsent(serverId, k -> new ReentrantLock(true));
+    }
+
+    /**
+     * 获取服务器命令信息
+     *
+     * @param serverId 服务器ID
+     * @return 命令信息，如果不存在返回 null
+     */
+    public static ServerCommandInfo getCommandInfo(String serverId) {
+        return COMMAND_INFO.get(serverId);
+    }
+
+    /**
+     * 设置服务器命令信息
+     *
+     * @param serverId 服务器ID
+     * @param info     命令信息
+     */
+    public static void putCommandInfo(String serverId, ServerCommandInfo info) {
+        if (serverId != null && info != null) {
+            COMMAND_INFO.put(serverId, info);
+        }
+    }
+
+    /**
      * 初始化Rcon连接
      *
      * @param info 服务器信息
@@ -314,18 +388,20 @@ public class RconService {
             return false;
         }
 
-        INIT_LOCK.lock();
+        String serverId = info.getId().toString();
+        ReentrantLock serverLock = getServerLock(serverId);
+        serverLock.lock();
         try {
             // 关闭已存在的连接
-            closeExistingConnection(info.getId().toString());
+            closeExistingConnection(serverId);
 
             try {
                 String decryptedPassword = decryptPassword(info);
                 RconClient client = createRconConnection(info, decryptedPassword);
 
                 if (client != null && client.isSocketChannelOpen()) {
-                    COMMAND_INFO.put(info.getId().toString(), createServerCommandInfo(info));
-                    RconCache.put(info.getId().toString(), client);
+                    putCommandInfo(serverId, createServerCommandInfo(info));
+                    RconCache.put(serverId, client);
                     clearErrorCount();
                     log.debug(RconMsg.CONNECT_SUCCESS + "{}", info.getNameTag());
                     return true;
@@ -340,7 +416,7 @@ public class RconService {
                 return false;
             }
         } finally {
-            INIT_LOCK.unlock();
+            serverLock.unlock();
         }
     }
 
@@ -443,9 +519,29 @@ public class RconService {
         }
 
         try {
+            // 优先从 Redis 缓存获取服务器信息
             List<ServerInfo> serverInfos = redisCache.getCacheObject(CacheKey.SERVER_INFO_KEY);
+
+            // 如果缓存为空，从数据库查询作为 fallback
             if (serverInfos == null || serverInfos.isEmpty()) {
-                log.error("服务器信息缓存为空，无法重连");
+                log.warn("服务器信息缓存为空，尝试从数据库查询");
+                try {
+                    ServerInfo query = new ServerInfo();
+                    query.setStatus(1L);
+                    serverInfos = serverInfoMapper.selectServerInfoList(query);
+
+                    if (serverInfos != null && !serverInfos.isEmpty()) {
+                        // 重建缓存
+                        redisCache.setCacheObject(CacheKey.SERVER_INFO_KEY, serverInfos, 3, TimeUnit.DAYS);
+                        log.info("从数据库重建服务器信息缓存成功，共{}个服务器", serverInfos.size());
+                    }
+                } catch (Exception dbEx) {
+                    log.error("从数据库查询服务器信息失败: {}", dbEx.getMessage());
+                }
+            }
+
+            if (serverInfos == null || serverInfos.isEmpty()) {
+                log.error("无法获取服务器信息（缓存和数据库均为空），无法重连");
                 return false;
             }
 
@@ -497,7 +593,7 @@ public class RconService {
             return command;
         }
 
-        ServerCommandInfo info = COMMAND_INFO.get(key);
+        ServerCommandInfo info = getCommandInfo(key);
         if (info == null) {
             log.error("替换命令失败：指令信息为空，服务器ID: {}", key);
             throw new RuntimeException("指令信息为空");

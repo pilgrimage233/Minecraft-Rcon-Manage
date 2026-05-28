@@ -80,7 +80,7 @@ public class ServerCommandInfoServiceImpl implements IServerCommandInfoService {
         if (result != 0) {
             // 更新缓存
             initServerCommandInfo();
-            RconService.COMMAND_INFO = ObjectCache.getCommandInfo();
+            ObjectCache.getCommandInfo().forEach(RconService::putCommandInfo);
         }
         return result;
     }
@@ -98,7 +98,7 @@ public class ServerCommandInfoServiceImpl implements IServerCommandInfoService {
         if (i == 1) {
             // 更新缓存
             initServerCommandInfo();
-            RconService.COMMAND_INFO = ObjectCache.getCommandInfo();
+            ObjectCache.getCommandInfo().forEach(RconService::putCommandInfo);
         }
         return i;
     }

@@ -12,7 +12,7 @@ import cc.endmc.common.utils.poi.ExcelUtil;
 import cc.endmc.framework.manager.AsyncManager;
 import cc.endmc.server.common.EmailTemplates;
 import cc.endmc.server.common.constant.CacheKey;
-import cc.endmc.server.common.service.EmailService;
+import cc.endmc.common.email.EmailService;
 import cc.endmc.server.domain.permission.WhitelistIdChangeHistory;
 import cc.endmc.server.domain.permission.WhitelistInfo;
 import cc.endmc.server.domain.player.PlayerDetails;

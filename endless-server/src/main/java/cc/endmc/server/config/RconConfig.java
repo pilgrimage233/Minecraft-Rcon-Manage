@@ -54,36 +54,24 @@ public class RconConfig {
      */
     private int bufferPoolSize = 10;
 
-    /**
-     * RCON 命令包类型（协议默认 2）。
-     */
-    private int typeCommand = 2;
-
-    /**
-     * RCON 认证包类型（协议默认 3）。
-     */
-    private int typeAuth = 3;
-
     public void init() {
-        RconClient.RECONNECT_DELAY_MS = reconnectDelayMs;
-        RconClient.MAX_RESPONSE_SIZE = maxResponseSize;
-        RconClient.DEFAULT_BUFFER_SIZE = maxBufferSize;
-        RconClient.DEFAULT_TIMEOUT_MS = timeout;
-        RconClient.MAX_RECONNECT_ATTEMPTS = maxReconnectAttempts;
-        RconClient.BUFFER_POOL_SIZE = bufferPoolSize;
-        RconClient.TYPE_COMMAND = typeCommand;
-        RconClient.TYPE_AUTH = typeAuth;
+        RconClient.setReconnectDelayMs(reconnectDelayMs);
+        RconClient.setMaxResponseSize(maxResponseSize);
+        RconClient.setDefaultBufferSize(maxBufferSize);
+        RconClient.setDefaultTimeoutMs(timeout);
+        RconClient.setMaxReconnectAttempts(maxReconnectAttempts);
+        RconClient.setBufferPoolSize(bufferPoolSize);
 
         try {
-            RconClient.PAYLOAD_CHARSET = Charset.forName(payloadCharset);
+            RconClient.setPayloadCharset(Charset.forName(payloadCharset));
         } catch (Exception e) {
-            RconClient.PAYLOAD_CHARSET = StandardCharsets.UTF_8;
+            RconClient.setPayloadCharset(StandardCharsets.UTF_8);
             log.warn("RCON配置中的 payloadCharset={} 非法，已回退为 UTF-8", payloadCharset);
         }
 
-        log.info("RCON配置初始化成功 : timeout={}, reconnectDelayMs={}, maxResponseSize={}, maxBufferSize={}, payloadCharset={}, maxReconnectAttempts={}, bufferPoolSize={}, typeCommand={}, typeAuth={}",
-                timeout, reconnectDelayMs, maxResponseSize, maxBufferSize, RconClient.PAYLOAD_CHARSET,
-                maxReconnectAttempts, bufferPoolSize, typeCommand, typeAuth);
+        log.info("RCON配置初始化成功 : timeout={}, reconnectDelayMs={}, maxResponseSize={}, maxBufferSize={}, payloadCharset={}, maxReconnectAttempts={}, bufferPoolSize={}",
+                timeout, reconnectDelayMs, maxResponseSize, maxBufferSize, RconClient.getPayloadCharset(),
+                maxReconnectAttempts, bufferPoolSize);
     }
 
 }

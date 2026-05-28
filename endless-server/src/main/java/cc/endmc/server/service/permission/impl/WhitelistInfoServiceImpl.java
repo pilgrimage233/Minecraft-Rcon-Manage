@@ -8,7 +8,7 @@ import cc.endmc.server.cache.EmailTempCache;
 import cc.endmc.server.common.EmailTemplates;
 import cc.endmc.server.common.constant.CacheKey;
 import cc.endmc.server.common.constant.Command;
-import cc.endmc.server.common.service.EmailService;
+import cc.endmc.common.email.EmailService;
 import cc.endmc.server.common.service.RconService;
 import cc.endmc.server.domain.permission.BanlistInfo;
 import cc.endmc.server.domain.permission.WhitelistDeadlineInfo;

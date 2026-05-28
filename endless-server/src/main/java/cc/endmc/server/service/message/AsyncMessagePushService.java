@@ -16,7 +16,6 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
@@ -55,9 +54,9 @@ public class AsyncMessagePushService {
     /**
      * 队列统计
      */
-    private final AtomicInteger queueSize = new AtomicInteger(0);
     private final AtomicInteger processedCount = new AtomicInteger(0);
     private final AtomicInteger failedCount = new AtomicInteger(0);
+    private final AtomicInteger skippedCount = new AtomicInteger(0);
     /**
      * 消息队列（有界阻塞队列，避免无限增长）
      */
@@ -102,13 +101,25 @@ public class AsyncMessagePushService {
 
         running.set(false);
 
+        // 等待消费者处理完队列中的消息（最多等待10秒）
+        try {
+            int waitCount = 0;
+            while (!messageQueue.isEmpty() && waitCount < 100) {
+                Thread.sleep(100);
+                waitCount++;
+            }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
+
+        // 取消消费者任务
         for (Future<?> task : consumerTasks) {
             task.cancel(true);
         }
         consumerTasks.clear();
 
-        log.info("异步消息推送服务已关闭，处理消息总数: {}, 失败数: {}",
-                processedCount.get(), failedCount.get());
+        log.info("异步消息推送服务已关闭，处理消息总数: {}, 跳过数: {}, 失败数: {}, 队列剩余: {}",
+                processedCount.get(), skippedCount.get(), failedCount.get(), messageQueue.size());
     }
 
     /**
@@ -120,7 +131,6 @@ public class AsyncMessagePushService {
      * @param targetGroups 目标群组（多个群组用逗号分隔，为空则推送到所有群）
      * @return CompletableFuture<Boolean> 异步结果
      */
-    @Async("virtualThreadExecutor")
     public CompletableFuture<Boolean> pushMessageAsync(String playerName, String message, String serverId, String targetGroups) {
         try {
             // 加入有界队列，满了直接拒绝
@@ -131,7 +141,6 @@ public class AsyncMessagePushService {
                 log.warn("消息队列已满，丢弃消息: player={}, message={}", playerName, message);
                 return CompletableFuture.completedFuture(false);
             }
-            queueSize.incrementAndGet();
 
             log.debug("消息已加入队列: {}, targetGroups: {}", pushMessage.getMessageId(), targetGroups);
             return CompletableFuture.completedFuture(true);
@@ -155,7 +164,6 @@ public class AsyncMessagePushService {
                     continue;
                 }
 
-                queueSize.decrementAndGet();
                 processMessage(message);
 
             } catch (InterruptedException e) {
@@ -181,7 +189,7 @@ public class AsyncMessagePushService {
             // 1. 检查玩家是否在白名单中
             if (!isPlayerInWhitelist(message.getPlayerName())) {
                 log.debug("玩家 {} 不在白名单中，跳过消息推送", message.getPlayerName());
-                processedCount.incrementAndGet();
+                skippedCount.incrementAndGet();
                 return;
             }
 
@@ -214,9 +222,7 @@ public class AsyncMessagePushService {
                     message.getMessageId(), message.getRetryCount());
 
             // 重新入队，队列满则按失败处理
-            if (messageQueue.offer(message)) {
-                queueSize.incrementAndGet();
-            } else {
+            if (!messageQueue.offer(message)) {
                 failedCount.incrementAndGet();
                 log.error("重试入队失败，消息队列已满: {}", message.getMessageId());
             }
@@ -429,6 +435,7 @@ public class AsyncMessagePushService {
         return Map.of(
                 "queueSize", currentQueueSize,
                 "processedCount", processedCount.get(),
+                "skippedCount", skippedCount.get(),
                 "failedCount", failedCount.get(),
                 "running", running.get(),
                 "consumerThreads", consumerThreads,
