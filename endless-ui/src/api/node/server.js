@@ -1,4 +1,5 @@
 import request from '@/utils/request'
+import { withRetry } from '@/utils/nodeUtils'
 
 // 查询节点服务器列表
 export function listServer(query) {
@@ -43,20 +44,38 @@ export function delServer(id) {
   })
 }
 
-// 获取节点服务器主机信息
+// 获取节点服务器主机信息（带重试）
 export function getServerInfo(id) {
-  return request({
-    url: `/node/server/getServerInfo/${id}`,
-    method: 'get'
-  })
+  return withRetry(
+    () => request({
+      url: `/node/server/getServerInfo/${id}`,
+      method: 'get'
+    }),
+    {
+      maxRetries: 2,
+      delay: 1000,
+      onRetry: (attempt, maxRetries, delay) => {
+        console.log(`获取服务器信息失败，正在进行第 ${attempt} 次重试...`)
+      }
+    }
+  )
 }
 
-// 获取节点服务器负载信息
+// 获取节点服务器负载信息（带重试）
 export function getServerLoad(id) {
-  return request({
-    url: `/node/server/getServerLoad/${id}`,
-    method: 'get'
-  })
+  return withRetry(
+    () => request({
+      url: `/node/server/getServerLoad/${id}`,
+      method: 'get'
+    }),
+    {
+      maxRetries: 2,
+      delay: 1000,
+      onRetry: (attempt, maxRetries, delay) => {
+        console.log(`获取负载信息失败，正在进行第 ${attempt} 次重试...`)
+      }
+    }
+  )
 }
 
 // 获取服务器文件列表
@@ -206,13 +225,22 @@ export function sendNodeInstanceCommand(data) {
   })
 }
 
-// 获取实例状态
+// 获取实例状态（带重试）
 export function getNodeInstanceStatus(params) {
-  return request({
-    url: '/node/mcs/instance/status',
-    method: 'get',
-    params: params
-  })
+  return withRetry(
+    () => request({
+      url: '/node/mcs/instance/status',
+      method: 'get',
+      params: params
+    }),
+    {
+      maxRetries: 2,
+      delay: 500,
+      onRetry: (attempt) => {
+        console.log(`获取实例状态失败，正在进行第 ${attempt} 次重试...`)
+      }
+    }
+  )
 }
 
 // 获取控制台历史日志
@@ -230,5 +258,19 @@ export function deleteFile(data) {
     url: '/node/server/deleteFile',
     method: 'delete',
     data: data
+  })
+}
+
+// 批量获取服务器状态
+export function batchGetServerStatus(ids) {
+  return Promise.all(ids.map(id => getServerLoad(id)))
+}
+
+// 获取节点健康状态
+export function getNodeHealth(id) {
+  return request({
+    url: `/node/monitor/health`,
+    method: 'get',
+    params: { nodeId: id }
   })
 }

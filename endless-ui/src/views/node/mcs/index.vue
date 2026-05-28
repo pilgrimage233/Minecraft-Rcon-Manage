@@ -225,7 +225,7 @@
             <span style="font-size: 12px;">{{ parseTime(scope.row.lastStopTime, '{y}-{m}-{d}') }}</span>
           </template>
         </el-table-column>
-        <el-table-column align="center" class-name="small-padding fixed-width" label="操作" width="220">
+        <el-table-column align="center" class-name="small-padding fixed-width" label="操作" width="280">
           <template slot-scope="scope">
             <el-button
               v-hasPermi="['node:mcs:list']"
@@ -234,6 +234,14 @@
               type="primary"
               @click="openTerminal(scope.row)"
             >控制台
+            </el-button>
+            <el-button
+              v-hasPermi="['node:mcs:edit']"
+              icon="el-icon-setting"
+              size="mini"
+              type="text"
+              @click="handleSettings(scope.row)"
+            >设置
             </el-button>
             <el-button
               v-hasPermi="['node:mcs:edit']"
@@ -441,6 +449,9 @@
         <el-button icon="el-icon-check" type="primary" @click="submitForm">确 定</el-button>
       </div>
     </el-dialog>
+
+    <!-- 实例运维设置 -->
+    <server-settings ref="serverSettings" />
   </div>
 </template>
 
@@ -448,9 +459,11 @@
 import {addMcs, delMcs, getMcs, listMcs, updateMcs} from "@/api/node/mcs";
 import {getServer} from "@/api/node/server";
 import {listEnv} from "@/api/node/env";
+import ServerSettings from "./components/ServerSettings.vue";
 
 export default {
   name: "Mcs",
+  components: { ServerSettings },
   data() {
     return {
       // 遮罩层
@@ -833,6 +846,10 @@ export default {
     // 打开实例控制台页面
     openTerminal(row) {
       this.$router.push({path: '/node/mcs/terminal', query: {serverId: row.id}});
+    },
+    // 打开实例运维设置
+    handleSettings(row) {
+      this.$refs.serverSettings && this.$refs.serverSettings.open(row);
     },
     /** 导出按钮操作 */
     handleExport() {

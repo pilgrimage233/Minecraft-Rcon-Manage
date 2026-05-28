@@ -164,7 +164,7 @@
 }
 
 .terminal-card {
-  border-radius: 16px;
+  border-radius: 12px 12px 0 0;
   border: none;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
   transition: all 0.3s ease;
@@ -173,7 +173,6 @@
 
 .terminal-card:hover {
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
-  transform: translateY(-2px);
 }
 
 .terminal-card > > > .el-card__header {
@@ -383,58 +382,47 @@
 }
 
 .cmd-bar {
-  margin-top: 16px;
+  margin-top: 0;
 }
 
 .cmd-input {
   border-radius: 8px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
 }
 
 .cmd-input:hover {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
 .cmd-input > > > .el-input__inner {
-  background: #161b22;
-  color: #c9d1d9;
-  border: 1px solid #30363d;
+  background: #ffffff;
+  color: #303133;
+  border: 1px solid #dcdfe6;
   transition: all 0.3s ease;
-  font-family: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
   font-size: 14px;
   font-weight: 400;
-  letter-spacing: 0.3px;
   padding: 12px 16px;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-rendering: optimizeLegibility;
 }
 
 .cmd-input > > > .el-input__inner::placeholder {
-  color: #6e7681;
-  opacity: 0.8;
+  color: #a8abb2;
+  opacity: 1;
 }
 
 .cmd-input > > > .el-input__inner:focus {
-  border-color: #58a6ff;
-  background: #0d1117;
-  box-shadow: 0 0 0 3px rgba(88, 166, 255, 0.1);
+  border-color: #409eff;
+  box-shadow: 0 0 0 2px rgba(64, 158, 255, 0.1);
 }
 
 .cmd-input > > > .el-input-group__prepend {
-  background: linear-gradient(135deg, #21262d, #161b22);
-  border: 1px solid #30363d;
+  background: #f5f7fa;
+  border: 1px solid #dcdfe6;
   border-right: none;
-  color: #7ee787;
-  font-weight: 600;
-  font-family: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+  color: #409eff;
   font-size: 16px;
   padding: 0 12px;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-  text-shadow: 0 0 8px rgba(126, 231, 135, 0.3);
 }
 
 .cmd-input > > > .el-input-group__append {
@@ -443,11 +431,8 @@
 }
 
 .cmd-input > > > .el-input-group__append .el-button {
-  font-family: 'JetBrains Mono', 'SF Mono', 'Cascadia Code', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
   font-weight: 500;
   letter-spacing: 0.5px;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
 }
 
 /* 快捷配置文件区域 */
@@ -1890,149 +1875,9 @@
   }
 }
 
-/* 主题特定的命令输入框样式 */
+/* 主题特定的命令输入框样式 - 已移除，命令输入框固定白色主题 */
 
-/* Dracula 主题命令输入框 */
-.cmd-bar-theme-dracula .cmd-input > > > .el-input__inner {
-  background: #44475a;
-  color: #f8f8f2;
-  border-color: #6272a4;
-}
-
-.cmd-bar-theme-dracula .cmd-input > > > .el-input__inner:focus {
-  border-color: #bd93f9;
-  box-shadow: 0 0 0 3px rgba(189, 147, 249, 0.1);
-}
-
-.cmd-bar-theme-dracula .cmd-input > > > .el-input__inner::placeholder {
-  color: #6272a4;
-}
-
-.cmd-bar-theme-dracula .cmd-input > > > .el-input-group__prepend {
-  background: linear-gradient(135deg, #6272a4, #44475a);
-  border-color: #6272a4;
-  color: #50fa7b;
-}
-
-/* Monokai 主题命令输入框 */
-.cmd-bar-theme-monokai .cmd-input > > > .el-input__inner {
-  background: #49483e;
-  color: #f8f8f2;
-  border-color: #75715e;
-}
-
-.cmd-bar-theme-monokai .cmd-input > > > .el-input__inner:focus {
-  border-color: #a6e22e;
-  box-shadow: 0 0 0 3px rgba(166, 226, 46, 0.1);
-}
-
-.cmd-bar-theme-monokai .cmd-input > > > .el-input__inner::placeholder {
-  color: #75715e;
-}
-
-.cmd-bar-theme-monokai .cmd-input > > > .el-input-group__prepend {
-  background: linear-gradient(135deg, #75715e, #49483e);
-  border-color: #75715e;
-  color: #a6e22e;
-}
-
-/* Solarized Dark 主题命令输入框 */
-.cmd-bar-theme-solarized-dark .cmd-input > > > .el-input__inner {
-  background: #073642;
-  color: #839496;
-  border-color: #586e75;
-}
-
-.cmd-bar-theme-solarized-dark .cmd-input > > > .el-input__inner:focus {
-  border-color: #2aa198;
-  box-shadow: 0 0 0 3px rgba(42, 161, 152, 0.1);
-}
-
-.cmd-bar-theme-solarized-dark .cmd-input > > > .el-input__inner::placeholder {
-  color: #586e75;
-}
-
-.cmd-bar-theme-solarized-dark .cmd-input > > > .el-input-group__prepend {
-  background: linear-gradient(135deg, #586e75, #073642);
-  border-color: #586e75;
-  color: #2aa198;
-}
-
-/* One Dark 主题命令输入框 */
-.cmd-bar-theme-one-dark .cmd-input > > > .el-input__inner {
-  background: #2c313c;
-  color: #abb2bf;
-  border-color: #5c6370;
-}
-
-.cmd-bar-theme-one-dark .cmd-input > > > .el-input__inner:focus {
-  border-color: #61afef;
-  box-shadow: 0 0 0 3px rgba(97, 175, 239, 0.1);
-}
-
-.cmd-bar-theme-one-dark .cmd-input > > > .el-input__inner::placeholder {
-  color: #5c6370;
-}
-
-.cmd-bar-theme-one-dark .cmd-input > > > .el-input-group__prepend {
-  background: linear-gradient(135deg, #5c6370, #2c313c);
-  border-color: #5c6370;
-  color: #98c379;
-}
-
-/* Terminal Green 主题命令输入框 */
-.cmd-bar-theme-terminal-green .cmd-input > > > .el-input__inner {
-  background: #001100;
-  color: #00ff00;
-  border-color: #006600;
-  text-shadow: 0 0 3px rgba(0, 255, 0, 0.5);
-  font-family: 'Courier New', 'Consolas', monospace;
-}
-
-.cmd-bar-theme-terminal-green .cmd-input > > > .el-input__inner:focus {
-  border-color: #00aa00;
-  box-shadow: 0 0 0 3px rgba(0, 255, 0, 0.1), 0 0 10px rgba(0, 255, 0, 0.2);
-}
-
-.cmd-bar-theme-terminal-green .cmd-input > > > .el-input__inner::placeholder {
-  color: #008800;
-}
-
-.cmd-bar-theme-terminal-green .cmd-input > > > .el-input-group__prepend {
-  background: linear-gradient(135deg, #003300, #001100);
-  border-color: #006600;
-  color: #00ff00;
-  text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
-  font-family: 'Courier New', 'Consolas', monospace;
-}
-
-/* 暖色护眼主题命令输入框 */
-.cmd-bar-theme-warm-light .cmd-input > > > .el-input__inner {
-  background: #eee8d5;
-  color: #657b83;
-  border-color: #d3c7b8;
-  text-shadow: 0 1px 1px rgba(253, 246, 227, 0.8);
-}
-
-.cmd-bar-theme-warm-light .cmd-input > > > .el-input__inner:focus {
-  border-color: #b58900;
-  box-shadow: 0 0 0 3px rgba(181, 137, 0, 0.1);
-}
-
-.cmd-bar-theme-warm-light .cmd-input > > > .el-input__inner::placeholder {
-  color: #93a1a1;
-}
-
-.cmd-bar-theme-warm-light .cmd-input > > > .el-input-group__prepend {
-  background: linear-gradient(135deg, #d3c7b8, #eee8d5);
-  border-color: #d3c7b8;
-  color: #b58900;
-  text-shadow: 0 1px 1px rgba(253, 246, 227, 0.8);
-}
-
-/* GitHub Dark 主题命令输入框 (默认样式已存在，保持不变) */
-
-/* ========== 文件浏览独立对话框样式 ========== */
+/* 文件浏览独立对话框样式 */
 
 /* 文件浏览对话框 */
 .file-browser-dialog > > > .el-dialog {
