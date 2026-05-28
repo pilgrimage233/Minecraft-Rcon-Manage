@@ -57,9 +57,27 @@ public class NodeServer extends BaseEntity {
     private String protocol;
 
     /**
-     * 秘钥
+     * 秘钥（JSON 序列化时隐藏，防止 API 响应泄露）
      */
+    @com.fasterxml.jackson.annotation.JsonIgnore
     private String token;
+
+    /**
+     * 允许反序列化时接收 token（序列化时仍隐藏）
+     */
+    @com.fasterxml.jackson.annotation.JsonProperty("token")
+    public void setToken(String token) {
+        this.token = token;
+    }
+
+    /**
+     * 获取脱敏后的 token（用于前端展示）
+     */
+    @com.fasterxml.jackson.annotation.JsonProperty("tokenMasked")
+    public String getTokenMasked() {
+        if (getToken() == null) return null;
+        return getToken().length() > 4 ? getToken().substring(0, 4) + "***" : "***";
+    }
 
     /**
      * 状态（0正常 1离线 2故障）
@@ -99,6 +117,9 @@ public class NodeServer extends BaseEntity {
 
     @Override
     public String toString() {
+        // token 脱敏：仅显示前4位 + ***
+        String maskedToken = (getToken() != null && getToken().length() > 4)
+                ? getToken().substring(0, 4) + "***" : "***";
         return new ToStringBuilder(this, ToStringStyle.MULTI_LINE_STYLE)
                 .append("id", getId())
                 .append("uuid", getUuid())
@@ -106,7 +127,7 @@ public class NodeServer extends BaseEntity {
                 .append("ip", getIp())
                 .append("port", getPort())
                 .append("protocol", getProtocol())
-                .append("token", getToken())
+                .append("token", maskedToken)
                 .append("status", getStatus())
                 .append("lastHeartbeat", getLastHeartbeat())
                 .append("version", getVersion())

@@ -74,7 +74,7 @@ public class NodeServerController extends BaseController {
      */
     @PreAuthorize("@ss.hasPermi('node:server:add')")
     @Log(title = "节点服务器", businessType = BusinessType.INSERT)
-    @NodeLog(operationType = OperationType.ADD_NODE, operationTarget = OperationTarget.NODE_SERVER, operationName = "")
+    @NodeLog(operationType = OperationType.ADD_NODE, operationTarget = OperationTarget.NODE_SERVER, operationName = "新增节点")
     @AddOrUpdateFilter(add = true)
     @PostMapping
     public AjaxResult add(@RequestBody NodeServer nodeServer) {
@@ -88,7 +88,7 @@ public class NodeServerController extends BaseController {
      */
     @PreAuthorize("@ss.hasPermi('node:server:edit')")
     @Log(title = "节点服务器", businessType = BusinessType.UPDATE)
-    @NodeLog(operationType = OperationType.UPDATE_NODE, operationTarget = OperationTarget.NODE_SERVER, operationName = "")
+    @NodeLog(operationType = OperationType.UPDATE_NODE, operationTarget = OperationTarget.NODE_SERVER, operationName = "修改节点")
     @AddOrUpdateFilter(edit = true)
     @PutMapping
     public AjaxResult edit(@RequestBody NodeServer nodeServer) {
@@ -102,7 +102,7 @@ public class NodeServerController extends BaseController {
      */
     @PreAuthorize("@ss.hasPermi('node:server:remove')")
     @Log(title = "节点服务器", businessType = BusinessType.DELETE)
-    @NodeLog(operationType = OperationType.DELETE_NODE, operationTarget = OperationTarget.NODE_SERVER, operationName = "")
+    @NodeLog(operationType = OperationType.DELETE_NODE, operationTarget = OperationTarget.NODE_SERVER, operationName = "删除节点")
     @DeleteMapping("/{ids}")
     public AjaxResult remove(@PathVariable Long[] ids) {
         return toAjax(nodeServerService.deleteNodeServerByIds(ids));

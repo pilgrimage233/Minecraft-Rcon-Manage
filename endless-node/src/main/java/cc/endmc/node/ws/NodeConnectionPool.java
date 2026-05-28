@@ -1,11 +1,13 @@
 package cc.endmc.node.ws;
 
 import cc.endmc.node.common.NodeCache;
+import cc.endmc.node.config.SSLConfig;
 import cc.endmc.node.domain.NodeServer;
 import cc.endmc.node.utils.ApiUtil;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.messaging.simp.stomp.*;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
@@ -19,17 +21,11 @@ import org.springframework.web.socket.sockjs.client.WebSocketTransport;
 
 import jakarta.annotation.PreDestroy;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * 节点WebSocket连接池管理器
@@ -40,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 public class NodeConnectionPool {
 
     private final SimpMessagingTemplate messagingTemplate;
+    private final SSLConfig sslConfig;
 
     // 节点连接池：nodeId -> NodeConnection
     private final Map<Long, NodeConnection> connectionPool = new ConcurrentHashMap<>();
@@ -47,22 +44,65 @@ public class NodeConnectionPool {
     // 订阅管理：subscriptionKey(nodeId:serverId) -> Set<clientSessionId>
     private final Map<String, Set<String>> subscriptions = new ConcurrentHashMap<>();
 
-    // 心跳检测定时器
-    private final ScheduledExecutorService heartbeatExecutor = Executors.newScheduledThreadPool(1);
+    // 连接池大小限制
+    @Value("${endless.node.pool.max-size:50}")
+    private int maxPoolSize;
 
-    // 重连定时器
-    private final ScheduledExecutorService reconnectExecutor = Executors.newScheduledThreadPool(2);
+    // 心跳检测定时器 - 使用可配置的线程池
+    private final ScheduledExecutorService heartbeatExecutor;
 
-    public NodeConnectionPool(SimpMessagingTemplate messagingTemplate) {
+    // 重连定时器 - 使用可配置的线程池
+    private final ScheduledExecutorService reconnectExecutor;
+
+    // 连接池监控指标
+    private final AtomicInteger totalConnections = new AtomicInteger(0);
+    private final AtomicInteger activeConnections = new AtomicInteger(0);
+    private final AtomicInteger failedConnections = new AtomicInteger(0);
+
+    public NodeConnectionPool(SimpMessagingTemplate messagingTemplate, SSLConfig sslConfig) {
         this.messagingTemplate = messagingTemplate;
+        this.sslConfig = sslConfig;
+
+        // 初始化线程池，使用自定义线程工厂
+        ThreadFactory heartbeatFactory = new ThreadFactory() {
+            private final AtomicInteger count = new AtomicInteger(0);
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread t = new Thread(r, "heartbeat-" + count.incrementAndGet());
+                t.setDaemon(true);
+                return t;
+            }
+        };
+
+        ThreadFactory reconnectFactory = new ThreadFactory() {
+            private final AtomicInteger count = new AtomicInteger(0);
+            @Override
+            public Thread newThread(Runnable r) {
+                Thread t = new Thread(r, "reconnect-" + count.incrementAndGet());
+                t.setDaemon(true);
+                return t;
+            }
+        };
+
+        this.heartbeatExecutor = new ScheduledThreadPoolExecutor(2, heartbeatFactory);
+        this.reconnectExecutor = new ScheduledThreadPoolExecutor(4, reconnectFactory);
+
         // 启动心跳检测
         startHeartbeat();
+        log.info("节点连接池初始化完成，最大连接数: {}", maxPoolSize);
     }
 
     /**
      * 获取或创建到节点的连接
      */
     public NodeConnection getOrCreateConnection(long nodeId) {
+        // 检查连接池大小限制
+        if (connectionPool.size() >= maxPoolSize && !connectionPool.containsKey(nodeId)) {
+            log.error("连接池已满，无法创建新连接: nodeId={}, 当前连接数={}, 最大连接数={}",
+                    nodeId, connectionPool.size(), maxPoolSize);
+            return null;
+        }
+
         return connectionPool.computeIfAbsent(nodeId, id -> {
             NodeServer node = NodeCache.get(id);
             if (node == null || !StringUtils.hasText(node.getToken())) {
@@ -70,10 +110,25 @@ public class NodeConnectionPool {
                 return null;
             }
 
+            totalConnections.incrementAndGet();
             NodeConnection connection = new NodeConnection(id, node);
             connection.connect();
             return connection;
         });
+    }
+
+    /**
+     * 获取连接池监控指标
+     */
+    public Map<String, Object> getPoolMetrics() {
+        Map<String, Object> metrics = new HashMap<>();
+        metrics.put("totalConnections", totalConnections.get());
+        metrics.put("activeConnections", activeConnections.get());
+        metrics.put("failedConnections", failedConnections.get());
+        metrics.put("currentPoolSize", connectionPool.size());
+        metrics.put("maxPoolSize", maxPoolSize);
+        metrics.put("subscriptionCount", subscriptions.size());
+        return metrics;
     }
 
     /**
@@ -207,11 +262,29 @@ public class NodeConnectionPool {
     @PreDestroy
     public void destroy() {
         log.info("关闭节点连接池...");
-        heartbeatExecutor.shutdown();
-        reconnectExecutor.shutdown();
         connectionPool.values().forEach(NodeConnection::disconnect);
         connectionPool.clear();
         subscriptions.clear();
+
+        shutdownExecutor(heartbeatExecutor, "heartbeat");
+        shutdownExecutor(reconnectExecutor, "reconnect");
+
+        log.info("节点连接池已关闭，总连接数: {}, 失败次数: {}", totalConnections.get(), failedConnections.get());
+    }
+
+    private void shutdownExecutor(ExecutorService executor, String name) {
+        executor.shutdown();
+        try {
+            if (!executor.awaitTermination(10, TimeUnit.SECONDS)) {
+                executor.shutdownNow();
+                if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {
+                    log.warn("{}线程池未能正常关闭", name);
+                }
+            }
+        } catch (InterruptedException e) {
+            executor.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
     }
 
     /**
@@ -267,27 +340,10 @@ public class NodeConnectionPool {
                 // 创建WebSocket客户端，支持HTTPS
                 StandardWebSocketClient webSocketClient = new StandardWebSocketClient();
 
-                // 如果是HTTPS，配置SSL信任
+                // 如果是HTTPS，使用 SSLConfig 配置 SSL
                 if (wsUrl.startsWith("https://")) {
                     try {
-                        // 创建信任所有证书的SSL上下文
-                        SSLContext sslContext = SSLContext.getInstance("TLS");
-                        TrustManager[] trustAllCerts = new TrustManager[]{
-                                new X509TrustManager() {
-                                    public X509Certificate[] getAcceptedIssuers() {
-                                        return new X509Certificate[0];
-                                    }
-
-                                    public void checkClientTrusted(X509Certificate[] certs, String authType) {
-                                    }
-
-                                    public void checkServerTrusted(X509Certificate[] certs, String authType) {
-                                    }
-                                }
-                        };
-                        sslContext.init(null, trustAllCerts, new SecureRandom());
-
-                        // 配置WebSocket客户端使用自定义SSL上下文
+                        SSLContext sslContext = sslConfig.getSSLContext();
                         webSocketClient.getUserProperties().put("org.apache.tomcat.websocket.SSL_CONTEXT", sslContext);
                         log.debug("已配置SSL信任: nodeId={}", nodeId);
                     } catch (Exception e) {
@@ -301,10 +357,12 @@ public class NodeConnectionPool {
                 stompClient = new WebSocketStompClient(sockJsClient);
 
                 // 配置 TaskScheduler 用于心跳
-                taskScheduler = new ThreadPoolTaskScheduler();
-                taskScheduler.setPoolSize(1);
-                taskScheduler.setThreadNamePrefix("stomp-heartbeat-node-" + nodeId + "-");
-                taskScheduler.initialize();
+                ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+                scheduler.setPoolSize(1);
+                scheduler.setThreadNamePrefix("stomp-heartbeat-node-" + nodeId + "-");
+                scheduler.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+                scheduler.initialize();
+                this.taskScheduler = scheduler;
                 stompClient.setTaskScheduler(taskScheduler);
 
                 // 设置心跳间隔（10秒）
@@ -319,6 +377,7 @@ public class NodeConnectionPool {
                         connecting = false;
                         reconnectAttempts = 0;
                         lastConnectedTime = System.currentTimeMillis();
+                        activeConnections.incrementAndGet();
 
                         // 处理待订阅队列和重新订阅
                         processPendingAndResubscribe();
@@ -333,6 +392,10 @@ public class NodeConnectionPool {
                     @Override
                     public void handleTransportError(StompSession session, Throwable exception) {
                         log.error("节点传输错误: nodeId={}", nodeId, exception);
+                        if (connected) {
+                            activeConnections.decrementAndGet();
+                            failedConnections.incrementAndGet();
+                        }
                         connected = false;
                         connecting = false;
                         scheduleReconnect();
@@ -484,8 +547,14 @@ public class NodeConnectionPool {
          * 断开连接
          */
         public synchronized void disconnect() {
+            boolean wasConnected = connected;
             connected = false;
             connecting = false;
+
+            // 更新连接计数
+            if (wasConnected) {
+                activeConnections.decrementAndGet();
+            }
 
             // 取消所有订阅
             serverSubscriptions.values().forEach(sub -> {

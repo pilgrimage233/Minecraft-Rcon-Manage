@@ -8,6 +8,7 @@ import cc.endmc.node.domain.NodeServer;
 import cc.endmc.node.mapper.NodeServerMapper;
 import cc.endmc.node.service.INodeServerService;
 import cc.endmc.node.utils.ApiUtil;
+import cc.endmc.node.utils.InputValidator;
 import cc.endmc.node.utils.NodeHttpUtil;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
@@ -18,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
@@ -171,6 +173,7 @@ public class NodeServerServiceImpl implements INodeServerService {
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteNodeServerByIds(Long[] ids) {
         // 批量注销节点
         for (Long id : ids) {
@@ -187,6 +190,7 @@ public class NodeServerServiceImpl implements INodeServerService {
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteNodeServerById(Long id) {
         // 先注销节点
         unregister(id);
@@ -316,6 +320,11 @@ public class NodeServerServiceImpl implements INodeServerService {
         String path = null;
         if (params.containsKey("path")) {
             path = params.get("path").toString();
+            // 验证路径安全性
+            if (!InputValidator.isSafePath(path)) {
+                return AjaxResult.error("非法路径");
+            }
+            path = InputValidator.sanitizePath(path);
         }
 
         NodeServer nodeServer = getNode(id.longValue());
@@ -360,6 +369,12 @@ public class NodeServerServiceImpl implements INodeServerService {
         final Integer id = (Integer) params.get("id");
         final String path = (String) params.get("path");
 
+        // 验证路径安全性
+        if (!InputValidator.isSafePath(path)) {
+            log.error("非法路径: {}", path);
+            return;
+        }
+
         NodeServer nodeServer = getNode(id.longValue());
         if (nodeServer == null) {
             log.error("节点服务器不存在: {}", id);
@@ -379,8 +394,12 @@ public class NodeServerServiceImpl implements INodeServerService {
                 return;
             }
 
-            // 获取文件名
+            // 获取文件名并验证安全性
             String filename = path.substring(path.lastIndexOf("\\") + 1);
+            if (!InputValidator.isSafeFilename(filename)) {
+                log.error("文件名不安全: {}", filename);
+                return;
+            }
 
             // 设置响应头
             response.setContentType("application/octet-stream");
@@ -390,20 +409,23 @@ public class NodeServerServiceImpl implements INodeServerService {
             try (InputStream inputStream = httpResponse.bodyStream();
                  OutputStream outputStream = response.getOutputStream()) {
 
-                // 创建直接缓冲区
-                ByteBuffer buffer = ByteBuffer.allocateDirect(8192);
+                // 创建直接缓冲区，增加缓冲区大小到 16KB
+                ByteBuffer buffer = ByteBuffer.allocateDirect(16384);
                 ReadableByteChannel inputChannel = Channels.newChannel(inputStream);
                 WritableByteChannel outputChannel = Channels.newChannel(outputStream);
 
                 // 使用NIO进行数据传输
+                long totalBytes = 0;
                 while (inputChannel.read(buffer) != -1) {
                     buffer.flip();
-                    outputChannel.write(buffer);
+                    int written = outputChannel.write(buffer);
+                    totalBytes += written;
                     buffer.clear();
                 }
 
                 // 确保所有数据都被写入
                 outputStream.flush();
+                log.debug("文件下载完成: {}, 大小: {} bytes", filename, totalBytes);
             }
         } catch (Exception e) {
             log.error("下载文件失败", e);
@@ -462,18 +484,7 @@ public class NodeServerServiceImpl implements INodeServerService {
      * @return 节点服务器
      */
     public NodeServer getNode(Long id) {
-        if (NodeCache.containsKey(id)) {
-            return NodeCache.get(id);
-        } else {
-            NodeServer nodeServer = nodeServerMapper.selectNodeServerById((long) id);
-            if (nodeServer != null) {
-                NodeCache.put(id, nodeServer);
-                return nodeServer;
-            } else {
-                log.error("节点服务器不存在: {}", id);
-                return null;
-            }
-        }
+        return NodeCache.getOrLoad(id, nodeServerMapper::selectNodeServerById);
     }
 
     /**
@@ -491,6 +502,24 @@ public class NodeServerServiceImpl implements INodeServerService {
         final Integer id = (Integer) params.get("id");
         final String path = (String) params.get("path");
         final MultipartFile file = (MultipartFile) params.get("file");
+
+        // 验证路径安全性
+        if (!InputValidator.isSafePath(path)) {
+            return AjaxResult.error("非法路径");
+        }
+
+        // 验证文件名安全性
+        if (file != null && file.getOriginalFilename() != null) {
+            String filename = file.getOriginalFilename();
+            if (!InputValidator.isSafeFilename(filename)) {
+                return AjaxResult.error("文件名不安全");
+            }
+
+            // 验证文件大小（限制为 100MB）
+            if (file.getSize() > 100 * 1024 * 1024) {
+                return AjaxResult.error("文件大小超过限制");
+            }
+        }
 
         NodeServer nodeServer = getNode(id.longValue());
         if (nodeServer == null) {
@@ -514,27 +543,34 @@ public class NodeServerServiceImpl implements INodeServerService {
                 }
                 // 创建临时文件（不在文件名中包含原始文件名，避免路径问题）
                 File tempFile = File.createTempFile("upload_", ".tmp");
-                file.transferTo(tempFile);
-                // 添加文件到表单，使用原始文件名作为表单字段名
-                request.form("file", tempFile, originalFilename);
-                // 设置超时
-                request.timeout(30000);
-                // 确保临时文件在使用后被删除
-                tempFile.deleteOnExit();
+                try {
+                    file.transferTo(tempFile);
+                    // 添加文件到表单，使用原始文件名作为表单字段名
+                    request.form("file", tempFile, originalFilename);
+                    // 设置超时
+                    request.timeout(30000);
+
+                    HttpResponse httpResponse = request.execute();
+                    JSONObject jsonObject = JSONObject.parseObject(httpResponse.body());
+
+                    if (!httpResponse.isOk()) {
+                        return AjaxResult.error(jsonObject.getString("error"));
+                    }
+
+                    if (Boolean.TRUE.equals(jsonObject.getBoolean("success"))) {
+                        return AjaxResult.success("上传成功");
+                    } else {
+                        return AjaxResult.error(jsonObject.getString("message"));
+                    }
+                } finally {
+                    // 确保临时文件被删除
+                    if (tempFile.exists()) {
+                        tempFile.delete();
+                    }
+                }
             }
 
-            HttpResponse httpResponse = request.execute();
-            JSONObject jsonObject = JSONObject.parseObject(httpResponse.body());
-
-            if (!httpResponse.isOk()) {
-                return AjaxResult.error(jsonObject.getString("error"));
-            }
-
-            if (Boolean.TRUE.equals(jsonObject.getBoolean("success"))) {
-                return AjaxResult.success("上传成功");
-            } else {
-                return AjaxResult.error(jsonObject.getString("message"));
-            }
+            return AjaxResult.error("文件不能为空");
         } catch (Exception e) {
             log.error("上传文件失败", e);
             return AjaxResult.error("上传文件失败: " + e.getMessage());
@@ -549,6 +585,16 @@ public class NodeServerServiceImpl implements INodeServerService {
         final Integer id = (Integer) params.get("id");
         final String path = (String) params.get("path");
         final String url = (String) params.get("url");
+
+        // 验证 URL 安全性（防止 SSRF）
+        if (!InputValidator.isSafeUrl(url)) {
+            return AjaxResult.error("URL 不安全或格式无效");
+        }
+
+        // 验证路径安全性
+        if (!InputValidator.isSafePath(path)) {
+            return AjaxResult.error("非法路径");
+        }
 
         NodeServer nodeServer = getNode(id.longValue());
 
@@ -626,6 +672,11 @@ public class NodeServerServiceImpl implements INodeServerService {
 
         final Integer id = (Integer) params.get("id");
         final String path = (String) params.get("path");
+
+        // 验证路径安全性
+        if (!InputValidator.isSafePath(path)) {
+            return AjaxResult.error("非法路径");
+        }
 
         NodeServer nodeServer = getNode(id.longValue());
         if (nodeServer == null) {

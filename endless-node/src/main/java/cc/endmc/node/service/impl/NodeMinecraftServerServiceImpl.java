@@ -12,17 +12,17 @@ import cc.endmc.node.model.ServerInstances;
 import cc.endmc.node.service.INodeMinecraftServerService;
 import cc.endmc.node.utils.ApiUtil;
 import cc.endmc.node.utils.NodeHttpUtil;
+import cc.endmc.node.utils.StartScriptBuilder;
 import cn.hutool.http.HttpRequest;
 import cn.hutool.http.HttpResponse;
 import com.alibaba.fastjson2.JSONObject;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * 实例管理Service业务层处理
@@ -66,6 +66,7 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int insertNodeMinecraftServer(NodeMinecraftServer nodeMinecraftServer) {
         nodeMinecraftServer.setCreateTime(DateUtils.getNowDate());
 
@@ -107,6 +108,7 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int updateNodeMinecraftServer(NodeMinecraftServer nodeMinecraftServer) {
         nodeMinecraftServer.setUpdateTime(DateUtils.getNowDate());
 
@@ -160,6 +162,7 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteNodeMinecraftServerByIds(Long[] ids) {
         // 先删除节点端实例，再删除数据库记录
         for (Long id : ids) {
@@ -199,6 +202,7 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
      * @return 结果
      */
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public int deleteNodeMinecraftServerById(Long id) {
         // 先删除节点端实例，再删除数据库记录
         NodeMinecraftServer server = nodeMinecraftServerMapper.selectNodeMinecraftServerById(id);
@@ -231,17 +235,7 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
 
     // —— 辅助：获取节点信息（带缓存） ——
     private NodeServer getNode(Long id) {
-        if (NodeCache.containsKey(id)) {
-            return NodeCache.get(id);
-        } else {
-            NodeServer nodeServer = nodeServerMapper.selectNodeServerById(id);
-            if (nodeServer != null) {
-                NodeCache.put(id, nodeServer);
-                return nodeServer;
-            } else {
-                return null;
-            }
-        }
+        return NodeCache.getOrLoad(id, nodeServerMapper::selectNodeServerById);
     }
 
     /**
@@ -252,143 +246,7 @@ public class NodeMinecraftServerServiceImpl implements INodeMinecraftServerServi
      * @return 处理后的启动脚本
      */
     private String prepareStartScript(String providedScript, NodeMinecraftServer server) {
-        String script = providedScript;
-        if (StringUtils.isEmpty(script)) {
-            script = server.getStartStr();
-        }
-        return processJvmArgs(script, server);
-    }
-
-    /**
-     * 处理JVM参数：强制替换或添加Xms、Xmx和其他JVM参数，并替换Java路径
-     *
-     * @param script 原始启动脚本
-     * @param server 服务器实例信息
-     * @return 处理后的启动脚本
-     */
-    private String processJvmArgs(String script, NodeMinecraftServer server) {
-        if (script == null || script.isEmpty()) {
-            return script;
-        }
-
-        // 构建新的JVM参数
-        String newXms = "-Xms" + server.getJvmXms() + "M";
-        String newXmx = "-Xmx" + server.getJvmXmx() + "M";
-        String otherArgs = server.getJvmArgs();
-        String javaPath = server.getJavaPath();
-
-        // 移除脚本中已存在的 -Xms 和 -Xmx 参数
-        script = script.replaceAll("-Xms\\d+[MmGgKk]?\\s*", "");
-        script = script.replaceAll("-Xmx\\d+[MmGgKk]?\\s*", "");
-
-        // 如果有其他JVM参数，也需要处理（避免重复添加）
-        if (StringUtils.isNotEmpty(otherArgs)) {
-            // 移除可能重复的其他JVM参数（简单处理：移除常见的JVM参数）
-            String[] commonJvmArgs = {
-                    "-XX:\\+UseG1GC", "-XX:\\+ParallelRefProcEnabled", "-XX:MaxGCPauseMillis=",
-                    "-XX:G1HeapRegionSize=", "-XX:\\+UnlockExperimentalVMOptions", "-XX:\\+DisableExplicitGC",
-                    "-XX:-OmitStackTraceInFastThrow", "-XX:G1NewSizePercent=", "-XX:G1MaxNewSizePercent=",
-                    "-XX:G1HeapWastePercent=", "-XX:G1MixedGCCountTarget=", "-XX:InitiatingHeapOccupancyPercent=",
-                    "-XX:G1MixedGCLiveThresholdPercent=", "-XX:G1RSetUpdatingPauseTimePercent=",
-                    "-XX:SurvivorRatio=", "-XX:PerfDisableSharedMem", "-XX:MaxTenuringThreshold=",
-                    "-Dusing.aikars.flags=", "-Daikars.new.flags="
-            };
-
-            for (String arg : commonJvmArgs) {
-                if (arg.endsWith("=")) {
-                    // 带值的参数，使用正则移除
-                    script = script.replaceAll(arg.replace("+", "\\+").replace(".", "\\.") + "\\d+\\s*", "");
-                } else {
-                    // 不带值的参数，直接移除
-                    script = script.replace(arg + " ", "").replace(arg, "");
-                }
-            }
-        }
-
-        // 找到 java 命令的位置（支持完整路径、引号和 .exe 后缀）
-        // 匹配模式：可能包含引号、路径分隔符（/ 或 \）和可选的 .exe 后缀
-        // 使用正则表达式查找 java 或 java.exe（可能带完整路径和引号）
-        // 匹配: java 或 java.exe 或 /path/to/java 或 'C:\path\to\java.exe' 或 "/path/to/java"
-        Pattern pattern = Pattern.compile("(['\"]?)([^\\s'\"]*[/\\\\])?java(\\.exe)?\\1(?=\\s|$)",
-                Pattern.CASE_INSENSITIVE);
-        Matcher matcher = pattern.matcher(script);
-
-        final boolean match = javaPath.contains(" ") && !javaPath.startsWith("\"") && !javaPath.startsWith("'");
-        if (matcher.find()) {
-            int javaStart = matcher.start();
-            int javaEnd = matcher.end();
-
-            // 如果指定了自定义Java路径，替换原有的java命令
-            String javaCommand;
-            if (StringUtils.isNotEmpty(javaPath)) {
-                // 检查路径是否需要引号（包含空格时）
-                if (match) {
-                    javaCommand = "\"" + javaPath + "\"";
-                } else {
-                    javaCommand = javaPath;
-                }
-            } else {
-                // 保留原有的java命令
-                javaCommand = matcher.group(0);
-            }
-
-            // 跳过 java 命令后面的空格
-            int insertPos = javaEnd;
-            while (insertPos < script.length() && script.charAt(insertPos) == ' ') {
-                insertPos++;
-            }
-
-            // 构建新的脚本：java命令 + JVM参数 + 剩余部分
-            StringBuilder sb = new StringBuilder();
-
-            // 添加java命令之前的部分
-            sb.append(script, 0, javaStart);
-
-            // 添加java命令
-            sb.append(javaCommand);
-
-            // 添加JVM参数
-            sb.append(" ").append(newXms).append(" ").append(newXmx);
-            if (StringUtils.isNotEmpty(otherArgs)) {
-                sb.append(" ").append(otherArgs.trim());
-            }
-            sb.append(" ");
-
-            // 添加剩余部分
-            sb.append(script.substring(insertPos));
-            
-            script = sb.toString();
-        } else {
-            // 如果没有找到 java 命令，构建完整的启动命令
-            StringBuilder sb = new StringBuilder();
-
-            // 添加Java命令
-            if (StringUtils.isNotEmpty(javaPath)) {
-                if (match) {
-                    sb.append("\"").append(javaPath).append("\"");
-                } else {
-                    sb.append(javaPath);
-                }
-            } else {
-                sb.append("java");
-            }
-
-            // 添加JVM参数
-            sb.append(" ").append(newXms).append(" ").append(newXmx);
-            if (StringUtils.isNotEmpty(otherArgs)) {
-                sb.append(" ").append(otherArgs.trim());
-            }
-
-            // 添加原始脚本
-            sb.append(" ").append(script);
-
-            script = sb.toString();
-        }
-
-        // 清理多余的空格
-        script = script.replaceAll("\\s+", " ").trim();
-
-        return script;
+        return StartScriptBuilder.prepareStartScript(providedScript, server);
     }
 
     // —— 节点端实例操控

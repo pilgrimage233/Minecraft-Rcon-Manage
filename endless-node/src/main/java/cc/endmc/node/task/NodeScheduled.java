@@ -48,11 +48,7 @@ public class NodeScheduled {
         final List<NodeServer> nodeServers = nodeServerMapper.selectNodeServerList(new NodeServer());
 
         nodeServers.forEach(nodeServer -> {
-            if (nodeServer.getStatus().equals("1")) {
-                // 未启用节点不做检查
-                return;
-            }
-            log.debug("正在检查节点服务器 [{}] 的心跳状态", nodeServer.getName());
+            log.debug("正在检查节点服务器 [{}] 的心跳状态 (当前状态: {})", nodeServer.getName(), nodeServer.getStatus());
             HttpResponse execute;
 
             try {
@@ -75,6 +71,11 @@ public class NodeScheduled {
                     nodeServer.setLastHeartbeat(new Date());
                     if (!nodeServer.getVersion().equals(body.getString("version"))) {
                         nodeServer.setVersion(body.getString("version"));
+                    }
+                    // 心跳成功即恢复正常状态，不依赖回调结果
+                    if (!nodeServer.getStatus().equals("0")) {
+                        nodeServer.setStatus("0"); // 正常
+                        log.info("节点服务器 [{}] 状态已恢复为正常", nodeServer.getName());
                     }
                     log.info("节点服务器 [{}] 心跳检查正常", nodeServer.getName());
                 }
@@ -99,17 +100,12 @@ public class NodeScheduled {
             if (callback.isOk()) {
                 final JSONObject callbackBody = JSONObject.parseObject(callback.body(), JSONObject.class);
                 if (callbackBody.getString("success").equals("true")) {
-                    // 回调成功
                     log.info("节点服务器 [{}] 心跳回调成功", nodeServer.getName());
-                    if (!nodeServer.getStatus().equals("0")) {
-                        nodeServer.setStatus("0"); // 正常
-                        log.info("节点服务器 [{}] 状态已恢复为正常", nodeServer.getName());
-                    }
                 } else {
                     log.warn("节点服务器 [{}] 心跳回调失败: {}", nodeServer.getName(), callbackBody.getString("message"));
-                    nodeServer.setStatus("2");
-                    nodeServerMapper.updateNodeServer(nodeServer);
                 }
+            } else {
+                log.warn("节点服务器 [{}] 心跳回调请求失败", nodeServer.getName());
             }
 
             nodeServerMapper.updateNodeServer(nodeServer);

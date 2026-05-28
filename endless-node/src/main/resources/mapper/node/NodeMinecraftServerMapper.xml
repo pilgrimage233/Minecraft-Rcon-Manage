@@ -63,6 +63,7 @@
             resultMap="NodeMinecraftServerResult">
         <include refid="selectNodeMinecraftServerVo"/>
         <where>
+            del_flag = '0'
             <if test="nodeId != null ">
                 and node_id = #{nodeId}
             </if>
@@ -294,16 +295,14 @@
         where id = #{id}
     </update>
 
-    <delete id="deleteNodeMinecraftServerById" parameterType="Long">
-        delete
-        from node_minecraft_server
-        where id = #{id}
-    </delete>
+    <update id="deleteNodeMinecraftServerById" parameterType="Long">
+        update node_minecraft_server set del_flag = '1' where id = #{id}
+    </update>
 
-    <delete id="deleteNodeMinecraftServerByIds" parameterType="String">
-        delete from node_minecraft_server where id in
+    <update id="deleteNodeMinecraftServerByIds" parameterType="String">
+        update node_minecraft_server set del_flag = '1' where id in
         <foreach item="id" collection="array" open="(" separator="," close=")">
             #{id}
         </foreach>
-    </delete>
+    </update>
 </mapper>

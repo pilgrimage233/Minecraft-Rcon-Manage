@@ -3,6 +3,8 @@ package cc.endmc.node.ws;
 import cc.endmc.common.core.domain.AjaxResult;
 import cc.endmc.node.common.NodeCache;
 import cc.endmc.node.domain.NodeServer;
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.event.EventListener;
@@ -20,9 +22,8 @@ import org.springframework.web.socket.messaging.SessionDisconnectEvent;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Timer;
-import java.util.TimerTask;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 /**
  * 节点控制台WebSocket代理控制器
@@ -36,8 +37,12 @@ public class NodeConsoleProxyController {
 
     private final NodeConnectionPool connectionPool;
 
-    // WebSocket信息缓存
-    private final Map<String, Map<String, Object>> wsInfoCache = new ConcurrentHashMap<>();
+    // WebSocket信息缓存 - 使用 Caffeine
+    private final Cache<String, Map<String, Object>> wsInfoCache = Caffeine.newBuilder()
+            .expireAfterWrite(10, TimeUnit.MINUTES) // 10 分钟过期
+            .maximumSize(500) // 最大 500 个条目
+            .recordStats() // 记录统计信息
+            .build();
 
     /**
      * 订阅节点服务器控制台
@@ -97,30 +102,20 @@ public class NodeConsoleProxyController {
 
             // 构建WebSocket连接信息
             String wsInfoKey = wsInfoCacheKey(nodeId, serverId);
-            Map<String, Object> wsInfo = wsInfoCache.get(wsInfoKey);
 
-            if (wsInfo == null) {
-                wsInfo = new HashMap<>();
+            // 使用 Caffeine 缓存的 get 方法，自动处理过期和加载
+            Map<String, Object> wsInfo = wsInfoCache.get(wsInfoKey, key -> {
+                Map<String, Object> info = new HashMap<>();
                 // 代理模式下直接使用/ws连接
-                wsInfo.put("wsUrl", "/ws");
+                info.put("wsUrl", "/ws");
                 // 订阅路径
-                wsInfo.put("console", "/topic/node-console/");
+                info.put("console", "/topic/node-console/");
                 // 订阅指令路径
-                wsInfo.put("subscribe", "/app/node/console/subscribe");
+                info.put("subscribe", "/app/node/console/subscribe");
                 // 使用节点的token
-                wsInfo.put("token", node.getToken());
-
-                // 缓存WebSocket信息，有效期10分钟
-                wsInfoCache.put(wsInfoKey, wsInfo);
-
-                // 定时清理缓存
-                new Timer().schedule(new TimerTask() {
-                    @Override
-                    public void run() {
-                        wsInfoCache.remove(wsInfoKey);
-                    }
-                }, 10 * 60 * 1000);
-            }
+                info.put("token", node.getToken());
+                return info;
+            });
 
             return AjaxResult.success(wsInfo);
         } catch (Exception e) {

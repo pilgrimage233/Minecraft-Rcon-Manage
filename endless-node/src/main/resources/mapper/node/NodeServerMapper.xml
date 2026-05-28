@@ -50,6 +50,7 @@
     <select id="selectNodeServerList" parameterType="NodeServer" resultMap="NodeServerResult">
         <include refid="selectNodeServerVo"/>
         <where>
+            del_flag = '0'
             <if test="uuid != null  and uuid != ''">
                 and uuid = #{uuid}
             </if>
@@ -224,16 +225,14 @@
         where id = #{id}
     </update>
 
-    <delete id="deleteNodeServerById" parameterType="Long">
-        delete
-        from node_server
-        where id = #{id}
-    </delete>
+    <update id="deleteNodeServerById" parameterType="Long">
+        update node_server set del_flag = '1' where id = #{id}
+    </update>
 
-    <delete id="deleteNodeServerByIds" parameterType="String">
-        delete from node_server where id in
+    <update id="deleteNodeServerByIds" parameterType="String">
+        update node_server set del_flag = '1' where id in
         <foreach item="id" collection="array" open="(" separator="," close=")">
             #{id}
         </foreach>
-    </delete>
+    </update>
 </mapper>
