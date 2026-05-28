@@ -1,24 +1,15 @@
-package cc.endmc.server.common.service;
+package cc.endmc.common.email;
 
-import cc.endmc.server.config.EmailConfig;
 import lombok.extern.slf4j.Slf4j;
-import org.jetbrains.annotations.NotNull;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.mail.*;
 import javax.mail.internet.InternetAddress;
 import javax.mail.internet.MimeMessage;
-import java.security.Security;
 import java.util.Date;
 import java.util.Properties;
-import java.util.concurrent.ExecutionException;
 
-/**
- * ClassName: PushEmail <br>
- * Description:
- * date: 2024/1/13 15:49 <br>
- */
 @Slf4j
 @Component
 public class EmailService {
@@ -30,11 +21,8 @@ public class EmailService {
     private volatile Session cachedSession;
     private volatile boolean initialized = false;
 
-    public void push(String email, String title, String content) throws ExecutionException, InterruptedException {
-        if (!emailConfig.isEnable()) {
-            return;
-        }
-
+    public void push(String email, String title, String content) throws java.util.concurrent.ExecutionException, InterruptedException {
+        if (!emailConfig.isEnable()) return;
         try {
             Session session = getOrCreateSession();
             MimeMessage message = new MimeMessage(session);
@@ -46,9 +34,9 @@ public class EmailService {
             message.setSentDate(new Date());
             message.saveChanges();
             Transport.send(message);
-            log.info("发送成功！");
+            log.info("邮件发送成功，收件人：{}", email);
         } catch (Exception e) {
-            log.error("邮件发送失败！异常信息：{}", String.valueOf(e));
+            log.error("邮件发送失败，收件人：{}，异常：{}", email, e.getMessage());
         }
     }
 
@@ -71,20 +59,17 @@ public class EmailService {
             protected PasswordAuthentication getPasswordAuthentication() {
                 return new PasswordAuthentication(
                         props.getProperty("mail.user"),
-                        props.getProperty("mail.password")
-                );
+                        props.getProperty("mail.password"));
             }
         });
     }
 
-    private @NotNull Properties buildProperties() {
+    private Properties buildProperties() {
         Properties props = new Properties();
         EmailConfig.SmtpConfig smtpConfig = emailConfig.getCurrentSmtpConfig();
-
         props.setProperty("mail.transport.protocol", "smtp");
         props.setProperty("mail.smtp.host", smtpConfig.getSmtpHost());
         props.setProperty("mail.smtp.port", String.valueOf(smtpConfig.getSmtpPort()));
-
         if (smtpConfig.isSsl()) {
             props.put("mail.smtp.starttls.enable", "true");
             props.put("mail.smtp.starttls.required", "true");
@@ -92,12 +77,10 @@ public class EmailService {
             props.setProperty("mail.smtp.socketFactory.fallback", "false");
             props.setProperty("mail.smtp.socketFactory.port", String.valueOf(smtpConfig.getSmtpPort()));
         }
-
         props.setProperty("mail.smtp.auth", "true");
         props.setProperty("mail.smtp.from", emailConfig.getAccount());
         props.setProperty("mail.user", emailConfig.getAccount());
         props.setProperty("mail.password", emailConfig.getPassword());
-
         return props;
     }
 }
