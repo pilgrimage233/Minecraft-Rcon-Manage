@@ -628,10 +628,70 @@ public class DatabaseMigrationService {
             try {
                 versionMapper.executeSql(trimmedSql);
             } catch (Exception e) {
+                // 检查是否是重复列名错误（幂等性支持）
+                if (isDuplicateColumnError(e)) {
+                    log.warn("⚠️ 列已存在，跳过: {}", extractColumnNameFromDuplicateError(e.getMessage()));
+                    continue;
+                }
+                // 检查是否是重复索引错误
+                if (isDuplicateIndexError(e)) {
+                    log.warn("⚠️ 索引已存在，跳过: {}", trimmedSql);
+                    continue;
+                }
                 log.error("❌ SQL语句执行失败: {}", trimmedSql);
                 throw e;
             }
         }
+    }
+
+    /**
+     * 检查是否是重复列名错误
+     */
+    private boolean isDuplicateColumnError(Exception e) {
+        Throwable cause = e;
+        while (cause != null) {
+            String message = cause.getMessage();
+            if (message != null && (message.contains("Duplicate column name") ||
+                    message.contains("重复列名") ||
+                    message.contains("duplicate column"))) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
+    }
+
+    /**
+     * 检查是否是重复索引错误
+     */
+    private boolean isDuplicateIndexError(Exception e) {
+        Throwable cause = e;
+        while (cause != null) {
+            String message = cause.getMessage();
+            if (message != null && (message.contains("Duplicate key name") ||
+                    message.contains("重复键名") ||
+                    message.contains("duplicate key"))) {
+                return true;
+            }
+            cause = cause.getCause();
+        }
+        return false;
+    }
+
+    /**
+     * 从错误消息中提取列名
+     */
+    private String extractColumnNameFromDuplicateError(String message) {
+        if (message == null) {
+            return "unknown";
+        }
+        // 尝试提取 "Duplicate column name 'xxx'" 中的列名
+        int start = message.indexOf("'");
+        int end = message.lastIndexOf("'");
+        if (start != -1 && end != -1 && start < end) {
+            return message.substring(start + 1, end);
+        }
+        return message;
     }
 
     /**

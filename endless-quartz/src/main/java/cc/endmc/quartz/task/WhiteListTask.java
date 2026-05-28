@@ -6,7 +6,7 @@ import cc.endmc.common.utils.DateUtils;
 import cc.endmc.common.utils.StringUtils;
 import cc.endmc.quartz.async.AsyncService;
 import cc.endmc.server.cache.RconCache;
-import cc.endmc.server.common.service.EmailService;
+import cc.endmc.common.email.EmailService;
 import cc.endmc.server.domain.bot.QqBotConfig;
 import cc.endmc.server.domain.permission.WhitelistDeadlineInfo;
 import cc.endmc.server.domain.permission.WhitelistInfo;
