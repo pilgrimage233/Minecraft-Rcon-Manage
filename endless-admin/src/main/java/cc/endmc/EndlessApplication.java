@@ -23,11 +23,13 @@ import org.slf4j.LoggerFactory;
  * @author ruoyi
  */
 @EnableScheduling
-@SpringBootApplication(exclude = {DataSourceAutoConfiguration.class}, scanBasePackages = "cc.endmc")
+@SpringBootApplication(exclude = { DataSourceAutoConfiguration.class }, scanBasePackages = "cc.endmc")
 public class EndlessApplication {
     private static final Logger log = LoggerFactory.getLogger(EndlessApplication.class);
 
     public static void main(String[] args) {
+        long startTime = System.currentTimeMillis();
+
         // 初始化配置文件
         try {
             InitConfigService initConfigService = new InitConfigService();
@@ -38,7 +40,6 @@ public class EndlessApplication {
             System.exit(1);
         }
 
-        // System.setProperty("spring.devtools.restart.enabled", "false");
         // 启动应用
         ConfigurableApplicationContext context = SpringApplication.run(EndlessApplication.class, args);
 
@@ -46,25 +47,24 @@ public class EndlessApplication {
         String version = context.getEnvironment().getProperty("endless.version", "Unknown");
         String serverPort = context.getEnvironment().getProperty("server.port", "8080");
         String contextPath = context.getEnvironment().getProperty("server.servlet.context-path", "");
-        if (contextPath.isEmpty() || "/".equals(contextPath))
-        {
+        if (contextPath.isEmpty() || "/".equals(contextPath)) {
             contextPath = "";
         }
         String setupUrl = String.format("http://localhost:%s%s/setup.html", serverPort, contextPath);
         log.info("🔧 配置向导地址: {} (仅本机访问，可设置 setup.allow-remote=true)", setupUrl);
 
-        // 收集初始化数据
-        int serverCount = context.getBean(IServerInfoService.class).selectServerInfoList(new ServerInfo()).size();
-        int commandCount = (RconService.COMMAND_INFO != null ? RconService.COMMAND_INFO.size() : 0);
-        int emailTemplateCount = EmailTempCache.size();
-        int rconConnectionCount = RconCache.size();
-        int nodeServerCount = NodeCache.size();
-        int botCount = context.getBean(BotManager.class).getAllBots().size();
-        String updateTime = DateUtils.getTime();
+        // 打印启动横幅和初始化信息汇总
+        long elapsed = System.currentTimeMillis() - startTime;
+        printStartupBanner(version);
+        printStartupSummary(context, version, elapsed);
+    }
 
-        // 打印启动横幅
-        System.out.println("""
-                
+    /**
+     * 打印启动横幅
+     */
+    private static void printStartupBanner(String version) {
+        log.info("""
+
                 (♥◠‿◠)ﾉﾞ  Endless启动成功   ლ(´ڡ`ლ)ﾞ
                   _____   _   _   _____   _       _____   _____   _____\s
                  |  ___| | \\ | | |  _  \\ | |     |  ___| |  ___| |  ___|
@@ -73,23 +73,61 @@ public class EndlessApplication {
                  | |___  | |\\  | | |_| | | |___  | |___   _____   _____\s
                  |_____| |_| \\_| |_____/ |_____| |_____| |_____| |_____|
                                                                         \s
-                                    Version: %s
-                """.formatted(version));
+                                    Version: {}""", version);
+    }
 
-        // 打印初始化信息汇总
-        System.out.println("""
-                ╔════════════════════════════════════════════════════════════════════════════╗
-                ║                      ENDLESS v%-8s 初始化信息汇总                            ║
-                ╠════════════════════════════════════════════════════════════════════════════╣
-                ║ 🎮 服务器缓存数量        : %-45d║
-                ║ 📝 缓存指令数量          : %-45d║
-                ║ 📧 邮件模板数量          : %-45d║
-                ║ 🔌 Rcon连接数量          : %-45d║
-                ║ 🖥️ 节点服务器数量        : %-45d║
-                ║ 🤖 QQ机器人数量          : %-45d║
-                ║ ⏱️ 初始化完成时间        : %-45s║
-                ╚════════════════════════════════════════════════════════════════════════════╝
-                """.formatted(
+    /**
+     * 打印初始化信息汇总（使用 Logger 输出，保持日志一致）
+     */
+    private static void printStartupSummary(ConfigurableApplicationContext context,
+            String version, long elapsedMs) {
+        // 收集缓存数据
+        int serverCount = context.getBean(IServerInfoService.class)
+                .selectServerInfoList(new ServerInfo()).size();
+        int commandCount = (RconService.COMMAND_INFO != null ? RconService.COMMAND_INFO.size() : 0);
+        int emailTemplateCount = EmailTempCache.size();
+        int rconConnectionCount = RconCache.size();
+        int nodeServerCount = NodeCache.size();
+        int botCount = context.getBean(BotManager.class).getAllBots().size();
+
+        // 收集运行时信息
+        Runtime runtime = Runtime.getRuntime();
+        int maxMemory = (int) (runtime.maxMemory() / 1024 / 1024);
+        int totalMemory = (int) (runtime.totalMemory() / 1024 / 1024);
+        int freeMemory = (int) (runtime.freeMemory() / 1024 / 1024);
+        int usedMemory = totalMemory - freeMemory;
+        int processors = runtime.availableProcessors();
+        String javaVersion = System.getProperty("java.version", "Unknown");
+        String[] activeProfiles = context.getEnvironment().getActiveProfiles();
+        String profiles = activeProfiles.length > 0
+                ? String.join(", ", activeProfiles)
+                : "default";
+        String updateTime = DateUtils.getTime();
+        double elapsedSec = elapsedMs / 1000.0;
+        String heapInfo = usedMemory + "MB / " + maxMemory + "MB";
+        String elapsedInfo = String.format("%.1f 秒", elapsedSec);
+
+        // 使用 String.format 构建格式化文本，再通过 Logger 输出（统一日志来源）
+        String summary = String.format("""
+
+                ╔══════════════════════════════════════════════════════════════════════════════╗
+                ║                        ENDLESS v%-8s 初始化信息汇总                              ║
+                ╠══════════════════════════════════════════════════════════════════════════════╣
+                ║  🎮 服务器缓存数量      : %-47d║
+                ║  📝 缓存指令数量        : %-47d║
+                ║  📧 邮件模板数量        : %-47d║
+                ║  🔌 RCON 连接数量       : %-47d║
+                ║  🖥️  节点服务器数量      : %-47d║
+                ║  🤖 QQ 机器人数量       : %-47d║
+                ╠══════════════════════════════════════════════════════════════════════════════╣
+                ║  ☕ Java 版本           : %-47s║
+                ║  📋 Spring Profiles     : %-47s║
+                ║  🧠 JVM 内存 (已用/最大) : %-47s║
+                ║  ⚙️  CPU 核心数          : %-47d║
+                ║  ⏱️  启动耗时            : %-47s║
+                ║  🕐 初始化完成时间      : %-47s║
+                ╚══════════════════════════════════════════════════════════════════════════════╝
+                """,
                 version,
                 serverCount,
                 commandCount,
@@ -97,7 +135,12 @@ public class EndlessApplication {
                 rconConnectionCount,
                 nodeServerCount,
                 botCount,
-                updateTime
-        ));
+                javaVersion,
+                profiles,
+                heapInfo,
+                processors,
+                elapsedInfo,
+                updateTime);
+        log.info(summary);
     }
 }

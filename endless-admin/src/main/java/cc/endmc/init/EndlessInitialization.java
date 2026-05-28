@@ -198,7 +198,11 @@ public class EndlessInitialization implements InitializingBean {
             log.debug("🔨 初始化服务器指令缓存...");
 
             commandInfoService.initServerCommandInfo();
-            RconService.COMMAND_INFO = ObjectCache.getCommandInfo();
+            RconService.COMMAND_INFO.clear();
+            Map<String, cc.endmc.server.domain.server.ServerCommandInfo> cmdInfo = ObjectCache.getCommandInfo();
+            if (cmdInfo != null) {
+                RconService.COMMAND_INFO.putAll(cmdInfo);
+            }
 
             if (RconService.COMMAND_INFO != null && !RconService.COMMAND_INFO.isEmpty()) {
                 log.info("✓ 缓存指令数量: {}", RconService.COMMAND_INFO.size());
