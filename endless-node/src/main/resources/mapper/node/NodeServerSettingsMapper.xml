@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.node.mapper.NodeServerSettingsMapper">
+
+    <resultMap type="NodeServerSettings" id="NodeServerSettingsResult">
+        <result property="id" column="id"/>
+        <result property="nodeId" column="node_id"/>
+        <result property="nodeServerId" column="node_server_id"/>
+        <result property="nodeUuid" column="node_uuid"/>
+        <result property="crashRestartEnabled" column="crash_restart_enabled"/>
+        <result property="crashRestartDelaySec" column="crash_restart_delay_sec"/>
+        <result property="crashRestartMaxRetry" column="crash_restart_max_retry"/>
+        <result property="keepAliveEnabled" column="keep_alive_enabled"/>
+        <result property="keepAliveCheckIntervalSec" column="keep_alive_check_interval_sec"/>
+        <result property="scheduledStartEnabled" column="scheduled_start_enabled"/>
+        <result property="scheduledStartCron" column="scheduled_start_cron"/>
+        <result property="scheduledStopEnabled" column="scheduled_stop_enabled"/>
+        <result property="scheduledStopCron" column="scheduled_stop_cron"/>
+        <result property="scheduledRestartEnabled" column="scheduled_restart_enabled"/>
+        <result property="scheduledRestartCron" column="scheduled_restart_cron"/>
+        <result property="gracefulShutdownTimeoutSec" column="graceful_shutdown_timeout_sec"/>
+        <result property="notifyEmail" column="notify_email"/>
+        <result property="crashNotifyEnabled" column="crash_notify_enabled"/>
+        <result property="backupNotifyEnabled" column="backup_notify_enabled"/>
+        <result property="backupEnabled" column="backup_enabled"/>
+        <result property="backupCron" column="backup_cron"/>
+        <result property="backupRetainCount" column="backup_retain_count"/>
+        <result property="diskAlertEnabled" column="disk_alert_enabled"/>
+        <result property="diskAlertThresholdGb" column="disk_alert_threshold_gb"/>
+        <result property="tpsMode" column="tps_mode"/>
+        <result property="tpsAlertEnabled" column="tps_alert_enabled"/>
+        <result property="tpsAlertThreshold" column="tps_alert_threshold"/>
+        <result property="sparkApiPort" column="spark_api_port"/>
+        <result property="delFlag" column="del_flag"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+        <result property="remark" column="remark"/>
+    </resultMap>
+
+    <sql id="selectNodeServerSettingsVo">
+        select id, node_id, node_server_id, node_uuid,
+               crash_restart_enabled, crash_restart_delay_sec, crash_restart_max_retry,
+               keep_alive_enabled, keep_alive_check_interval_sec,
+               scheduled_start_enabled, scheduled_start_cron,
+               scheduled_stop_enabled, scheduled_stop_cron,
+               scheduled_restart_enabled, scheduled_restart_cron,
+               graceful_shutdown_timeout_sec,
+               notify_email, crash_notify_enabled, backup_notify_enabled,
+               backup_enabled, backup_cron, backup_retain_count,
+               disk_alert_enabled, disk_alert_threshold_gb,
+               tps_mode, tps_alert_enabled, tps_alert_threshold, spark_api_port,
+               del_flag, create_by, create_time, update_by, update_time, remark
+        from node_server_settings
+    </sql>
+
+    <select id="selectNodeServerSettingsById" parameterType="Long" resultMap="NodeServerSettingsResult">
+        <include refid="selectNodeServerSettingsVo"/>
+        where id = #{id} and del_flag = '0'
+    </select>
+
+    <select id="selectNodeServerSettingsByServerId" parameterType="Long" resultMap="NodeServerSettingsResult">
+        <include refid="selectNodeServerSettingsVo"/>
+        where node_server_id = #{nodeServerId} and del_flag = '0'
+    </select>
+
+    <select id="selectNodeServerSettingsList" parameterType="NodeServerSettings" resultMap="NodeServerSettingsResult">
+        <include refid="selectNodeServerSettingsVo"/>
+        <where>
+            del_flag = '0'
+            <if test="nodeId != null">
+                and node_id = #{nodeId}
+            </if>
+            <if test="nodeServerId != null">
+                and node_server_id = #{nodeServerId}
+            </if>
+            <if test="nodeUuid != null and nodeUuid != ''">
+                and node_uuid = #{nodeUuid}
+            </if>
+        </where>
+    </select>
+
+    <insert id="insertNodeServerSettings" parameterType="NodeServerSettings" useGeneratedKeys="true" keyProperty="id">
+        insert into node_server_settings
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="nodeId != null">node_id,</if>
+            <if test="nodeServerId != null">node_server_id,</if>
+            <if test="nodeUuid != null">node_uuid,</if>
+            <if test="crashRestartEnabled != null">crash_restart_enabled,</if>
+            <if test="crashRestartDelaySec != null">crash_restart_delay_sec,</if>
+            <if test="crashRestartMaxRetry != null">crash_restart_max_retry,</if>
+            <if test="keepAliveEnabled != null">keep_alive_enabled,</if>
+            <if test="keepAliveCheckIntervalSec != null">keep_alive_check_interval_sec,</if>
+            <if test="scheduledStartEnabled != null">scheduled_start_enabled,</if>
+            <if test="scheduledStartCron != null">scheduled_start_cron,</if>
+            <if test="scheduledStopEnabled != null">scheduled_stop_enabled,</if>
+            <if test="scheduledStopCron != null">scheduled_stop_cron,</if>
+            <if test="scheduledRestartEnabled != null">scheduled_restart_enabled,</if>
+            <if test="scheduledRestartCron != null">scheduled_restart_cron,</if>
+            <if test="gracefulShutdownTimeoutSec != null">graceful_shutdown_timeout_sec,</if>
+            <if test="notifyEmail != null">notify_email,</if>
+            <if test="crashNotifyEnabled != null">crash_notify_enabled,</if>
+            <if test="backupNotifyEnabled != null">backup_notify_enabled,</if>
+            <if test="backupEnabled != null">backup_enabled,</if>
+            <if test="backupCron != null">backup_cron,</if>
+            <if test="backupRetainCount != null">backup_retain_count,</if>
+            <if test="diskAlertEnabled != null">disk_alert_enabled,</if>
+            <if test="diskAlertThresholdGb != null">disk_alert_threshold_gb,</if>
+            <if test="tpsMode != null">tps_mode,</if>
+            <if test="tpsAlertEnabled != null">tps_alert_enabled,</if>
+            <if test="tpsAlertThreshold != null">tps_alert_threshold,</if>
+            <if test="sparkApiPort != null">spark_api_port,</if>
+            <if test="delFlag != null">del_flag,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+            <if test="updateBy != null">update_by,</if>
+            <if test="updateTime != null">update_time,</if>
+            <if test="remark != null">remark,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="nodeId != null">#{nodeId},</if>
+            <if test="nodeServerId != null">#{nodeServerId},</if>
+            <if test="nodeUuid != null">#{nodeUuid},</if>
+            <if test="crashRestartEnabled != null">#{crashRestartEnabled},</if>
+            <if test="crashRestartDelaySec != null">#{crashRestartDelaySec},</if>
+            <if test="crashRestartMaxRetry != null">#{crashRestartMaxRetry},</if>
+            <if test="keepAliveEnabled != null">#{keepAliveEnabled},</if>
+            <if test="keepAliveCheckIntervalSec != null">#{keepAliveCheckIntervalSec},</if>
+            <if test="scheduledStartEnabled != null">#{scheduledStartEnabled},</if>
+            <if test="scheduledStartCron != null">#{scheduledStartCron},</if>
+            <if test="scheduledStopEnabled != null">#{scheduledStopEnabled},</if>
+            <if test="scheduledStopCron != null">#{scheduledStopCron},</if>
+            <if test="scheduledRestartEnabled != null">#{scheduledRestartEnabled},</if>
+            <if test="scheduledRestartCron != null">#{scheduledRestartCron},</if>
+            <if test="gracefulShutdownTimeoutSec != null">#{gracefulShutdownTimeoutSec},</if>
+            <if test="notifyEmail != null">#{notifyEmail},</if>
+            <if test="crashNotifyEnabled != null">#{crashNotifyEnabled},</if>
+            <if test="backupNotifyEnabled != null">#{backupNotifyEnabled},</if>
+            <if test="backupEnabled != null">#{backupEnabled},</if>
+            <if test="backupCron != null">#{backupCron},</if>
+            <if test="backupRetainCount != null">#{backupRetainCount},</if>
+            <if test="diskAlertEnabled != null">#{diskAlertEnabled},</if>
+            <if test="diskAlertThresholdGb != null">#{diskAlertThresholdGb},</if>
+            <if test="tpsMode != null">#{tpsMode},</if>
+            <if test="tpsAlertEnabled != null">#{tpsAlertEnabled},</if>
+            <if test="tpsAlertThreshold != null">#{tpsAlertThreshold},</if>
+            <if test="sparkApiPort != null">#{sparkApiPort},</if>
+            <if test="delFlag != null">#{delFlag},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+            <if test="updateBy != null">#{updateBy},</if>
+            <if test="updateTime != null">#{updateTime},</if>
+            <if test="remark != null">#{remark},</if>
+        </trim>
+    </insert>
+
+    <update id="updateNodeServerSettings" parameterType="NodeServerSettings">
+        update node_server_settings
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="nodeId != null">node_id = #{nodeId},</if>
+            <if test="nodeServerId != null">node_server_id = #{nodeServerId},</if>
+            <if test="nodeUuid != null">node_uuid = #{nodeUuid},</if>
+            <if test="crashRestartEnabled != null">crash_restart_enabled = #{crashRestartEnabled},</if>
+            <if test="crashRestartDelaySec != null">crash_restart_delay_sec = #{crashRestartDelaySec},</if>
+            <if test="crashRestartMaxRetry != null">crash_restart_max_retry = #{crashRestartMaxRetry},</if>
+            <if test="keepAliveEnabled != null">keep_alive_enabled = #{keepAliveEnabled},</if>
+            <if test="keepAliveCheckIntervalSec != null">keep_alive_check_interval_sec = #{keepAliveCheckIntervalSec},</if>
+            <if test="scheduledStartEnabled != null">scheduled_start_enabled = #{scheduledStartEnabled},</if>
+            <if test="scheduledStartCron != null">scheduled_start_cron = #{scheduledStartCron},</if>
+            <if test="scheduledStopEnabled != null">scheduled_stop_enabled = #{scheduledStopEnabled},</if>
+            <if test="scheduledStopCron != null">scheduled_stop_cron = #{scheduledStopCron},</if>
+            <if test="scheduledRestartEnabled != null">scheduled_restart_enabled = #{scheduledRestartEnabled},</if>
+            <if test="scheduledRestartCron != null">scheduled_restart_cron = #{scheduledRestartCron},</if>
+            <if test="gracefulShutdownTimeoutSec != null">graceful_shutdown_timeout_sec = #{gracefulShutdownTimeoutSec},</if>
+            <if test="notifyEmail != null">notify_email = #{notifyEmail},</if>
+            <if test="crashNotifyEnabled != null">crash_notify_enabled = #{crashNotifyEnabled},</if>
+            <if test="backupNotifyEnabled != null">backup_notify_enabled = #{backupNotifyEnabled},</if>
+            <if test="backupEnabled != null">backup_enabled = #{backupEnabled},</if>
+            <if test="backupCron != null">backup_cron = #{backupCron},</if>
+            <if test="backupRetainCount != null">backup_retain_count = #{backupRetainCount},</if>
+            <if test="diskAlertEnabled != null">disk_alert_enabled = #{diskAlertEnabled},</if>
+            <if test="diskAlertThresholdGb != null">disk_alert_threshold_gb = #{diskAlertThresholdGb},</if>
+            <if test="tpsMode != null">tps_mode = #{tpsMode},</if>
+            <if test="tpsAlertEnabled != null">tps_alert_enabled = #{tpsAlertEnabled},</if>
+            <if test="tpsAlertThreshold != null">tps_alert_threshold = #{tpsAlertThreshold},</if>
+            <if test="sparkApiPort != null">spark_api_port = #{sparkApiPort},</if>
+            <if test="delFlag != null">del_flag = #{delFlag},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            update_time = now()
+        </trim>
+        where id = #{id}
+    </update>
+
+    <update id="deleteNodeServerSettingsById" parameterType="Long">
+        update node_server_settings set del_flag = '1' where id = #{id}
+    </update>
+
+    <update id="deleteNodeServerSettingsByIds" parameterType="String">
+        update node_server_settings set del_flag = '1' where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+</mapper>

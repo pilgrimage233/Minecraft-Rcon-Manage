@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cc.endmc.node.mapper.NodeEmailTemplateMapper">
+
+    <resultMap type="NodeEmailTemplate" id="NodeEmailTemplateResult">
+        <result property="id" column="id"/>
+        <result property="templateKey" column="template_key"/>
+        <result property="templateName" column="template_name"/>
+        <result property="subject" column="subject"/>
+        <result property="content" column="content"/>
+        <result property="description" column="description"/>
+        <result property="delFlag" column="del_flag"/>
+        <result property="createBy" column="create_by"/>
+        <result property="createTime" column="create_time"/>
+        <result property="updateBy" column="update_by"/>
+        <result property="updateTime" column="update_time"/>
+    </resultMap>
+
+    <sql id="selectNodeEmailTemplateVo">
+        select id, template_key, template_name, subject, content, description,
+               del_flag, create_by, create_time, update_by, update_time
+        from node_email_template
+    </sql>
+
+    <select id="selectNodeEmailTemplateById" parameterType="Long" resultMap="NodeEmailTemplateResult">
+        <include refid="selectNodeEmailTemplateVo"/>
+        where id = #{id} and del_flag = '0'
+    </select>
+
+    <select id="selectNodeEmailTemplateByKey" parameterType="String" resultMap="NodeEmailTemplateResult">
+        <include refid="selectNodeEmailTemplateVo"/>
+        where template_key = #{templateKey} and del_flag = '0'
+    </select>
+
+    <select id="selectNodeEmailTemplateList" parameterType="NodeEmailTemplate" resultMap="NodeEmailTemplateResult">
+        <include refid="selectNodeEmailTemplateVo"/>
+        <where>
+            del_flag = '0'
+            <if test="templateKey != null and templateKey != ''">
+                and template_key = #{templateKey}
+            </if>
+            <if test="templateName != null and templateName != ''">
+                and template_name like concat('%', #{templateName}, '%')
+            </if>
+        </where>
+    </select>
+
+    <insert id="insertNodeEmailTemplate" parameterType="NodeEmailTemplate" useGeneratedKeys="true" keyProperty="id">
+        insert into node_email_template
+        <trim prefix="(" suffix=")" suffixOverrides=",">
+            <if test="templateKey != null">template_key,</if>
+            <if test="templateName != null">template_name,</if>
+            <if test="subject != null">subject,</if>
+            <if test="content != null">content,</if>
+            <if test="description != null">description,</if>
+            <if test="delFlag != null">del_flag,</if>
+            <if test="createBy != null">create_by,</if>
+            <if test="createTime != null">create_time,</if>
+        </trim>
+        <trim prefix="values (" suffix=")" suffixOverrides=",">
+            <if test="templateKey != null">#{templateKey},</if>
+            <if test="templateName != null">#{templateName},</if>
+            <if test="subject != null">#{subject},</if>
+            <if test="content != null">#{content},</if>
+            <if test="description != null">#{description},</if>
+            <if test="delFlag != null">#{delFlag},</if>
+            <if test="createBy != null">#{createBy},</if>
+            <if test="createTime != null">#{createTime},</if>
+        </trim>
+    </insert>
+
+    <update id="updateNodeEmailTemplate" parameterType="NodeEmailTemplate">
+        update node_email_template
+        <trim prefix="SET" suffixOverrides=",">
+            <if test="templateKey != null">template_key = #{templateKey},</if>
+            <if test="templateName != null">template_name = #{templateName},</if>
+            <if test="subject != null">subject = #{subject},</if>
+            <if test="content != null">content = #{content},</if>
+            <if test="description != null">description = #{description},</if>
+            <if test="delFlag != null">del_flag = #{delFlag},</if>
+            <if test="updateBy != null">update_by = #{updateBy},</if>
+            update_time = now()
+        </trim>
+        where id = #{id}
+    </update>
+
+    <update id="deleteNodeEmailTemplateById" parameterType="Long">
+        update node_email_template set del_flag = '1' where id = #{id}
+    </update>
+
+    <update id="deleteNodeEmailTemplateByIds" parameterType="String">
+        update node_email_template set del_flag = '1' where id in
+        <foreach item="id" collection="array" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </update>
+</mapper>
